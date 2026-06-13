@@ -30,6 +30,95 @@ risk:
 verification:
 ```
 
+## Best-practice gate
+
+Use this before changing the skill, plugin, adapter, memory, hook, eval, or OSS
+release surface.
+
+```text
+surface:
+best-practice source:
+source checked date:
+source type: official | upstream | local | maintained-oss | user-report
+local applicability:
+change to make:
+negative case / misuse prevented:
+validation:
+owner decision needed:
+```
+
+## Eval card
+
+Use this before claiming a process advantage or benchmark-style improvement.
+
+```text
+capability claim:
+baseline process:
+candidate process:
+task dataset / fixtures:
+success metric:
+negative cases:
+budget: time | tokens | cost | tool calls
+tooling and memory:
+run command / procedure:
+artifacts:
+result:
+failure modes:
+reproduction note:
+```
+
+## Tool contract card
+
+Use this before exposing a tool, adapter, hook, MCP, or external runtime.
+
+```text
+tool/adapter:
+source:
+license:
+when to use:
+when not to use:
+inputs:
+outputs:
+caveats:
+examples:
+permissions:
+sensitive files excluded:
+validation:
+forbidden claims/actions:
+```
+
+## Context and memory recovery note
+
+Use this after long-running work or before compaction.
+
+```text
+objective:
+current state:
+files/artifacts touched:
+evidence captured:
+validation status:
+open risks:
+next safe action:
+what not to redo:
+```
+
+## OSS release gate
+
+Use this before making the repository public or publishing the plugin.
+
+```text
+release target:
+license chosen:
+third-party acknowledgements checked:
+security policy:
+contribution policy:
+private research removed or separated:
+dependency/license review:
+repository health check:
+public claims backed by artifacts:
+version/tag:
+```
+
 ## Scout report
 
 ```text

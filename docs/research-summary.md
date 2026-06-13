@@ -248,3 +248,5 @@ review.
   vendoring or overstating them.
 - `Refactoring Similarity Harness`: structural-similarity report -> candidate
   clusters -> invariant-aware refactor plan -> slice validation.
+- `Best-Practice Gate`: current official/upstream guidance -> local
+  applicability -> eval/tool/context/OSS contract -> validation artifact.

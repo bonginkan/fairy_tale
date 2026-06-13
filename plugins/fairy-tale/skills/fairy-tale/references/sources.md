@@ -79,6 +79,24 @@
 - Claude Agent Skills:
   https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview
 - Claude Code skills:
-  https://code.claude.com/docs/en/slash-commands
+  https://code.claude.com/docs/en/skills
 - Claude Code subagents:
   https://code.claude.com/docs/en/sub-agents
+- OpenAI skill creation guidance:
+  https://github.com/openai/skills/blob/main/skills/.system/skill-creator/SKILL.md
+- Anthropic tool definition guidance:
+  https://platform.claude.com/docs/en/agents-and-tools/tool-use/define-tools
+- Anthropic Claude Code hooks security guidance:
+  https://code.claude.com/docs/en/hooks
+- Anthropic Claude Code memory guidance:
+  https://code.claude.com/docs/en/memory
+- OpenAI evaluation best practices:
+  https://developers.openai.com/api/docs/guides/evaluation-best-practices
+- OpenAI agent safety guidance:
+  https://developers.openai.com/api/docs/guides/agent-builder-safety
+- GitHub license guidance:
+  https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/licensing-a-repository
+- GitHub security policy guidance:
+  https://docs.github.com/en/code-security/how-tos/report-and-fix-vulnerabilities/configure-vulnerability-reporting/add-security-policy
+- OpenSSF Scorecard:
+  https://github.com/ossf/scorecard

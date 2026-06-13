@@ -35,6 +35,7 @@ Initial scaffold and research synthesis.
 
 - `docs/research-summary.md`
 - `docs/arc-agi-3-lab-analysis.md`
+- `docs/best-practices.md`
 - `docs/openmythos-external-adapter.md`
 - `docs/similarity-refactoring-adapter.md`
 - `docs/oss-watch.md`
@@ -67,3 +68,5 @@ ownership remain with each upstream project.
   https://github.com/bonginkan/OpenMythos
 - `kongyo2/similarity` - TypeScript structural similarity/refactoring scout.
   https://github.com/kongyo2/similarity
+- `ossf/scorecard` - future OSS repository security-health reference.
+  https://github.com/ossf/scorecard
