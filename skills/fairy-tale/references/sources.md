@@ -65,6 +65,10 @@
   https://www.youtube.com/watch?v=iRcrZjOt5H8
 - Unity workflow report:
   https://www.youtube.com/watch?v=Zhlh_rsAXGI
+- OpenMythos upstream:
+  https://github.com/kyegomez/OpenMythos
+- OpenMythos bonginkan fork:
+  https://github.com/bonginkan/OpenMythos
 
 ## Skill and agent standards
 

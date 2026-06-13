@@ -1,0 +1,84 @@
+{
+  "schema_version": "1.0",
+  "id": "openmythos",
+  "name": "OpenMythos External Reconstruction Adapter",
+  "kind": "external-reconstruction",
+  "source": {
+    "upstream": "https://github.com/kyegomez/OpenMythos",
+    "fork": "https://github.com/bonginkan/OpenMythos",
+    "local_path_hint": "../OpenMythos",
+    "license": "MIT",
+    "notes": "Use as an external theoretical substrate. Do not vendor source into fairy_tale unless explicitly requested."
+  },
+  "capabilities": [
+    "recurrent-depth-transformer hypothesis",
+    "variable loop-depth inference",
+    "MLA/GQA attention comparison",
+    "MoE recurrent block inspection",
+    "small-scale architectural probes",
+    "adapter-level benchmark evidence"
+  ],
+  "entrypoints": {
+    "import": "from open_mythos import OpenMythos, MythosConfig",
+    "construct": "OpenMythos(MythosConfig(...))",
+    "run": "model(input_ids, n_loops=...) or model.generate(input_ids, max_new_tokens=..., n_loops=...)",
+    "optional": [
+      "from open_mythos import mythos_1b, mythos_3b",
+      "from open_mythos import MythosTokenizer"
+    ]
+  },
+  "contracts": {
+    "inputs": [
+      "token ids or tokenizer output",
+      "MythosConfig or variant config",
+      "loop-depth schedule",
+      "attention mode: mla or gqa",
+      "evaluation prompt/task bundle"
+    ],
+    "outputs": [
+      "logits or generated token ids",
+      "parameter count",
+      "loop-depth and attention configuration",
+      "runtime/cost notes",
+      "validation result"
+    ],
+    "evidence": [
+      "exact adapter manifest revision",
+      "OpenMythos fork commit",
+      "configuration dump",
+      "task input and output artifact",
+      "baseline comparison when available"
+    ]
+  },
+  "safety": {
+    "boundaries": [
+      "Treat OpenMythos as a public theoretical reconstruction, not as Anthropic model access.",
+      "Do not claim architectural equivalence to Claude Mythos/Fable without independent evidence.",
+      "Do not use the adapter to bypass safeguards, export controls, or access restrictions.",
+      "Run only small probes by default; large training runs require an explicit budget."
+    ],
+    "forbidden_claims": [
+      "This is Claude Mythos.",
+      "This reproduces Anthropic proprietary weights.",
+      "This bypasses Fable/Mythos restrictions.",
+      "This proves the real Anthropic architecture."
+    ]
+  },
+  "validation": {
+    "checks": [
+      "adapter manifest validates against schemas/fairy-tale-adapter.schema.json",
+      "fork exists under bonginkan/OpenMythos",
+      "local path is optional but, when present, points to a clean clone",
+      "small import/shape probe can run in an environment with dependencies installed",
+      "results are recorded as evidence, not model-equivalence claims"
+    ],
+    "minimum_artifacts": [
+      "manifest",
+      "source commit",
+      "config",
+      "input",
+      "output",
+      "validation note"
+    ]
+  }
+}

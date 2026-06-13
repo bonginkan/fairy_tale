@@ -43,6 +43,17 @@ Useful ideas to borrow:
 - 3D/game stacks: prefer established engines and renderers such as Three.js,
   native GPU frameworks, or CAD APIs; validate rendered frames instead of
   trusting generated code.
+- External reconstruction adapters: keep speculative architecture projects
+  outside the core repo and connect them through manifests, pinned commits, and
+  evidence records.
+
+## External reconstruction projects
+
+- OpenMythos:
+  - upstream: https://github.com/kyegomez/OpenMythos
+  - fork: https://github.com/bonginkan/OpenMythos
+  - role: public theoretical RDT/looped-transformer substrate for controlled
+    probes, not proof of Anthropic internals.
 
 ## Fable-specific public curation
 

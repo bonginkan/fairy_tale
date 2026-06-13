@@ -191,6 +191,24 @@ Examples from the run:
 
 The reusable process is `Mechanism Grammar Harness`.
 
+## OpenMythos external reconstruction
+
+`kyegomez/OpenMythos` is an MIT-licensed public theoretical reconstruction of a
+Mythos-like recurrent-depth transformer. A `bonginkan/OpenMythos` fork now
+exists for pinning and future experiments. Fairy Tale should not vendor or
+modify that source by default. Instead, it uses an adapter manifest:
+
+- `adapters/openmythos.adapter.json`
+- `schemas/fairy-tale-adapter.schema.json`
+- `docs/openmythos-external-adapter.md`
+
+This creates an `External Reconstruction Adapter Harness`: external repos
+provide speculative implementations; Fairy Tale provides orchestration,
+evidence capture, validation, claim boundaries, and comparison against baseline
+processes. The adapter layer is Rust-based (`crates/fairy-adapter-runner`) so
+future orchestration does not depend on Python except when an external project,
+such as OpenMythos, is itself a Python/PyTorch runtime.
+
 ## Derived process names
 
 - `Fairy Tale Loop`: high-level plan -> scoped scouts -> synthesis -> validation -> memory update.
@@ -205,3 +223,6 @@ The reusable process is `Mechanism Grammar Harness`.
   grounded in voice profiles and target-user emotional validation.
 - `Mechanism Grammar Harness`: ARC-style hidden-rule discovery through
   instrumentation, micro-probes, layer inspection, and compiled solvers.
+- `External Reconstruction Adapter Harness`: adapter-manifest boundary for
+  probing external theoretical reconstructions such as OpenMythos without
+  vendoring or overstating them.

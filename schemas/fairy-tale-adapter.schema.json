@@ -1,0 +1,161 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/bonginkan/fairy_tale/schemas/fairy-tale-adapter.schema.json",
+  "title": "Fairy Tale External Adapter Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "name",
+    "kind",
+    "source",
+    "capabilities",
+    "entrypoints",
+    "contracts",
+    "safety",
+    "validation"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^1\\.0$"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "external-reconstruction",
+        "evaluation-harness",
+        "domain-tool",
+        "renderer",
+        "memory-system"
+      ]
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["upstream", "fork", "license"],
+      "properties": {
+        "upstream": {
+          "type": "string",
+          "format": "uri"
+        },
+        "fork": {
+          "type": "string",
+          "format": "uri"
+        },
+        "local_path_hint": {
+          "type": "string"
+        },
+        "license": {
+          "type": "string",
+          "minLength": 1
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "entrypoints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["import", "construct", "run"],
+      "properties": {
+        "import": {
+          "type": "string"
+        },
+        "construct": {
+          "type": "string"
+        },
+        "run": {
+          "type": "string"
+        },
+        "optional": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "contracts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["inputs", "outputs", "evidence"],
+      "properties": {
+        "inputs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "outputs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["boundaries", "forbidden_claims"],
+      "properties": {
+        "boundaries": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "forbidden_claims": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["checks", "minimum_artifacts"],
+      "properties": {
+        "checks": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "minimum_artifacts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

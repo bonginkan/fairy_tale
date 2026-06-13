@@ -143,6 +143,24 @@ Workflow translation:
 - switch from exploration to BFS/planning only after the grammar is stable,
 - preserve recovery handles for long runs, scorecards, and remote sessions.
 
+## External theoretical reconstruction
+
+OpenMythos provides a public MIT-licensed theoretical reconstruction of a
+Mythos-like recurrent-depth transformer. Fairy Tale should use it as an
+external adapter, not as vendored truth. The useful capability is not "we have
+Claude Mythos"; it is a controlled way to probe architectural hypotheses such
+as looped depth, input reinjection, MLA/GQA attention, and MoE recurrence.
+
+Workflow translation:
+
+- fork or pin the external source,
+- describe it with an adapter manifest,
+- validate the manifest before use,
+- run small probes first,
+- record commit/config/input/output evidence,
+- compare against baselines before claiming an advantage,
+- keep claim boundaries explicit.
+
 ## Defensive cyber capability
 
 Project Glasswing reports strong vulnerability discovery and validation
