@@ -1,0 +1,10 @@
+.DS_Store
+*.log
+tmp/
+dist/
+build/
+node_modules/
+.env
+.env.*
+!.env.example
+
