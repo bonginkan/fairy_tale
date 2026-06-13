@@ -20,7 +20,8 @@ struct AdapterManifest {
 #[derive(Debug, Deserialize)]
 struct Source {
     upstream: String,
-    fork: String,
+    fork: Option<String>,
+    package: Option<String>,
     local_path_hint: Option<String>,
     license: String,
     notes: Option<String>,
@@ -105,8 +106,13 @@ fn validate_adapter(path: &Path) -> Result<AdapterManifest, String> {
     )?;
 
     require_non_empty(&manifest.source.upstream, "source.upstream")?;
-    require_non_empty(&manifest.source.fork, "source.fork")?;
     require_non_empty(&manifest.source.license, "source.license")?;
+    if let Some(fork) = &manifest.source.fork {
+        require_non_empty(fork, "source.fork")?;
+    }
+    if let Some(package) = &manifest.source.package {
+        require_non_empty(package, "source.package")?;
+    }
     if let Some(local_path_hint) = &manifest.source.local_path_hint {
         require_non_empty(local_path_hint, "source.local_path_hint")?;
     }

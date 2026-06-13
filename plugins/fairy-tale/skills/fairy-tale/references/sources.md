@@ -69,6 +69,8 @@
   https://github.com/kyegomez/OpenMythos
 - OpenMythos bonginkan fork:
   https://github.com/bonginkan/OpenMythos
+- Similarity upstream:
+  https://github.com/kongyo2/similarity
 
 ## Skill and agent standards
 

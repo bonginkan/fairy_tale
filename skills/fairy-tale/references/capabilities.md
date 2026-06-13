@@ -161,6 +161,22 @@ Workflow translation:
 - compare against baselines before claiming an advantage,
 - keep claim boundaries explicit.
 
+## Refactoring similarity amplification
+
+`kongyo2/similarity` is a TypeScript structural-similarity analyzer with a
+Rust/WASM native core and TypeScript CLI wrapper. It is useful for reproducing
+one piece of Fable-class refactoring behavior: grounded duplicate discovery
+before the model writes a refactor plan.
+
+Workflow translation:
+
+- run structural similarity before large refactors,
+- cluster functions/types/classes/overlap separately,
+- treat findings as candidates, not proofs,
+- write invariants and test targets for each cluster,
+- refactor one cluster at a time,
+- use false positives and missed duplicates as benchmark data.
+
 ## Defensive cyber capability
 
 Project Glasswing reports strong vulnerability discovery and validation

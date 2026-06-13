@@ -36,6 +36,7 @@ Initial scaffold and research synthesis.
 - `docs/research-summary.md`
 - `docs/arc-agi-3-lab-analysis.md`
 - `docs/openmythos-external-adapter.md`
+- `docs/similarity-refactoring-adapter.md`
 - `docs/oss-watch.md`
 - `skills/fairy-tale/SKILL.md`
 - `crates/fairy-adapter-runner/`

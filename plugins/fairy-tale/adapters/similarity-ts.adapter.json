@@ -1,0 +1,84 @@
+{
+  "schema_version": "1.0",
+  "id": "similarity-ts",
+  "name": "TypeScript Structural Similarity Refactoring Adapter",
+  "kind": "domain-tool",
+  "source": {
+    "upstream": "https://github.com/kongyo2/similarity",
+    "package": "@kongyo2/similarity-ts",
+    "license": "MIT",
+    "notes": "Use as an external TypeScript duplicate/similarity detector for refactoring plans. The repository is a private edition of mizchi/similarity and includes Rust native/WASM cores with a TypeScript CLI wrapper."
+  },
+  "capabilities": [
+    "TypeScript semantic similarity detection",
+    "function/type/class structural comparison",
+    "rename-invariant duplicate detection",
+    "style canonicalization for common refactoring equivalents",
+    "false-positive-sensitive labeled accuracy benchmark",
+    "AI-assisted refactoring plan input"
+  ],
+  "entrypoints": {
+    "import": "import { analyzeProject } from '@kongyo2/similarity-ts'",
+    "construct": "analyzeProject({ paths: ['.'], modes: ['functions', 'types', 'classes', 'overlap'], threshold: 0.8 })",
+    "run": "npx @kongyo2/similarity-ts . --format json",
+    "optional": [
+      "npx @kongyo2/similarity-ts .",
+      "npm run bench:accuracy"
+    ]
+  },
+  "contracts": {
+    "inputs": [
+      "TypeScript/TSX project path",
+      "analysis modes",
+      "similarity threshold",
+      "minimum line count",
+      "include/exclude patterns"
+    ],
+    "outputs": [
+      "similarity report",
+      "duplicate candidates",
+      "warnings",
+      "elapsed time and stats",
+      "optional JSON artifact"
+    ],
+    "evidence": [
+      "adapter manifest revision",
+      "similarity-ts package version or repo commit",
+      "CLI options",
+      "raw report artifact",
+      "refactoring plan derived from report",
+      "post-refactor test results"
+    ]
+  },
+  "safety": {
+    "boundaries": [
+      "Use detected similarities as refactoring candidates, not automatic proof that code should be merged.",
+      "Require semantic review before changing behavior.",
+      "Run project tests after every refactor slice.",
+      "Record false positives and false negatives as benchmark feedback."
+    ],
+    "forbidden_claims": [
+      "Similarity score alone proves behavior equivalence.",
+      "All detected duplicates should be merged.",
+      "A clean report proves the codebase is well factored.",
+      "Fable/Mythos performance is reproduced solely by this tool."
+    ]
+  },
+  "validation": {
+    "checks": [
+      "adapter manifest validates against schemas/fairy-tale-adapter.schema.json",
+      "upstream repository is MIT licensed",
+      "README benchmark claims are treated as repository-provided evidence",
+      "run on a target project with JSON output when dependencies are available",
+      "refactor plan preserves behavioral tests"
+    ],
+    "minimum_artifacts": [
+      "manifest",
+      "source version",
+      "CLI options",
+      "raw similarity report",
+      "refactoring plan",
+      "verification note"
+    ]
+  }
+}

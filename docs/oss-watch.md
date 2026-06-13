@@ -55,6 +55,15 @@ Useful ideas to borrow:
   - role: public theoretical RDT/looped-transformer substrate for controlled
     probes, not proof of Anthropic internals.
 
+## Refactoring and similarity tools
+
+- kongyo2/similarity:
+  - https://github.com/kongyo2/similarity
+  - package: `@kongyo2/similarity-ts`
+  - role: TypeScript structural-similarity detector for generating grounded
+    refactoring candidates before an AI coding assistant rewrites code.
+  - caveat: reports are candidates, not proof of semantic equivalence.
+
 ## Fable-specific public curation
 
 - Awesome Claude Fable 5:

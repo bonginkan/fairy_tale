@@ -42,7 +42,7 @@
     "source": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["upstream", "fork", "license"],
+      "required": ["upstream", "license"],
       "properties": {
         "upstream": {
           "type": "string",
@@ -51,6 +51,9 @@
         "fork": {
           "type": "string",
           "format": "uri"
+        },
+        "package": {
+          "type": "string"
         },
         "local_path_hint": {
           "type": "string"

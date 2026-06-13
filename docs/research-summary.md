@@ -209,6 +209,26 @@ processes. The adapter layer is Rust-based (`crates/fairy-adapter-runner`) so
 future orchestration does not depend on Python except when an external project,
 such as OpenMythos, is itself a Python/PyTorch runtime.
 
+## Similarity-assisted refactoring
+
+`kongyo2/similarity` is a TypeScript similarity analyzer with a Rust/WASM native
+core and TypeScript CLI wrapper. It is relevant because it turns a hard
+refactoring prompt into an evidence-first workflow: detect structural duplicate
+candidates, then ask the agent to build a refactoring plan from the report.
+
+The useful process is `Refactoring Similarity Harness`:
+
+1. run the analyzer before large TypeScript refactors,
+2. separate function, type, class, and overlap findings,
+3. cluster candidates and discard intentional duplication,
+4. write invariants and tests for each cluster,
+5. refactor one cluster at a time,
+6. validate after every slice,
+7. record false positives and false negatives as local benchmark data.
+
+This should be treated as a refactoring amplifier, not a substitute for semantic
+review.
+
 ## Derived process names
 
 - `Fairy Tale Loop`: high-level plan -> scoped scouts -> synthesis -> validation -> memory update.
@@ -226,3 +246,5 @@ such as OpenMythos, is itself a Python/PyTorch runtime.
 - `External Reconstruction Adapter Harness`: adapter-manifest boundary for
   probing external theoretical reconstructions such as OpenMythos without
   vendoring or overstating them.
+- `Refactoring Similarity Harness`: structural-similarity report -> candidate
+  clusters -> invariant-aware refactor plan -> slice validation.
