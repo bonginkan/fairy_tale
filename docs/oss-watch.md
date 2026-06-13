@@ -38,6 +38,20 @@ Useful ideas to borrow:
 - Hooks for safety: enforce validation, budget checks, and write guards.
 - Skill bundles: package repeatable workflows as portable `SKILL.md` directories.
 - MCP integration: connect tools and data sources through explicit contracts.
+- Evaluation harnesses: preserve prompts, artifacts, cost, elapsed time, and
+  failure modes for benchmark-like comparison.
+- 3D/game stacks: prefer established engines and renderers such as Three.js,
+  native GPU frameworks, or CAD APIs; validate rendered frames instead of
+  trusting generated code.
+
+## Fable-specific public curation
+
+- Awesome Claude Fable 5:
+  - https://github.com/Anil-matcha/awesome-claude-fable-5
+  - Useful as a source index for demos, benchmark evidence, limits, and 3D
+    reports.
+  - Treat as a curated secondary source; follow links to original demos before
+    using any claim as evidence.
 
 Avoid importing:
 
@@ -45,4 +59,3 @@ Avoid importing:
 - Untrusted skills that execute network or filesystem operations without review.
 - Offensive security procedures.
 - Skills that hide side effects behind vague instructions.
-

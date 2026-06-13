@@ -88,10 +88,57 @@ The skill should not imitate a model. It should reproduce the process patterns:
 8. Memory and configuration updates after success.
 9. Defensive security constraints for cyber workflows.
 
+## Benchmark advantage translation
+
+Benchmark superiority appears to come from enabling conditions, not from a
+single prompt trick. The strongest recurring pattern is that Fable/Mythos-class
+work is allowed to operate with a larger task envelope: more elapsed time,
+adaptive effort, persistent notes, broad but scoped tool use, visual inspection,
+and explicit validation. This maps to a reusable `Benchmark Delta Harness`:
+
+1. define the benchmark-shaped task family and rubric,
+2. record the baseline model/process,
+3. reproduce relevant conditions: effort, task budget, memory, tools, fallback
+   behavior, and elapsed-time allowance,
+4. run the candidate process on the same artifact,
+5. score with objective evidence whenever possible,
+6. record cost, time, hallucinated validation, fallback/refusal events, and
+   failure cases.
+
+This matters because not every independent benchmark confirms a broad win.
+Endor Labs reported middling Fable 5 results on its code-fixing benchmark and
+highlighted timeouts plus memorization-like behavior. The process therefore
+must preserve negative results instead of converting public launch claims into
+unqualified assumptions.
+
+## 3D and spatial work translation
+
+Official materials already include several spatial demonstrations: a
+browser-based CAD editor and 3D-printable model, physics-derived solar-system
+simulation, Factorio automation, and a music-synchronized fluid simulation.
+Public reports add custom Three.js worlds, 3D game demos, Fusion/CAD examples,
+and a native Swift/Metal block-survival game. There are also negative examples
+where the model remained overconfident about weak 3D output.
+
+The reproducible process is `Spatial Forge Harness`:
+
+1. write a spatial brief before coding: units, axes, camera, scale, materials,
+   lighting, controls, collision, simulation, and performance target,
+2. choose a proven rendering or CAD substrate,
+3. build in inspectable layers from primitive geometry to final polish,
+4. render early and repeatedly,
+5. validate first frame, camera framing, controls, animation, geometry, and
+   viewport behavior,
+6. for CAD/printable objects, separate visual plausibility from dimensional,
+   mechanical, and manufacturability correctness.
+
 ## Derived process names
 
 - `Fairy Tale Loop`: high-level plan -> scoped scouts -> synthesis -> validation -> memory update.
 - `Fable Harness`: token-budgeted long-task execution harness.
 - `Mythos Defensive Harness`: defensive security review harness with validation gates.
 - `Glass Slipper Gate`: stop condition for runaway agent fan-out or uncertain results.
-
+- `Benchmark Delta Harness`: controlled comparison of baseline and candidate
+  process under benchmark-like conditions.
+- `Spatial Forge Harness`: 3D/CAD/simulation workflow with spatial contracts
+  and rendered-output validation.

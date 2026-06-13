@@ -27,6 +27,22 @@
   https://www.linkedin.com/posts/paul--_anthropic-released-claude-fable-5-reddit-activity-7470369702138232832-nfpG
 - Cloudflare Project Glasswing field report:
   https://blog.cloudflare.com/cyber-frontier-models/
+- Independent coding/security benchmark caution:
+  https://www.endorlabs.com/learn/claude-fable-5-mythos-grade-hype
+- Benchmark breakdown and synthesis:
+  https://www.vellum.ai/blog/claude-fable-5-and-mythos-5-benchmarks-explained
+- GDPval-AA and curated public use cases:
+  https://github.com/Anil-matcha/awesome-claude-fable-5
+- 3D Three.js game report:
+  https://www.reddit.com/r/aigamedev/comments/1u34v0z/3d_i_just_asked_claude_fable_to_vibe_the_best/
+- 3D worldbuilding report:
+  https://www.reddit.com/r/singularity/comments/1u1hmk6/matt_shumer_fable_has_solved_3d_worldbuilding/
+- Native 3D/Metal game report:
+  https://www.reddit.com/r/ClaudeCode/comments/1u4fr9e/i_had_claude_fable_5_build_minecraft_from_scratch/
+- CAD/Fusion design report:
+  https://www.reddit.com/r/Fusion360/comments/1u2fruv/claude_fable_5_has_completely_changed_the_way_i/
+- Negative 3D model self-critique report:
+  https://www.reddit.com/r/ClaudeCode/comments/1u2zdp0/fables_3d_model_of_the_most_beautiful_woman_it/
 
 ## Skill and agent standards
 
@@ -38,4 +54,3 @@
   https://code.claude.com/docs/en/slash-commands
 - Claude Code subagents:
   https://code.claude.com/docs/en/sub-agents
-

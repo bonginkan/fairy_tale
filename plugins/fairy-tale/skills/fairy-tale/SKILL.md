@@ -19,42 +19,119 @@ work, not to access or bypass those models.
 
 ## Default workflow
 
-1. Frame the quest: objective, constraints, risk, and success criteria.
-2. Set the Glass Slipper Gate: max subtasks, files, searches, tools, time, spend.
-3. Scout before synthesis: scoped scouts gather compact findings.
-4. Build the evidence map: claim, source, confidence, action.
-5. Choose a route: coding, research, workflow, vision, or defensive security.
-6. Execute in checkpoints.
-7. Validate before completion.
-8. Consolidate durable artifacts and reusable improvements.
+1. **Frame the quest**
+   - Restate the user's objective, constraints, risk, and success criteria.
+   - Identify whether the task is coding, research, workflow improvement,
+     migration, visual reconstruction, documentation, or defensive security.
+
+2. **Set the Glass Slipper Gate**
+   - Define stop limits: max subtasks, max files, max web searches, max tool
+     calls, max elapsed time, and escalation conditions.
+   - Prefer a small pilot before full autonomy.
+
+3. **Scout before synthesis**
+   - Use cheap/scoped scouts for code search, logs, web research, or config
+     inspection.
+   - Scouts return compact findings with file paths, links, and uncertainties.
+   - The main agent performs synthesis only after scout summaries exist.
+
+4. **Build the evidence map**
+   - Track claims as `claim -> source -> confidence -> action`.
+   - Separate official facts, third-party reports, user anecdotes, and local
+     observations.
+
+5. **Choose a route**
+   - For code migration: map ownership, invariants, call sites, tests, and
+     rollback plan before editing.
+   - For research: prioritize primary sources, then high-signal field reports.
+   - For workflow improvement: inspect existing commands, skills, agents,
+     memories, hooks, and sessions before adding new structure.
+   - For defensive security: use only authorized code and produce verification
+     steps, not exploit instructions.
+
+6. **Execute in checkpoints**
+   - Work in small completed slices.
+   - After each slice, update the evidence map and remaining risk.
+   - Stop if the task exceeds the Glass Slipper Gate.
+
+7. **Validate**
+   - Run available checks or perform manual verification.
+   - For UI/visual work, inspect actual outputs.
+   - For security findings, require reproducible defensive evidence and
+     responsible-disclosure framing.
+
+8. **Consolidate**
+   - Produce durable artifacts: summary, changed files, config update, skill
+     improvement, checklist, or issue.
+   - Record what should be reused next time.
 
 ## Mode patterns
 
-### Fable Harness
+### Fable Harness: long coding or migration tasks
 
-Use for long coding or migration tasks. Map the repo, define invariants, scope
-edits, checkpoint, validate, and avoid expensive broad autonomy by default.
+- Start with repository map and invariants.
+- Generate a migration plan with checkpoints.
+- Edit only scoped files.
+- Validate continuously.
+- Prefer lower effort or smaller scopes before expensive broad autonomy.
 
 ### Mythos Defensive Harness
 
-Use only for authorized defensive security review. Produce verification and
-patch guidance, not exploit weaponization or stealth instructions.
+- Confirm authorization and target scope.
+- Build an asset map and suspected-risk taxonomy.
+- Use static analysis, tests, and source inspection before conclusions.
+- Validate suspected vulnerabilities defensively.
+- Do not provide weaponization, stealth, persistence, credential theft, or
+  public exploit instructions.
 
 ### Workflow self-improvement
 
-Inspect existing agent config, skills, commands, hooks, and usage patterns.
-Add the smallest reusable structure that reduces repeated prompting.
+- Inspect current agent config, skills, commands, hooks, and usage patterns.
+- Search for comparable OSS workflows only when useful.
+- Ask targeted questions before changing user workflow.
+- Add the smallest reusable command/skill/memory structure that reduces future
+  repeated prompting.
 
 ### High-signal research synthesis
 
-Separate primary sources from reports, build a claim table, include uncertainty,
-and turn findings into a reusable procedure or artifact.
+- Separate primary sources from user reports.
+- Build a claim table before writing conclusions.
+- Include uncertainty and reproducibility notes.
+- Convert findings into a reusable procedure or artifact.
+
+### Benchmark Delta Harness
+
+- Identify which benchmark capability is being targeted: agentic coding,
+  knowledge work, vision, long-memory, scientific reasoning, defensive cyber,
+  or multimodal UI/3D.
+- Recreate the enabling conditions, not the headline score: task budget,
+  effort level, context strategy, tools, fallback behavior, memory, validation,
+  and elapsed-time allowance.
+- Use a baseline model/process on the same task when possible.
+- Measure deltas with artifacts: pass/fail tests, rendered screenshots,
+  benchmark rubrics, human review notes, cost, and elapsed time.
+- Record negative results; do not claim Fable/Mythos-style superiority without
+  a reproducible harness.
+
+### Spatial Forge Harness: 3D, CAD, and simulation work
+
+- Require an explicit spatial brief: coordinate system, units, camera,
+  interactions, geometry constraints, physics assumptions, and performance
+  target.
+- Prefer proven engines or libraries for the domain, such as Three.js for
+  browser 3D, platform-native renderers for native apps, or CAD APIs for
+  mechanical modeling.
+- Build the scene in layers: primitives -> lighting/materials -> controls ->
+  physics/simulation -> validation overlays -> polish.
+- Verify by rendering the actual output, checking nonblank frames, camera
+  framing, interaction, animation, and obvious geometry defects.
+- For CAD or printable objects, distinguish visual plausibility from mechanical
+  correctness; require dimensional checks before claiming functional design.
 
 ## Supporting references
 
 Read only when needed:
 
-- `references/capabilities.md`
-- `references/process.md`
-- `references/sources.md`
-
+- `references/capabilities.md` for distilled Fable/Mythos capabilities.
+- `references/process.md` for checklists and templates.
+- `references/sources.md` for official and public-report sources.

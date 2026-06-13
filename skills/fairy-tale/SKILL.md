@@ -99,6 +99,35 @@ work, not to access or bypass those models.
 - Include uncertainty and reproducibility notes.
 - Convert findings into a reusable procedure or artifact.
 
+### Benchmark Delta Harness
+
+- Identify which benchmark capability is being targeted: agentic coding,
+  knowledge work, vision, long-memory, scientific reasoning, defensive cyber,
+  or multimodal UI/3D.
+- Recreate the enabling conditions, not the headline score: task budget,
+  effort level, context strategy, tools, fallback behavior, memory, validation,
+  and elapsed-time allowance.
+- Use a baseline model/process on the same task when possible.
+- Measure deltas with artifacts: pass/fail tests, rendered screenshots,
+  benchmark rubrics, human review notes, cost, and elapsed time.
+- Record negative results; do not claim Fable/Mythos-style superiority without
+  a reproducible harness.
+
+### Spatial Forge Harness: 3D, CAD, and simulation work
+
+- Require an explicit spatial brief: coordinate system, units, camera,
+  interactions, geometry constraints, physics assumptions, and performance
+  target.
+- Prefer proven engines or libraries for the domain, such as Three.js for
+  browser 3D, platform-native renderers for native apps, or CAD APIs for
+  mechanical modeling.
+- Build the scene in layers: primitives -> lighting/materials -> controls ->
+  physics/simulation -> validation overlays -> polish.
+- Verify by rendering the actual output, checking nonblank frames, camera
+  framing, interaction, animation, and obvious geometry defects.
+- For CAD or printable objects, distinguish visual plausibility from mechanical
+  correctness; require dimensional checks before claiming functional design.
+
 ## Supporting references
 
 Read only when needed:
@@ -106,4 +135,3 @@ Read only when needed:
 - `references/capabilities.md` for distilled Fable/Mythos capabilities.
 - `references/process.md` for checklists and templates.
 - `references/sources.md` for official and public-report sources.
-
