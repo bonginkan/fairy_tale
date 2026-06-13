@@ -34,6 +34,6 @@ Initial scaffold and research synthesis.
 ## Primary docs
 
 - `docs/research-summary.md`
+- `docs/arc-agi-3-lab-analysis.md`
 - `docs/oss-watch.md`
 - `skills/fairy-tale/SKILL.md`
-

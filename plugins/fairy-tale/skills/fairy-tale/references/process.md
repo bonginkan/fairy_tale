@@ -92,7 +92,7 @@ Use this before 3D, CAD, simulation, or game-scene work.
 
 ```text
 scene/object goal:
-target runtime/toolchain:
+target runtime/toolchain: Three.js | Blender | Unreal | Unity | native GPU | CAD API | other
 units and coordinate system:
 camera/framing:
 geometry constraints:
@@ -119,4 +119,82 @@ materials/lights reveal shape:
 text/UI does not overlap canvas controls:
 mobile/desktop viewport checks:
 for CAD: dimensions and manufacturability checked:
+```
+
+## Narrative empathy brief
+
+Use this for prose, daily conversation, brand voice, emotionally sensitive
+messages, or UI feel.
+
+```text
+audience:
+relationship:
+emotional state:
+practical need:
+desired aftertaste:
+voice/profile source:
+register:
+pacing and rhythm:
+metaphor/style constraints:
+taboos and avoid-list:
+UI/product context:
+must-feel-like:
+must-not-feel-like:
+validation reader:
+```
+
+## Voice profile card
+
+```text
+speaker/brand/persona:
+sample sources:
+sentence shape:
+paragraph rhythm:
+preferred diction:
+humor/irony level:
+warmth/directness:
+technicality:
+recurring structures:
+forbidden tells:
+editing checklist:
+```
+
+## UI affect checklist
+
+```text
+primary user emotion:
+first screen signal:
+information density:
+microcopy tone:
+motion rhythm:
+empty state:
+error/recovery state:
+confirmation state:
+visual hierarchy supports mood:
+next action obvious:
+cognitive load reduced:
+user dignity preserved:
+```
+
+## Mechanism grammar record
+
+Use this for ARC-style hidden-rule games, unfamiliar tools, simulations, or
+systems where behavior must be learned from observation.
+
+```text
+task/environment:
+observability tools:
+score/recovery ledger:
+objects and coordinates:
+available actions:
+action -> diff observations:
+animation layers inspected:
+hidden state hypotheses:
+autonomous actors / phase:
+resources / timers:
+win trigger hypotheses:
+confirmed rules:
+refuted rules / no-ops:
+compiled solver/planner:
+remaining opaque points:
 ```

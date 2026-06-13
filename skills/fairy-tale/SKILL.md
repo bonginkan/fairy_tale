@@ -1,6 +1,6 @@
 ---
 name: fairy-tale
-description: Distills Fable/Mythos-class public workflow patterns into budgeted, evidence-driven, validation-gated agent execution for coding, research, documentation, and defensive security tasks. Use when the user asks for Mythos/Fable-style performance, autonomous long-task execution, workflow self-improvement, codebase-wide migration, high-signal research synthesis, or defensive vulnerability-review process design.
+description: Distills Fable/Mythos-class public workflow patterns into budgeted, evidence-driven, validation-gated agent execution for coding, research, documentation, UI/3D, creative writing, emotionally aware conversation, ARC-style puzzle discovery, and defensive security tasks. Use when the user asks for Mythos/Fable-style performance, autonomous long-task execution, workflow self-improvement, codebase-wide migration, high-signal research synthesis, narrative/UI expression, mechanism discovery, or defensive vulnerability-review process design.
 ---
 
 # Fairy Tale
@@ -22,7 +22,8 @@ work, not to access or bypass those models.
 1. **Frame the quest**
    - Restate the user's objective, constraints, risk, and success criteria.
    - Identify whether the task is coding, research, workflow improvement,
-     migration, visual reconstruction, documentation, or defensive security.
+     migration, visual reconstruction, documentation, narrative/UI expression,
+     mechanism discovery, or defensive security.
 
 2. **Set the Glass Slipper Gate**
    - Define stop limits: max subtasks, max files, max web searches, max tool
@@ -119,14 +120,42 @@ work, not to access or bypass those models.
   interactions, geometry constraints, physics assumptions, and performance
   target.
 - Prefer proven engines or libraries for the domain, such as Three.js for
-  browser 3D, platform-native renderers for native apps, or CAD APIs for
-  mechanical modeling.
+  browser 3D, Unreal Engine or Unity for full game/editor workflows, Blender
+  Python or Geometry Nodes for asset and scene generation, platform-native
+  renderers for native apps, or CAD APIs for mechanical modeling.
 - Build the scene in layers: primitives -> lighting/materials -> controls ->
   physics/simulation -> validation overlays -> polish.
 - Verify by rendering the actual output, checking nonblank frames, camera
   framing, interaction, animation, and obvious geometry defects.
 - For CAD or printable objects, distinguish visual plausibility from mechanical
   correctness; require dimensional checks before claiming functional design.
+
+### Narrative Empathy Harness: prose, conversation, and UI feel
+
+- Build a voice and affect brief before writing: audience, relationship,
+  emotional state, desired aftertaste, register, pacing, taboos, and examples.
+- Separate raw model polish from voice fidelity; use a voice profile when the
+  output must sound like a specific person or brand.
+- For daily conversation, infer the user's practical and emotional need, then
+  respond with useful action plus calibrated warmth.
+- For UI, translate emotion into concrete interaction choices: information
+  density, hierarchy, microcopy, rhythm, motion, color, empty states, and error
+  recovery.
+- Validate by reading as the target user: does it reduce cognitive load, preserve
+  dignity, and make the next action obvious?
+
+### Mechanism Grammar Harness: ARC-style hidden-rule discovery
+
+- Instrument before solving: frame capture, replay, score ledger, action logs,
+  and recovery handles.
+- Sweep broadly, classify mechanics, park opaque cases, and return when a new
+  hypothesis or tool becomes available.
+- Convert observations into a mechanism grammar: objects, coordinates, actions,
+  animation layers, hidden state, autonomy, phase, resources, and win triggers.
+- Use controlled probes and record negative evidence; "no-op" is a fact, not a
+  failure.
+- Once the grammar is stable, compile it into search, planning, choreography, or
+  verification code.
 
 ## Supporting references
 

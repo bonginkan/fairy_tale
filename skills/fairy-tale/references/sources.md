@@ -43,6 +43,28 @@
   https://www.reddit.com/r/Fusion360/comments/1u2fruv/claude_fable_5_has_completely_changed_the_way_i/
 - Negative 3D model self-critique report:
   https://www.reddit.com/r/ClaudeCode/comments/1u2zdp0/fables_3d_model_of_the_most_beautiful_woman_it/
+- Prompting and communication scaffolding:
+  https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5
+- Fable product page:
+  https://www.anthropic.com/claude/fable
+- Style-specific document/UI report:
+  https://www.linkedin.com/posts/debarghyadas_claude-fable-5s-ability-to-generate-docs-activity-7470396279525752832-Fr7B
+- Product design/UI testing:
+  https://uxplanet.org/claude-fable-5-for-product-designers-8858690a420a
+- Creative-writing discussion:
+  https://www.reddit.com/r/WritingWithAI/comments/1u1eb7u/anyone_tried_claude_fable_for_creative_writing/
+- Voice-profile caution for writing:
+  https://usenoren.ai/blog/claude-fable-5-review
+- Emotional-intelligence framework reference:
+  https://arxiv.org/abs/2605.24686
+- Blender report:
+  https://www.youtube.com/watch?v=hgl2zHnWwMg
+- Blender/Geometry Nodes report:
+  https://www.youtube.com/watch?v=I1P7B9ci3Fw
+- Unreal Engine report:
+  https://www.youtube.com/watch?v=iRcrZjOt5H8
+- Unity workflow report:
+  https://www.youtube.com/watch?v=Zhlh_rsAXGI
 
 ## Skill and agent standards
 

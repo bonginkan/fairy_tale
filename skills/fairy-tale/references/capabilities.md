@@ -84,19 +84,64 @@ Workflow translation:
 Official demos include a browser-based CAD editor that produced a complete
 3D-printable model, a physics-derived solar-system simulation, Factorio
 automation, and a music-synchronized fluid simulation. Public reports include
-custom Three.js worlds, 3D games, Fusion/CAD demos, and native 3D/Metal game
-projects. These reports are uneven: some show impressive spatial execution,
-while others show overconfident or mechanically implausible outputs.
+custom Three.js worlds, 3D games, Fusion/CAD demos, Blender scene/modeling
+workflows, Unreal Engine game/editor workflows, Unity-style game workflows, and
+native 3D/Metal game projects. These reports are uneven: some show impressive
+spatial execution, while others show overconfident or mechanically implausible
+outputs.
 
 Workflow translation:
 
 - make the spatial contract explicit: units, axes, camera, scale, materials,
   collision, lighting, interaction, and performance,
-- use established 3D/CAD/rendering libraries rather than inventing engines,
+- choose the right substrate: Three.js for portable browser scenes, Blender for
+  asset generation/procedural geometry, Unreal or Unity for full engine
+  workflows, native GPU APIs for platform-specific games, and CAD APIs for
+  dimensional mechanical work,
 - build and validate incrementally from primitives to full scene,
 - inspect actual rendered frames and interaction behavior,
 - separate visual beauty, geometric validity, physical plausibility, and
   manufacturability.
+
+## Narrative expression, EQ, and UI affect
+
+Official prompting guidance emphasizes intent, readability, progress grounding,
+and clear user-facing communication in long agentic runs. Public reports suggest
+stronger performance in style-specific documents, editorial critique, polished
+long-form writing, rich email templates, and UI/UX prototypes. Independent
+writing commentary is more cautious: raw capability improves polish and
+structure, but specific voice fidelity still depends on an explicit voice
+profile.
+
+Workflow translation:
+
+- start with a voice and affect brief, not only a topic,
+- model emotional competence as perception -> understanding -> response
+  management, not as generic politeness,
+- keep a reusable voice profile for people, brands, products, or fictional
+  narrators,
+- design UI as an emotional conversation: the layout, motion, copy, density,
+  and recovery states should all express the intended relationship,
+- validate against target-user reading: clarity, dignity, trust, delight, and
+  next-action obviousness.
+
+## ARC-style mechanism discovery
+
+Jun's ARC-AGI-3-Lab run reached 24 cleared levels by expanding the harness while
+solving. The distinctive pattern was not brute force. It was instrumented
+mechanism discovery: build bridge/replay/ledger tools, inspect action diffs and
+animation layers, extract hidden rules, then compile stable rules into targeted
+search or choreography.
+
+Workflow translation:
+
+- create observability before deep reasoning,
+- treat each action as a micro-experiment with predicted and measured effects,
+- inspect every frame/layer when animation or hidden state may matter,
+- write down false hypotheses and no-op results,
+- elevate repeated mechanics into reusable grammars,
+- switch from exploration to BFS/planning only after the grammar is stable,
+- preserve recovery handles for long runs, scorecards, and remote sessions.
 
 ## Defensive cyber capability
 

@@ -117,20 +117,79 @@ Official materials already include several spatial demonstrations: a
 browser-based CAD editor and 3D-printable model, physics-derived solar-system
 simulation, Factorio automation, and a music-synchronized fluid simulation.
 Public reports add custom Three.js worlds, 3D game demos, Fusion/CAD examples,
-and a native Swift/Metal block-survival game. There are also negative examples
-where the model remained overconfident about weak 3D output.
+Blender scenes/modeling workflows, Unreal Engine game/editor workflows,
+Unity-style workflows, and a native Swift/Metal block-survival game. There are
+also negative examples where the model remained overconfident about weak 3D
+output.
 
 The reproducible process is `Spatial Forge Harness`:
 
 1. write a spatial brief before coding: units, axes, camera, scale, materials,
    lighting, controls, collision, simulation, and performance target,
-2. choose a proven rendering or CAD substrate,
+2. choose a proven rendering or CAD substrate: Three.js for browser scenes,
+   Blender for procedural assets/scenes, Unreal or Unity for full engine
+   workflows, native GPU APIs for platform-specific games, or CAD APIs for
+   dimensional mechanical objects,
 3. build in inspectable layers from primitive geometry to final polish,
 4. render early and repeatedly,
 5. validate first frame, camera framing, controls, animation, geometry, and
    viewport behavior,
 6. for CAD/printable objects, separate visual plausibility from dimensional,
    mechanical, and manufacturability correctness.
+
+## Narrative, EQ, and interface expression
+
+The same capability cluster appears in prose and UI work. Official prompting
+guidance emphasizes understanding why a user asks, producing readable
+user-facing communication after long runs, and grounding progress claims in
+evidence. Public reports add style-specific documents, editorial critique,
+creative-writing improvements, rich email templates, and UI/UX one-shots.
+Writing reports are mixed: Fable-class raw drafts can be more polished, but
+specific authorial voice still requires a structured voice profile.
+
+The reproducible process is `Narrative Empathy Harness`:
+
+1. define audience, relationship, emotional state, practical need, and desired
+   aftertaste before writing,
+2. extract or provide a voice profile when the output must sound like a person,
+   brand, product, or fictional narrator,
+3. separate emotion perception, emotion understanding, and response management,
+4. translate UI affect into layout density, hierarchy, motion, color, microcopy,
+   empty states, and error recovery,
+5. validate from the target user's perspective: clarity, dignity, trust,
+   delight, and next-action obviousness.
+
+## ARC-AGI-3-Lab translation
+
+Jun's local ARC-AGI-3-Lab run reached 24 cleared levels while expanding the
+repo's bridge, replay, recording, and score-recovery tooling. The distinctive
+pattern was instrumented rule discovery rather than unbounded brute force:
+
+1. build observability first: long-lived bridge, `/frame`, recordings, replay,
+   level ledger, and scorecard recovery,
+2. sweep all games to map action spaces and classify mechanics,
+3. park opaque cases and rotate instead of spending the whole budget on a
+   single unknown rule,
+4. use action-diff micro-experiments to convert visuals into object grammars,
+5. inspect every animation layer when final frames hide the real mechanism,
+6. write down refuted hypotheses and no-ops as durable evidence,
+7. once rules stabilize, compile them into joint-state search, phase planning,
+   choreography, or geometry solvers,
+8. preserve recovery handles because long sessions and remote scorecards can
+   disappear.
+
+Examples from the run:
+
+- `tu93`: enemy phase and pellet-gate rules became a joint `(player, phase)`
+  BFS after live observations stabilized.
+- `g50t`: fluid, squeeze, one-way valve, dice freezing, and mode switching
+  became a reusable physics grammar.
+- `wa30`: autonomous helper blocks required choreography and frequent frame
+  reads because blocked movement broke dead reckoning.
+- `re86`: geometric arm/pip intersections became a deterministic placement
+  rule.
+
+The reusable process is `Mechanism Grammar Harness`.
 
 ## Derived process names
 
@@ -142,3 +201,7 @@ The reproducible process is `Spatial Forge Harness`:
   process under benchmark-like conditions.
 - `Spatial Forge Harness`: 3D/CAD/simulation workflow with spatial contracts
   and rendered-output validation.
+- `Narrative Empathy Harness`: prose, conversation, and UI affect workflow
+  grounded in voice profiles and target-user emotional validation.
+- `Mechanism Grammar Harness`: ARC-style hidden-rule discovery through
+  instrumentation, micro-probes, layer inspection, and compiled solvers.
