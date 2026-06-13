@@ -40,3 +40,30 @@ Initial scaffold and research synthesis.
 - `docs/oss-watch.md`
 - `skills/fairy-tale/SKILL.md`
 - `crates/fairy-adapter-runner/`
+
+## Referenced GitHub repositories
+
+These repositories informed the current skill, adapter, and plugin architecture.
+They remain external sources unless explicitly vendored or forked. Licenses and
+ownership remain with each upstream project.
+
+- `openai/skills` - reference point for portable agent skill structure.
+  https://github.com/openai/skills
+- `ComposioHQ/awesome-claude-skills` - Claude skill ecosystem examples.
+  https://github.com/ComposioHQ/awesome-claude-skills
+- `composiohq/awesome-codex-skills` - Codex skill ecosystem examples.
+  https://github.com/composiohq/awesome-codex-skills
+- `VoltAgent/awesome-agent-skills` - broader agent-skill curation.
+  https://github.com/VoltAgent/awesome-agent-skills
+- `VoltAgent/awesome-claude-code-subagents` - subagent workflow references.
+  https://github.com/VoltAgent/awesome-claude-code-subagents
+- `disler/claude-code-hooks-mastery` - Claude Code hooks workflow references.
+  https://github.com/disler/claude-code-hooks-mastery
+- `Anil-matcha/awesome-claude-fable-5` - curated public Fable 5 reports and demos.
+  https://github.com/Anil-matcha/awesome-claude-fable-5
+- `kyegomez/OpenMythos` - external theoretical reconstruction substrate.
+  https://github.com/kyegomez/OpenMythos
+- `bonginkan/OpenMythos` - pinned fork for future external-adapter experiments.
+  https://github.com/bonginkan/OpenMythos
+- `kongyo2/similarity` - TypeScript structural similarity/refactoring scout.
+  https://github.com/kongyo2/similarity
