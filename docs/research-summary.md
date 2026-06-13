@@ -23,6 +23,13 @@ Officially reported strengths include:
 - Software engineering at codebase-wide scale.
 - Strong document, chart, table, and problem-solving performance.
 - Strong vision, including scientific figure reading and screenshot-to-code.
+- Legal redline and document-review strength reported by early enterprise
+  users.
+- Finance, spreadsheet, and expected-value analysis reported by early
+  enterprise users.
+- Life-science, biology, genomics, and drug-design assistance reported in
+  Anthropic's Mythos/Glasswing materials, subject to safety boundaries and
+  fallback behavior in Fable.
 - Improved memory and tool use through supported features such as adaptive
   thinking, task budgets, memory tools, code execution, programmatic tool
   calling, context editing, compaction, and vision.
@@ -41,6 +48,8 @@ Key official sources:
 - https://www.anthropic.com/news/expanding-project-glasswing
 - https://www.anthropic.com/news/fable-mythos-access
 - https://www-cdn.anthropic.com/d00db56fa754a1b115b6dd7cb2e3c342ee809620.pdf
+- https://www.anthropic.com/claude/fable
+- https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5
 
 ## Public user reports
 
@@ -108,8 +117,46 @@ and explicit validation. This maps to a reusable `Benchmark Delta Harness`:
 This matters because not every independent benchmark confirms a broad win.
 Endor Labs reported middling Fable 5 results on its code-fixing benchmark and
 highlighted timeouts plus memorization-like behavior. The process therefore
-must preserve negative results instead of converting public launch claims into
-unqualified assumptions.
+must keep failures and weak runs as debugging evidence instead of converting
+public launch claims into unqualified assumptions.
+
+## Domain gap and effort findings
+
+Fairy Tale should not be treated as a universal benchmark booster until each
+task family has its own harness and reproduction evidence. HLE is a
+closed-ended academic benchmark, while much of the current Fairy Tale process
+was distilled from agentic coding and workflow-improvement reports. Legal,
+bio/health, finance/document, and spatial workflows also need distinct output
+contracts and failure taxonomies.
+
+The corrective process is `Domain Router + Effort Inversion Debugger`:
+
+1. route by task family before choosing a harness,
+2. use Knowledge Crystallization for HLE-style closed-ended tasks,
+3. use Legal Reasoning for legal redlines and legal benchmarks,
+4. use Bio/Health Safety for biology, medicine, chemistry-adjacent, and health
+   tasks,
+5. use Evidence Table for finance, spreadsheets, charts, and document work,
+6. sweep effort settings on the same sample before assuming `xhigh` is better,
+7. diagnose effort inversions with item-level deltas, token budgets,
+   incomplete responses, answer-format errors, and domain-specific failure
+   classes.
+
+OpenAI documents `gpt-5.5` `medium` as the default balanced starting point and
+`xhigh` as appropriate only when evals show clear benefit. Anthropic's Fable
+prompting guide similarly recommends considering all effort levels: higher
+effort can improve verification on hard work, but can also overplan routine or
+ambiguous tasks. Fairy Tale should therefore prove the effort setting per task
+family instead of defaulting to maximum effort.
+
+Legal and knowledge benchmarks should be treated as separate capability
+families. Vals AI reports Claude Fable 5 as the top LegalBench model at the
+time checked, but also notes large variation across legal task types.
+HazyResearch LegalBench consists of 162 tasks from 40 contributors, and
+LegalAgentBench evaluates practical legal agents with intermediate-process
+signals. The reproduction target should therefore include jurisdiction,
+authority, citation, privilege/confidentiality, and subtask-level scoring,
+not generic legal prose quality.
 
 ## 3D and spatial work translation
 
@@ -237,6 +284,17 @@ review.
 - `Glass Slipper Gate`: stop condition for runaway agent fan-out or uncertain results.
 - `Benchmark Delta Harness`: controlled comparison of baseline and candidate
   process under benchmark-like conditions.
+- `Domain Router`: task-family selection before applying a harness.
+- `Knowledge Crystallization Harness`: closed-ended academic/expert benchmark
+  workflow with strict answer contracts and item-level error analysis.
+- `Legal Reasoning Harness`: jurisdiction, authority, citation, confidentiality,
+  and subtask-aware legal workflow.
+- `Bio/Health Safety Harness`: biology, medicine, chemistry-adjacent, and health
+  workflow with safety classification and fallback/refusal logging.
+- `Evidence Table Harness`: finance, spreadsheet, chart, table, and document
+  extraction before judgment.
+- `Effort Inversion Debugger`: same-sample effort sweep and item-level diagnosis
+  when higher effort underperforms lower effort.
 - `Spatial Forge Harness`: 3D/CAD/simulation workflow with spatial contracts
   and rendered-output validation.
 - `Narrative Empathy Harness`: prose, conversation, and UI affect workflow

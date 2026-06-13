@@ -40,6 +40,11 @@ Useful ideas to borrow:
 - MCP integration: connect tools and data sources through explicit contracts.
 - Evaluation harnesses: preserve prompts, artifacts, cost, elapsed time, and
   failure modes for benchmark-like comparison.
+- Domain routers: choose a task-family harness before prompting, especially for
+  legal, bio/health, finance/document, and HLE-style closed-ended work.
+- Effort sweeps: treat medium/high/xhigh or provider-equivalent effort levels
+  as eval variables; diagnose inversions item by item instead of assuming max
+  effort wins.
 - 3D/game stacks: prefer established engines and renderers such as Three.js,
   native GPU frameworks, or CAD APIs; validate rendered frames instead of
   trusting generated code.
@@ -63,6 +68,32 @@ Useful ideas to borrow:
   - role: TypeScript structural-similarity detector for generating grounded
     refactoring candidates before an AI coding assistant rewrites code.
   - caveat: reports are candidates, not proof of semantic equivalence.
+
+## Cross-vendor agent loops
+
+- DanMcInerney/architect-loop:
+  - https://github.com/DanMcInerney/architect-loop
+  - role: separates Claude Fable-style architect/reviewer behavior from
+    GPT-5.5 Codex builder/researcher behavior, with specs and gates written
+    before builder execution.
+  - useful idea: freeze acceptance gates before fan-out and keep builder edits
+    away from the gate definitions.
+  - caveat: do not copy worktree-discard assumptions into environments where
+    the operator forbids worktrees.
+
+## Legal and knowledge benchmarks
+
+- HazyResearch LegalBench:
+  - https://github.com/HazyResearch/legalbench
+  - role: broad legal-reasoning benchmark with many legal task families.
+- LegalAgentBench:
+  - https://aclanthology.org/2025.acl-long.116.pdf
+  - role: practical legal-agent benchmark with intermediate process signals.
+- Center for AI Safety HLE:
+  - dataset: https://huggingface.co/datasets/cais/hle
+  - repo: https://github.com/centerforaisafety/hle
+  - role: broad closed-ended academic benchmark across math, science,
+    humanities, and other expert domains.
 
 ## Fable-specific public curation
 

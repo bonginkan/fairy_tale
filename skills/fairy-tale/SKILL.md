@@ -1,6 +1,6 @@
 ---
 name: fairy-tale
-description: Distills Fable/Mythos-class public workflow patterns into budgeted, evidence-driven, validation-gated agent execution for coding, research, documentation, UI/3D, creative writing, emotionally aware conversation, ARC-style puzzle discovery, and defensive security tasks. Use when the user asks for Mythos/Fable-style performance, autonomous long-task execution, workflow self-improvement, codebase-wide migration, high-signal research synthesis, narrative/UI expression, mechanism discovery, or defensive vulnerability-review process design.
+description: Distills Fable/Mythos-class public workflow patterns into budgeted, evidence-driven, validation-gated agent execution for coding, research, documentation, legal/knowledge work, UI/3D, creative writing, emotionally aware conversation, ARC-style puzzle discovery, and defensive security tasks. Use when the user asks for Mythos/Fable-style performance, autonomous long-task execution, workflow self-improvement, codebase-wide migration, high-signal research synthesis, legal or closed-ended benchmark reasoning, narrative/UI expression, mechanism discovery, or defensive vulnerability-review process design.
 ---
 
 # Fairy Tale
@@ -24,8 +24,10 @@ work, not to access or bypass those models.
 1. **Frame the quest**
    - Restate the user's objective, constraints, risk, and success criteria.
    - Identify whether the task is coding, research, workflow improvement,
-     migration, visual reconstruction, documentation, narrative/UI expression,
-     mechanism discovery, or defensive security.
+     migration, legal reasoning, HLE-style closed-ended knowledge work,
+     document/finance analysis, bio/health, visual reconstruction,
+     documentation, narrative/UI expression, mechanism discovery, or
+     defensive security.
 
 2. **Set the Glass Slipper Gate**
    - Define stop limits: max subtasks, max files, max web searches, max tool
@@ -49,6 +51,8 @@ work, not to access or bypass those models.
    - For code migration: map ownership, invariants, call sites, tests, and
      rollback plan before editing.
    - For research: prioritize primary sources, then high-signal field reports.
+   - For legal, HLE-style, bio/health, finance/document, or other benchmark
+     work: use the Domain Router before applying any agentic-coding harness.
    - For workflow improvement: inspect existing commands, skills, agents,
      memories, hooks, and sessions before adding new structure.
    - For agent, tool, eval, memory, hook, or OSS-release work: apply the
@@ -110,16 +114,84 @@ work, not to access or bypass those models.
 ### Benchmark Delta Harness
 
 - Identify which benchmark capability is being targeted: agentic coding,
-  knowledge work, vision, long-memory, scientific reasoning, defensive cyber,
-  or multimodal UI/3D.
+  legal, knowledge work, vision, long-memory, scientific reasoning, defensive
+  cyber, health, biology, finance/document analysis, or multimodal UI/3D.
 - Recreate the enabling conditions, not the headline score: task budget,
   effort level, context strategy, tools, fallback behavior, memory, validation,
   and elapsed-time allowance.
 - Use a baseline model/process on the same task when possible.
 - Measure deltas with artifacts: pass/fail tests, rendered screenshots,
   benchmark rubrics, human review notes, cost, and elapsed time.
-- Record negative results; do not claim Fable/Mythos-style superiority without
-  a reproducible harness.
+- Use controlled eval artifacts before claiming Fable/Mythos-style superiority.
+
+### Domain Router
+
+- Do not apply the coding harness to every benchmark. Route first by task
+  family: agentic coding/refactoring, HLE-style closed-ended knowledge, legal,
+  biology/medicine/health, finance/document analysis, spatial/UI/3D, narrative,
+  mechanism discovery, or defensive security.
+- If the task is closed-ended, prefer a strict answer contract and item-level
+  error taxonomy over broad autonomous exploration.
+- If the task is legal, identify jurisdiction, authority, task type, facts,
+  issue, rule, application, conclusion, and citation needs before answering.
+- If the task is bio/health, classify safety category before reasoning and
+  separate literature-grounded facts from hypotheses or clinical advice.
+- If the task is finance/document work, extract evidence tables before making
+  judgments.
+- Treat domain-specific benchmark failures as routing/debugging evidence, not
+  as proof that all Fairy Tale workflows fail.
+
+### Knowledge Crystallization Harness
+
+- Classify subject, answer type, and required exactness.
+- Isolate independent terms, assumptions, variables, and answer choices before
+  combining them.
+- Use the minimum derivation needed to justify the final closed-form answer.
+- Enforce a strict final-answer format.
+- Run item-level error analysis across the same sample before changing effort,
+  prompt, model, or tools.
+
+### Legal Reasoning Harness
+
+- Identify jurisdiction, authority type, date, procedural posture, and task
+  type.
+- Separate facts, issue, rule, application, conclusion, caveats, and citations.
+- Preserve confidentiality and avoid legal-advice overclaiming.
+- Score by legal subtask because aggregate legal benchmark performance can hide
+  sharp variation across task families.
+
+### Bio/Health Safety Harness
+
+- Classify whether the task is benign explanation, clinical guidance, lab
+  protocol, molecular mechanism, dual-use biology, or hazardous content.
+- Use conservative boundaries for actionable wet-lab, medical, or harmful
+  content.
+- Separate established facts, uncertain interpretations, and novel hypotheses.
+- Record fallback, refusal, or safety-routing behavior as part of benchmark
+  results.
+
+### Evidence Table Harness
+
+- Extract document, table, chart, and source facts before analysis.
+- Preserve cell references, citations, assumptions, and transformations.
+- Compute values separately from narrative judgment.
+- Audit every user-facing progress or result claim against an artifact.
+
+### Effort Inversion Debugger
+
+- Do not assume higher effort is better. If `xhigh` or max effort underperforms
+  `medium` or `high`, identify and remove the cause before continuing.
+- Sweep effort on the same model, API path, sample IDs, prompt, scorer,
+  `max_output_tokens`, and judge.
+- Keep new items per worker constant when tuning concurrency.
+- Record latency, cost, incomplete responses, visible answer extraction,
+  reasoning token usage when available, fallback/refusal events, and item-level
+  deltas.
+- Classify failures as insufficient budget, answer truncation, format mismatch,
+  over-decomposition, incorrectly coupled independent terms, hallucinated
+  evidence, domain gap, stale source assumption, or grader mismatch.
+- Use the lowest effort that wins or ties within confidence bounds after cost
+  and latency are considered.
 
 ### Best-Practice Gate
 

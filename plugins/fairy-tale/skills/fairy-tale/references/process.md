@@ -175,6 +175,118 @@ failure modes:
 next experiment:
 ```
 
+## Domain router card
+
+Use this before applying a Fairy Tale harness to a benchmark or unfamiliar
+task family.
+
+```text
+task family: agentic coding | refactoring | closed-ended knowledge | legal | bio/health | finance/document | spatial/UI/3D | narrative | mechanism discovery | defensive security | other
+benchmark or workflow target:
+why this family:
+harness selected:
+harness rejected:
+domain-specific risks:
+answer/output contract:
+validation:
+fallback/refusal/safety routing to record:
+```
+
+## Effort inversion record
+
+Use this when tuning `medium`, `high`, `xhigh`, max effort, or any provider
+equivalent.
+
+```text
+task family:
+sample IDs:
+model/API path:
+prompt/version:
+scorer/judge:
+max output / reasoning budget:
+concurrency: new items per worker
+medium result:
+high result:
+xhigh/max result:
+latency/cost:
+incomplete/truncated responses:
+reasoning token usage:
+item-level wins/losses:
+failure taxonomy:
+selected effort:
+cause of inversion:
+fix:
+```
+
+## Knowledge crystallization record
+
+Use this for HLE-style closed-ended academic or expert-knowledge tasks.
+
+```text
+subject:
+answer type:
+required exactness:
+known independent terms:
+answer choices / candidate forms:
+minimal derivation:
+final answer contract:
+confidence calibration:
+error class if wrong:
+```
+
+## Legal reasoning record
+
+Use this for legal benchmarks, contract review, redlines, legal summaries, or
+agentic legal workflows.
+
+```text
+jurisdiction:
+authority/date:
+procedural posture:
+task type:
+facts:
+issue:
+rule:
+application:
+conclusion:
+citations/source grounding:
+confidentiality/privilege concerns:
+legal-advice boundary:
+subtask score:
+```
+
+## Bio/health safety record
+
+Use this for biology, medicine, health, chemistry-adjacent, or life-science
+tasks.
+
+```text
+task class: benign explanation | clinical guidance | lab protocol | molecular mechanism | dual-use biology | hazardous content | other
+safety boundary:
+established facts:
+uncertain interpretation:
+hypothesis:
+clinical or lab escalation needed:
+fallback/refusal event:
+final-answer boundary:
+```
+
+## Evidence table record
+
+Use this for finance, documents, charts, tables, spreadsheets, and enterprise
+knowledge work.
+
+```text
+source artifact:
+extracted facts:
+table/cell/page references:
+assumptions:
+calculation steps:
+judgment:
+uncertainties:
+artifact-backed progress claims:
+```
+
 ## Spatial forge brief
 
 Use this before 3D, CAD, simulation, or game-scene work.

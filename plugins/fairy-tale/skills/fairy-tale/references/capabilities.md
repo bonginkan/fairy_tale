@@ -41,6 +41,9 @@ mechanisms behind reported advantage:
 - vision-grounded extraction and reconstruction,
 - persistent file-based memory during long tasks,
 - fewer turns on spreadsheet, analytics, and vibe-coding tasks,
+- legal redline and document-review strength,
+- finance, chart, table, and expected-value analysis,
+- scientific hypothesis generation and life-sciences tool orchestration,
 - strong but domain-sensitive safeguards and fallbacks.
 
 Workflow translation:
@@ -51,6 +54,42 @@ Workflow translation:
 - track cost, elapsed time, fallback/refusal events, and validation artifacts,
 - preserve failures, timeouts, and hallucinated validation as first-class
   results.
+
+## Domain-sensitive routing
+
+Applying a coding-oriented workflow directly to a broad academic benchmark can
+create routing and scoring errors. Fable/Mythos reports span separate
+capability families: agentic coding, legal redlines, finance and document
+reasoning, vision/spatial reconstruction, life sciences, biology/medicine,
+long-memory games, and defensive cyber. A single harness should not be used for
+all of them.
+
+Workflow translation:
+
+- classify the task family before choosing a process,
+- use coding and refactoring harnesses only for software-shaped work,
+- use a strict answer contract for closed-ended benchmark tasks,
+- use legal, bio/health, finance/document, and spatial harnesses for those
+  domains,
+- require controlled evidence before making cross-domain capability claims.
+
+## Effort inversion
+
+Higher effort can improve verification on hard tasks, but it can also create
+overthinking, unnecessary context gathering, truncation, cost blowups, or
+incorrect coupling of independent terms. OpenAI documents `medium` as the
+default balanced starting point for `gpt-5.5`, and `xhigh` as appropriate only
+when evals show clear benefit. Anthropic similarly advises considering all
+Fable effort levels and notes that higher effort can overplan routine tasks.
+
+Workflow translation:
+
+- sweep `medium`, `high`, and `xhigh` on the same task slice before choosing,
+- keep model, API, prompt, sample, scorer, and output budget fixed,
+- log reasoning token usage, incomplete responses, latency, cost, and
+  item-level deltas,
+- diagnose inversions instead of accepting them as noise,
+- use the lowest effort that wins or ties within confidence bounds.
 
 ## High-end analytical work
 
@@ -64,6 +103,41 @@ Workflow translation:
 - use intermediate tables,
 - state assumptions and uncertainty,
 - verify calculations.
+
+## Legal reasoning and redline work
+
+Official Fable materials include customer claims that legal redlines matched or
+beat existing models, while LegalBench-style third-party reporting shows strong
+aggregate legal scores but also warns that performance varies sharply by legal
+task type. Legal work therefore needs its own harness rather than generic
+coding-agent scaffolding.
+
+Workflow translation:
+
+- identify jurisdiction, authority type, date, procedural posture, and task
+  type,
+- separate facts, issue, rule, application, conclusion, caveats, and citations,
+- preserve confidentiality and avoid legal-advice overclaiming,
+- evaluate by subtask, not only aggregate accuracy,
+- record citation validity, jurisdiction correctness, privilege handling, and
+  refusal calibration when relevant.
+
+## Bio, medicine, and health
+
+Official materials describe life-science and biology strengths while also
+documenting safety classifiers that may refuse or reroute biology, chemistry,
+and life-science tasks. Public reporting also indicates false positives on
+benign biology. Bio/health work must distinguish reasoning capability from
+safety routing and domain boundaries.
+
+Workflow translation:
+
+- classify the task as benign explanation, clinical guidance, lab protocol,
+  molecular mechanism, dual-use biology, or hazardous content,
+- use conservative boundaries for actionable wet-lab or medical content,
+- separate established facts from hypotheses and clinical recommendations,
+- record fallback/refusal events as benchmark data,
+- require uncertainty and escalation language for health claims.
 
 ## Vision-grounded reconstruction
 

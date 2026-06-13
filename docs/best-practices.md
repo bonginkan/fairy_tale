@@ -50,6 +50,56 @@ Fairy Tale rule:
   negatives, timeouts, refusals, and hallucinated validations.
 - Treat product-specific eval platforms as replaceable; keep the dataset,
   rubric, and result artifacts portable.
+- Route by domain before evaluating. Agentic coding, legal reasoning,
+  HLE-style knowledge, bio/health, finance/document work, and 3D/UI tasks need
+  different output contracts and failure taxonomies.
+- For reasoning-effort settings, sweep `medium`, `high`, and `xhigh` on the
+  same sample before choosing. If higher effort underperforms, diagnose the
+  cause and fix it rather than accepting the inversion.
+- Keep concurrency experiments comparable by holding new items per worker
+  constant.
+- For OpenAI `gpt-5.5`, start from the documented `medium` default unless the
+  eval proves that `high` or `xhigh` improves the target metric. Reserve enough
+  output budget for reasoning experiments and record incomplete responses.
+
+## Domain routing
+
+Known practice: strong model performance on one benchmark family does not
+transfer automatically to another. Legal, academic knowledge, bio/health,
+enterprise document work, and agentic coding measure different skills and fail
+for different reasons.
+
+Fairy Tale rule:
+
+- Always fill a domain router card before benchmark-style work.
+- Use Knowledge Crystallization for closed-ended HLE-style tasks.
+- Use Legal Reasoning for legal redlines, legal summaries, and legal
+  benchmarks.
+- Use Bio/Health Safety for biology, medicine, chemistry-adjacent, and health
+  tasks.
+- Use Evidence Table for finance, spreadsheets, documents, charts, and tables.
+- Use the Fable Harness only when the work is actually software-shaped.
+- Treat benchmark evidence as valid only when run conditions, scorer, output
+  budgets, and same-sample effort sweeps are controlled.
+
+## Legal, health, and other high-stakes work
+
+Known practice: high-stakes domains require task operationalization,
+source-grounding, boundaries, and subtask-level evaluation rather than generic
+chat quality.
+
+Fairy Tale rule:
+
+- Legal work must identify jurisdiction, authority, facts, issue, rule,
+  application, conclusion, citations, confidentiality, and legal-advice
+  boundaries.
+- Health and bio work must classify task safety category, separate facts from
+  hypotheses, avoid unsafe actionable protocols, and record fallback/refusal
+  behavior.
+- Finance and document work must preserve extracted evidence, cell/page
+  references, assumptions, calculations, and uncertainty.
+- Report aggregate benchmark results only alongside task-family variance and
+  failure cases.
 
 ## Agent safety and tool boundaries
 
@@ -117,6 +167,8 @@ Fairy Tale rule:
 
 - Anthropic Claude Code skills:
   https://code.claude.com/docs/en/skills
+- Anthropic Fable 5 prompting guidance:
+  https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5
 - Anthropic tool definition guidance:
   https://platform.claude.com/docs/en/agents-and-tools/tool-use/define-tools
 - Anthropic Claude Code hooks security guidance:
@@ -125,8 +177,20 @@ Fairy Tale rule:
   https://code.claude.com/docs/en/memory
 - OpenAI evaluation best practices:
   https://developers.openai.com/api/docs/guides/evaluation-best-practices
+- OpenAI GPT-5.5 model page:
+  https://developers.openai.com/api/docs/models/gpt-5.5
+- OpenAI reasoning models guide:
+  https://developers.openai.com/api/docs/guides/reasoning
 - OpenAI agent safety guidance:
   https://developers.openai.com/api/docs/guides/agent-builder-safety
+- Artificial Analysis HLE methodology:
+  https://artificialanalysis.ai/evaluations/humanitys-last-exam
+- Vals AI LegalBench:
+  https://www.vals.ai/benchmarks/legal_bench
+- HazyResearch LegalBench:
+  https://github.com/HazyResearch/legalbench
+- LegalAgentBench:
+  https://aclanthology.org/2025.acl-long.116.pdf
 - OpenAI skill creation guidance:
   https://github.com/openai/skills/blob/main/skills/.system/skill-creator/SKILL.md
 - GitHub license guidance:

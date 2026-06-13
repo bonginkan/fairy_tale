@@ -47,6 +47,22 @@
   https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5
 - Fable product page:
   https://www.anthropic.com/claude/fable
+- HLE methodology and current leaderboard context:
+  https://artificialanalysis.ai/evaluations/humanitys-last-exam
+- Artificial Analysis Fable 5 intelligence-index note:
+  https://artificialanalysis.ai/articles/claude-fable-5-mythos-intelligence-index
+- Vals AI LegalBench leaderboard:
+  https://www.vals.ai/benchmarks/legal_bench
+- HazyResearch LegalBench:
+  https://github.com/HazyResearch/legalbench
+- LegalAgentBench:
+  https://aclanthology.org/2025.acl-long.116.pdf
+- OpenAI GPT-5.5 model page:
+  https://developers.openai.com/api/docs/models/gpt-5.5
+- OpenAI reasoning models guide:
+  https://developers.openai.com/api/docs/guides/reasoning
+- OpenAI community effort-anomaly report:
+  https://community.openai.com/t/low-logical-reasoning-performance-of-gpt-5-2-at-medium-and-high-reasoning-effort-levels/1372853
 - Style-specific document/UI report:
   https://www.linkedin.com/posts/debarghyadas_claude-fable-5s-ability-to-generate-docs-activity-7470396279525752832-Fr7B
 - Product design/UI testing:

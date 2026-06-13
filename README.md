@@ -34,6 +34,7 @@ Initial scaffold and research synthesis.
 ## Primary docs
 
 - `docs/research-summary.md`
+- `docs/domain-gap-analysis.md`
 - `docs/arc-agi-3-lab-analysis.md`
 - `docs/best-practices.md`
 - `docs/openmythos-external-adapter.md`
