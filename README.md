@@ -168,8 +168,11 @@ Notes:
 
 - SWE-Bench Pro: feedback-only regressed on the small sample. The generic
   implementation validation gate reached 3/5 on the first slice, then 8/15 on
-  the added slice, for 11/20 overall. The latest feedback ledger keeps the
-  observed success practices `local_invariant_mapping`,
+  the added slice, for 11/20 overall. The tool/gate value is reported with a
+  95% Wilson CI of 34.2-74.2% (half-width 20.0 pp), so treat the 55.0% point
+  estimate as reference information until a larger held-out sample narrows the
+  interval. The latest feedback ledger keeps the observed success practices
+  `local_invariant_mapping`,
   `targeted_container_validation`, and `named_interface_completion`, while the
   failure-derived candidates remain under review until a held-out retry shows
   measured improvement.
