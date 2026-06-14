@@ -2,6 +2,8 @@
 
 ![Fairy Tale wide logo](assets/fairy-tale-wide-logo-gpt-image-2.png)
 
+[日本語はこちらから](./README_ja.md)
+
 Research workspace for turning public Fable/Mythos-class agent reports into
 reproducible workflow-augmentation skills and plugin packages.
 
@@ -18,6 +20,53 @@ This repository does not attempt to bypass access controls, export controls, or
 model safeguards. It studies public official information and public user reports
 to define reusable workflow enhancements that can be run with Codex, Claude Code,
 or other agent-skill-compatible coding assistants.
+
+## Quick start
+
+Pick the integration that matches your agent and validate the install.
+
+1. Clone this repository.
+
+   ```bash
+   git clone https://github.com/bonginkan/fairy_tale.git
+   cd fairy_tale
+   ```
+
+2. Choose how to use the Fairy Tale skill.
+
+   - Claude Code (plugin via local marketplace, recommended):
+
+     ```text
+     /plugin marketplace add .
+     /plugin install fairy-tale@fairy-tale-marketplace
+     ```
+
+   - Claude Code (project skill, no plugin): the repo skill at
+     `.claude/skills/fairy-tale/SKILL.md` is loaded automatically when Claude Code
+     runs in this directory.
+   - Codex: use the repo skill at `.agents/skills/fairy-tale/SKILL.md`, or install
+     the Codex plugin via `plugins/fairy-tale/.codex-plugin/plugin.json`.
+   - Generic agents: point your agent at `skills/fairy-tale/SKILL.md` and, if
+     relevant, `skills/fairy-tale-legal-feedback/SKILL.md`.
+
+3. (Optional) Validate the Rust workspace.
+
+   ```bash
+   cargo metadata --no-deps --format-version 1
+   ```
+
+4. (Optional) Try a benchmark adapter end-to-end. Keep generated data under a
+   local `tmp/` path and follow `docs/benchmark-validation-plan.md` before
+   reporting any number.
+
+   ```bash
+   python scripts/biomystery_runner.py --help
+   python scripts/swebench_pro_prepare.py --help
+   ```
+
+Before publishing measurements, re-read [SECURITY.md](SECURITY.md),
+[CONTRIBUTING.md](CONTRIBUTING.md), and
+[docs/feedback-governance.md](docs/feedback-governance.md).
 
 ## Goals
 
@@ -49,10 +98,10 @@ Benchmark rows must keep known Fable/Mythos data, known or measured GPT-5.5
 data, and measured GPT-5.5 + Fairy Tale data separate. When a measured Fairy
 Tale result is a sample estimate, report the confidence interval or half-width.
 
-| Domain | Benchmark | Fable/Mythos | GPT-5.5 | **GPT-5.5 + Fairy Tale** | Delta |
-| --- | --- | --- | --- | --- | --- |
-| Biology | BioMysteryBench-preview, n=5 | 46.1% / 83.9% | 60.0% | **80.0%** | **+20.0 pp** |
-| Legal | Harvey LAB-compatible random sample, n=100 | 13.3% | 2.1% | **11.0%** | **+8.9 pp** |
+| Domain  | Benchmark                                  | Fable/Mythos  | GPT-5.5 | **GPT-5.5 + Fairy Tale** | Delta        |
+| ------- | ------------------------------------------ | ------------- | ------- | ------------------------ | ------------ |
+| Biology | BioMysteryBench-preview, n=5               | 46.1% / 83.9% | 60.0%   | **80.0%**                | **+20.0 pp** |
+| Legal   | Harvey LAB-compatible random sample, n=100 | 13.3%         | 2.1%    | **11.0%**                | **+8.9 pp**  |
 
 Notes:
 
@@ -70,12 +119,12 @@ The legal feedback mechanism was tested on 15 tasks selected from prior misses
 in the n=100 legal sample. The retry used the same model, effort, judge, and
 task IDs, adding `fairy-tale-legal-feedback` to the existing legal harness.
 
-| Metric | Before Feedback | **After Fairy Tale Feedback** | Change |
-| --- | ---: | ---: | ---: |
-| All-pass rate | 0.0% | **20.0%** | **+20.0 pp** |
-| Criterion pass rate | 83.21% | **90.61%** | **+7.40 pp** |
-| One-miss failures | 10 | **5** | **-5** |
-| Large collapses below 70% criteria | 5 | **4** | **-1** |
+| Metric                             | Before Feedback | **After Fairy Tale Feedback** |       Change |
+| ---------------------------------- | --------------: | ----------------------------: | -----------: |
+| All-pass rate                      |            0.0% |                     **20.0%** | **+20.0 pp** |
+| Criterion pass rate                |          83.21% |                    **90.61%** | **+7.40 pp** |
+| One-miss failures                  |              10 |                         **5** |       **-5** |
+| Large collapses below 70% criteria |               5 |                         **4** |       **-1** |
 
 Strongest recovery: `corporate-ma/draft-stock-purchase-agreement` improved
 from 17/117 to 102/117 criteria (+72.6 pp). Remaining weakness: several
