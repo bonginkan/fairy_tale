@@ -1,5 +1,7 @@
 # fairy_tale
 
+[日本語版 README](README_ja.md)
+
 ![Fairy Tale wide logo](assets/fairy-tale-wide-logo-gpt-image-2.png)
 
 Research workspace for turning public Fable/Mythos-class agent reports into
@@ -18,6 +20,42 @@ This repository does not attempt to bypass access controls, export controls, or
 model safeguards. It studies public official information and public user reports
 to define reusable workflow enhancements that can be run with Codex, Claude Code,
 or other agent-skill-compatible coding assistants.
+
+## Quick Start
+
+Install the Claude Code plugin directly from GitHub:
+
+```text
+/plugin marketplace add bonginkan/fairy_tale
+/plugin install fairy-tale@fairy-tale-marketplace
+```
+
+Codex's current plugin marketplace documentation supports GitHub shorthand
+marketplaces such as `owner/repo`. Add the repository as a marketplace, then
+install `fairy-tale` from the plugin directory:
+
+```text
+codex plugin marketplace add bonginkan/fairy_tale
+```
+
+If your Codex build does not expose the plugin CLI yet, use the plugin
+directory UI and add `bonginkan/fairy_tale` as a marketplace source.
+
+For skill-only use without a plugin, install just the canonical skills:
+
+```bash
+mkdir -p "$HOME/.codex/skills"
+curl -fsSL https://raw.githubusercontent.com/bonginkan/fairy_tale/main/install.sh | sh -s -- --agent codex
+```
+
+Use `--agent claude` for `~/.claude/skills`, `--agent agents` for
+`~/.agents/skills`, or `--target /absolute/skills/dir` for an explicit target.
+The installer fails closed if the target directory is missing unless `--create`
+is supplied.
+
+Before publishing benchmark claims or making the repository public, read
+[SECURITY.md](SECURITY.md), [CONTRIBUTING.md](CONTRIBUTING.md), and
+[Feedback governance](docs/feedback-governance.md).
 
 ## Goals
 
@@ -127,6 +165,8 @@ still selects a non-heat stress label without stronger heat-specific evidence.
 - [Benchmark feedback ledger](scripts/benchmark_feedback_ledger.py)
 - [Legal feedback analyzer](scripts/legal_feedback_analyzer.py)
 - [Feedback pruner](scripts/feedback_pruner.py)
+- [Skill-only installer](install.sh)
+- [Skill package builder](scripts/package_skills.py)
 - [Fairy Fusion reviewer](scripts/fairy_fusion_review.py)
 - [SWE-Bench Pro adapter](adapters/swe-bench-pro.adapter.json)
 - [ExploitBench adapter](adapters/exploitbench.adapter.json)
@@ -137,16 +177,20 @@ still selects a non-heat stress label without stronger heat-specific evidence.
 ## Claude Code plugin
 
 This repo includes a Claude Code marketplace catalog at
-`.claude-plugin/marketplace.json`. In Claude Code, add the local marketplace and
-install the plugin:
+`.claude-plugin/marketplace.json`. In Claude Code, add the GitHub marketplace
+and install the plugin:
 
 ```text
-/plugin marketplace add .
+/plugin marketplace add bonginkan/fairy_tale
 /plugin install fairy-tale@fairy-tale-marketplace
 ```
 
+For local development, `git clone` this repository and use
+`/plugin marketplace add .`.
+
 The same `plugins/fairy-tale/` package also remains a Codex plugin via
-`plugins/fairy-tale/.codex-plugin/plugin.json`.
+`plugins/fairy-tale/.codex-plugin/plugin.json` and the repo marketplace at
+`.agents/plugins/marketplace.json`.
 
 ## License
 
@@ -165,39 +209,4 @@ referenced by this repository remain under their own licenses and terms.
 ## Referenced GitHub repositories
 
 These repositories informed the current skill, adapter, and plugin architecture.
-They remain external sources unless explicitly vendored or forked. Licenses and
-ownership remain with each upstream project.
-
-- `openai/skills` - reference point for portable agent skill structure.
-  https://github.com/openai/skills
-- `ComposioHQ/awesome-claude-skills` - Claude skill ecosystem examples.
-  https://github.com/ComposioHQ/awesome-claude-skills
-- `composiohq/awesome-codex-skills` - Codex skill ecosystem examples.
-  https://github.com/composiohq/awesome-codex-skills
-- `VoltAgent/awesome-agent-skills` - broader agent-skill curation.
-  https://github.com/VoltAgent/awesome-agent-skills
-- `VoltAgent/awesome-claude-code-subagents` - subagent workflow references.
-  https://github.com/VoltAgent/awesome-claude-code-subagents
-- `duolahypercho/fusion-fable` - local Claude Code skill reference for
-  independent blind panelists followed by structured synthesis.
-  https://github.com/duolahypercho/fusion-fable
-- `disler/claude-code-hooks-mastery` - Claude Code hooks workflow references.
-  https://github.com/disler/claude-code-hooks-mastery
-- `Anil-matcha/awesome-claude-fable-5` - curated public Fable 5 reports and demos.
-  https://github.com/Anil-matcha/awesome-claude-fable-5
-- `kyegomez/OpenMythos` - external theoretical reconstruction substrate.
-  https://github.com/kyegomez/OpenMythos
-- `bonginkan/OpenMythos` - pinned fork for future external-adapter experiments.
-  https://github.com/bonginkan/OpenMythos
-- `kongyo2/similarity` - TypeScript structural similarity/refactoring scout.
-  https://github.com/kongyo2/similarity
-- `scaleapi/SWE-bench_Pro-os` - public SWE-Bench Pro evaluation harness.
-  https://github.com/scaleapi/SWE-bench_Pro-os
-- `exploitbench/exploitbench` - public ExploitBench V8 capability-ladder
-  benchmark harness.
-  https://github.com/exploitbench/exploitbench
-- `openrouter/fusion` - public design reference for multi-model deliberation;
-  Fairy Fusion is implemented inside this repo and does not call OpenRouter.
-  https://openrouter.ai/openrouter/fusion
-- `ossf/scorecard` - future OSS repository security-health reference.
-  https://github.com/ossf/scorecard
+The maintained list is in [Referenced GitHub repositories](docs/referenced-repositories.md).

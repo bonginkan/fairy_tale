@@ -1,0 +1,20 @@
+{
+  "name": "fairy-tale-marketplace",
+  "interface": {
+    "displayName": "Fairy Tale Marketplace"
+  },
+  "plugins": [
+    {
+      "name": "fairy-tale",
+      "source": {
+        "source": "local",
+        "path": "./plugins/fairy-tale"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
