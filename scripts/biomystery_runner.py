@@ -196,8 +196,9 @@ def call_openai(messages: list[dict[str, Any]], model: str, effort: str, timeout
         },
         method="POST",
     )
+    request_timeout = None if timeout <= 0 else timeout
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        with urllib.request.urlopen(request, timeout=request_timeout) as response:
             return json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as error:
         detail = error.read().decode("utf-8", errors="replace")
@@ -393,7 +394,7 @@ def main() -> int:
     run.add_argument("--model", default=DEFAULT_MODEL)
     run.add_argument("--effort", choices=["minimal", "low", "medium", "high"], default="medium")
     run.add_argument("--preview-bytes", type=int, default=0)
-    run.add_argument("--timeout", type=int, default=600)
+    run.add_argument("--timeout", type=int, default=0, help="HTTP timeout in seconds; 0 waits until the API returns")
     run.add_argument("--dry-run", action="store_true")
     run.add_argument("--output")
     run.add_argument("--append", action="store_true")
