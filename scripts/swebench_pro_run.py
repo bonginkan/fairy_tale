@@ -137,7 +137,7 @@ def write_sweagent_config(args: argparse.Namespace) -> int:
     instances:
       type: file
       path: {args.instances_path}
-      slice: {args.instances_slice}
+      slice: {json.dumps(args.instances_slice)}
       shuffle: false
       deployment:
         type: docker
