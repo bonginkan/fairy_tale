@@ -7,6 +7,7 @@ Desktop.ini
 $RECYCLE.BIN/
 *.log
 tmp/
+output/
 reports/
 dist/
 build/
