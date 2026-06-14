@@ -32,9 +32,9 @@
 - `CONTRIBUTING.md` — 寄稿原則、ライセンス、検証要件。
 - `SECURITY.md` — 防御的セキュリティ運用境界。
 - `skills/fairy-tale/SKILL.md` — Fairy Tale ワークフローの正本。
-- `docs/best-practices.md` — 採用してよい / してはいけないパターン。
-- `docs/benchmark-validation-plan.md` — ベンチマーク再現と報告方法。
-- `docs/feedback-governance.md` — フィードバック取り扱いの統制。
+- `docs/governance/best-practices.md` — 採用してよい / してはいけないパターン。
+- `docs/benchmarks/benchmark-validation-plan.md` — ベンチマーク再現と報告方法。
+- `docs/governance/feedback-governance.md` — フィードバック取り扱いの統制。
 - 関連タスクに応じて `docs/` 配下の対象トピック (legal, cybersecurity, oss-watch など)。
 
 ## よく使うコマンド
@@ -73,5 +73,5 @@
   `.claude/skills/`)、および `plugins/fairy-tale/` のマニフェストが整合している。
 - アダプタ / スキーマ変更時: 対応する `schemas/` と `adapters/` の整合を確認。
 - ベンチマーク・研究的主張を更新した場合: 既知値・測定値・サンプル推定の区別と
-  provenance、信頼区間の表記が `docs/benchmark-validation-plan.md` に沿っている。
+  provenance、信頼区間の表記が `docs/benchmarks/benchmark-validation-plan.md` に沿っている。
 - 公開境界 (License / NOTICE / SECURITY / brand assets) を踏んでいないか確認。

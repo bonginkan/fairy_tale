@@ -334,7 +334,7 @@ Fable/Mythos-class reports, not to access or bypass those models.
 - Treat architectural probes as hypotheses; never claim proprietary equivalence
   without independent evidence.
 - For OpenMythos specifically, use `adapters/openmythos.adapter.json` and
-  `docs/openmythos-external-adapter.md`.
+  `docs/adapters/openmythos-external-adapter.md`.
 
 ### Refactoring Similarity Harness
 
@@ -346,7 +346,7 @@ Fable/Mythos-class reports, not to access or bypass those models.
   and rollback notes.
 - Refactor one cluster at a time and validate after each slice.
 - For `kongyo2/similarity`, use `adapters/similarity-ts.adapter.json` and
-  `docs/similarity-refactoring-adapter.md`.
+  `docs/adapters/similarity-refactoring-adapter.md`.
 
 ## Supporting references
 
