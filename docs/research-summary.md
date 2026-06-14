@@ -95,7 +95,8 @@ The skill should not imitate a model. It should reproduce the process patterns:
 6. Validation before claiming completion.
 7. Context compression with recovery handles.
 8. Memory and configuration updates after success.
-9. Defensive security constraints for cyber workflows.
+9. Defensive security constraints, triage, patch validation, and detection
+   coverage for cyber workflows.
 
 ## Benchmark advantage translation
 
@@ -281,6 +282,9 @@ review.
 - `Fairy Tale Loop`: high-level plan -> scoped scouts -> synthesis -> validation -> memory update.
 - `Fable Harness`: token-budgeted long-task execution harness.
 - `Mythos Defensive Harness`: defensive security review harness with validation gates.
+- `Cyber Frontier Defense Harness`: authorized security workflow with asset
+  maps, trust boundaries, safe evidence, patch-first remediation, regression
+  tests, detection coverage, and root-cause triage.
 - `Glass Slipper Gate`: stop condition for runaway agent fan-out or uncertain results.
 - `Benchmark Delta Harness`: controlled comparison of baseline and candidate
   process under benchmark-like conditions.

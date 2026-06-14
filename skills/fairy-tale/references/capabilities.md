@@ -254,16 +254,49 @@ Workflow translation:
 ## Defensive cyber capability
 
 Project Glasswing reports strong vulnerability discovery and validation
-capability. This repository only uses defensive translations.
+capability. Anthropic's updates and Cloudflare/Rapid7 field reports suggest the
+important workflow is not merely "find bugs"; it is to turn model findings into
+authorized triage, business-context prioritization, patching, fix validation,
+and detection coverage. This repository only uses defensive translations.
 
 Workflow translation:
 
 - authorized targets only,
-- vulnerability triage harness,
-- post-validation stages,
+- asset and trust-boundary map before findings,
+- vulnerability taxonomy across OWASP Web, OWASP LLM, cloud/IAM, supply chain,
+  tenant isolation, data privacy, secrets, business logic, and agent/tool risk,
+- safe evidence before severity,
+- root-cause deduplication and false-positive management,
+- patch-first remediation,
+- regression tests and post-fix validation stages,
+- detection, audit log, and monitoring follow-up,
 - patch-first output,
 - responsible disclosure,
 - no exploit weaponization.
+
+## LLM application security
+
+OWASP LLM guidance highlights risks that ordinary web security reviews often
+miss. Fairy Tale should explicitly inspect:
+
+- prompt injection across user text, tickets, documents, retrieved content, and
+  tool outputs,
+- sensitive information disclosure and system prompt leakage,
+- insecure output handling into HTML, SQL, shell, workflow, or CRM operations,
+- excessive agency and missing server-side policy checks,
+- vector/embedding weakness and cross-tenant retrieval,
+- data/model poisoning through knowledge-base ingestion,
+- unbounded consumption and denial-of-wallet risk,
+- supply-chain/model dependency risk.
+
+Workflow translation:
+
+- model output is never an authority boundary,
+- tools and mutations require server-side policy,
+- retrieved content is untrusted data,
+- prompt building, redaction, HTML sanitization, and business validation are
+  separate controls,
+- every high-risk agent action needs auditability and rollback.
 
 ## Workflow self-improvement
 

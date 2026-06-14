@@ -8,6 +8,8 @@
   https://platform.claude.com/docs/en/about-claude/models/introducing-claude-fable-5-and-claude-mythos-5
 - Project Glasswing:
   https://www.anthropic.com/glasswing
+- Project Glasswing initial update:
+  https://www.anthropic.com/research/glasswing-initial-update
 - Expanding Project Glasswing:
   https://www.anthropic.com/news/expanding-project-glasswing
 - Suspension statement:
@@ -27,6 +29,8 @@
   https://www.linkedin.com/posts/paul--_anthropic-released-claude-fable-5-reddit-activity-7470369702138232832-nfpG
 - Cloudflare Project Glasswing field report:
   https://blog.cloudflare.com/cyber-frontier-models/
+- Rapid7 Project Glasswing defensive-operations note:
+  https://www.rapid7.com/blog/post/ai-rapid7-accesses-anthropics-project-glasswing-exploring-frontier-artificial-cybersecurity-intelligence/
 - Independent coding/security benchmark caution:
   https://www.endorlabs.com/learn/claude-fable-5-mythos-grade-hype
 - Benchmark breakdown and synthesis:
@@ -110,6 +114,12 @@
   https://developers.openai.com/api/docs/guides/evaluation-best-practices
 - OpenAI agent safety guidance:
   https://developers.openai.com/api/docs/guides/agent-builder-safety
+- OWASP Top 10 for LLM Applications:
+  https://owasp.org/www-project-top-10-for-large-language-model-applications/
+- OWASP GenAI Security Project:
+  https://genai.owasp.org/llm-top-10/
+- SEC cybersecurity disclosure guide:
+  https://www.sec.gov/resources-small-businesses/small-business-compliance-guides/cybersecurity-risk-management-strategy-governance-incident-disclosure
 - GitHub license guidance:
   https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/licensing-a-repository
 - GitHub security policy guidance:

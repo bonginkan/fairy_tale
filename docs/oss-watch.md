@@ -40,6 +40,9 @@ Useful ideas to borrow:
 - MCP integration: connect tools and data sources through explicit contracts.
 - Evaluation harnesses: preserve prompts, artifacts, cost, elapsed time, and
   failure modes for benchmark-like comparison.
+- Defensive security triage: convert model-discovered issues into authorized
+  scope, safe evidence, patch plans, regression tests, detection coverage, and
+  responsible disclosure artifacts.
 - Domain routers: choose a task-family harness before prompting, especially for
   legal, bio/health, finance/document, and HLE-style closed-ended work.
 - Effort sweeps: treat medium/high/xhigh or provider-equivalent effort levels
@@ -94,6 +97,27 @@ Useful ideas to borrow:
   - repo: https://github.com/centerforaisafety/hle
   - role: broad closed-ended academic benchmark across math, science,
     humanities, and other expert domains.
+
+## Defensive security references
+
+- OWASP Top 10 for LLM Applications:
+  - https://owasp.org/www-project-top-10-for-large-language-model-applications/
+  - role: LLM app security taxonomy for prompt injection, output handling,
+    sensitive disclosure, excessive agency, and related risks.
+- OWASP GenAI Security Project:
+  - https://genai.owasp.org/llm-top-10/
+  - role: updated GenAI security risk references.
+- Project Glasswing:
+  - https://www.anthropic.com/glasswing
+  - role: official frontier defensive cyber collaboration reference.
+- Cloudflare Project Glasswing report:
+  - https://blog.cloudflare.com/cyber-frontier-models/
+  - role: field report on using frontier security models against owned
+    infrastructure.
+- Rapid7 Project Glasswing note:
+  - https://www.rapid7.com/blog/post/ai-rapid7-accesses-anthropics-project-glasswing-exploring-frontier-artificial-cybersecurity-intelligence/
+  - role: operational reminder that vulnerability finding must be followed by
+    context, remediation, validation, and detection coverage.
 
 ## Fable-specific public curation
 

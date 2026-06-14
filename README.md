@@ -35,6 +35,7 @@ Initial scaffold and research synthesis.
 
 - `docs/research-summary.md`
 - `docs/domain-gap-analysis.md`
+- `docs/cybersecurity-strengthening.md`
 - `docs/arc-agi-3-lab-analysis.md`
 - `docs/best-practices.md`
 - `docs/openmythos-external-adapter.md`

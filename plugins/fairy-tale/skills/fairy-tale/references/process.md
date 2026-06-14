@@ -154,6 +154,59 @@ patch recommendation:
 disclosure status:
 ```
 
+## Cyber frontier defense record
+
+Use this for authorized vulnerability triage, LLM app security review, secure
+refactoring, and defensive validation.
+
+```text
+authorization:
+allowed targets:
+forbidden targets:
+system assets:
+trust boundaries:
+entry points:
+privileged actions:
+tenant/data boundaries:
+secrets and credentials:
+external services / tools:
+finding class: OWASP Web | OWASP LLM | cloud/IAM | supply chain | tenant isolation | data privacy | secrets | business logic | agent/tool risk | other
+finding status: confirmed | likely | speculative | informational | duplicate
+affected component:
+preconditions:
+impacted data/action:
+existing control expected:
+why control fails:
+safe evidence:
+severity rationale:
+patch recommendation:
+regression tests:
+detection/monitoring:
+owner:
+rollout/rollback:
+responsible disclosure:
+forbidden exploit detail excluded:
+```
+
+## LLM application security checklist
+
+```text
+prompt injection fixtures:
+retrieved content marked untrusted:
+system/developer instructions separated:
+sensitive output blocked/redacted:
+HTML/Markdown output sanitized:
+tool calls server-side authorized:
+high-risk mutations require human approval:
+tenant filters enforced server-side:
+embedding/vector search tenant-scoped:
+KB ingestion poisoning controls:
+model/tool dependency inventory:
+audit logs redact sensitive content:
+unbounded spend/loop controls:
+rollback path:
+```
+
 ## Benchmark delta record
 
 Use this when trying to reproduce reported benchmark-style advantages.

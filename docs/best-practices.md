@@ -118,6 +118,29 @@ Fairy Tale rule:
   use absolute paths, quote shell variables, and skip sensitive files such as
   `.env`, `.git/`, keys, and credentials.
 
+## Defensive cybersecurity
+
+Known practice: frontier models can increase vulnerability-finding volume, but
+security impact depends on authorization, triage, business context,
+remediation, fix validation, and detection coverage.
+
+Fairy Tale rule:
+
+- Security work is defensive-only and authorized.
+- Start with assets, trust boundaries, entry points, privileged actions,
+  tenant/data boundaries, secrets, queues, external APIs, and model/tool
+  authority.
+- For LLM apps, explicitly check OWASP LLM risks: prompt injection, sensitive
+  information disclosure, insecure output handling, excessive agency, system
+  prompt leakage, vector/embedding weakness, data/model poisoning, supply chain,
+  misinformation, and unbounded consumption.
+- Record non-weaponized evidence before severity.
+- Patch first, then validate with regression tests and detection coverage.
+- Deduplicate by root cause and classify findings as confirmed, likely,
+  speculative, informational, or duplicate.
+- Do not include exploit weaponization, stealth, persistence, credential theft,
+  or live-target instructions beyond authorization.
+
 ## Context and memory
 
 Known practice: long context is still finite; durable work requires compact
@@ -183,6 +206,14 @@ Fairy Tale rule:
   https://developers.openai.com/api/docs/guides/reasoning
 - OpenAI agent safety guidance:
   https://developers.openai.com/api/docs/guides/agent-builder-safety
+- Anthropic Project Glasswing:
+  https://www.anthropic.com/glasswing
+- Anthropic Project Glasswing initial update:
+  https://www.anthropic.com/research/glasswing-initial-update
+- Cloudflare Project Glasswing field report:
+  https://blog.cloudflare.com/cyber-frontier-models/
+- Rapid7 Project Glasswing defensive operations note:
+  https://www.rapid7.com/blog/post/ai-rapid7-accesses-anthropics-project-glasswing-exploring-frontier-artificial-cybersecurity-intelligence/
 - Artificial Analysis HLE methodology:
   https://artificialanalysis.ai/evaluations/humanitys-last-exam
 - Vals AI LegalBench:
@@ -191,6 +222,12 @@ Fairy Tale rule:
   https://github.com/HazyResearch/legalbench
 - LegalAgentBench:
   https://aclanthology.org/2025.acl-long.116.pdf
+- OWASP Top 10 for LLM Applications:
+  https://owasp.org/www-project-top-10-for-large-language-model-applications/
+- OWASP GenAI Security Project:
+  https://genai.owasp.org/llm-top-10/
+- SEC cybersecurity disclosure guide:
+  https://www.sec.gov/resources-small-businesses/small-business-compliance-guides/cybersecurity-risk-management-strategy-governance-incident-disclosure
 - OpenAI skill creation guidance:
   https://github.com/openai/skills/blob/main/skills/.system/skill-creator/SKILL.md
 - GitHub license guidance:
