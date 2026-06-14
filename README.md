@@ -96,17 +96,30 @@ These are reproducible local measurements, not final leaderboard claims.
 Benchmark rows must keep known Fable/Mythos data, known or measured GPT-5.5
 data, and measured GPT-5.5 + Fairy Tale data separate. When a measured Fairy
 Tale result is a sample estimate, report the confidence interval or half-width.
+Rows marked reference-only are not official benchmark submissions.
 
 | Domain | Benchmark | Fable/Mythos | GPT-5.5 | **GPT-5.5 + Fairy Tale** | Delta |
 | --- | --- | --- | --- | --- | --- |
+| Agentic coding | SWE-Bench Pro random sample, n=20 | 80.3% | 58.6% | **55.0%** | **-3.6 pp** |
 | Biology | BioMysteryBench-preview, n=5 | 46.1% / 83.9% | 60.0% | **80.0%** | **+20.0 pp** |
+| Cybersecurity | ExploitBench v8 ladder sample, n=6 | 78.0% Cap% | 34.0% Cap% | **1.33 avg; 4/6 positive** | **reference only** |
 | Legal | Harvey LAB-compatible random sample, n=100 | 13.3% | 2.1% | **11.0%** | **+8.9 pp** |
 
 Notes:
 
+- Agentic coding Fable/Mythos and GPT-5.5 values are image-reported
+  SWE-Bench Pro scores. **Fairy Tale** is a local random sample using Codex CLI
+  tools and the generic implementation validation gate, 11/20, with 95% Wilson
+  CI 34.2-74.2%. This is reference information, not an official leaderboard
+  submission.
 - Biology Fable/Mythos values are image-reported BioMysteryBench hard /
   human-solved scores. GPT-5.5 is a local medium baseline, 3/5. **Fairy Tale**
   is a local medium run, 4/5, with 95% Wilson CI 37.6-96.4%.
+- Cybersecurity Fable/Mythos and GPT-5.5 values are image-reported
+  ExploitBench Cap% scores. **Fairy Tale** is a local official-sandbox v8
+  ladder sample, 8 total points over 6 tasks, average score 1.33, with a
+  positive signal on 4/6 tasks. It is not a Cap% reproduction, so it is shown as
+  reference-only rather than a direct delta.
 - Legal Fable/Mythos and GPT-5.5 values are image-reported Legal Agent
   Benchmark scores. **Fairy Tale** is a local Harvey LAB-compatible random
   sample, 11/100, with 95% Wilson CI 6.25-18.63% and one-sided p vs 2.1%
@@ -147,25 +160,29 @@ They are not final leaderboard claims.
 
 | Benchmark | Initial **Fairy Tale** | Feedback **Fairy Tale** | Tool / Gate **Fairy Tale** | Effect |
 | --- | ---: | ---: | ---: | ---: |
-| SWE-Bench Pro, n=5 | 60.0% +/-32.6 pp | 40.0% +/-32.6 pp | 60.0% +/-32.6 pp | +0.0 pp / +20.0 pp |
+| SWE-Bench Pro | 60.0% +/-32.6 pp (n=5) | 40.0% +/-32.6 pp (n=5) | 55.0% +/-20.0 pp (n=20) | -5.0 pp / +15.0 pp |
 | HLE random sample, n=100 | 35.0% +/-9.4 pp | 37.0% +/-9.5 pp | 51.0% +/-9.8 pp | +16.0 pp |
-| ExploitBench v8 sample | 0.67 | 3.00 | - | +2.33 |
+| ExploitBench v8 sample | 0.67 | 3.00 | 1.33 | +0.66 vs initial |
 
 Notes:
 
-- SWE-Bench Pro: feedback-only regressed on the small sample, while the generic
-  implementation validation gate restored the prior 3/5 pass rate. The latest
-  failure classes are `existing_behavior_regression` and
-  `missing_public_interface`, so this is not yet a confirmed improvement beyond
-  the previous best.
+- SWE-Bench Pro: feedback-only regressed on the small sample. The generic
+  implementation validation gate reached 3/5 on the first slice, then 8/15 on
+  the added slice, for 11/20 overall. The latest feedback ledger keeps the
+  observed success practices `local_invariant_mapping`,
+  `targeted_container_validation`, and `named_interface_completion`, while the
+  failure-derived candidates remain under review until a held-out retry shows
+  measured improvement.
 - HLE: feedback-only improved from 35/100 to 37/100. The Codex-tools +
   residency-harness run reached 51/100, but it changes the tool condition and
   remains within the uncertainty band of the image-reported GPT-5.5 with-tools
   value.
-- ExploitBench: the score moved from 4 total points over 6 tasks to 6 total
-  points over 2 feedback tasks, and `no_signal_timeout` dropped from 4 to 0 in
-  the feedback slice. Because the sample sizes differ, treat this as a
-  directional signal rather than a stable pass-rate result.
+- ExploitBench: the initial sample scored 4 total points over 6 tasks. The
+  feedback-only slice scored 6 total points over 2 tasks, and the expanded
+  fusion/feedback sample scored 8 total points over 6 tasks, with 4/6 positive
+  signals. Because the score is a ladder value and one expanded-sample task
+  still ended at `no_tool_calls`, treat this as a directional improvement rather
+  than a stable Cap% result.
 
 ## Important boundaries
 
