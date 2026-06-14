@@ -271,6 +271,10 @@ def classify_rules(rules: list[Rule], conflicts: list[dict[str, Any]]) -> list[d
         elif rule.status in {"approved", "kept", "locked"} and decision == "keep":
             reasons.append(f"status:{rule.status}")
 
+        if rule.status == "candidate" and not score["positive"] and decision == "keep":
+            decision = "review"
+            reasons.append("candidate_without_measured_improvement")
+
         if score["negative"] and score["regression_count"] > 0:
             decision = "prune" if rule.status not in {"approved", "locked"} else "review"
             reasons.append("measured_regression")

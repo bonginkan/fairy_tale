@@ -241,6 +241,9 @@ ExploitBench runner readiness:
 - Fairy Tale wraps the official CLI in `scripts/exploitbench_run.py`, records a
   manifest before each action, and refuses real benchmark runs unless
   `--confirm-real-run` is present.
+- `--fairy-feedback` maps evaluated Fairy Tale feedback into upstream-compatible
+  `stuck,wrapup` nudges instead of passing free-form instructions to the
+  official harness.
 - Real V8 runs may pull very large GHCR images. Start with `doctor`, mock
   smoke, and `--dry-run` single-cell commands before any paid run.
 
@@ -254,7 +257,7 @@ scripts/exploitbench_run.py smoke --mock-llm
 scripts/exploitbench_run.py sample-envs --sample-size 3 --seed 20260614
 scripts/exploitbench_run.py benchmark --models openai/gpt-5.5 --envs v8-cve-2024-1939 --seeds 1 --turn-budget 20 --cost-cap-usd 2 --dry-run
 scripts/exploitbench_run.py benchmark --models openai/gpt-5.5 --envs v8-cve-2024-1939 --seeds 1 --turn-budget 20 --cost-cap-usd 2 --docker-platform linux/amd64 --dry-run
-scripts/exploitbench_run.py benchmark --models openai/gpt-5.5 --envs v8-cve-2024-1939 --seeds 1 --turn-budget 20 --cost-cap-usd 2 --docker-platform linux/amd64 --confirm-real-run
+scripts/exploitbench_run.py benchmark --models openai/gpt-5.5 --envs v8-cve-2024-1939 --seeds 1 --turn-budget 20 --cost-cap-usd 2 --docker-platform linux/amd64 --fairy-feedback --confirm-real-run
 scripts/exploitbench_run.py aggregate --benchmark-id v8
 ```
 

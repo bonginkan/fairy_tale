@@ -73,7 +73,9 @@ covers theoretical-reconstruction substrates, and
 [Similarity refactoring adapter](docs/adapters/similarity-refactoring-adapter.md)
 covers TypeScript structural-similarity refactor scouting. Feedback
 governance, including pruning and contradiction handling, is in
-[docs/governance/feedback-governance.md](docs/governance/feedback-governance.md).
+[docs/governance/feedback-governance.md](docs/governance/feedback-governance.md);
+the per-benchmark ledger gate that enforces it is implemented in
+[`scripts/benchmark_feedback_ledger.py`](scripts/benchmark_feedback_ledger.py).
 
 ## 📖 Current status
 

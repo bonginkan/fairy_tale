@@ -154,7 +154,8 @@ Fable/Mythos-class reports, not to access or bypass those models.
   and invoke the official scorer with provenance manifests.
 - For ExploitBench work, use `scripts/exploitbench_run.py` against the official
   upstream sandbox only. Run `doctor`, mock smoke, and dry-run single-cell
-  commands before any confirmed real benchmark run.
+  commands before any confirmed real benchmark run. Use `--fairy-feedback` to
+  map Fairy Tale feedback into upstream-compatible `stuck,wrapup` nudges.
 
 ### Domain Router
 
@@ -242,9 +243,14 @@ Fable/Mythos-class reports, not to access or bypass those models.
 - Treat failed benchmark criteria as reusable feedback, not just result data.
 - Create a narrow rule for each measured failure class and re-run a held-out
   retry slice before promoting the rule to the default skill.
+- When benchmark artifacts are available, first convert failures into a scoped
+  ledger with `scripts/benchmark_feedback_ledger.py`; do not hand-promote
+  plausible rules without the ledger and held-out retry evidence.
 - Before retaining or promoting accumulated feedback, run a pruning pass:
   detect contradictions, duplicates, superseded rules, stale evidence, and
   measured regressions. Prefer a small scoped rule over broad prompt growth.
+- Treat unproven candidate rules as `review`, not `keep`, until a retry sample
+  shows measured improvement.
 - When a task is high-risk or repeatedly near-misses, run bounded Fairy Fusion
   review with `scripts/fairy_fusion_review.py` or a harness-native equivalent:
   independent specialist reviewers, contradiction table, blind-spot closure,

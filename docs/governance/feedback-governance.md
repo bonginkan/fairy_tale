@@ -45,6 +45,11 @@ Run pruning before promoting feedback into the default skill, and periodically
 after new benchmark runs:
 
 ```bash
+scripts/benchmark_feedback_ledger.py hle \
+  --metrics hle-run/metrics.json \
+  --judged hle-run/judged.json \
+  --output feedback-ledger.json
+
 scripts/feedback_pruner.py \
   --ledger feedback-ledger.json \
   --output feedback-prune-report.json \
@@ -63,9 +68,9 @@ The pruner flags:
 
 The output classifies each rule as:
 
-- `keep`: positive or neutral measured evidence and no conflict,
-- `review`: unresolved conflict, weak evidence, stale evidence, or protected
-  approved rule with regression,
+- `keep`: measured improvement or approved neutral evidence and no conflict,
+- `review`: unresolved conflict, unproven candidate, weak evidence, stale
+  evidence, or protected approved rule with regression,
 - `prune`: superseded, deprecated, rejected, or measured regression with no
   protection.
 
