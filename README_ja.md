@@ -210,40 +210,6 @@ Fairy Tale の名称、ロゴ、その他のブランド資産は Apache-2.0 の
 
 ## 参照 GitHub リポジトリ
 
-現在のスキル、アダプタ、プラグインのアーキテクチャに影響を与えたリポジトリ群。
-明示的にベンダリングまたはフォークしない限り、これらは外部ソースのままであり、
-ライセンスと所有権は各上流プロジェクトに帰属する。
-
-- `openai/skills` - ポータブルなエージェントスキル構造の参照点。
-  https://github.com/openai/skills
-- `ComposioHQ/awesome-claude-skills` - Claude skill エコシステムの事例。
-  https://github.com/ComposioHQ/awesome-claude-skills
-- `composiohq/awesome-codex-skills` - Codex skill エコシステムの事例。
-  https://github.com/composiohq/awesome-codex-skills
-- `VoltAgent/awesome-agent-skills` - より広いエージェントスキルのキュレーション。
-  https://github.com/VoltAgent/awesome-agent-skills
-- `VoltAgent/awesome-claude-code-subagents` - subagent ワークフローの参照。
-  https://github.com/VoltAgent/awesome-claude-code-subagents
-- `duolahypercho/fusion-fable` - 独立 blind panelist 後に構造化合成を行う
-  Claude Code skill のローカル参照。
-  https://github.com/duolahypercho/fusion-fable
-- `disler/claude-code-hooks-mastery` - Claude Code hooks ワークフローの参照。
-  https://github.com/disler/claude-code-hooks-mastery
-- `Anil-matcha/awesome-claude-fable-5` - 公開 Fable 5 レポートとデモのキュレーション。
-  https://github.com/Anil-matcha/awesome-claude-fable-5
-- `kyegomez/OpenMythos` - 外部理論再構成基盤。
-  https://github.com/kyegomez/OpenMythos
-- `bonginkan/OpenMythos` - 将来の外部アダプタ実験用にピン留めしたフォーク。
-  https://github.com/bonginkan/OpenMythos
-- `kongyo2/similarity` - TypeScript 構造類似度 / リファクタリングスカウト。
-  https://github.com/kongyo2/similarity
-- `scaleapi/SWE-bench_Pro-os` - 公開 SWE-Bench Pro 評価ハーネス。
-  https://github.com/scaleapi/SWE-bench_Pro-os
-- `exploitbench/exploitbench` - 公開 ExploitBench V8 capability-ladder
-  ベンチマークハーネス。
-  https://github.com/exploitbench/exploitbench
-- `openrouter/fusion` - マルチモデル熟議の公開設計参照。Fairy Fusion は
-  本リポジトリ内で実装されており、OpenRouter は呼び出さない。
-  https://openrouter.ai/openrouter/fusion
-- `ossf/scorecard` - 将来の OSS リポジトリセキュリティヘルス参照。
-  https://github.com/ossf/scorecard
+スキル、アダプタ、ベンチマークハーネスなど、上流リポジトリの一覧と分類は
+[docs/ecosystem/referenced-repositories.md](docs/ecosystem/referenced-repositories.md)
+にまとめている。
