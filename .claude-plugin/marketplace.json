@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "fairy-tale-marketplace",
+  "version": "0.1.0",
+  "description": "Claude Code marketplace for Fairy Tale workflow plugins.",
+  "owner": {
+    "name": "bonginkan"
+  },
+  "plugins": [
+    {
+      "name": "fairy-tale",
+      "description": "Budgeted Fable/Mythos-style agent workflows for coding, research, domain reasoning, creative/UI/spatial work, and defensive security.",
+      "version": "0.1.5",
+      "author": {
+        "name": "bonginkan"
+      },
+      "source": "./plugins/fairy-tale",
+      "category": "productivity"
+    }
+  ]
+}

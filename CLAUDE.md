@@ -3,6 +3,14 @@
 Use the project skill at `.claude/skills/fairy-tale/SKILL.md` or the canonical
 skill at `skills/fairy-tale/SKILL.md`.
 
+For distributable usage, install the Claude Code plugin from the local
+marketplace:
+
+```text
+/plugin marketplace add .
+/plugin install fairy-tale@fairy-tale-marketplace
+```
+
 Rules:
 
 - Do not attempt to access, bypass, or reconstruct restricted models.
@@ -10,4 +18,3 @@ Rules:
 - Keep security work defensive-only and authorized.
 - Preserve provenance for research claims.
 - Prefer small, validated workflow artifacts over broad autonomous fan-out.
-

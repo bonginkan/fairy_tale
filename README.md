@@ -3,6 +3,15 @@
 Private research workspace for distilling reported Fable/Mythos-class agent
 behavior into reproducible agent skills and plugin packages.
 
+Think of this project as the nightingale's scorebook.
+
+In Andersen's tale, the court becomes enchanted by a jeweled mechanical bird,
+only to learn that the living song matters more than the glittering machine.
+Fairy Tale does not try to steal the bird, open the cage, or pretend to be the
+emperor's locksmith. It listens to public traces of unusually good agent work,
+separates melody from myth, and writes down the repeatable patterns as skills,
+checks, adapters, and sample results.
+
 This repository does not attempt to bypass access controls, export controls, or
 model safeguards. It studies public official information and public user reports
 to extract reusable workflows that can be run with Codex, Claude Code, or other
@@ -17,11 +26,19 @@ agent-skill-compatible coding assistants.
   - a Codex repo skill under `.agents/skills/fairy-tale/`
   - a Claude Code project skill under `.claude/skills/fairy-tale/`
   - a distributable Codex plugin under `plugins/fairy-tale/`
+  - a distributable Claude Code plugin under `plugins/fairy-tale/`
 - Track OSS pioneers and reusable ideas without importing unsafe behavior.
 
 ## Current status
 
-Initial scaffold and research synthesis.
+The first songbook is usable:
+
+- Fairy Tale skills are packaged for generic agents, Codex, and Claude Code.
+- The plugin package supports Codex and Claude Code manifests.
+- Research notes, defensive security constraints, best-practice gates, OSS watch
+  notes, adapter plans, and sample comparison outputs are checked in.
+- The project is still private while the melodies are tuned against controlled
+  evaluations.
 
 ## Important boundaries
 
@@ -43,6 +60,20 @@ Initial scaffold and research synthesis.
 - `docs/oss-watch.md`
 - `skills/fairy-tale/SKILL.md`
 - `crates/fairy-adapter-runner/`
+
+## Claude Code plugin
+
+This repo includes a Claude Code marketplace catalog at
+`.claude-plugin/marketplace.json`. In Claude Code, add the local marketplace and
+install the plugin:
+
+```text
+/plugin marketplace add .
+/plugin install fairy-tale@fairy-tale-marketplace
+```
+
+The same `plugins/fairy-tale/` package also remains a Codex plugin via
+`plugins/fairy-tale/.codex-plugin/plugin.json`.
 
 ## Referenced GitHub repositories
 
