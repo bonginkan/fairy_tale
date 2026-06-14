@@ -25,6 +25,9 @@
       "gh repo view scaleapi/SWE-bench_Pro-os",
       "git clone https://github.com/scaleapi/SWE-bench_Pro-os tmp/swe-bench-pro-os",
       "scripts/swebench_pro_prepare.py --sample-size 1 --output-dir tmp/swe-bench-pro-runs/prepared-smoke",
+      "scripts/swebench_pro_run.py plan --prepared-manifest tmp/swe-bench-pro-runs/prepared-smoke/manifest.json",
+      "scripts/swebench_pro_run.py gather --pred-dir tmp/swe-bench-pro-runs/predictions --prefix gpt-5.5-fairy-tale --dry-run",
+      "scripts/swebench_pro_run.py eval --prepared-manifest tmp/swe-bench-pro-runs/prepared-smoke/manifest.json --patch-path tmp/swe-bench-pro-runs/current/patches.json --use-local-docker --dry-run",
       "python helper_code/gather_patches.py --help",
       "python - <<'PY'\nfrom datasets import load_dataset\nprint(load_dataset('ScaleAI/SWE-bench_Pro', split='test')[:1])\nPY"
     ]
@@ -39,6 +42,8 @@
     ],
     "outputs": [
       "patch prediction artifact",
+      "prompt-safe agent task artifact",
+      "raw evaluator CSV artifact",
       "per-instance evaluation log",
       "pass/fail resolution score",
       "fail-to-pass and pass-to-pass test outcomes",
@@ -74,7 +79,8 @@
       "dataset access is confirmed through Hugging Face",
       "one selected instance can be materialized with its dockerhub_tag",
       "prompt-safe agent tasks exclude gold patch, test patch, fail/pass scorer fields, and setup commands",
-      "one dry-run patch-generation task records prompt, model, effort, and artifact paths before scoring"
+      "one dry-run patch-generation task records prompt, model, effort, and artifact paths before scoring",
+      "runner wrapper records gather and eval manifests before executing official scorer"
     ],
     "minimum_artifacts": [
       "manifest",

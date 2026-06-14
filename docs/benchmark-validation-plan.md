@@ -228,6 +228,34 @@ scripts/biomystery_runner.py score --predictions tmp/biomystery-runs/smoke-fairy
 The runner is dependency-light and uses only Python standard library modules.
 It calls the OpenAI Responses API directly when `OPENAI_API_KEY` is set.
 
+ExploitBench runner readiness:
+
+- Official repository `exploitbench/exploitbench` is public and MIT-licensed.
+  Checked on 2026-06-14 JST at commit
+  `11569a070683f4eb304563f919fdaee0cc17e0cf`.
+- The public site reports ExploitBench as a V8 capability-ladder benchmark with
+  16 mechanically graded capabilities grouped from coverage to full control.
+- The upstream CLI supports `doctor`, mock smoke, one-cell benchmark filters,
+  aggregation, cost caps, turn budgets, and provider routing through native or
+  OpenAI-compatible APIs.
+- Fairy Tale wraps the official CLI in `scripts/exploitbench_run.py`, records a
+  manifest before each action, and refuses real benchmark runs unless
+  `--confirm-real-run` is present.
+- Real V8 runs may pull very large GHCR images. Start with `doctor`, mock
+  smoke, and `--dry-run` single-cell commands before any paid run.
+
+ExploitBench wrapper commands:
+
+```text
+scripts/exploitbench_run.py ensure-repo
+scripts/exploitbench_run.py install
+scripts/exploitbench_run.py doctor
+scripts/exploitbench_run.py smoke --mock-llm
+scripts/exploitbench_run.py benchmark --models openai/gpt-5.5 --envs v8-cve-2024-1939 --seeds 1 --turn-budget 20 --cost-cap-usd 2 --dry-run
+scripts/exploitbench_run.py benchmark --models openai/gpt-5.5 --envs v8-cve-2024-1939 --seeds 1 --turn-budget 20 --cost-cap-usd 2 --confirm-real-run
+scripts/exploitbench_run.py aggregate --benchmark-id v8
+```
+
 Agentic coding readiness notes:
 
 - SWE-Bench Pro public set is the primary runnable target for the next coding
@@ -247,14 +275,27 @@ Agentic coding readiness notes:
   repo `NodeBB/NodeBB`, language `js`, docker tag
   `nodebb.nodebb-NodeBB__NodeBB-04998908ba6721d64eba79ae3b65a351dcfbc5b5`.
 - `scripts/swebench_pro_prepare.py` prepares two artifacts: `raw-eval.jsonl`
-  for the evaluator, and `agent-tasks.jsonl` for the coding agent. The agent
-  task artifact excludes gold patches, test patches, fail/pass scorer fields,
-  selected test files, setup commands, and dockerfile fields.
+  and `raw-eval.csv` for the evaluator, and `agent-tasks.jsonl` for the coding
+  agent. The agent task artifact excludes gold patches, test patches,
+  fail/pass scorer fields, selected test files, setup commands, and dockerfile
+  fields.
+- `scripts/swebench_pro_run.py` records plan, patch-gather, and official-eval
+  manifests. Use it after the coding agent writes one `.pred` patch per
+  instance.
 - FrontierCode has no public task bundle or preview runner as of 2026-06-14
   JST; Cognition states that tasks are not currently planned for public release
   to reduce contamination. Use the public blog examples only for qualitative
   rubric design.
 - The SWE-Bench Pro adapter is tracked in `adapters/swe-bench-pro.adapter.json`.
+
+SWE-Bench Pro wrapper commands:
+
+```text
+scripts/swebench_pro_prepare.py --sample-size 1 --seed 20260614 --output-dir tmp/swe-bench-pro-runs/prepared-smoke
+scripts/swebench_pro_run.py plan --prepared-manifest tmp/swe-bench-pro-runs/prepared-smoke/manifest.json
+scripts/swebench_pro_run.py gather --pred-dir tmp/swe-bench-pro-runs/predictions --prefix gpt-5.5-fairy-tale --dry-run
+scripts/swebench_pro_run.py eval --prepared-manifest tmp/swe-bench-pro-runs/prepared-smoke/manifest.json --patch-path tmp/swe-bench-pro-runs/current/patches.json --use-local-docker --dry-run
+```
 
 ### Stage 1: smoke
 

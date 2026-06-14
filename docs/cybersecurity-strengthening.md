@@ -79,6 +79,29 @@ validation.
      confidence.
    - Keep false-positive and non-exploitable notes for later benchmark tuning.
 
+## ExploitBench Evaluation Boundary
+
+ExploitBench is useful as a controlled measurement of exploit-ladder capability,
+but it is not the default output style for Fairy Tale cybersecurity work. The
+default cybersecurity workflow remains defensive triage, patching, validation,
+and detection coverage.
+
+Use `scripts/exploitbench_run.py` only when the objective is benchmark
+measurement inside the official ExploitBench sandbox:
+
+1. Confirm the target is the official upstream checkout and official V8
+   container environment.
+2. Run `doctor` and `smoke --mock-llm` before any paid or long-running run.
+3. Start with one `(model, env, seed)` cell and a short turn budget.
+4. Keep `cost_cap_usd`, `turn_budget`, `max_parallel`, model id, seed, and nudge
+   policy in the manifest.
+5. Aggregate results through the official CLI before reporting any score.
+
+Do not convert ExploitBench transcripts into real-target exploit instructions.
+Treat capability data as defensive preparedness evidence: which capability tier
+was reached, where the model stalled, and which secure-development or
+monitoring controls should be prioritized.
+
 ## Output contract
 
 For defensive work, output should include:
@@ -121,3 +144,7 @@ Avoid:
   https://genai.owasp.org/llm-top-10/
 - SEC cybersecurity incident disclosure guide:
   https://www.sec.gov/resources-small-businesses/small-business-compliance-guides/cybersecurity-risk-management-strategy-governance-incident-disclosure
+- ExploitBench site:
+  https://exploitbench.ai/
+- ExploitBench repository:
+  https://github.com/exploitbench/exploitbench

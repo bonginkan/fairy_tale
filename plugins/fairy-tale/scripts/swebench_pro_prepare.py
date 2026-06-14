@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import random
 import sys
@@ -126,6 +127,23 @@ def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
             handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
 
 
+def csv_value(value: Any) -> str:
+    if isinstance(value, (list, dict)):
+        return json.dumps(value, ensure_ascii=False)
+    if value is None:
+        return ""
+    return str(value)
+
+
+def write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
+    fieldnames = sorted({key for row in rows for key in row})
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({field: csv_value(row.get(field)) for field in fieldnames})
+
+
 def prepare(args: argparse.Namespace) -> None:
     if args.ids:
         selected = select_by_ids(load_dataset_stream(args.split), args.ids)
@@ -134,11 +152,13 @@ def prepare(args: argparse.Namespace) -> None:
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     raw_path = args.output_dir / "raw-eval.jsonl"
+    raw_csv_path = args.output_dir / "raw-eval.csv"
     tasks_path = args.output_dir / "agent-tasks.jsonl"
     manifest_path = args.output_dir / "manifest.json"
 
     tasks = [task_payload(row) for row in selected]
     write_jsonl(raw_path, selected)
+    write_csv(raw_csv_path, selected)
     write_jsonl(tasks_path, tasks)
 
     manifest = {
@@ -149,9 +169,10 @@ def prepare(args: argparse.Namespace) -> None:
         "sample_size": len(selected),
         "instance_ids": [row["instance_id"] for row in selected],
         "raw_eval_path": str(raw_path),
+        "raw_eval_csv_path": str(raw_csv_path),
         "agent_tasks_path": str(tasks_path),
         "prompt_excluded_fields": sorted(PROMPT_EXCLUDED_FIELDS),
-        "notes": "raw-eval.jsonl may contain gold patches and scorer fields. agent-tasks.jsonl is the prompt-safe artifact.",
+        "notes": "raw-eval.jsonl and raw-eval.csv may contain gold patches and scorer fields. agent-tasks.jsonl is the prompt-safe artifact.",
     }
     manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(json.dumps(manifest, indent=2, ensure_ascii=False))

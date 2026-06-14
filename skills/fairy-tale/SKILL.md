@@ -149,6 +149,12 @@ Fable/Mythos-class reports, not to access or bypass those models.
 - If the Fairy Tale result is a sample estimate, include the confidence
   interval or a `+/-N pp` half-width next to the score.
 - Never present a FrontierCode-style maintainer rubric as a FrontierCode score.
+- For SWE-Bench Pro work, use `scripts/swebench_pro_prepare.py` to create
+  prompt-safe agent tasks and `scripts/swebench_pro_run.py` to gather patches
+  and invoke the official scorer with provenance manifests.
+- For ExploitBench work, use `scripts/exploitbench_run.py` against the official
+  upstream sandbox only. Run `doctor`, mock smoke, and dry-run single-cell
+  commands before any confirmed real benchmark run.
 
 ### Domain Router
 

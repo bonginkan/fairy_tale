@@ -91,6 +91,16 @@
   https://github.com/bonginkan/OpenMythos
 - Similarity upstream:
   https://github.com/kongyo2/similarity
+- SWE-Bench Pro OS harness:
+  https://github.com/scaleapi/SWE-bench_Pro-os
+- SWE-Bench Pro dataset:
+  https://huggingface.co/datasets/ScaleAI/SWE-bench_Pro
+- ExploitBench site:
+  https://exploitbench.ai/
+- ExploitBench upstream:
+  https://github.com/exploitbench/exploitbench
+- ExploitBench paper:
+  https://arxiv.org/abs/2605.14153
 
 ## Skill and agent standards
 

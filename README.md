@@ -118,9 +118,13 @@ still selects a non-heat stress label without stronger heat-specific evidence.
 - [Fairy adapter runner](crates/fairy-adapter-runner/)
 - [BioMystery runner](scripts/biomystery_runner.py)
 - [SWE-Bench Pro preparer](scripts/swebench_pro_prepare.py)
+- [SWE-Bench Pro runner](scripts/swebench_pro_run.py)
+- [ExploitBench runner](scripts/exploitbench_run.py)
 - [Legal feedback analyzer](scripts/legal_feedback_analyzer.py)
 - [Feedback pruner](scripts/feedback_pruner.py)
 - [Fairy Fusion reviewer](scripts/fairy_fusion_review.py)
+- [SWE-Bench Pro adapter](adapters/swe-bench-pro.adapter.json)
+- [ExploitBench adapter](adapters/exploitbench.adapter.json)
 
 ## Claude Code plugin
 
@@ -164,6 +168,9 @@ ownership remain with each upstream project.
   https://github.com/kongyo2/similarity
 - `scaleapi/SWE-bench_Pro-os` - public SWE-Bench Pro evaluation harness.
   https://github.com/scaleapi/SWE-bench_Pro-os
+- `exploitbench/exploitbench` - public ExploitBench V8 capability-ladder
+  benchmark harness.
+  https://github.com/exploitbench/exploitbench
 - `openrouter/fusion` - public design reference for multi-model deliberation;
   Fairy Fusion is implemented inside this repo and does not call OpenRouter.
   https://openrouter.ai/openrouter/fusion
