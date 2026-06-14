@@ -1,7 +1,9 @@
 # fairy_tale
 
-Private research workspace for turning public Fable/Mythos-class agent reports
-into reproducible workflow-augmentation skills and plugin packages.
+![Fairy Tale wide logo](assets/fairy-tale-wide-logo-gpt-image-2.png)
+
+Research workspace for turning public Fable/Mythos-class agent reports into
+reproducible workflow-augmentation skills and plugin packages.
 
 Think of this project as the nightingale's scorebook.
 
@@ -37,8 +39,8 @@ The first songbook is usable:
 - The plugin package supports Codex and Claude Code manifests.
 - Research notes, defensive security constraints, best-practice gates, OSS watch
   notes, adapter plans, and sample comparison outputs are checked in.
-- The project is still private while the melodies are tuned against controlled
-  evaluations.
+- The project is prepared for public release with Apache-2.0 licensing, brand
+  asset boundaries, and defensive-use constraints documented.
 
 ## Benchmark Snapshot
 
@@ -97,6 +99,8 @@ still selects a non-heat stress label without stronger heat-specific evidence.
 - Use budgets and validation gates before launching parallel agents.
 - Treat user reports as anecdotal unless independently reproduced.
 - Preserve provenance for all research claims.
+- See [SECURITY.md](SECURITY.md) for vulnerability reporting and defensive-use
+  boundaries.
 
 ## Primary docs
 
@@ -125,6 +129,9 @@ still selects a non-heat stress label without stronger heat-specific evidence.
 - [Fairy Fusion reviewer](scripts/fairy_fusion_review.py)
 - [SWE-Bench Pro adapter](adapters/swe-bench-pro.adapter.json)
 - [ExploitBench adapter](adapters/exploitbench.adapter.json)
+- [Contributing guide](CONTRIBUTING.md)
+- [Security policy](SECURITY.md)
+- [Release notes](RELEASE_NOTES.md)
 
 ## Claude Code plugin
 
