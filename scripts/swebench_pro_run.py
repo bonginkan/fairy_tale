@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import sys
 import textwrap
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
@@ -259,39 +260,60 @@ Problem statement:
 """
 
 
+def patch_prediction_path(pred_dir: Path, prefix: str, instance_id: str) -> Path:
+    instance_dir = pred_dir / instance_id
+    return instance_dir / f"{prefix}.{safe_name(instance_id)}.pred"
+
+
 def write_patch_prediction(pred_dir: Path, prefix: str, instance_id: str, patch: str) -> Path:
     instance_dir = pred_dir / instance_id
     instance_dir.mkdir(parents=True, exist_ok=True)
-    path = instance_dir / f"{prefix}.{safe_name(instance_id)}.pred"
+    path = patch_prediction_path(pred_dir, prefix, instance_id)
     payload = {"instance_id": instance_id, "model_patch": patch}
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     return path
 
 
-def generate_codex_patches(args: argparse.Namespace) -> int:
-    manifest = load_manifest(args.prepared_manifest)
-    tasks = read_jsonl(Path(manifest["agent_tasks_path"]).resolve())
-    raw_rows = {row["instance_id"]: row for row in read_jsonl(Path(manifest["raw_eval_path"]).resolve())}
-    output_dir = (args.output_dir or (args.run_dir / "codex-worktrees")).resolve()
-    pred_dir = (args.pred_dir or (args.run_dir / "predictions")).resolve()
-    logs_dir = args.run_dir / "codex-logs"
-    records = []
-    if args.api_key_env not in os.environ and not args.dry_run:
-        raise SystemExit(f"{args.api_key_env} is required for codex-patches")
-    if shutil.which(args.codex_bin) is None and not args.dry_run:
-        raise SystemExit(f"codex binary not found on PATH: {args.codex_bin}")
-
-    for task in tasks:
+def generate_codex_patch_for_task(
+    task: dict[str, Any],
+    raw_row: dict[str, Any],
+    args: argparse.Namespace,
+    output_dir: Path,
+    pred_dir: Path,
+    logs_dir: Path,
+) -> dict[str, Any]:
+    try:
         instance_id = task["instance_id"]
-        raw_row = raw_rows.get(instance_id)
-        if not raw_row:
-            raise SystemExit(f"raw row missing for instance: {instance_id}")
         image = sweagent_image_name(raw_row, args.dockerhub_username)
         worktree = output_dir / safe_name(instance_id)
         container_name = f"fairy-codex-{safe_name(instance_id)[:48]}"
+        pred_path = patch_prediction_path(pred_dir, args.prefix, instance_id)
+        if args.skip_existing and pred_path.exists():
+            return {
+                "instance_id": instance_id,
+                "image": image,
+                "repo_path": args.repo_path,
+                "worktree": str(worktree),
+                "container_name": container_name,
+                "model": args.model,
+                "reasoning_effort": args.reasoning_effort,
+                "sandbox": args.sandbox,
+                "skipped": "existing_prediction",
+                "pred_path": str(pred_path),
+            }
         repo_path = args.repo_path or (
             "/app" if args.dry_run else discover_image_repo_path(image, args.docker_platform)
         )
+        record = {
+            "instance_id": instance_id,
+            "image": image,
+            "repo_path": repo_path,
+            "worktree": str(worktree),
+            "container_name": container_name,
+            "model": args.model,
+            "reasoning_effort": args.reasoning_effort,
+            "sandbox": args.sandbox,
+        }
         if not args.dry_run:
             copy_repo_from_image(image, repo_path, worktree, args.docker_platform)
             init_patch_worktree(worktree)
@@ -312,20 +334,9 @@ def generate_codex_patches(args: argparse.Namespace) -> int:
             str(worktree),
             prompt,
         ]
-        record = {
-            "instance_id": instance_id,
-            "image": image,
-            "repo_path": repo_path,
-            "worktree": str(worktree),
-            "container_name": container_name,
-            "model": args.model,
-            "reasoning_effort": args.reasoning_effort,
-            "sandbox": args.sandbox,
-            "command": command,
-        }
+        record["command"] = command
         if args.dry_run:
-            records.append(record)
-            continue
+            return record
 
         subprocess.run(
             ["docker", "rm", "-f", container_name],
@@ -379,9 +390,7 @@ def generate_codex_patches(args: argparse.Namespace) -> int:
                     "patch_bytes": len(diff.stdout.encode("utf-8")),
                 }
             )
-            records.append(record)
-            if result.returncode != 0 and not args.keep_going:
-                break
+            return record
         finally:
             if not args.keep_containers:
                 subprocess.run(
@@ -390,6 +399,72 @@ def generate_codex_patches(args: argparse.Namespace) -> int:
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                 )
+    except SystemExit as exc:
+        raise RuntimeError(str(exc)) from exc
+
+
+def generate_codex_patches(args: argparse.Namespace) -> int:
+    manifest = load_manifest(args.prepared_manifest)
+    tasks = read_jsonl(Path(manifest["agent_tasks_path"]).resolve())
+    raw_rows = {row["instance_id"]: row for row in read_jsonl(Path(manifest["raw_eval_path"]).resolve())}
+    output_dir = (args.output_dir or (args.run_dir / "codex-worktrees")).resolve()
+    pred_dir = (args.pred_dir or (args.run_dir / "predictions")).resolve()
+    logs_dir = args.run_dir / "codex-logs"
+    records: list[dict[str, Any]] = []
+    errors: list[dict[str, Any]] = []
+    if args.api_key_env not in os.environ and not args.dry_run:
+        raise SystemExit(f"{args.api_key_env} is required for codex-patches")
+    if shutil.which(args.codex_bin) is None and not args.dry_run:
+        raise SystemExit(f"codex binary not found on PATH: {args.codex_bin}")
+
+    indexed_tasks: list[tuple[int, dict[str, Any], dict[str, Any]]] = []
+    for index, task in enumerate(tasks):
+        instance_id = task["instance_id"]
+        raw_row = raw_rows.get(instance_id)
+        if not raw_row:
+            raise SystemExit(f"raw row missing for instance: {instance_id}")
+        indexed_tasks.append((index, task, raw_row))
+
+    def collect_result(index: int, task: dict[str, Any], raw_row: dict[str, Any]) -> None:
+        try:
+            record = generate_codex_patch_for_task(
+                task=task,
+                raw_row=raw_row,
+                args=args,
+                output_dir=output_dir,
+                pred_dir=pred_dir,
+                logs_dir=logs_dir,
+            )
+            record["_index"] = index
+            records.append(record)
+            if record.get("returncode", 0) != 0 and not args.keep_going:
+                raise SystemExit(f"codex returned {record['returncode']} for {record['instance_id']}")
+        except Exception as exc:
+            error = {
+                "_index": index,
+                "instance_id": task.get("instance_id"),
+                "error": str(exc),
+                "error_type": type(exc).__name__,
+            }
+            errors.append(error)
+            if not args.keep_going:
+                raise SystemExit(f"codex patch generation failed for {task.get('instance_id')}: {exc}") from exc
+
+    worker_count = max(1, args.num_workers)
+    if worker_count == 1:
+        for index, task, raw_row in indexed_tasks:
+            collect_result(index, task, raw_row)
+    else:
+        with ThreadPoolExecutor(max_workers=worker_count) as executor:
+            futures = {
+                executor.submit(collect_result, index, task, raw_row): task["instance_id"]
+                for index, task, raw_row in indexed_tasks
+            }
+            for future in as_completed(futures):
+                future.result()
+
+    records.sort(key=lambda record: record.pop("_index", 0))
+    errors.sort(key=lambda record: record.pop("_index", 0))
 
     manifest_record = {
         "benchmark": "SWE-Bench Pro",
@@ -398,8 +473,12 @@ def generate_codex_patches(args: argparse.Namespace) -> int:
         "pred_dir": str(pred_dir),
         "prefix": args.prefix,
         "count": len(records),
+        "error_count": len(errors),
+        "num_workers": worker_count,
+        "skip_existing": args.skip_existing,
         "dry_run": args.dry_run,
         "records": records,
+        "errors": errors,
         "notes": "Codex CLI is used as the patch-generation agent. Evaluation still runs through the official SWE-Bench Pro scorer.",
     }
     write_json(args.run_dir / "codex-patches-manifest.json", manifest_record)
@@ -900,6 +979,12 @@ def build_parser() -> argparse.ArgumentParser:
     codex_parser.add_argument("--dockerhub-username", default="jefzda")
     codex_parser.add_argument("--docker-platform", default="linux/amd64")
     codex_parser.add_argument("--repo-path")
+    codex_parser.add_argument("--num-workers", type=int, default=1)
+    codex_parser.add_argument(
+        "--skip-existing",
+        action="store_true",
+        help="Skip instances that already have a prediction file for this prefix.",
+    )
     codex_parser.add_argument("--keep-containers", action="store_true")
     codex_parser.add_argument("--keep-going", action="store_true")
     codex_parser.set_defaults(func=generate_codex_patches, need_harness=False, need_python=False)
