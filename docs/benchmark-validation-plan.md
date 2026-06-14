@@ -251,8 +251,10 @@ scripts/exploitbench_run.py ensure-repo
 scripts/exploitbench_run.py install
 scripts/exploitbench_run.py doctor
 scripts/exploitbench_run.py smoke --mock-llm
+scripts/exploitbench_run.py sample-envs --sample-size 3 --seed 20260614
 scripts/exploitbench_run.py benchmark --models openai/gpt-5.5 --envs v8-cve-2024-1939 --seeds 1 --turn-budget 20 --cost-cap-usd 2 --dry-run
-scripts/exploitbench_run.py benchmark --models openai/gpt-5.5 --envs v8-cve-2024-1939 --seeds 1 --turn-budget 20 --cost-cap-usd 2 --confirm-real-run
+scripts/exploitbench_run.py benchmark --models openai/gpt-5.5 --envs v8-cve-2024-1939 --seeds 1 --turn-budget 20 --cost-cap-usd 2 --docker-platform linux/amd64 --dry-run
+scripts/exploitbench_run.py benchmark --models openai/gpt-5.5 --envs v8-cve-2024-1939 --seeds 1 --turn-budget 20 --cost-cap-usd 2 --docker-platform linux/amd64 --confirm-real-run
 scripts/exploitbench_run.py aggregate --benchmark-id v8
 ```
 
@@ -279,9 +281,13 @@ Agentic coding readiness notes:
   agent. The agent task artifact excludes gold patches, test patches,
   fail/pass scorer fields, selected test files, setup commands, and dockerfile
   fields.
-- `scripts/swebench_pro_run.py` records plan, patch-gather, and official-eval
-  manifests. Use it after the coding agent writes one `.pred` patch per
-  instance.
+- `scripts/swebench_pro_run.py` records SWE-agent instance/config generation,
+  compatibility patches, plan, patch-gather, and official-eval manifests. Use
+  the SWE-agent helpers before running patch generation, then gather/evaluate
+  after the coding agent writes predictions.
+- SWE-Bench Pro public Docker images are amd64. Apple Silicon can run them only
+  through emulation, which is materially slower; use an x86_64 Linux machine or
+  a temporary cloud VM for practical runs.
 - FrontierCode has no public task bundle or preview runner as of 2026-06-14
   JST; Cognition states that tasks are not currently planned for public release
   to reduce contamination. Use the public blog examples only for qualitative
@@ -292,6 +298,9 @@ SWE-Bench Pro wrapper commands:
 
 ```text
 scripts/swebench_pro_prepare.py --sample-size 1 --seed 20260614 --output-dir tmp/swe-bench-pro-runs/prepared-smoke
+scripts/swebench_pro_run.py sweagent-instances --prepared-manifest tmp/swe-bench-pro-runs/prepared-smoke/manifest.json --output tmp/swe-bench-pro-os/SWE-agent/data/fairy-smoke.yaml
+scripts/swebench_pro_run.py sweagent-config --instances-path data/fairy-smoke.yaml --instances-slice :1 --output tmp/swe-bench-pro-os/SWE-agent/config/fairy_tale_swebench_pro.yaml
+scripts/swebench_pro_run.py --python tmp/swe-agent-venv/bin/python sweagent-compat
 scripts/swebench_pro_run.py plan --prepared-manifest tmp/swe-bench-pro-runs/prepared-smoke/manifest.json
 scripts/swebench_pro_run.py gather --pred-dir tmp/swe-bench-pro-runs/predictions --prefix gpt-5.5-fairy-tale --dry-run
 scripts/swebench_pro_run.py eval --prepared-manifest tmp/swe-bench-pro-runs/prepared-smoke/manifest.json --patch-path tmp/swe-bench-pro-runs/current/patches.json --use-local-docker --dry-run
