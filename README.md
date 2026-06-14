@@ -124,6 +124,7 @@ still selects a non-heat stress label without stronger heat-specific evidence.
 - [SWE-Bench Pro preparer](scripts/swebench_pro_prepare.py)
 - [SWE-Bench Pro runner](scripts/swebench_pro_run.py)
 - [ExploitBench runner](scripts/exploitbench_run.py)
+- [Benchmark feedback ledger](scripts/benchmark_feedback_ledger.py)
 - [Legal feedback analyzer](scripts/legal_feedback_analyzer.py)
 - [Feedback pruner](scripts/feedback_pruner.py)
 - [Fairy Fusion reviewer](scripts/fairy_fusion_review.py)
