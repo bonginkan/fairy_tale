@@ -186,7 +186,12 @@ def copy_repo_from_image(image: str, repo_path: str, dest: Path, docker_platform
         if copy.returncode != 0:
             raise SystemExit(f"docker cp failed for {image}:{repo_path}:\n{copy.stderr.strip()}")
     finally:
-        subprocess.run(["docker", "rm", "-f", container_id], check=False, stdout=subprocess.DEVNULL)
+        subprocess.run(
+            ["docker", "rm", "-f", container_id],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
 
 
 def init_patch_worktree(worktree: Path) -> None:
@@ -207,6 +212,11 @@ def init_patch_worktree(worktree: Path) -> None:
 
 def codex_prompt(task: dict[str, Any], container_name: str, repo_path: str) -> str:
     return f"""Use the installed fairy-tale plugin/skill for the workflow gates.
+Also apply the fairy-tale-benchmark-feedback skill: preserve observed success
+practices, verify named public interfaces, protect existing visible behavior,
+and validate touched surfaces inside the benchmark container. Keep the feedback
+generic; do not hardcode sample IDs, repositories, hidden answers, or scorer
+internals.
 
 You are solving a SWE-Bench Pro software engineering task.
 
@@ -226,6 +236,22 @@ patches, hidden tests, fail/pass scorer fields, or benchmark answers. Do not
 modify tests unless the issue explicitly requires a non-test fixture change.
 Keep the patch minimal and aligned with local project conventions. Leave the
 final changes unstaged in the working tree; do not commit.
+
+Validation gate:
+1. Before editing, identify the smallest command, smoke script, or existing test
+   that localizes the affected behavior. If no direct test exists, create only a
+   temporary one-off command or script outside the final patch.
+2. After editing, run at least one relevant validation command inside the
+   benchmark container. Prefer the repository's existing test runner over ad hoc
+   assertions when it is available.
+3. If a visible adjacent test fails, treat that as a patch problem unless the
+   task explicitly deprecates the old behavior. Preserve compatibility with a
+   narrower condition rather than dismissing the red test as expected.
+4. If a broad validation command is blocked by unrelated infrastructure, run a
+   focused validation that covers the touched surface and record the exact
+   unrelated blocker.
+5. Before finishing, report the validation commands, results, remaining
+   blockers, and why the final diff is still minimal.
 
 Problem statement:
 
@@ -301,7 +327,12 @@ def generate_codex_patches(args: argparse.Namespace) -> int:
             records.append(record)
             continue
 
-        subprocess.run(["docker", "rm", "-f", container_name], check=False, stdout=subprocess.DEVNULL)
+        subprocess.run(
+            ["docker", "rm", "-f", container_name],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
         run = subprocess.run(
             [
                 "docker",
@@ -353,7 +384,12 @@ def generate_codex_patches(args: argparse.Namespace) -> int:
                 break
         finally:
             if not args.keep_containers:
-                subprocess.run(["docker", "rm", "-f", container_name], check=False, stdout=subprocess.DEVNULL)
+                subprocess.run(
+                    ["docker", "rm", "-f", container_name],
+                    check=False,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
 
     manifest_record = {
         "benchmark": "SWE-Bench Pro",
@@ -453,6 +489,12 @@ def write_sweagent_config(args: argparse.Namespace) -> int:
           3. Patch the smallest stable surface consistent with local conventions.
           4. Validate the changed behavior and at least one relevant edge case when feasible.
           5. Review the final diff for accidental broad changes, test edits, formatting churn, and missing imports.
+
+          Validation gate:
+          - Run at least one focused validation command after editing, using the existing repository test runner when available.
+          - If a visible adjacent test fails, do not mark it as expected unless the PR description explicitly deprecates that old behavior. Prefer a narrower compatibility-preserving fix.
+          - If a broad test command fails because of unrelated infrastructure, run a narrower validation on the touched surface and record the exact blocker.
+          - Final submission must include a concise validation ledger: commands run, pass/fail result, unrelated blockers, and why the diff remains minimal.
 
           Your thinking should be thorough, but every action should remain scoped to solving this issue.
         next_step_template: |-

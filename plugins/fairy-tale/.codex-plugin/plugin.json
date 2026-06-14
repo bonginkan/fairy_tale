@@ -1,6 +1,6 @@
 {
   "name": "fairy-tale",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "Fable/Mythos-informed workflow augmentation package for budgeted autonomous agent execution, benchmark runners, evaluated feedback loops, feedback pruning, legal closure gates, Fairy Fusion review, best-practice gates, spatial work, mechanism discovery, refactoring similarity, and external architecture adapters.",
   "author": {
     "name": "bonginkan"

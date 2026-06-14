@@ -106,7 +106,7 @@ else
   fi
 fi
 
-for SKILL in fairy-tale fairy-tale-legal-feedback; do
+for SKILL in fairy-tale fairy-tale-benchmark-feedback fairy-tale-legal-feedback; do
   SRC="$ROOT/skills/$SKILL"
   DEST="$TARGET/$SKILL"
   if [ "$DRY_RUN" -eq 0 ] && [ ! -f "$SRC/SKILL.md" ]; then

@@ -13,6 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SKILL_DIRS = [
     ROOT / "skills" / "fairy-tale",
+    ROOT / "skills" / "fairy-tale-benchmark-feedback",
     ROOT / "skills" / "fairy-tale-legal-feedback",
 ]
 EXTRA_FILES = [

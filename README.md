@@ -57,6 +57,16 @@ Before publishing benchmark claims or making the repository public, read
 [SECURITY.md](SECURITY.md), [CONTRIBUTING.md](CONTRIBUTING.md), and
 [Feedback governance](docs/feedback-governance.md).
 
+Before a long benchmark, multi-agent run, or context-heavy coding task, verify
+that Fairy Tale is still resident in the repo skills and plugin package:
+
+```bash
+python3 scripts/fairy_tale_residency_check.py
+```
+
+Use `--check-installed --strict-installed` when you also want to require
+machine-level Codex, Claude Code, and AGENTS skill installs.
+
 ## Goals
 
 - Describe the strongest reported Fable 5 / Mythos 5 capabilities in operational terms.
@@ -130,6 +140,33 @@ context-only BLAST evidence, and bacterial marker-sequence identity. The current
 remaining miss is the Brachypodium stress-type item (`hb053`), where the model
 still selects a non-heat stress label without stronger heat-specific evidence.
 
+### Feedback Loop Effects
+
+These measurements track whether evaluated feedback loops improve the harness.
+They are not final leaderboard claims.
+
+| Benchmark | Initial **Fairy Tale** | Feedback **Fairy Tale** | Tool / Gate **Fairy Tale** | Effect |
+| --- | ---: | ---: | ---: | ---: |
+| SWE-Bench Pro, n=5 | 60.0% +/-32.6 pp | 40.0% +/-32.6 pp | 60.0% +/-32.6 pp | +0.0 pp / +20.0 pp |
+| HLE random sample, n=100 | 35.0% +/-9.4 pp | 37.0% +/-9.5 pp | 51.0% +/-9.8 pp | +16.0 pp |
+| ExploitBench v8 sample | 0.67 | 3.00 | - | +2.33 |
+
+Notes:
+
+- SWE-Bench Pro: feedback-only regressed on the small sample, while the generic
+  implementation validation gate restored the prior 3/5 pass rate. The latest
+  failure classes are `existing_behavior_regression` and
+  `missing_public_interface`, so this is not yet a confirmed improvement beyond
+  the previous best.
+- HLE: feedback-only improved from 35/100 to 37/100. The Codex-tools +
+  residency-harness run reached 51/100, but it changes the tool condition and
+  remains within the uncertainty band of the image-reported GPT-5.5 with-tools
+  value.
+- ExploitBench: the score moved from 4 total points over 6 tasks to 6 total
+  points over 2 feedback tasks, and `no_signal_timeout` dropped from 4 to 0 in
+  the feedback slice. Because the sample sizes differ, treat this as a
+  directional signal rather than a stable pass-rate result.
+
 ## Important boundaries
 
 - Security workflows are defensive-only.
@@ -152,8 +189,10 @@ still selects a non-heat stress label without stronger heat-specific evidence.
 - [Similarity refactoring adapter](docs/similarity-refactoring-adapter.md)
 - [Legal feedback analysis](docs/legal-feedback-analysis.md)
 - [Feedback governance](docs/feedback-governance.md)
+- [Fairy Tale residency harness](docs/fairy-tale-residency-harness.md)
 - [OSS watch](docs/oss-watch.md)
 - [Core Fairy Tale skill](skills/fairy-tale/SKILL.md)
+- [Benchmark feedback skill](skills/fairy-tale-benchmark-feedback/SKILL.md)
 - [Legal feedback skill](skills/fairy-tale-legal-feedback/SKILL.md)
 - [Fairy Fusion adapter](adapters/fairy-fusion.adapter.json)
 - [Feedback pruning adapter](adapters/feedback-pruning.adapter.json)
@@ -165,6 +204,7 @@ still selects a non-heat stress label without stronger heat-specific evidence.
 - [Benchmark feedback ledger](scripts/benchmark_feedback_ledger.py)
 - [Legal feedback analyzer](scripts/legal_feedback_analyzer.py)
 - [Feedback pruner](scripts/feedback_pruner.py)
+- [Residency check](scripts/fairy_tale_residency_check.py)
 - [Skill-only installer](install.sh)
 - [Skill package builder](scripts/package_skills.py)
 - [Fairy Fusion reviewer](scripts/fairy_fusion_review.py)
