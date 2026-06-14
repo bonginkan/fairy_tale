@@ -142,12 +142,14 @@ def write_sweagent_config(args: argparse.Namespace) -> int:
       deployment:
         type: docker
         platform: {args.docker_platform}
-        python_standalone_dir: ""
+        python_standalone_dir: {json.dumps(args.python_standalone_dir)}
         docker_args:
           - '--memory={args.docker_memory}'
           - '--entrypoint='
           - '-e'
           - 'PIP_INDEX_URL=https://pypi.org/simple'
+          - '-e'
+          - 'PIP_BREAK_SYSTEM_PACKAGES=1'
     agent:
       type: default
       templates:
@@ -244,6 +246,7 @@ def write_sweagent_config(args: argparse.Namespace) -> int:
         "reasoning_effort": args.reasoning_effort,
         "docker_platform": args.docker_platform,
         "docker_memory": args.docker_memory,
+        "python_standalone_dir": args.python_standalone_dir,
         "notes": "Cost limits are disabled because current SWE-agent/LiteLLM cost calculation can fail for newly named models before patch generation starts.",
     }
     write_json(args.run_dir / "sweagent-config-manifest.json", record)
@@ -285,8 +288,62 @@ def patch_sweagent_compat(args: argparse.Namespace) -> int:
     require_path(models_py, "SWE-agent models.py")
     swerex_docker_py = args.swerex_docker_path or discover_swerex_docker_path(args.python)
     require_path(swerex_docker_py, "SWE-ReX docker.py")
+    registry_py = swe_agent_dir / "tools" / "registry" / "lib" / "registry.py"
 
     changes = []
+    if not registry_py.exists():
+        if not args.dry_run:
+            registry_py.parent.mkdir(parents=True, exist_ok=True)
+            registry_py.write_text(
+                '''"""Tiny file-backed registry for SWE-agent tool bundle compatibility."""
+
+from __future__ import annotations
+
+import json
+import os
+from pathlib import Path
+from typing import Any
+
+
+class FileBackedRegistry(dict):
+    def __init__(self) -> None:
+        self.path = Path(os.environ.get("SWE_AGENT_REGISTRY_PATH", "/tmp/swe-agent-registry.json"))
+        super().__init__()
+        self._load()
+
+    def _load(self) -> None:
+        if not self.path.exists():
+            return
+        try:
+            payload = json.loads(self.path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return
+        if isinstance(payload, dict):
+            super().clear()
+            super().update(payload)
+
+    def _save(self) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.path.write_text(json.dumps(dict(self), ensure_ascii=False), encoding="utf-8")
+
+    def get(self, key: str, default: Any = None) -> Any:
+        self._load()
+        return super().get(key, default)
+
+    def __getitem__(self, key: str) -> Any:
+        self._load()
+        return super().__getitem__(key)
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        super().__setitem__(key, value)
+        self._save()
+
+
+registry = FileBackedRegistry()
+''',
+                encoding="utf-8",
+            )
+        changes.append("sweagent registry bundle supplies missing file-backed registry module")
     if replace_text(
         models_py,
         'return f"{self.name}__t-{self.temperature:.2f}__p-{self.top_p:.2f}__c-{self.per_instance_cost_limit:.2f}"',
@@ -308,6 +365,46 @@ def patch_sweagent_compat(args: argparse.Namespace) -> int:
         args.dry_run,
     ):
         changes.append("swerex honors empty python_standalone_dir without building Python")
+    if replace_text(
+        swerex_docker_py,
+        '            f"FROM {platform_arg} python:3.11-slim AS builder\\n"\n',
+        '            f"FROM {platform_arg} $BASE_IMAGE AS builder\\n"\n'
+        '            "USER root\\n"\n',
+        args.dry_run,
+    ):
+        changes.append("swerex builds standalone Python against the target image glibc")
+    if replace_text(
+        swerex_docker_py,
+        '            "    libssl-dev \\\\\\n"\n'
+        '            "    && rm -rf /var/lib/apt/lists/*\\n\\n"\n',
+        '            "    libssl-dev \\\\\\n"\n'
+        '            "    libffi-dev \\\\\\n"\n'
+        '            "    libbz2-dev \\\\\\n"\n'
+        '            "    libreadline-dev \\\\\\n"\n'
+        '            "    libsqlite3-dev \\\\\\n"\n'
+        '            "    xz-utils \\\\\\n"\n'
+        '            "    tk-dev \\\\\\n"\n'
+        '            "    uuid-dev \\\\\\n"\n'
+        '            "    ca-certificates \\\\\\n"\n'
+        '            "    && rm -rf /var/lib/apt/lists/*\\n\\n"\n',
+        args.dry_run,
+    ):
+        changes.append("swerex installs complete CPython build dependencies")
+    if replace_text(
+        swerex_docker_py,
+        '            f"FROM {platform_arg} $BASE_IMAGE\\n"\n',
+        '            f"FROM {platform_arg} $BASE_IMAGE\\n"\n'
+        '            "USER root\\n"\n',
+        args.dry_run,
+    ):
+        changes.append("swerex switches to root before final-stage runtime setup")
+    if replace_text(
+        swerex_docker_py,
+        f'            f"RUN /root/python3.11/bin/pip3 install --no-cache-dir {{PACKAGE_NAME}}\\n\\n"\n',
+        f'            f"RUN /root/python3.11/bin/pip3 install --no-cache-dir --index-url https://pypi.org/simple {{PACKAGE_NAME}}==1.2.1\\n\\n"\n',
+        args.dry_run,
+    ):
+        changes.append("swerex installs runtime package from public PyPI with the local compatible version")
 
     record = {
         "benchmark": "SWE-Bench Pro",
@@ -315,6 +412,7 @@ def patch_sweagent_compat(args: argparse.Namespace) -> int:
         "swe_agent_dir": str(swe_agent_dir),
         "models_py": str(models_py),
         "swerex_docker_py": str(swerex_docker_py),
+        "registry_py": str(registry_py),
         "changes": changes,
         "dry_run": args.dry_run,
     }
@@ -458,6 +556,11 @@ def build_parser() -> argparse.ArgumentParser:
     config_parser.add_argument("--reasoning-effort", default="medium")
     config_parser.add_argument("--docker-platform", default="linux/amd64")
     config_parser.add_argument("--docker-memory", default="10g")
+    config_parser.add_argument(
+        "--python-standalone-dir",
+        default="/root",
+        help="Container path where SWE-ReX builds standalone Python. Use an empty string to force pipx fallback.",
+    )
     config_parser.set_defaults(func=write_sweagent_config)
 
     compat_parser = subparsers.add_parser("sweagent-compat")

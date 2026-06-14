@@ -83,6 +83,16 @@ Useful ideas to borrow:
     away from the gate definitions.
   - caveat: do not copy worktree-discard assumptions into environments where
     the operator forbids worktrees.
+- duolahypercho/fusion-fable:
+  - https://github.com/duolahypercho/fusion-fable
+  - role: Claude Code skill that runs independent blind panelists and then
+    performs structured consensus, contradiction, partial-coverage, unique
+    insight, and blind-spot synthesis.
+  - useful idea: provide a non-persona blind-panel mode in addition to
+    specialist reviewers; diversity can come from independent runs of the same
+    task, not only from assigned roles.
+  - caveat: keep Fairy Fusion provider-agnostic and repository-local; do not
+    label internal runs as OpenRouter or Fusion-Fable.
 
 ## Legal and knowledge benchmarks
 

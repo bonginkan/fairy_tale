@@ -128,6 +128,15 @@ def load_task(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def load_roles(args: argparse.Namespace) -> list[dict[str, Any]]:
+    if args.blind_panel:
+        return [
+            {
+                "name": f"panelist_{index}",
+                "mode": "blind_panel",
+                "objective": "Answer the task directly and independently without a specialized role or lens.",
+            }
+            for index in range(1, args.max_reviewers + 1)
+        ]
     if args.roles_file:
         payload = json.loads(read_text(args.roles_file))
         if isinstance(payload, dict):
@@ -191,6 +200,30 @@ def parse_jsonish(text: str) -> Any:
 
 
 def reviewer_messages(task: dict[str, Any], role: dict[str, Any]) -> list[dict[str, Any]]:
+    if role.get("mode") == "blind_panel":
+        schema = {
+            "role": role["name"],
+            "answer": "direct answer or decision",
+            "key_evidence": ["specific evidence or checks that support the answer"],
+            "uncertainties": ["unknowns that could change the answer"],
+            "possible_misses": ["requirements, edge cases, or contradictions to verify"],
+            "confidence": "low | medium | high",
+        }
+        system = (
+            "You are an isolated Fairy Fusion panelist. You receive the same task "
+            "as every other panelist, but you cannot see their work. Do not adopt "
+            "a persona or specialized lens. Solve the task directly, use only the "
+            "supplied context, and return compact JSON matching the schema."
+        )
+        user = {
+            "task_context": task,
+            "required_output_schema": schema,
+        }
+        return [
+            {"role": "system", "content": [{"type": "input_text", "text": system}]},
+            {"role": "user", "content": [{"type": "input_text", "text": json.dumps(user, ensure_ascii=False)}]},
+        ]
+
     schema = {
         "role": role["name"],
         "findings": ["specific supported findings"],
@@ -247,6 +280,7 @@ def dry_run_payload(task: dict[str, Any], roles: list[dict[str, Any]], args: arg
         "created_at": utc_now(),
         "mode": "dry_run",
         "domain": args.domain,
+        "fusion_mode": "blind_panel" if args.blind_panel else "specialist_review",
         "reviewer_count": len(roles),
         "roles": roles,
         "recursion_cap": 1,
@@ -295,6 +329,7 @@ def execute(task: dict[str, Any], roles: list[dict[str, Any]], args: argparse.Na
         "created_at": utc_now(),
         "mode": "executed",
         "domain": args.domain,
+        "fusion_mode": "blind_panel" if args.blind_panel else "specialist_review",
         "reviewer_count": len(roles),
         "roles": [role["name"] for role in roles],
         "recursion_cap": 1,
@@ -317,6 +352,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--task-json", type=Path)
     parser.add_argument("--prompt-file", type=Path)
     parser.add_argument("--roles-file", type=Path)
+    parser.add_argument(
+        "--blind-panel",
+        action="store_true",
+        help="Run identical independent panelists instead of role-specialized reviewers.",
+    )
     parser.add_argument("--max-reviewers", type=int, default=5)
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument("--model", default="gpt-5.5")

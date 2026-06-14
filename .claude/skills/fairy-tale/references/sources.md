@@ -114,6 +114,8 @@
   https://code.claude.com/docs/en/sub-agents
 - OpenAI skill creation guidance:
   https://github.com/openai/skills/blob/main/skills/.system/skill-creator/SKILL.md
+- Fusion-Fable blind-panel skill:
+  https://github.com/duolahypercho/fusion-fable
 - Anthropic tool definition guidance:
   https://platform.claude.com/docs/en/agents-and-tools/tool-use/define-tools
 - Anthropic Claude Code hooks security guidance:

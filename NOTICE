@@ -1,0 +1,19 @@
+Fairy Tale
+Copyright 2026 bonginkan
+
+This repository includes software, agent skills, adapters, schemas, scripts,
+and documentation developed by bonginkan and made available under the Apache
+License, Version 2.0, unless a file or directory states otherwise.
+
+Brand Notice
+
+The Fairy Tale name, logo, and other brand assets are excluded from the
+Apache-2.0 license grant. They may be used only to refer accurately to this
+project, without implying endorsement, sponsorship, official status, or
+affiliation.
+
+Third-party Notice
+
+Third-party repositories, benchmark materials, reports, datasets, and assets
+referenced by this repository remain under their own licenses and terms. This
+repository does not relicense those external materials.

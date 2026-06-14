@@ -91,6 +91,16 @@
   https://github.com/bonginkan/OpenMythos
 - Similarity upstream:
   https://github.com/kongyo2/similarity
+- SWE-Bench Pro OS harness:
+  https://github.com/scaleapi/SWE-bench_Pro-os
+- SWE-Bench Pro dataset:
+  https://huggingface.co/datasets/ScaleAI/SWE-bench_Pro
+- ExploitBench site:
+  https://exploitbench.ai/
+- ExploitBench upstream:
+  https://github.com/exploitbench/exploitbench
+- ExploitBench paper:
+  https://arxiv.org/abs/2605.14153
 
 ## Skill and agent standards
 
@@ -104,6 +114,8 @@
   https://code.claude.com/docs/en/sub-agents
 - OpenAI skill creation guidance:
   https://github.com/openai/skills/blob/main/skills/.system/skill-creator/SKILL.md
+- Fusion-Fable blind-panel skill:
+  https://github.com/duolahypercho/fusion-fable
 - Anthropic tool definition guidance:
   https://platform.claude.com/docs/en/agents-and-tools/tool-use/define-tools
 - Anthropic Claude Code hooks security guidance:

@@ -140,6 +140,20 @@ install the plugin:
 The same `plugins/fairy-tale/` package also remains a Codex plugin via
 `plugins/fairy-tale/.codex-plugin/plugin.json`.
 
+## License
+
+Original source code, skills, adapters, schemas, scripts, and documentation in
+this repository are licensed under the Apache License, Version 2.0
+(`Apache-2.0`), unless a file or directory states otherwise. See [LICENSE](LICENSE)
+and [NOTICE](NOTICE).
+
+The Fairy Tale name, logo, and other brand assets are not licensed under
+Apache-2.0. They may be used only to refer accurately to this project, without
+implying endorsement, sponsorship, official status, or affiliation.
+
+Third-party repositories, benchmark materials, reports, datasets, and assets
+referenced by this repository remain under their own licenses and terms.
+
 ## Referenced GitHub repositories
 
 These repositories informed the current skill, adapter, and plugin architecture.
@@ -156,6 +170,9 @@ ownership remain with each upstream project.
   https://github.com/VoltAgent/awesome-agent-skills
 - `VoltAgent/awesome-claude-code-subagents` - subagent workflow references.
   https://github.com/VoltAgent/awesome-claude-code-subagents
+- `duolahypercho/fusion-fable` - local Claude Code skill reference for
+  independent blind panelists followed by structured synthesis.
+  https://github.com/duolahypercho/fusion-fable
 - `disler/claude-code-hooks-mastery` - Claude Code hooks workflow references.
   https://github.com/disler/claude-code-hooks-mastery
 - `Anil-matcha/awesome-claude-fable-5` - curated public Fable 5 reports and demos.

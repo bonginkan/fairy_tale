@@ -5,6 +5,7 @@
   "author": {
     "name": "bonginkan"
   },
+  "license": "Apache-2.0",
   "skills": "./skills/",
   "interface": {
     "displayName": "Fairy Tale",

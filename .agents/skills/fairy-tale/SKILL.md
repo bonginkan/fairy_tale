@@ -250,6 +250,37 @@ Fable/Mythos-class reports, not to access or bypass those models.
   independent specialist reviewers, contradiction table, blind-spot closure,
   artifact logging, and one-level recursion cap.
 
+### Fairy Fusion Harness
+
+- Choose the fusion mode before running reviewers.
+- Use `--blind-panel` when the goal is general answer quality, hidden
+  contradiction discovery, or robustness against a single reasoning path. Send
+  the same task context to each isolated panelist; do not invent personas or
+  specialized lenses.
+- Use specialist review when the weakness is already classified, such as legal
+  one-miss failures, calculation/form completion, domain-specific omissions, or
+  security boundary review.
+- Synthesis must preserve consensus, contradictions, partial coverage, unique
+  insights, blind spots, rejected items, cost, latency, and closure actions.
+- Do not majority-vote away a minority risk. Promote a fused answer only after
+  the synthesis has resolved or explicitly carried forward the contradiction.
+- Keep fan-out capped and recursion one-level unless a human explicitly
+  approves more.
+
+### Steady Behavior Harness
+
+- Keep ordinary responses natural and lightly formatted. Use bullets, headings,
+  and tables only when they improve clarity for a multifaceted task.
+- When correcting a mistake, acknowledge the concrete error and fix it without
+  self-abasement, over-apology, or changing unrelated behavior.
+- Do not assume a referenced file, image, dataset, or tool exists. Check the
+  workspace, attachment, or tool availability before relying on it.
+- Avoid psychologizing users, counterparties, or public figures. Separate
+  observed evidence, uncertainty, and interpretation.
+- For current product, legal, financial, medical, security, or benchmark facts,
+  verify against primary or upstream sources before turning them into workflow
+  rules.
+
 ### Spatial Forge Harness: 3D, CAD, and simulation work
 
 - Require an explicit spatial brief: coordinate system, units, camera,

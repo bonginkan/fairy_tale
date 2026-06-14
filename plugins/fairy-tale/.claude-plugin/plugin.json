@@ -9,7 +9,7 @@
   },
   "homepage": "https://github.com/bonginkan/fairy_tale",
   "repository": "https://github.com/bonginkan/fairy_tale",
-  "license": "UNLICENSED",
+  "license": "Apache-2.0",
   "keywords": [
     "agent-workflow",
     "claude-code",
