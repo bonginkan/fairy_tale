@@ -30,6 +30,7 @@ DEFAULT_DATASET_DIR = Path("tmp/biomystery-preview")
 DEFAULT_WORK_DIR = Path("tmp/biomystery-runs")
 DEFAULT_MODEL = "gpt-5.5"
 DEFAULT_SIGNATURE_LIBRARY = Path("resources/bio-expression-signatures.json")
+DEFAULT_MARKER_LIBRARY = Path("resources/bio-marker-signatures.json")
 DEFAULT_BLAST_CACHE_DIR = Path("tmp/biomystery-runs/blast-cache")
 MIN_DIAGNOSTIC_CONFIDENCE = 0.70
 MAX_CONTRADICTION_RISK = 0.35
@@ -46,6 +47,8 @@ FAIRY_TALE_TOOLS_GUIDANCE = """Use Fairy Tale's Bio/Health Safety Harness, Evide
 - classify the task as bioinformatics analysis, not clinical advice;
 - use supplied local tool evidence as first-class evidence only when it is diagnostic;
 - if local tool evidence contains a data-derived suggested_answer, treat it as the leading hypothesis unless contradicted by stronger evidence;
+- context-only tool evidence can support interpretation, but it must not choose the final answer label by itself;
+- if the user payload contains no tool_evidence, solve directly from the supplied data without inventing or assuming hidden tool results;
 - do not infer from omitted or non-diagnostic tool summaries;
 - separate observations, uncertainty, and final answer;
 - produce a short final answer in the requested format;
@@ -104,8 +107,10 @@ class EvidenceGate:
     min_confidence: float = MIN_DIAGNOSTIC_CONFIDENCE
     max_contradiction_risk: float = MAX_CONTRADICTION_RISK
 
-    def accept_reason(self, evidence: Evidence) -> str | None:
+    def accept_reason(self, evidence: Evidence, question: str) -> str | None:
         if not evidence.suggested_answer and not evidence.diagnostic_context:
+            return None
+        if not evidence.suggested_answer and not context_evidence_is_actionable(evidence, question):
             return None
         if evidence.confidence < self.min_confidence:
             return None
@@ -116,6 +121,27 @@ class EvidenceGate:
             f"{evidence_type} with confidence {evidence.confidence:.2f} "
             f"and contradiction risk {evidence.contradiction_risk:.2f}"
         )
+
+
+SPECIFIC_STRESS_TERMS = {
+    "heat",
+    "shock",
+    "hsp",
+    "hsf",
+    "temperature",
+    "thermal",
+    "drought",
+    "cold",
+    "salt",
+    "salinity",
+    "osmotic",
+    "cadmium",
+    "submergence",
+    "pathogen",
+    "fungal",
+    "fungus",
+    "infection",
+}
 
 
 def repo_root() -> Path:
@@ -223,6 +249,17 @@ def load_signature_library(path: Path) -> list[dict[str, Any]]:
     return [signature for signature in signatures if isinstance(signature, dict)]
 
 
+def load_marker_library(path: Path) -> list[dict[str, Any]]:
+    resolved = resolve_optional_path(path)
+    if not resolved:
+        return []
+    data = json.loads(resolved.read_text(encoding="utf-8"))
+    markers = data.get("markers", [])
+    if not isinstance(markers, list):
+        raise SystemExit(f"marker library must contain a markers array: {resolved}")
+    return [marker for marker in markers if isinstance(marker, dict)]
+
+
 def matched_query_terms(question: str, signature: dict[str, Any]) -> list[str]:
     question_norm = normalize_text(question)
     matches = []
@@ -242,6 +279,122 @@ def expression_group_candidates(samples: list[str], strategy: str) -> list[dict[
 
 def mean(values: list[float]) -> float:
     return sum(values) / len(values) if values else 0.0
+
+
+def question_requests_stress_label(question: str) -> bool:
+    question_norm = normalize_text(question)
+    return any(term in question_norm for term in ["stress type", "specific stress", "perturbation", "treated", "condition"])
+
+
+def question_requests_bacterial_species(question: str) -> bool:
+    question_norm = normalize_text(question)
+    return "bacteria" in question_norm or ("scientific name" in question_norm and "organism" not in question_norm)
+
+
+def context_evidence_is_actionable(evidence: Evidence, question: str) -> bool:
+    if not question_requests_stress_label(question):
+        return evidence.diagnostic_context
+    observations = evidence.observations
+    specific_counts = observations.get("specific_stress_term_counts", {})
+    if isinstance(specific_counts, dict) and sum(int(value) for value in specific_counts.values()) > 0:
+        return True
+    candidate_labels = observations.get("candidate_labels", [])
+    return isinstance(candidate_labels, list) and len(candidate_labels) > 0
+
+
+def count_term(text: str, term: str) -> int:
+    return len(re.findall(rf"(?<![a-z0-9]){re.escape(term)}(?![a-z0-9])", text))
+
+
+def clean_dna(sequence: str) -> str:
+    return "".join(base for base in sequence.upper() if base in "ACGT")
+
+
+def find_best_marker_match(query_sequence: str, marker_sequence: str, seed_length: int) -> dict[str, Any] | None:
+    query = clean_dna(query_sequence)
+    marker = clean_dna(marker_sequence)
+    if not query or not marker:
+        return None
+    seed_length = min(seed_length, len(marker))
+    seed = marker[:seed_length]
+    positions = []
+    start = query.find(seed)
+    while start != -1 and len(positions) < 20:
+        positions.append(start)
+        start = query.find(seed, start + 1)
+    if not positions:
+        return None
+    best = None
+    for position in positions:
+        window = query[position : position + len(marker)]
+        compared = min(len(window), len(marker))
+        if compared == 0:
+            continue
+        matches = sum(a == b for a, b in zip(window, marker))
+        identity = matches / compared
+        candidate = {
+            "identity": identity,
+            "matches": matches,
+            "compared": compared,
+            "query_start": position,
+        }
+        if not best or candidate["identity"] > best["identity"]:
+            best = candidate
+    return best
+
+
+def analyze_marker_library(path: Path, question: str, marker_library: list[dict[str, Any]]) -> list[Evidence]:
+    if not question_requests_bacterial_species(question):
+        return []
+    records = fasta_records(path)
+    if not records:
+        return []
+    evidence = []
+    for marker in marker_library:
+        if marker.get("modality") != "bacterial_marker_sequence":
+            continue
+        marker_sequence = str(marker.get("sequence", ""))
+        seed_length = int(marker.get("seed_length", 48))
+        min_identity = float(marker.get("min_identity", 0.995))
+        min_aligned_bases = int(marker.get("min_aligned_bases", 1000))
+        best_record = None
+        best_match = None
+        for record_name, sequence in records:
+            match = find_best_marker_match(sequence, marker_sequence, seed_length)
+            if match and (not best_match or match["identity"] > best_match["identity"]):
+                best_record = record_name
+                best_match = match
+        if not best_match:
+            continue
+        if best_match["identity"] < min_identity or best_match["compared"] < min_aligned_bases:
+            continue
+        confidence = min(0.97, best_match["identity"] * 0.97)
+        evidence.append(
+            Evidence(
+                analyzer="bio.sequence.marker_signature",
+                modality="bacterial_marker_sequence",
+                method="reference_marker_seeded_identity",
+                source_type=str(marker.get("source_type", "reference_marker_library")),
+                provenance=list(marker.get("provenance", [])),
+                confidence=confidence,
+                contradiction_risk=0.05 if best_match["identity"] >= 0.999 else 0.18,
+                suggested_answer=marker.get("scientific_name"),
+                observations={
+                    "marker_id": marker.get("id"),
+                    "marker_name": marker.get("name"),
+                    "record": best_record,
+                    "identity": round(best_match["identity"], 6),
+                    "matches": best_match["matches"],
+                    "compared": best_match["compared"],
+                    "query_start": best_match["query_start"],
+                    "min_identity": min_identity,
+                    "min_aligned_bases": min_aligned_bases,
+                    "note": "Marker identity is used as species evidence only for bacterial scientific-name tasks.",
+                },
+                input_files=[str(path)],
+            )
+        )
+    return evidence
 
 
 def analyze_expression_matrix(path: Path, question: str, signatures: list[dict[str, Any]]) -> list[Evidence]:
@@ -438,8 +591,13 @@ def summarize_blast_hits(rows: list[dict[str, Any]]) -> dict[str, Any] | None:
             top_by_query[row["query"]] = row
     titles = [row["title"] for row in rows]
     text = " ".join(titles).lower()
-    stress_terms = ["stress", "heat", "shock", "hsp", "temperature", "drought", "cold", "salt", "pathogen", "fungal", "infection"]
-    term_counts = {term: text.count(term) for term in stress_terms}
+    stress_terms = ["stress", "heat", "shock", "hsp", "hsf", "temperature", "thermal", "drought", "cold", "salt", "salinity", "osmotic", "cadmium", "submergence", "pathogen", "fungal", "fungus", "infection", "phosphate"]
+    term_counts = {term: count_term(text, term) for term in stress_terms}
+    specific_stress_term_counts = {
+        term: count
+        for term, count in term_counts.items()
+        if term in SPECIFIC_STRESS_TERMS and count > 0
+    }
     stress_hit_rows = [
         row
         for row in rows
@@ -464,6 +622,7 @@ def summarize_blast_hits(rows: list[dict[str, Any]]) -> dict[str, Any] | None:
             for row in sorted(top_by_query.values(), key=lambda item: item["query"])
         ],
         "term_counts": term_counts,
+        "specific_stress_term_counts": specific_stress_term_counts,
         "stress_hit_titles": sorted({row["title"] for row in stress_hit_rows})[:8],
         "pathogen_hit_titles": sorted({row["title"] for row in pathogen_hit_rows})[:8],
     }
@@ -477,7 +636,8 @@ def analyze_blast_cache(path: Path, cache_dir: Path) -> list[Evidence]:
         return []
     stress_hits = len(summary["stress_hit_titles"])
     pathogen_hits = len(summary["pathogen_hit_titles"])
-    if stress_hits == 0:
+    specific_hits = sum(int(value) for value in summary["specific_stress_term_counts"].values())
+    if stress_hits == 0 or specific_hits == 0:
         return []
     confidence = min(0.82, 0.68 + stress_hits * 0.04)
     contradiction_risk = 0.20 if pathogen_hits == 0 else 0.45
@@ -510,21 +670,25 @@ def analyze_blast_cache(path: Path, cache_dir: Path) -> list[Evidence]:
 
 
 def analyzer_registry() -> list[str]:
-    return ["bio.expression.signature", "bio.sequence.blastx_cache"]
+    return ["bio.expression.signature", "bio.sequence.marker_signature", "bio.sequence.blastx_cache"]
 
 
 def collect_candidate_evidence(
     question: str,
     files: list[Path],
     signature_library_path: Path,
+    marker_library_path: Path,
     blast_cache_dir: Path,
 ) -> list[Evidence]:
     signatures = load_signature_library(signature_library_path)
+    markers = load_marker_library(marker_library_path)
     evidence = []
     for path in files:
         name = path.name.lower()
         if "bio.expression.signature" in analyzer_registry() and name.endswith(".csv") and "expression" in name:
             evidence.extend(analyze_expression_matrix(path, question, signatures))
+        elif "bio.sequence.marker_signature" in analyzer_registry() and name.endswith((".fasta", ".fa", ".fna")):
+            evidence.extend(analyze_marker_library(path, question, markers))
         elif "bio.sequence.blastx_cache" in analyzer_registry() and name.endswith((".fasta", ".fa", ".txt")):
             evidence.extend(analyze_blast_cache(path, blast_cache_dir))
     return evidence
@@ -534,12 +698,13 @@ def gated_tool_evidence(
     question: str,
     files: list[Path],
     signature_library_path: Path,
+    marker_library_path: Path,
     blast_cache_dir: Path,
 ) -> list[dict[str, Any]]:
     gate = EvidenceGate()
     accepted = []
-    for evidence in collect_candidate_evidence(question, files, signature_library_path, blast_cache_dir):
-        reason = gate.accept_reason(evidence)
+    for evidence in collect_candidate_evidence(question, files, signature_library_path, marker_library_path, blast_cache_dir):
+        reason = gate.accept_reason(evidence, question)
         if reason:
             accepted.append(evidence.to_prompt_payload(reason))
     return accepted
@@ -551,6 +716,7 @@ def make_prompt(
     condition: str,
     preview_bytes: int,
     signature_library_path: Path,
+    marker_library_path: Path,
     blast_cache_dir: Path,
 ) -> list[dict[str, Any]]:
     if condition == "fairy_tale":
@@ -576,7 +742,7 @@ def make_prompt(
         },
     }
     if condition == "fairy_tale_tools":
-        evidence = gated_tool_evidence(problem.question, files, signature_library_path, blast_cache_dir)
+        evidence = gated_tool_evidence(problem.question, files, signature_library_path, marker_library_path, blast_cache_dir)
         if evidence:
             user_payload["tool_evidence"] = evidence
     return [
@@ -727,6 +893,7 @@ def command_prompt(args: argparse.Namespace) -> None:
         args.condition,
         args.preview_bytes,
         Path(args.signature_library),
+        Path(args.marker_library),
         Path(args.blast_cache_dir),
     )
     print(json.dumps({"id": problem.id, "condition": args.condition, "messages": messages}, ensure_ascii=False, indent=2))
@@ -745,6 +912,7 @@ def command_run(args: argparse.Namespace) -> None:
             args.condition,
             args.preview_bytes,
             Path(args.signature_library),
+            Path(args.marker_library),
             Path(args.blast_cache_dir),
         )
         row: dict[str, Any] = {
@@ -806,6 +974,7 @@ def command_score(args: argparse.Namespace) -> None:
 def add_common(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--dataset-dir", default=str(DEFAULT_DATASET_DIR))
     parser.add_argument("--signature-library", default=str(DEFAULT_SIGNATURE_LIBRARY))
+    parser.add_argument("--marker-library", default=str(DEFAULT_MARKER_LIBRARY))
     parser.add_argument("--blast-cache-dir", default=str(DEFAULT_BLAST_CACHE_DIR))
 
 
