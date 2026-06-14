@@ -126,7 +126,7 @@ public launch claims into unqualified assumptions.
 Fairy Tale should not be treated as a universal benchmark booster until each
 task family has its own harness and reproduction evidence. HLE is a
 closed-ended academic benchmark, while much of the current Fairy Tale process
-was distilled from agentic coding and workflow-improvement reports. Legal,
+was tuned around agentic coding and workflow-improvement reports. Legal,
 bio/health, finance/document, and spatial workflows also need distinct output
 contracts and failure taxonomies.
 

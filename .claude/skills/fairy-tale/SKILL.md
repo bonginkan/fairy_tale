@@ -1,12 +1,12 @@
 ---
 name: fairy-tale
-description: Distills Fable/Mythos-class public workflow patterns into budgeted, evidence-driven, validation-gated agent execution for coding, research, documentation, legal/knowledge work, UI/3D, creative writing, emotionally aware conversation, ARC-style puzzle discovery, and defensive security tasks. Use when the user asks for Mythos/Fable-style performance, autonomous long-task execution, workflow self-improvement, codebase-wide migration, high-signal research synthesis, legal or closed-ended benchmark reasoning, narrative/UI expression, mechanism discovery, or defensive vulnerability-review process design.
+description: Provides Fable/Mythos-informed workflow augmentation for budgeted, evidence-driven, validation-gated agent execution across coding, research, documentation, legal/knowledge work, UI/3D, creative writing, emotionally aware conversation, ARC-style puzzle discovery, and defensive security tasks. Use when the user asks for Mythos/Fable-informed workflow uplift, autonomous long-task execution, workflow self-improvement, codebase-wide migration, high-signal research synthesis, legal or closed-ended benchmark reasoning, narrative/UI expression, mechanism discovery, or defensive vulnerability-review process design.
 ---
 
 # Fairy Tale
 
-Use this skill to emulate the *process* patterns reported for Fable/Mythos-class
-work, not to access or bypass those models.
+Use this skill to apply reusable *process* patterns described in public
+Fable/Mythos-class reports, not to access or bypass those models.
 
 ## Non-negotiables
 
@@ -142,7 +142,8 @@ work, not to access or bypass those models.
 - Use a baseline model/process on the same task when possible.
 - Measure deltas with artifacts: pass/fail tests, rendered screenshots,
   benchmark rubrics, human review notes, cost, and elapsed time.
-- Use controlled eval artifacts before claiming Fable/Mythos-style superiority.
+- Use controlled eval artifacts before claiming Fable/Mythos-informed workflow
+  uplift.
 
 ### Domain Router
 
@@ -293,7 +294,7 @@ work, not to access or bypass those models.
 
 Read only when needed:
 
-- `references/capabilities.md` for distilled Fable/Mythos capabilities.
+- `references/capabilities.md` for mapped Fable/Mythos capability patterns.
 - `references/best-practices.md` for current official/upstream best practices.
 - `references/process.md` for checklists and templates.
 - `references/sources.md` for official and public-report sources.

@@ -1,21 +1,21 @@
 # fairy_tale
 
-Private research workspace for distilling reported Fable/Mythos-class agent
-behavior into reproducible agent skills and plugin packages.
+Private research workspace for turning public Fable/Mythos-class agent reports
+into reproducible workflow-augmentation skills and plugin packages.
 
 Think of this project as the nightingale's scorebook.
 
 In Andersen's tale, the court becomes enchanted by a jeweled mechanical bird,
 only to learn that the living song matters more than the glittering machine.
 Fairy Tale does not try to steal the bird, open the cage, or pretend to be the
-emperor's locksmith. It listens to public traces of unusually good agent work,
-separates melody from myth, and writes down the repeatable patterns as skills,
-checks, adapters, and sample results.
+emperor's locksmith. It studies public descriptions and field reports of
+unusually good agent work, separates melody from myth, and writes down the
+repeatable patterns as skills, checks, adapters, and sample results.
 
 This repository does not attempt to bypass access controls, export controls, or
 model safeguards. It studies public official information and public user reports
-to extract reusable workflows that can be run with Codex, Claude Code, or other
-agent-skill-compatible coding assistants.
+to define reusable workflow enhancements that can be run with Codex, Claude Code,
+or other agent-skill-compatible coding assistants.
 
 ## Goals
 
