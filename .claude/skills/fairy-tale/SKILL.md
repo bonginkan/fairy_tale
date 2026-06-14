@@ -154,7 +154,8 @@ Fable/Mythos-class reports, not to access or bypass those models.
   and invoke the official scorer with provenance manifests.
 - For ExploitBench work, use `scripts/exploitbench_run.py` against the official
   upstream sandbox only. Run `doctor`, mock smoke, and dry-run single-cell
-  commands before any confirmed real benchmark run.
+  commands before any confirmed real benchmark run. Use `--fairy-feedback` to
+  map Fairy Tale feedback into upstream-compatible `stuck,wrapup` nudges.
 
 ### Domain Router
 
