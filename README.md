@@ -32,48 +32,22 @@ or other agent-skill-compatible coding assistants.
 
 ## 🚪 Quick start
 
-Pick the integration that matches your agent and validate the install.
+```bash
+git clone https://github.com/bonginkan/fairy_tale.git
+cd fairy_tale
+```
 
-1. Clone this repository.
+Then, inside Claude Code:
 
-   ```bash
-   git clone https://github.com/bonginkan/fairy_tale.git
-   cd fairy_tale
-   ```
+```text
+/plugin marketplace add .
+/plugin install fairy-tale@fairy-tale-marketplace
+```
 
-2. Choose how to use the Fairy Tale skill.
-
-   - Claude Code (plugin via local marketplace, recommended):
-
-     ```text
-     /plugin marketplace add .
-     /plugin install fairy-tale@fairy-tale-marketplace
-     ```
-
-   - Claude Code (project skill, no plugin): the repo skill at
-     `.claude/skills/fairy-tale/SKILL.md` is loaded automatically when Claude Code
-     runs in this directory.
-   - Codex: use the repo skill at `.agents/skills/fairy-tale/SKILL.md`, or install
-     the Codex plugin via `plugins/fairy-tale/.codex-plugin/plugin.json`.
-   - Generic agents: point your agent at `skills/fairy-tale/SKILL.md` and, if
-     relevant, `skills/fairy-tale-legal-feedback/SKILL.md`.
-
-3. (Optional) Validate the Rust workspace.
-
-   ```bash
-   cargo metadata --no-deps --format-version 1
-   ```
-
-4. (Optional) Try a benchmark adapter end-to-end. Keep generated data under a
-   local `tmp/` path and follow `docs/benchmarks/benchmark-validation-plan.md` before
-   reporting any number.
-
-   ```bash
-   python scripts/biomystery_runner.py --help
-   python scripts/swebench_pro_prepare.py --help
-   ```
-
-Before publishing measurements, re-read [SECURITY.md](SECURITY.md),
+For Codex, generic agents, or running it as a project skill without the
+plugin, point your agent at the corresponding `SKILL.md` under
+`skills/`, `.agents/skills/`, or `.claude/skills/`. Before publishing any
+measurement, read [SECURITY.md](SECURITY.md),
 [CONTRIBUTING.md](CONTRIBUTING.md), and
 [docs/governance/feedback-governance.md](docs/governance/feedback-governance.md).
 
