@@ -5,6 +5,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import re
+import shutil
 import subprocess
 import sys
 import textwrap
@@ -73,6 +76,17 @@ def command_result(command: list[str], cwd: Path, dry_run: bool) -> int:
     return subprocess.run(command, cwd=cwd, check=False).returncode
 
 
+def run_capture(command: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        command,
+        cwd=cwd,
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+
 def create_problem_statement(row: dict[str, Any]) -> str:
     parts = [row.get("problem_statement") or ""]
     requirements = row.get("requirements")
@@ -94,6 +108,267 @@ def sweagent_image_name(row: dict[str, Any], dockerhub_username: str) -> str:
     if repo and not tag.startswith(repo):
         tag = f"{repo}-{tag}"
     return f"{dockerhub_username}/sweap-images:{tag}"
+
+
+def safe_name(value: str) -> str:
+    return re.sub(r"[^A-Za-z0-9_.-]+", "-", value).strip("-") or "instance"
+
+
+def discover_image_repo_path(image: str, docker_platform: str) -> str:
+    script = r"""
+set -eu
+for d in /testbed /app /workspace /repo /project /root/project; do
+  if [ -d "$d/.git" ]; then
+    echo "$d"
+    exit 0
+  fi
+done
+git_dir="$(find / -maxdepth 5 -type d -name .git 2>/dev/null | grep -Ev '^/(usr|opt/conda|root/.cache)/' | head -1 || true)"
+if [ -n "$git_dir" ]; then
+  dirname "$git_dir"
+  exit 0
+fi
+for d in /testbed /app /workspace /repo /project /root/project; do
+  if [ -d "$d" ]; then
+    echo "$d"
+    exit 0
+  fi
+done
+exit 2
+"""
+    result = run_capture(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "--platform",
+            docker_platform,
+            "--entrypoint",
+            "/bin/sh",
+            image,
+            "-lc",
+            script,
+        ]
+    )
+    if result.returncode != 0:
+        raise SystemExit(
+            f"could not discover repository path in {image}:\n{result.stderr.strip()}"
+        )
+    repo_path = result.stdout.strip().splitlines()[-1]
+    if not repo_path.startswith("/"):
+        raise SystemExit(f"discovered non-absolute repository path for {image}: {repo_path}")
+    return repo_path
+
+
+def copy_repo_from_image(image: str, repo_path: str, dest: Path, docker_platform: str) -> None:
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    if dest.exists() and any(dest.iterdir()):
+        raise SystemExit(f"refusing to overwrite non-empty worktree: {dest}")
+    dest.mkdir(parents=True, exist_ok=True)
+    create = run_capture(
+        [
+            "docker",
+            "create",
+            "--platform",
+            docker_platform,
+            "--entrypoint",
+            "/bin/sh",
+            image,
+            "-lc",
+            "true",
+        ]
+    )
+    if create.returncode != 0:
+        raise SystemExit(f"docker create failed for {image}:\n{create.stderr.strip()}")
+    container_id = create.stdout.strip()
+    try:
+        copy = run_capture(["docker", "cp", f"{container_id}:{repo_path}/.", str(dest)])
+        if copy.returncode != 0:
+            raise SystemExit(f"docker cp failed for {image}:{repo_path}:\n{copy.stderr.strip()}")
+    finally:
+        subprocess.run(["docker", "rm", "-f", container_id], check=False, stdout=subprocess.DEVNULL)
+
+
+def init_patch_worktree(worktree: Path) -> None:
+    if (worktree / ".git").exists():
+        shutil.rmtree(worktree / ".git")
+    commands = [
+        ["git", "init", "-q"],
+        ["git", "config", "user.email", "fairy-tale-bench@example.invalid"],
+        ["git", "config", "user.name", "Fairy Tale Bench"],
+        ["git", "add", "-A"],
+        ["git", "commit", "-q", "--no-gpg-sign", "-m", "benchmark base"],
+    ]
+    for command in commands:
+        result = run_capture(command, cwd=worktree)
+        if result.returncode != 0:
+            raise SystemExit(f"worktree init failed in {worktree}: {' '.join(command)}\n{result.stderr}")
+
+
+def codex_prompt(task: dict[str, Any], container_name: str, repo_path: str) -> str:
+    return f"""Use the installed fairy-tale plugin/skill for the workflow gates.
+
+You are solving a SWE-Bench Pro software engineering task.
+
+Instance: {task["instance_id"]}
+Repository: {task.get("repo")}
+Base commit: {task.get("base_commit")}
+
+The current working directory is a host-side copy of the benchmark repository.
+It is also mounted into Docker container `{container_name}` at `{repo_path}`.
+Edit files in the current working directory. When validation is useful, run it
+inside the benchmark image with:
+
+  docker exec -u root -w {repo_path} {container_name} <command>
+
+The benchmark container has network disabled. Do not inspect or rely on gold
+patches, hidden tests, fail/pass scorer fields, or benchmark answers. Do not
+modify tests unless the issue explicitly requires a non-test fixture change.
+Keep the patch minimal and aligned with local project conventions. Leave the
+final changes unstaged in the working tree; do not commit.
+
+Problem statement:
+
+{task["prompt"]}
+"""
+
+
+def write_patch_prediction(pred_dir: Path, prefix: str, instance_id: str, patch: str) -> Path:
+    instance_dir = pred_dir / instance_id
+    instance_dir.mkdir(parents=True, exist_ok=True)
+    path = instance_dir / f"{prefix}.{safe_name(instance_id)}.pred"
+    payload = {"instance_id": instance_id, "model_patch": patch}
+    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    return path
+
+
+def generate_codex_patches(args: argparse.Namespace) -> int:
+    manifest = load_manifest(args.prepared_manifest)
+    tasks = read_jsonl(Path(manifest["agent_tasks_path"]).resolve())
+    raw_rows = {row["instance_id"]: row for row in read_jsonl(Path(manifest["raw_eval_path"]).resolve())}
+    output_dir = (args.output_dir or (args.run_dir / "codex-worktrees")).resolve()
+    pred_dir = (args.pred_dir or (args.run_dir / "predictions")).resolve()
+    logs_dir = args.run_dir / "codex-logs"
+    records = []
+    if args.api_key_env not in os.environ and not args.dry_run:
+        raise SystemExit(f"{args.api_key_env} is required for codex-patches")
+    if shutil.which(args.codex_bin) is None and not args.dry_run:
+        raise SystemExit(f"codex binary not found on PATH: {args.codex_bin}")
+
+    for task in tasks:
+        instance_id = task["instance_id"]
+        raw_row = raw_rows.get(instance_id)
+        if not raw_row:
+            raise SystemExit(f"raw row missing for instance: {instance_id}")
+        image = sweagent_image_name(raw_row, args.dockerhub_username)
+        worktree = output_dir / safe_name(instance_id)
+        container_name = f"fairy-codex-{safe_name(instance_id)[:48]}"
+        repo_path = args.repo_path or (
+            "/app" if args.dry_run else discover_image_repo_path(image, args.docker_platform)
+        )
+        if not args.dry_run:
+            copy_repo_from_image(image, repo_path, worktree, args.docker_platform)
+            init_patch_worktree(worktree)
+        prompt = codex_prompt(task, container_name, repo_path)
+        command = [
+            args.codex_bin,
+            "--ask-for-approval",
+            "never",
+            "exec",
+            "--ephemeral",
+            "--sandbox",
+            args.sandbox,
+            "-m",
+            args.model,
+            "-c",
+            f'model_reasoning_effort="{args.reasoning_effort}"',
+            "--cd",
+            str(worktree),
+            prompt,
+        ]
+        record = {
+            "instance_id": instance_id,
+            "image": image,
+            "repo_path": repo_path,
+            "worktree": str(worktree),
+            "container_name": container_name,
+            "model": args.model,
+            "reasoning_effort": args.reasoning_effort,
+            "sandbox": args.sandbox,
+            "command": command,
+        }
+        if args.dry_run:
+            records.append(record)
+            continue
+
+        subprocess.run(["docker", "rm", "-f", container_name], check=False, stdout=subprocess.DEVNULL)
+        run = subprocess.run(
+            [
+                "docker",
+                "run",
+                "-d",
+                "--platform",
+                args.docker_platform,
+                "--network",
+                "none",
+                "--name",
+                container_name,
+                "--entrypoint",
+                "sleep",
+                "-v",
+                f"{worktree}:{repo_path}",
+                image,
+                "infinity",
+            ],
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        if run.returncode != 0:
+            raise SystemExit(f"docker run failed for {instance_id}:\n{run.stderr.strip()}")
+        logs_dir.mkdir(parents=True, exist_ok=True)
+        stdout_path = logs_dir / f"{safe_name(instance_id)}.stdout.txt"
+        stderr_path = logs_dir / f"{safe_name(instance_id)}.stderr.txt"
+        try:
+            with stdout_path.open("w", encoding="utf-8") as stdout, stderr_path.open(
+                "w", encoding="utf-8"
+            ) as stderr:
+                result = subprocess.run(command, check=False, stdout=stdout, stderr=stderr)
+            diff = run_capture(["git", "diff", "--binary", "HEAD"], cwd=worktree)
+            if diff.returncode != 0:
+                raise SystemExit(f"git diff failed for {instance_id}:\n{diff.stderr.strip()}")
+            pred_path = write_patch_prediction(pred_dir, args.prefix, instance_id, diff.stdout)
+            record.update(
+                {
+                    "returncode": result.returncode,
+                    "stdout_path": str(stdout_path),
+                    "stderr_path": str(stderr_path),
+                    "pred_path": str(pred_path),
+                    "patch_bytes": len(diff.stdout.encode("utf-8")),
+                }
+            )
+            records.append(record)
+            if result.returncode != 0 and not args.keep_going:
+                break
+        finally:
+            if not args.keep_containers:
+                subprocess.run(["docker", "rm", "-f", container_name], check=False, stdout=subprocess.DEVNULL)
+
+    manifest_record = {
+        "benchmark": "SWE-Bench Pro",
+        "action": "codex_patches",
+        "prepared_manifest": str(args.prepared_manifest),
+        "pred_dir": str(pred_dir),
+        "prefix": args.prefix,
+        "count": len(records),
+        "dry_run": args.dry_run,
+        "records": records,
+        "notes": "Codex CLI is used as the patch-generation agent. Evaluation still runs through the official SWE-Bench Pro scorer.",
+    }
+    write_json(args.run_dir / "codex-patches-manifest.json", manifest_record)
+    print(json.dumps(manifest_record, indent=2, ensure_ascii=False))
+    return 0
 
 
 def write_sweagent_instances(args: argparse.Namespace) -> int:
@@ -569,12 +844,30 @@ def build_parser() -> argparse.ArgumentParser:
     compat_parser.add_argument("--swerex-docker-path", type=Path)
     compat_parser.set_defaults(func=patch_sweagent_compat)
 
+    codex_parser = subparsers.add_parser("codex-patches")
+    add_dry_run_flag(codex_parser)
+    codex_parser.add_argument("--prepared-manifest", type=Path, required=True)
+    codex_parser.add_argument("--output-dir", type=Path)
+    codex_parser.add_argument("--pred-dir", type=Path)
+    codex_parser.add_argument("--prefix", default="gpt-5.5-fairy-tale-codex")
+    codex_parser.add_argument("--model", default="gpt-5.5")
+    codex_parser.add_argument("--reasoning-effort", default="xhigh")
+    codex_parser.add_argument("--sandbox", default="danger-full-access")
+    codex_parser.add_argument("--codex-bin", default="codex")
+    codex_parser.add_argument("--api-key-env", default="CODEX_API_KEY")
+    codex_parser.add_argument("--dockerhub-username", default="jefzda")
+    codex_parser.add_argument("--docker-platform", default="linux/amd64")
+    codex_parser.add_argument("--repo-path")
+    codex_parser.add_argument("--keep-containers", action="store_true")
+    codex_parser.add_argument("--keep-going", action="store_true")
+    codex_parser.set_defaults(func=generate_codex_patches, need_harness=False, need_python=False)
+
     gather_parser = subparsers.add_parser("gather")
     add_dry_run_flag(gather_parser)
     gather_parser.add_argument("--pred-dir", type=Path, required=True)
     gather_parser.add_argument("--prefix", required=True)
     gather_parser.add_argument("--output", type=Path)
-    gather_parser.set_defaults(func=gather)
+    gather_parser.set_defaults(func=gather, need_harness=True, need_python=True)
 
     eval_parser = subparsers.add_parser("eval")
     add_dry_run_flag(eval_parser)
@@ -589,7 +882,7 @@ def build_parser() -> argparse.ArgumentParser:
     eval_parser.add_argument("--allow-network", action="store_false", dest="block_network")
     eval_parser.add_argument("--redo", action="store_true")
     eval_parser.add_argument("--docker-platform")
-    eval_parser.set_defaults(func=eval_patches)
+    eval_parser.set_defaults(func=eval_patches, need_harness=True, need_python=True)
     return parser
 
 
@@ -601,8 +894,10 @@ def main(argv: list[str] | None = None) -> int:
     args.run_dir = absolute_path(args.run_dir)
     if hasattr(args, "prepared_manifest"):
         args.prepared_manifest = args.prepared_manifest.resolve()
-    require_path(args.harness_dir, "SWE-Bench Pro harness")
-    require_path(args.python, "SWE-Bench Pro python")
+    if getattr(args, "need_harness", True):
+        require_path(args.harness_dir, "SWE-Bench Pro harness")
+    if getattr(args, "need_python", True):
+        require_path(args.python, "SWE-Bench Pro python")
     return args.func(args)
 
 

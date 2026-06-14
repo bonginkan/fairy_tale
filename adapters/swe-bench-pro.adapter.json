@@ -13,7 +13,7 @@
   "capabilities": [
     "SWE-Bench Pro public dataset loading",
     "Docker or Modal-based reproducible evaluation",
-    "patch generation with an external coding-agent harness",
+    "patch generation with SWE-agent or Codex CLI as the external coding-agent harness",
     "fail-to-pass and pass-to-pass test evaluation",
     "Fairy Tale maintainability and evidence gates around the same model"
   ],
@@ -29,7 +29,8 @@
       "scripts/swebench_pro_run.py sweagent-config --instances-path data/fairy-smoke.yaml --instances-slice :1 --output tmp/swe-bench-pro-os/SWE-agent/config/fairy_tale_swebench_pro.yaml",
       "scripts/swebench_pro_run.py --python tmp/swe-agent-venv/bin/python sweagent-compat",
       "scripts/swebench_pro_run.py plan --prepared-manifest tmp/swe-bench-pro-runs/prepared-smoke/manifest.json",
-      "scripts/swebench_pro_run.py gather --pred-dir tmp/swe-bench-pro-runs/predictions --prefix gpt-5.5-fairy-tale --dry-run",
+      "scripts/swebench_pro_run.py codex-patches --prepared-manifest tmp/swe-bench-pro-runs/prepared-smoke/manifest.json --dry-run",
+      "scripts/swebench_pro_run.py gather --pred-dir tmp/swe-bench-pro-runs/predictions --prefix gpt-5.5-fairy-tale-codex --dry-run",
       "scripts/swebench_pro_run.py eval --prepared-manifest tmp/swe-bench-pro-runs/prepared-smoke/manifest.json --patch-path tmp/swe-bench-pro-runs/current/patches.json --use-local-docker --dry-run",
       "python helper_code/gather_patches.py --help",
       "python - <<'PY'\nfrom datasets import load_dataset\nprint(load_dataset('ScaleAI/SWE-bench_Pro', split='test')[:1])\nPY"
@@ -84,6 +85,7 @@
       "prompt-safe agent tasks exclude gold patch, test patch, fail/pass scorer fields, and setup commands",
       "SWE-agent instance/config generation records reproducible manifests",
       "SWE-agent compatibility patch handles top_p null, newly named model cost accounting, and empty python_standalone_dir",
+      "Codex CLI patch-generation runner records worktree, container, model, effort, sandbox, and patch artifacts",
       "one dry-run patch-generation task records prompt, model, effort, and artifact paths before scoring",
       "runner wrapper records gather and eval manifests before executing official scorer"
     ],
