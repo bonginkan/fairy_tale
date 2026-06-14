@@ -1,13 +1,20 @@
-# fairy_tale
+<div align="center">
+
+# 🪶 fairy_tale
 
 ![Fairy Tale wide logo](assets/fairy-tale-wide-logo-gpt-image-2.png)
 
+***The nightingale's scorebook for Fable / Mythos-class agent work.***
+
 [日本語はこちらから](./README_ja.md)
 
-Research workspace for turning public Fable/Mythos-class agent reports into
-reproducible workflow-augmentation skills and plugin packages.
+</div>
 
-Think of this project as the nightingale's scorebook.
+> *"The real nightingale's song, simple as it was, was the truest of all."*
+> — after H. C. Andersen, *The Nightingale*
+
+Research workspace for turning public Fable / Mythos-class agent reports into
+reproducible workflow-augmentation skills and plugin packages.
 
 In Andersen's tale, the court becomes enchanted by a jeweled mechanical bird,
 only to learn that the living song matters more than the glittering machine.
@@ -21,7 +28,9 @@ model safeguards. It studies public official information and public user reports
 to define reusable workflow enhancements that can be run with Codex, Claude Code,
 or other agent-skill-compatible coding assistants.
 
-## Quick start
+---
+
+## 🚪 Quick start
 
 Pick the integration that matches your agent and validate the install.
 
@@ -68,7 +77,7 @@ Before publishing measurements, re-read [SECURITY.md](SECURITY.md),
 [CONTRIBUTING.md](CONTRIBUTING.md), and
 [docs/governance/feedback-governance.md](docs/governance/feedback-governance.md).
 
-## Goals
+## 🎯 Goals
 
 - Describe the strongest reported Fable 5 / Mythos 5 capabilities in operational terms.
 - Convert those capabilities into repeatable agent workflows.
@@ -92,7 +101,7 @@ covers TypeScript structural-similarity refactor scouting. Feedback
 governance, including pruning and contradiction handling, is in
 [docs/governance/feedback-governance.md](docs/governance/feedback-governance.md).
 
-## Current status
+## 📖 Current status
 
 The first songbook is usable:
 
@@ -103,7 +112,7 @@ The first songbook is usable:
 - The project is prepared for public release with Apache-2.0 licensing, brand
   asset boundaries, and defensive-use constraints documented.
 
-## Benchmark Snapshot
+## 🎼 Benchmark Snapshot
 
 These are reproducible local measurements, not final leaderboard claims.
 Benchmark rows must keep known Fable/Mythos data, known or measured GPT-5.5
@@ -131,7 +140,7 @@ Notes:
   sample, 11/100, with 95% Wilson CI 6.25-18.63% and one-sided p vs 2.1%
   baseline = 8.90e-6.
 
-### Legal Feedback Retry
+### 🪞 Legal Feedback Retry
 
 The legal feedback mechanism was tested on 15 tasks selected from prior misses
 in the n=100 legal sample. The retry used the same model, effort, judge, and
@@ -161,21 +170,24 @@ context-only BLAST evidence, and bacterial marker-sequence identity. The current
 remaining miss is the Brachypodium stress-type item (`hb053`), where the model
 still selects a non-heat stress label without stronger heat-specific evidence.
 
-## Important boundaries
+## 🛡️ Important boundaries
 
-- Security workflows are defensive-only. The defensive scope, threat-model
-  assumptions, and review gates live in
-  [docs/governance/cybersecurity-strengthening.md](docs/governance/cybersecurity-strengthening.md).
-- No exploit weaponization, persistence, stealth, credential theft, or bypass guidance.
-- Use budgets and validation gates before launching parallel agents. Adopted
-  workflow patterns and gate criteria are documented in
-  [docs/governance/best-practices.md](docs/governance/best-practices.md).
-- Treat user reports as anecdotal unless independently reproduced.
-- Preserve provenance for all research claims.
-- See [SECURITY.md](SECURITY.md) for vulnerability reporting and defensive-use
-  boundaries.
+> [!WARNING]
+> Fairy Tale is a study of the song, not a key to the cage.
+>
+> - Security workflows are defensive-only. The defensive scope, threat-model
+>   assumptions, and review gates live in
+>   [docs/governance/cybersecurity-strengthening.md](docs/governance/cybersecurity-strengthening.md).
+> - No exploit weaponization, persistence, stealth, credential theft, or bypass guidance.
+> - Use budgets and validation gates before launching parallel agents. Adopted
+>   workflow patterns and gate criteria are documented in
+>   [docs/governance/best-practices.md](docs/governance/best-practices.md).
+> - Treat user reports as anecdotal unless independently reproduced.
+> - Preserve provenance for all research claims.
+> - See [SECURITY.md](SECURITY.md) for vulnerability reporting and defensive-use
+>   boundaries.
 
-## Claude Code plugin
+## 🧩 Claude Code plugin
 
 This repo includes a Claude Code marketplace catalog at
 `.claude-plugin/marketplace.json`. In Claude Code, add the local marketplace and
@@ -189,7 +201,7 @@ install the plugin:
 The same `plugins/fairy-tale/` package also remains a Codex plugin via
 `plugins/fairy-tale/.codex-plugin/plugin.json`.
 
-## License
+## 📜 License
 
 Original source code, skills, adapters, schemas, scripts, and documentation in
 this repository are licensed under the Apache License, Version 2.0
@@ -203,8 +215,16 @@ implying endorsement, sponsorship, official status, or affiliation.
 Third-party repositories, benchmark materials, reports, datasets, and assets
 referenced by this repository remain under their own licenses and terms.
 
-## Referenced GitHub repositories
+## 🗺️ Referenced GitHub repositories
 
 The full bibliography of upstream skills, adapters, harnesses, and references
 is documented in
 [docs/ecosystem/referenced-repositories.md](docs/ecosystem/referenced-repositories.md).
+
+---
+
+<div align="center">
+
+*Sing only the parts of the song that can be sung again.*
+
+</div>
