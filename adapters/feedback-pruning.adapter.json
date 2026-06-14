@@ -1,0 +1,76 @@
+{
+  "schema_version": "1.0",
+  "id": "feedback-pruning",
+  "name": "Feedback Contradiction and Pruning Adapter",
+  "kind": "evaluation-harness",
+  "source": {
+    "upstream": "https://github.com/bonginkan/fairy_tale",
+    "license": "Fairy Tale internal workflow contract",
+    "notes": "Internal governance layer for evaluated feedback. Detects duplicate, contradictory, superseded, stale, weakly evidenced, and regression-causing rules before they pollute default skills."
+  },
+  "capabilities": [
+    "feedback ledger parsing",
+    "duplicate and contradiction detection",
+    "supersession-aware pruning",
+    "evidence and regression gate",
+    "kept-rule ledger generation"
+  ],
+  "entrypoints": {
+    "import": "scripts/feedback_pruner.py",
+    "construct": "scripts/feedback_pruner.py --ledger <feedback-ledger.json>",
+    "run": "scripts/feedback_pruner.py --ledger <feedback-ledger.json> --output <feedback-prune-report.json>",
+    "optional": [
+      "scripts/feedback_pruner.py --ledger <feedback-ledger.jsonl> --output <report.json> --kept-output <kept.json>"
+    ]
+  },
+  "contracts": {
+    "inputs": [
+      "feedback ledger JSON, JSONL, or object with rules array",
+      "rule id, scope, failure_class, rule text, status, evidence, metrics",
+      "optional conflicts_with, supersedes, superseded_by, regression_count"
+    ],
+    "outputs": [
+      "decision counts",
+      "conflict list",
+      "keep/review/prune decisions",
+      "kept rule ids",
+      "optional kept-rule ledger"
+    ],
+    "evidence": [
+      "input ledger path",
+      "rule fingerprints",
+      "metric deltas",
+      "detected conflict reasons",
+      "pruning report"
+    ]
+  },
+  "safety": {
+    "boundaries": [
+      "Never delete feedback artifacts automatically; emit reviewable pruning decisions.",
+      "Do not promote rules with unresolved conflicts into default skills.",
+      "Keep broad rules scoped until measured across multiple task families.",
+      "Treat heuristic semantic conflicts as review signals, not final truth."
+    ],
+    "forbidden_claims": [
+      "The pruner proves a rule is correct.",
+      "A keep decision means the rule should be globally promoted.",
+      "A review decision means the rule is false.",
+      "Unmeasured feedback can be safely retained forever."
+    ]
+  },
+  "validation": {
+    "checks": [
+      "adapter manifest validates against schemas/fairy-tale-adapter.schema.json",
+      "runner compiles with python3 -m py_compile",
+      "sample ledger detects explicit conflict",
+      "sample ledger detects duplicate",
+      "sample ledger emits keep/review/prune decisions"
+    ],
+    "minimum_artifacts": [
+      "adapter manifest",
+      "runner script",
+      "sample pruning report",
+      "documentation link"
+    ]
+  }
+}

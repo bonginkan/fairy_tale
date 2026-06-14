@@ -236,6 +236,9 @@ Fable/Mythos-class reports, not to access or bypass those models.
 - Treat failed benchmark criteria as reusable feedback, not just result data.
 - Create a narrow rule for each measured failure class and re-run a held-out
   retry slice before promoting the rule to the default skill.
+- Before retaining or promoting accumulated feedback, run a pruning pass:
+  detect contradictions, duplicates, superseded rules, stale evidence, and
+  measured regressions. Prefer a small scoped rule over broad prompt growth.
 - When a task is high-risk or repeatedly near-misses, run bounded Fairy Fusion
   review with `scripts/fairy_fusion_review.py` or a harness-native equivalent:
   independent specialist reviewers, contradiction table, blind-spot closure,
@@ -315,6 +318,6 @@ Read only when needed:
 - `references/capabilities.md` for mapped Fable/Mythos capability patterns.
 - `references/best-practices.md` for current official/upstream best practices.
 - `references/legal-feedback.md` for measured legal benchmark feedback,
-  closure sweeps, and fusion-style review.
+  closure sweeps, pruning expectations, and fusion-style review.
 - `references/process.md` for checklists and templates.
 - `references/sources.md` for official and public-report sources.

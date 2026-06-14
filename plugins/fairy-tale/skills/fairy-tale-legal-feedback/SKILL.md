@@ -87,3 +87,12 @@ After any scored run:
 4. Re-run 10-20 failed tasks or a held-out slice.
 5. Keep the rule only if all-pass or criterion pass rate improves without
    obvious regressions.
+6. Before promoting or retaining accumulated rules, run feedback pruning:
+   detect contradictions, duplicates, superseded rules, stale evidence, and
+   measured regressions. Prefer scoped corrections over broad prompt growth.
+
+Default pruning command:
+
+```bash
+scripts/feedback_pruner.py --ledger feedback-ledger.json --output feedback-prune-report.json
+```

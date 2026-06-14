@@ -51,6 +51,15 @@ Before final legal output:
 4. Re-run 10-20 failed tasks.
 5. Keep the rule only if all-pass or criterion pass rate improves without
    obvious regressions.
+6. Before promoting the rule, run a pruning pass against the current feedback
+   ledger. Remove or review contradictory, duplicate, superseded, stale, or
+   regression-causing rules.
+
+Default pruning command:
+
+```bash
+scripts/feedback_pruner.py --ledger feedback-ledger.json --output feedback-prune-report.json
+```
 
 ## Fairy Fusion Review
 

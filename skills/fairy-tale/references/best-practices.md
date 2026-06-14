@@ -46,6 +46,11 @@ artifact, negative-case record, and boundary note.
   hallucinated validation, answer-format failures, and incomplete responses.
 - Treat failures as structured feedback: classify failure modes, add a narrow
   harness rule, and re-run a held-out retry set before promoting the rule.
+- Do not let feedback accumulate without governance. Before promoting or
+  retaining accumulated rules, run contradiction detection, duplicate detection,
+  supersession checks, and evidence-based pruning.
+- Keep broad feedback out of default prompts when a narrower scoped rule
+  explains the improvement.
 
 ## Fairy Fusion review
 
