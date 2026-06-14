@@ -1,20 +1,11 @@
-# fairy_tale
+@AGENTS.md
 
-Use the project skill at `.claude/skills/fairy-tale/SKILL.md` or the canonical
-skill at `skills/fairy-tale/SKILL.md`.
+## Claude 専用メモ
 
-For distributable usage, install the Claude Code plugin from the local
-marketplace:
+- 作業時は `.claude/skills/fairy-tale/SKILL.md` (canonical は `skills/fairy-tale/SKILL.md`) を参照する。
+- 配布形態を試す場合は次を使用する。
 
-```text
-/plugin marketplace add .
-/plugin install fairy-tale@fairy-tale-marketplace
-```
-
-Rules:
-
-- Do not attempt to access, bypass, or reconstruct restricted models.
-- Treat Fable/Mythos public reports as workflow evidence, not model weights.
-- Keep security work defensive-only and authorized.
-- Preserve provenance for research claims.
-- Prefer small, validated workflow artifacts over broad autonomous fan-out.
+  ```text
+  /plugin marketplace add .
+  /plugin install fairy-tale@fairy-tale-marketplace
+  ```
