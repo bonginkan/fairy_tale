@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "signatures": [
+    {
+      "id": "bio.expression.erastin-ferroptosis-stress.v1",
+      "domain": "bio",
+      "modality": "expression_matrix",
+      "query_terms": [
+        "erastin",
+        "ferroptosis",
+        "metabolic stress"
+      ],
+      "source_type": "declarative_signature_library",
+      "provenance": [
+        {
+          "type": "literature",
+          "title": "ATF3 promotes erastin-induced ferroptosis by suppressing system Xc-",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7206049/",
+          "checked_date": "2026-06-14",
+          "claim": "ATF3 is reported as a stress sensor linked to erastin-induced ferroptosis and system Xc- regulation."
+        },
+        {
+          "type": "review",
+          "title": "Ferroptosis: molecular mechanisms and health implications",
+          "url": "https://www.nature.com/articles/s41422-020-00441-1",
+          "checked_date": "2026-06-14",
+          "claim": "Ferroptosis is mechanistically tied to cystine import, glutathione metabolism, lipid peroxidation, and system Xc- biology."
+        }
+      ],
+      "grouping_strategy": "contiguous_equal_halves",
+      "base_confidence": 0.82,
+      "min_marker_hits": 2,
+      "min_total_effect": 0.5,
+      "min_marker_effect": 0.05,
+      "markers": [
+        {
+          "gene": "ATF3",
+          "direction": "up",
+          "weight": 1.0,
+          "rationale": "stress-response marker linked to erastin-induced ferroptosis"
+        },
+        {
+          "gene": "SESN2",
+          "direction": "up",
+          "weight": 0.8,
+          "rationale": "metabolic and oxidative stress-response marker"
+        },
+        {
+          "gene": "SLC3A2",
+          "direction": "up",
+          "weight": 0.7,
+          "rationale": "amino-acid transport/system Xc-associated stress biology marker"
+        }
+      ]
+    }
+  ]
+}
