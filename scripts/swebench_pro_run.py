@@ -630,12 +630,17 @@ def generate_codex_patch_for_task(
                 diff_text=current["diff"],
                 repeat_threshold=args.fusion_stuck_repeats,
             )
-            if args.fusion_auto and auto_trigger_reasons and args.fusion_retry_on_stuck:
+            retry_count = 0
+            while args.fusion_auto and auto_trigger_reasons and args.fusion_retry_on_stuck:
+                if args.fusion_max_retries > 0 and retry_count >= args.fusion_max_retries:
+                    break
+                retry_count += 1
+                attempt_number = len(attempts) + 1
                 stuck_review = run_swe_fusion_review(
                     args=args,
                     task=task,
                     raw_row=raw_row,
-                    phase="stuck-retry",
+                    phase=f"stuck-retry-{attempt_number}",
                     container_name=container_name,
                     repo_path=repo_path,
                     fusion_dir=fusion_dir,
@@ -655,10 +660,17 @@ def generate_codex_patch_for_task(
                         f"{reset.stderr.strip()}\n{clean.stderr.strip()}"
                     )
                 current = run_codex_attempt(
-                    "attempt2-fusion-retry",
+                    f"attempt{attempt_number}-fusion-retry",
                     codex_prompt(task, container_name, repo_path, combined_hint),
                 )
                 attempts.append(current)
+                auto_trigger_reasons = repeated_failure_reasons(
+                    result_returncode=current["returncode"],
+                    stdout_text=current["stdout_text"],
+                    stderr_text=current["stderr_text"],
+                    diff_text=current["diff"],
+                    repeat_threshold=args.fusion_stuck_repeats,
+                )
             pred_path = write_patch_prediction(pred_dir, args.prefix, instance_id, current["diff"])
             record.update(
                 {
@@ -679,6 +691,8 @@ def generate_codex_patch_for_task(
                     ],
                     "fusion_records": fusion_records,
                     "fusion_auto_trigger_reasons": auto_trigger_reasons,
+                    "fusion_retry_count": retry_count,
+                    "fusion_max_retries": args.fusion_max_retries,
                 }
             )
             return record
@@ -705,6 +719,8 @@ def generate_codex_patches(args: argparse.Namespace) -> int:
     errors: list[dict[str, Any]] = []
     if args.fusion_stuck_repeats < 1:
         raise SystemExit("--fusion-stuck-repeats must be positive")
+    if args.fusion_max_retries < 0:
+        raise SystemExit("--fusion-max-retries must be zero or positive")
     if args.api_key_env not in os.environ and not args.dry_run:
         raise SystemExit(f"{args.api_key_env} is required for codex-patches")
     if shutil.which(args.codex_bin) is None and not args.dry_run:
@@ -1292,6 +1308,12 @@ def build_parser() -> argparse.ArgumentParser:
     codex_parser.add_argument("--fusion-effort", default="medium")
     codex_parser.add_argument("--fusion-timeout", type=int, default=0)
     codex_parser.add_argument("--fusion-stuck-repeats", type=int, default=3)
+    codex_parser.add_argument(
+        "--fusion-max-retries",
+        type=int,
+        default=0,
+        help="Maximum automatic fusion retries per task. 0 means no internal cap; stop externally or when local clear conditions are met.",
+    )
     codex_parser.add_argument(
         "--skip-existing",
         action="store_true",

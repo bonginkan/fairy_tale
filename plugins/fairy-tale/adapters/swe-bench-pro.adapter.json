@@ -31,7 +31,7 @@
       "scripts/swebench_pro_run.py --python tmp/swe-agent-venv/bin/python sweagent-compat",
       "scripts/swebench_pro_run.py plan --prepared-manifest tmp/swe-bench-pro-runs/prepared-smoke/manifest.json",
       "scripts/swebench_pro_run.py codex-patches --prepared-manifest tmp/swe-bench-pro-runs/prepared-smoke/manifest.json --dry-run",
-      "scripts/swebench_pro_run.py codex-patches --prepared-manifest tmp/swe-bench-pro-runs/prepared-smoke/manifest.json --fairy-fusion --fusion-auto --fusion-retry-on-stuck --dry-run",
+      "scripts/swebench_pro_run.py codex-patches --prepared-manifest tmp/swe-bench-pro-runs/prepared-smoke/manifest.json --fairy-fusion --fusion-auto --fusion-retry-on-stuck --fusion-max-retries 0 --dry-run",
       "scripts/swebench_pro_run.py gather --pred-dir tmp/swe-bench-pro-runs/predictions --prefix gpt-5.5-fairy-tale-codex --dry-run",
       "scripts/swebench_pro_run.py eval --prepared-manifest tmp/swe-bench-pro-runs/prepared-smoke/manifest.json --patch-path tmp/swe-bench-pro-runs/current/patches.json --use-local-docker --dry-run",
       "python helper_code/gather_patches.py --help",

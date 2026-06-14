@@ -24,7 +24,7 @@
     "optional": [
       "scripts/fairy_fusion_review.py --task-json <task.json> --dry-run",
       "scripts/fairy_fusion_review.py --roles-file <roles.json> --execute",
-      "scripts/swebench_pro_run.py codex-patches --fairy-fusion --fusion-auto --fusion-retry-on-stuck",
+      "scripts/swebench_pro_run.py codex-patches --fairy-fusion --fusion-auto --fusion-retry-on-stuck --fusion-max-retries 0",
       "scripts/legal_feedback_analyzer.py --retry-output <tasks.json>"
     ]
   },

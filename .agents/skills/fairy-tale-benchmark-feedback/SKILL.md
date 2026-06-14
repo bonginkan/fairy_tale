@@ -29,7 +29,8 @@ harness artifacts, logs, and local work product.
 5. If the same failure signature repeats, a run produces no meaningful artifact,
    or the validation ledger is missing, run bounded Fairy Fusion before retry:
    isolated reviewers, one synthesis pass, append-only review artifacts, and
-   only a compact closure hint returned to the main agent.
+   only a compact closure hint returned to the main agent. Continue retrying
+   until the local clear condition is met or the user/operator stops the run.
 6. Retry a held-out or failed slice under the same scorer. Record before/after
    pass rate, confidence interval when applicable, cost, and regressions.
 7. Promote only rules that improve the retry without task-ID hardcoding or
