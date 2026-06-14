@@ -1,6 +1,13 @@
 .DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
 *.log
 tmp/
+reports/
 dist/
 build/
 target/

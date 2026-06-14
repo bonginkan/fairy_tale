@@ -1,0 +1,83 @@
+{
+  "schema_version": "1.0",
+  "id": "biomystery-preview",
+  "name": "BioMysteryBench Preview Runner",
+  "kind": "evaluation-harness",
+  "source": {
+    "upstream": "https://huggingface.co/datasets/Anthropic/BioMysteryBench-preview",
+    "local_path_hint": "tmp/biomystery-preview",
+    "license": "Anthropic dataset license",
+    "notes": "Preview dataset with five bioinformatics problems. Rubrics contain expected answers and must not be passed to model prompts."
+  },
+  "capabilities": [
+    "BioMysteryBench preview preparation",
+    "baseline and Fairy Tale prompt generation",
+    "OpenAI Responses API execution without SDK dependency",
+    "rubric-isolated all-or-nothing scoring",
+    "JSONL artifact output"
+  ],
+  "entrypoints": {
+    "import": "scripts/biomystery_runner.py",
+    "construct": "scripts/biomystery_runner.py prepare",
+    "run": "scripts/biomystery_runner.py run --ids all --condition fairy_tale --model gpt-5.5",
+    "optional": [
+      "scripts/biomystery_runner.py list",
+      "scripts/biomystery_runner.py prompt --id hb020 --condition fairy_tale",
+      "scripts/biomystery_runner.py score --predictions <predictions.jsonl>"
+    ]
+  },
+  "contracts": {
+    "inputs": [
+      "BioMysteryBench preview dataset directory",
+      "problem ids",
+      "condition: baseline or fairy_tale",
+      "model and reasoning effort",
+      "data preview byte budget"
+    ],
+    "outputs": [
+      "JSONL prediction artifact",
+      "prompt dry-run artifact",
+      "score JSON artifact",
+      "OpenAI response id when API execution is used",
+      "token usage when available"
+    ],
+    "evidence": [
+      "dataset source and local path",
+      "problem ids",
+      "prompt condition",
+      "model and effort",
+      "rubric-isolated score artifact",
+      "cost and token usage"
+    ]
+  },
+  "safety": {
+    "boundaries": [
+      "Do not pass answer rubrics or expected answers into model prompts.",
+      "Treat tasks as bioinformatics analysis, not medical or clinical advice.",
+      "Keep downloaded datasets under ignored tmp paths unless explicitly curating public artifacts.",
+      "Do not claim benchmark improvement from smoke or single-item runs."
+    ],
+    "forbidden_claims": [
+      "This smoke run proves Fairy Tale improves BioMysteryBench.",
+      "The model saw the rubric during solving.",
+      "BioMysteryBench clinical safety was validated.",
+      "A preview-set result represents the full benchmark."
+    ]
+  },
+  "validation": {
+    "checks": [
+      "adapter manifest validates against schemas/fairy-tale-adapter.schema.json",
+      "runner compiles with python3 -m py_compile",
+      "prepare lists five preview problems",
+      "dry-run writes prompts without answer_rubric",
+      "score path returns 1.0 for known mock answers"
+    ],
+    "minimum_artifacts": [
+      "manifest",
+      "runner script",
+      "dry-run JSONL",
+      "score JSON",
+      "validation command log"
+    ]
+  }
+}

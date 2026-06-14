@@ -51,6 +51,7 @@ The first songbook is usable:
 ## Primary docs
 
 - `docs/research-summary.md`
+- `docs/benchmark-validation-plan.md`
 - `docs/domain-gap-analysis.md`
 - `docs/cybersecurity-strengthening.md`
 - `docs/arc-agi-3-lab-analysis.md`
@@ -60,6 +61,7 @@ The first songbook is usable:
 - `docs/oss-watch.md`
 - `skills/fairy-tale/SKILL.md`
 - `crates/fairy-adapter-runner/`
+- `scripts/biomystery_runner.py`
 
 ## Claude Code plugin
 
