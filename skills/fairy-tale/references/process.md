@@ -228,6 +228,48 @@ failure modes:
 next experiment:
 ```
 
+## Evaluated feedback record
+
+Use this after a benchmark miss or work-product failure.
+
+```text
+source run:
+task/sample IDs:
+baseline score:
+candidate score:
+confidence interval:
+failure class:
+evidence:
+new rule:
+misuse prevented:
+retry sample:
+retry result:
+promote to default: yes | no | needs confirmation
+```
+
+## Fusion review card
+
+Use this before launching multi-reviewer or multi-model deliberation.
+
+```text
+task:
+why fusion is justified:
+runner: scripts/fairy_fusion_review.py | harness-native equivalent
+confidentiality/provider boundary:
+panel/reviewer roles:
+judge/synthesizer:
+max reviewers:
+max tool calls:
+recursion cap:
+required output schema:
+consensus:
+contradictions:
+partial coverage:
+unique insights:
+blind spots:
+final closure actions:
+```
+
 ## Domain router card
 
 Use this before applying a Fairy Tale harness to a benchmark or unfamiliar

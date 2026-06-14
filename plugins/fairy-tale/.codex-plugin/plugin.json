@@ -1,7 +1,7 @@
 {
   "name": "fairy-tale",
-  "version": "0.1.5",
-  "description": "Fable/Mythos-informed workflow augmentation package for budgeted autonomous agent execution, best-practice gates, narrative/UI expression, spatial work, mechanism discovery, refactoring similarity, and external architecture adapters.",
+  "version": "0.1.7",
+  "description": "Fable/Mythos-informed workflow augmentation package for budgeted autonomous agent execution, evaluated feedback loops, legal closure gates, Fairy Fusion review, best-practice gates, spatial work, mechanism discovery, refactoring similarity, and external architecture adapters.",
   "author": {
     "name": "bonginkan"
   },
@@ -9,7 +9,7 @@
   "interface": {
     "displayName": "Fairy Tale",
     "shortDescription": "Fable/Mythos-informed workflow augmentation.",
-    "longDescription": "Fairy Tale packages evidence-driven, validation-gated workflow enhancements based on public Fable/Mythos-class reports for coding, research, workflow improvement, best-practice reinforcement, narrative/UI expression, spatial work, ARC-style mechanism discovery, refactoring similarity, external architecture adapters, and defensive security tasks.",
+    "longDescription": "Fairy Tale packages evidence-driven, validation-gated workflow enhancements based on public Fable/Mythos-class reports for coding, research, workflow improvement, evaluated feedback loops, legal closure gates, Fairy Fusion review, best-practice reinforcement, narrative/UI expression, spatial work, ARC-style mechanism discovery, refactoring similarity, external architecture adapters, and defensive security tasks.",
     "developerName": "bonginkan",
     "category": "Productivity",
     "capabilities": [],

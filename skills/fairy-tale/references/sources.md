@@ -112,6 +112,16 @@
   https://code.claude.com/docs/en/memory
 - OpenAI evaluation best practices:
   https://developers.openai.com/api/docs/guides/evaluation-best-practices
+- OpenRouter Fusion design reference (Fairy Fusion does not call OpenRouter):
+  https://openrouter.ai/docs/guides/features/plugins/fusion
+- OpenRouter Fusion model page, design reference only:
+  https://openrouter.ai/openrouter/fusion
+- OpenRouter Advisor design reference:
+  https://openrouter.ai/docs/guides/features/server-tools/advisor
+- OpenRouter Subagent design reference:
+  https://openrouter.ai/docs/guides/features/server-tools/subagent
+- Anthropic agent eval guidance:
+  https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents
 - OpenAI agent safety guidance:
   https://developers.openai.com/api/docs/guides/agent-builder-safety
 - OWASP Top 10 for LLM Applications:

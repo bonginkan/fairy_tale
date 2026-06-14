@@ -44,6 +44,25 @@ artifact, negative-case record, and boundary note.
   memory, cost, elapsed time, validation artifacts, and negative cases.
 - Preserve false positives, false negatives, timeouts, refusals, fallbacks,
   hallucinated validation, answer-format failures, and incomplete responses.
+- Treat failures as structured feedback: classify failure modes, add a narrow
+  harness rule, and re-run a held-out retry set before promoting the rule.
+
+## Fairy Fusion review
+
+- Use Fairy Fusion review only when the cost of being wrong exceeds the cost of
+  extra independent reviewer passes.
+- Keep reviewers independent and task-scoped; each reviewer gets all required
+  context and a narrow output schema.
+- Synthesize by consensus, contradictions, partial coverage, unique insights,
+  and blind spots rather than majority vote.
+- Cap panel size, tool calls, recursion depth, and budget before launch.
+- Do not send confidential matter files to external providers without explicit
+  authorization.
+- Use `scripts/fairy_fusion_review.py` or the equivalent harness-native
+  independent reviewer contract; do not route through OpenRouter unless a
+  future adapter explicitly adds that integration and the user authorizes it.
+- Label internal runs as Fairy Fusion or fusion-style review, not OpenRouter
+  Fusion.
 
 ## Tool and adapter contracts
 

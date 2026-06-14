@@ -1,0 +1,88 @@
+{
+  "schema_version": "1.0",
+  "id": "swe-bench-pro",
+  "name": "SWE-Bench Pro Public Runner",
+  "kind": "evaluation-harness",
+  "source": {
+    "upstream": "https://github.com/scaleapi/SWE-bench_Pro-os",
+    "package": "ScaleAI/SWE-bench_Pro",
+    "local_path_hint": "tmp/swe-bench-pro-os",
+    "license": "MIT",
+    "notes": "Public long-horizon software-engineering benchmark. Use the public dataset and OS harness for runnable agentic-coding evaluation. HF metadata checked on 2026-06-14 JST: public, ungated, revision 7ab5114912baf22bb098818e604c02fe7ad2c11f. OS repo shallow clone checked at ca10a60a5fcae51e6948ffe1485d4153d421e6c5."
+  },
+  "capabilities": [
+    "SWE-Bench Pro public dataset loading",
+    "Docker or Modal-based reproducible evaluation",
+    "patch generation with an external coding-agent harness",
+    "fail-to-pass and pass-to-pass test evaluation",
+    "Fairy Tale maintainability and evidence gates around the same model"
+  ],
+  "entrypoints": {
+    "import": "from datasets import load_dataset",
+    "construct": "load_dataset('ScaleAI/SWE-bench_Pro', split='test')",
+    "run": "python swe_bench_pro_eval.py --help",
+    "optional": [
+      "gh repo view scaleapi/SWE-bench_Pro-os",
+      "git clone https://github.com/scaleapi/SWE-bench_Pro-os tmp/swe-bench-pro-os",
+      "scripts/swebench_pro_prepare.py --sample-size 1 --output-dir tmp/swe-bench-pro-runs/prepared-smoke",
+      "python helper_code/gather_patches.py --help",
+      "python - <<'PY'\nfrom datasets import load_dataset\nprint(load_dataset('ScaleAI/SWE-bench_Pro', split='test')[:1])\nPY"
+    ]
+  },
+  "contracts": {
+    "inputs": [
+      "SWE-Bench Pro instance ids",
+      "base model and reasoning effort",
+      "condition: measured GPT-5.5 baseline or GPT-5.5 + Fairy Tale",
+      "agent harness configuration",
+      "Docker or Modal execution backend"
+    ],
+    "outputs": [
+      "patch prediction artifact",
+      "per-instance evaluation log",
+      "pass/fail resolution score",
+      "fail-to-pass and pass-to-pass test outcomes",
+      "cost, token, latency, and retry summary"
+    ],
+    "evidence": [
+      "dataset source and revision",
+      "SWE-Bench Pro OS commit",
+      "instance ids and docker image tags",
+      "agent prompt and Fairy Tale skill revision",
+      "evaluation command and backend",
+      "raw logs and summary JSON"
+    ]
+  },
+  "safety": {
+    "boundaries": [
+      "Do not report a local subset as the official SWE-Bench Pro score.",
+      "Do not compare runs unless sample ids, model, effort, scorer, retry policy, and tool budget match.",
+      "Keep benchmark repositories and generated patches under ignored tmp paths unless curating an explicit artifact.",
+      "Separate known Fable/Mythos and GPT-5.5 leaderboard data from local measured data."
+    ],
+    "forbidden_claims": [
+      "This smoke slice proves a leaderboard-level SWE-Bench Pro result.",
+      "A FrontierCode-style rubric is a FrontierCode benchmark score.",
+      "The Fairy Tale process changed the base model weights.",
+      "Unverified generated patches are production-ready."
+    ]
+  },
+  "validation": {
+    "checks": [
+      "adapter manifest validates against schemas/fairy-tale-adapter.schema.json",
+      "upstream repository is reachable",
+      "dataset access is confirmed through Hugging Face",
+      "one selected instance can be materialized with its dockerhub_tag",
+      "prompt-safe agent tasks exclude gold patch, test patch, fail/pass scorer fields, and setup commands",
+      "one dry-run patch-generation task records prompt, model, effort, and artifact paths before scoring"
+    ],
+    "minimum_artifacts": [
+      "manifest",
+      "source commit",
+      "sample ids",
+      "agent configuration",
+      "prediction artifact",
+      "evaluation summary"
+    ]
+  }
+}

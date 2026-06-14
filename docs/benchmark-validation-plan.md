@@ -55,6 +55,18 @@ When a comparable GPT-5.5 published baseline exists, the local run only needs
 the `fairy_tale` condition. Record the public source and exact GPT-5.5 score
 used as the baseline.
 
+Benchmark reporting rows must separate:
+
+- known Fable/Mythos data from the benchmark image or primary source,
+- known GPT-5.5 data from the benchmark image or primary source,
+- measured GPT-5.5 data from local `without_fairy_tale` runs, when needed,
+- measured GPT-5.5 + Fairy Tale data from local `fairy_tale` runs.
+
+If the Fairy Tale result is a sample estimate, report the uncertainty next to
+the score. Prefer a 95% confidence interval for proportions; when space is
+tight, include the half-width as `+/-N pp`. Do not mix official known data and
+local measured data in the same score cell.
+
 Minimum recorded fields:
 
 - domain,
@@ -113,7 +125,8 @@ Primary candidates:
 
 Plan:
 
-1. Start with a small Terminal-Bench or SWE-Bench Pro slice.
+1. Start with a small SWE-Bench Pro public slice because the dataset and OS
+   evaluation harness are public.
 2. Keep new tasks per worker constant while tuning concurrency.
 3. Record pass/fail plus maintainability rubrics:
    - minimal diff,
@@ -122,6 +135,10 @@ Plan:
    - reproducible command log,
    - regression safety.
 4. Escalate from `medium` only when the same sample proves higher effort helps.
+5. Treat FrontierCode as non-runnable unless Cognition releases a public
+   preview, API access, or task bundle. Its public examples may inform a
+   FrontierCode-style maintainer rubric, but they must not be reported as
+   FrontierCode benchmark scores.
 
 Success metric:
 
@@ -210,6 +227,34 @@ scripts/biomystery_runner.py score --predictions tmp/biomystery-runs/smoke-fairy
 
 The runner is dependency-light and uses only Python standard library modules.
 It calls the OpenAI Responses API directly when `OPENAI_API_KEY` is set.
+
+Agentic coding readiness notes:
+
+- SWE-Bench Pro public set is the primary runnable target for the next coding
+  evaluation.
+- Hugging Face dataset `ScaleAI/SWE-bench_Pro` is public and ungated; metadata
+  check on 2026-06-14 JST showed revision
+  `7ab5114912baf22bb098818e604c02fe7ad2c11f` with one parquet data file.
+- The official OS repo is available under ignored path `tmp/swe-bench-pro-os`;
+  shallow clone checked at `ca10a60a5fcae51e6948ffe1485d4153d421e6c5`.
+  Official evaluation entrypoints are `swe_bench_pro_eval.py` and
+  `helper_code/gather_patches.py`.
+- A local ignored virtual environment exists at `tmp/swe-bench-pro-venv` with
+  the official requirements installed. `swe_bench_pro_eval.py --help` and
+  `helper_code/gather_patches.py --help` both run.
+- HF streaming access can read at least one instance:
+  `instance_NodeBB__NodeBB-04998908ba6721d64eba79ae3b65a351dcfbc5b5-vnan`,
+  repo `NodeBB/NodeBB`, language `js`, docker tag
+  `nodebb.nodebb-NodeBB__NodeBB-04998908ba6721d64eba79ae3b65a351dcfbc5b5`.
+- `scripts/swebench_pro_prepare.py` prepares two artifacts: `raw-eval.jsonl`
+  for the evaluator, and `agent-tasks.jsonl` for the coding agent. The agent
+  task artifact excludes gold patches, test patches, fail/pass scorer fields,
+  selected test files, setup commands, and dockerfile fields.
+- FrontierCode has no public task bundle or preview runner as of 2026-06-14
+  JST; Cognition states that tasks are not currently planned for public release
+  to reduce contamination. Use the public blog examples only for qualitative
+  rubric design.
+- The SWE-Bench Pro adapter is tracked in `adapters/swe-bench-pro.adapter.json`.
 
 ### Stage 1: smoke
 

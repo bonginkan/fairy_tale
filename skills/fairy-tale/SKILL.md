@@ -144,6 +144,11 @@ Fable/Mythos-class reports, not to access or bypass those models.
   benchmark rubrics, human review notes, cost, and elapsed time.
 - Use controlled eval artifacts before claiming Fable/Mythos-informed workflow
   uplift.
+- Report benchmark rows with separate cells for known Fable/Mythos data, known
+  or measured GPT-5.5 data, and measured GPT-5.5 + Fairy Tale data.
+- If the Fairy Tale result is a sample estimate, include the confidence
+  interval or a `+/-N pp` half-width next to the score.
+- Never present a FrontierCode-style maintainer rubric as a FrontierCode score.
 
 ### Domain Router
 
@@ -180,6 +185,9 @@ Fable/Mythos-class reports, not to access or bypass those models.
 - Preserve confidentiality and avoid legal-advice overclaiming.
 - Score by legal subtask because aggregate legal benchmark performance can hide
   sharp variation across task families.
+- After any legal benchmark failure or high-risk legal draft, apply
+  `references/legal-feedback.md`: classify the failure, run the closure sweep,
+  and use Fairy Fusion reviewers for near-miss-prone or weak-area tasks.
 
 ### Bio/Health Safety Harness
 
@@ -222,6 +230,16 @@ Fable/Mythos-class reports, not to access or bypass those models.
 - Add a tool contract before exposing an external tool or adapter.
 - Add a context/memory recovery note for long autonomous runs.
 - Add an OSS release gate before preparing public publication.
+
+### Evaluated Feedback Loop
+
+- Treat failed benchmark criteria as reusable feedback, not just result data.
+- Create a narrow rule for each measured failure class and re-run a held-out
+  retry slice before promoting the rule to the default skill.
+- When a task is high-risk or repeatedly near-misses, run bounded Fairy Fusion
+  review with `scripts/fairy_fusion_review.py` or a harness-native equivalent:
+  independent specialist reviewers, contradiction table, blind-spot closure,
+  artifact logging, and one-level recursion cap.
 
 ### Spatial Forge Harness: 3D, CAD, and simulation work
 
@@ -296,5 +314,7 @@ Read only when needed:
 
 - `references/capabilities.md` for mapped Fable/Mythos capability patterns.
 - `references/best-practices.md` for current official/upstream best practices.
+- `references/legal-feedback.md` for measured legal benchmark feedback,
+  closure sweeps, and fusion-style review.
 - `references/process.md` for checklists and templates.
 - `references/sources.md` for official and public-report sources.

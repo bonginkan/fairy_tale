@@ -40,6 +40,42 @@ The first songbook is usable:
 - The project is still private while the melodies are tuned against controlled
   evaluations.
 
+## Benchmark Snapshot
+
+These are reproducible local measurements, not final leaderboard claims.
+Benchmark rows must keep known Fable/Mythos data, known or measured GPT-5.5
+data, and measured GPT-5.5 + Fairy Tale data separate. When a measured Fairy
+Tale result is a sample estimate, report the confidence interval or half-width.
+
+| Domain | Benchmark | Fable/Mythos Known | GPT-5.5 Known/Measured | GPT-5.5 + Fairy Tale Measured | Delta |
+| --- | --- | --- | --- | --- | --- |
+| Biology | BioMysteryBench-preview, n=5 | Image-reported BioMysteryBench: 46.1% hard, 83.9% human-solved | No image GPT-5.5 row; local GPT-5.5 medium baseline: 3/5, 60% | Local GPT-5.5 medium + Fairy Tale evidence gates: 4/5, 80%; 95% Wilson CI 37.6-96.4% (half-width +/-29.4 pp) | +20.0 pp vs local GPT-5.5 baseline |
+| Legal | Harvey LAB-compatible random sample, n=100 | Image-reported Legal Agent Benchmark: 13.3% | Image-reported GPT-5.5: 2.1% | Local GPT-5.5 medium + Fairy Tale legal harness: 11/100, 11.0%; 95% Wilson CI 6.25-18.63% (half-width +/-6.19 pp); one-sided p vs 2.1% = 8.90e-6 | +8.9 pp vs known GPT-5.5 baseline |
+
+### Legal Feedback Retry
+
+The legal feedback mechanism was tested on 15 tasks selected from prior misses
+in the n=100 legal sample. The retry used the same model, effort, judge, and
+task IDs, adding `fairy-tale-legal-feedback` to the existing legal harness.
+
+| Metric | Before Feedback | After Feedback | Change |
+| --- | ---: | ---: | ---: |
+| All-pass rate | 0/15 = 0.0% | 3/15 = 20.0%; 95% Wilson CI 7.05-45.19% | +20.0 pp |
+| Criterion pass rate | 922/1108 = 83.21% | 1004/1108 = 90.61% | +7.40 pp |
+| One-miss failures | 10 | 5 | -5 |
+| Large collapses below 70% criteria | 5 | 4 | -1 |
+
+Strongest recovery: `corporate-ma/draft-stock-purchase-agreement` improved
+from 17/117 to 102/117 criteria (+72.6 pp). Remaining weakness: several
+contract/redline tasks still end at one missing criterion, so the next legal
+loop should target final criterion closure rather than broad scaffolding.
+
+BioMysteryBench-preview was run through `scripts/biomystery_runner.py`.
+The Fairy Tale run uses generic evidence gates for expression signatures,
+context-only BLAST evidence, and bacterial marker-sequence identity. The current
+remaining miss is the Brachypodium stress-type item (`hb053`), where the model
+still selects a non-heat stress label without stronger heat-specific evidence.
+
 ## Important boundaries
 
 - Security workflows are defensive-only.
@@ -50,18 +86,24 @@ The first songbook is usable:
 
 ## Primary docs
 
-- `docs/research-summary.md`
-- `docs/benchmark-validation-plan.md`
-- `docs/domain-gap-analysis.md`
-- `docs/cybersecurity-strengthening.md`
-- `docs/arc-agi-3-lab-analysis.md`
-- `docs/best-practices.md`
-- `docs/openmythos-external-adapter.md`
-- `docs/similarity-refactoring-adapter.md`
-- `docs/oss-watch.md`
-- `skills/fairy-tale/SKILL.md`
-- `crates/fairy-adapter-runner/`
-- `scripts/biomystery_runner.py`
+- [Research summary](docs/research-summary.md)
+- [Benchmark validation plan](docs/benchmark-validation-plan.md)
+- [Domain gap analysis](docs/domain-gap-analysis.md)
+- [Cybersecurity strengthening](docs/cybersecurity-strengthening.md)
+- [ARC-AGI-3 lab analysis](docs/arc-agi-3-lab-analysis.md)
+- [Best practices](docs/best-practices.md)
+- [OpenMythos external adapter](docs/openmythos-external-adapter.md)
+- [Similarity refactoring adapter](docs/similarity-refactoring-adapter.md)
+- [Legal feedback analysis](docs/legal-feedback-analysis.md)
+- [OSS watch](docs/oss-watch.md)
+- [Core Fairy Tale skill](skills/fairy-tale/SKILL.md)
+- [Legal feedback skill](skills/fairy-tale-legal-feedback/SKILL.md)
+- [Fairy Fusion adapter](adapters/fairy-fusion.adapter.json)
+- [Fairy adapter runner](crates/fairy-adapter-runner/)
+- [BioMystery runner](scripts/biomystery_runner.py)
+- [SWE-Bench Pro preparer](scripts/swebench_pro_prepare.py)
+- [Legal feedback analyzer](scripts/legal_feedback_analyzer.py)
+- [Fairy Fusion reviewer](scripts/fairy_fusion_review.py)
 
 ## Claude Code plugin
 
@@ -103,5 +145,10 @@ ownership remain with each upstream project.
   https://github.com/bonginkan/OpenMythos
 - `kongyo2/similarity` - TypeScript structural similarity/refactoring scout.
   https://github.com/kongyo2/similarity
+- `scaleapi/SWE-bench_Pro-os` - public SWE-Bench Pro evaluation harness.
+  https://github.com/scaleapi/SWE-bench_Pro-os
+- `openrouter/fusion` - public design reference for multi-model deliberation;
+  Fairy Fusion is implemented inside this repo and does not call OpenRouter.
+  https://openrouter.ai/openrouter/fusion
 - `ossf/scorecard` - future OSS repository security-health reference.
   https://github.com/ossf/scorecard
