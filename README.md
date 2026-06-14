@@ -56,7 +56,7 @@ Pick the integration that matches your agent and validate the install.
    ```
 
 4. (Optional) Try a benchmark adapter end-to-end. Keep generated data under a
-   local `tmp/` path and follow `docs/benchmark-validation-plan.md` before
+   local `tmp/` path and follow `docs/benchmarks/benchmark-validation-plan.md` before
    reporting any number.
 
    ```bash
@@ -66,7 +66,7 @@ Pick the integration that matches your agent and validate the install.
 
 Before publishing measurements, re-read [SECURITY.md](SECURITY.md),
 [CONTRIBUTING.md](CONTRIBUTING.md), and
-[docs/feedback-governance.md](docs/feedback-governance.md).
+[docs/governance/feedback-governance.md](docs/governance/feedback-governance.md).
 
 ## Goals
 
@@ -78,7 +78,19 @@ Before publishing measurements, re-read [SECURITY.md](SECURITY.md),
   - a Claude Code project skill under `.claude/skills/fairy-tale/`
   - a distributable Codex plugin under `plugins/fairy-tale/`
   - a distributable Claude Code plugin under `plugins/fairy-tale/`
-- Track OSS pioneers and reusable ideas without importing unsafe behavior.
+- Track OSS pioneers and reusable ideas without importing unsafe behavior;
+  the active watchlist lives in
+  [docs/ecosystem/oss-watch.md](docs/ecosystem/oss-watch.md), and the broader
+  capability synthesis in
+  [docs/research/research-summary.md](docs/research/research-summary.md).
+
+External-adapter design notes:
+[OpenMythos external adapter](docs/adapters/openmythos-external-adapter.md)
+covers theoretical-reconstruction substrates, and
+[Similarity refactoring adapter](docs/adapters/similarity-refactoring-adapter.md)
+covers TypeScript structural-similarity refactor scouting. Feedback
+governance, including pruning and contradiction handling, is in
+[docs/governance/feedback-governance.md](docs/governance/feedback-governance.md).
 
 ## Current status
 
@@ -97,6 +109,12 @@ These are reproducible local measurements, not final leaderboard claims.
 Benchmark rows must keep known Fable/Mythos data, known or measured GPT-5.5
 data, and measured GPT-5.5 + Fairy Tale data separate. When a measured Fairy
 Tale result is a sample estimate, report the confidence interval or half-width.
+The reproduction protocol, sampling rules, and reporting requirements are
+defined in
+[docs/benchmarks/benchmark-validation-plan.md](docs/benchmarks/benchmark-validation-plan.md);
+domain-level gaps and future targets are tracked in
+[docs/research/domain-gap-analysis.md](docs/research/domain-gap-analysis.md)
+and [docs/research/arc-agi-3-lab-analysis.md](docs/research/arc-agi-3-lab-analysis.md).
 
 | Domain  | Benchmark                                  | Fable/Mythos  | GPT-5.5 | **GPT-5.5 + Fairy Tale** | Delta        |
 | ------- | ------------------------------------------ | ------------- | ------- | ------------------------ | ------------ |
@@ -118,6 +136,8 @@ Notes:
 The legal feedback mechanism was tested on 15 tasks selected from prior misses
 in the n=100 legal sample. The retry used the same model, effort, judge, and
 task IDs, adding `fairy-tale-legal-feedback` to the existing legal harness.
+Per-task feedback derivation and the closure-sweep design are recorded in
+[docs/research/legal-feedback-analysis.md](docs/research/legal-feedback-analysis.md).
 
 | Metric                             | Before Feedback | **After Fairy Tale Feedback** |       Change |
 | ---------------------------------- | --------------: | ----------------------------: | -----------: |
@@ -143,44 +163,17 @@ still selects a non-heat stress label without stronger heat-specific evidence.
 
 ## Important boundaries
 
-- Security workflows are defensive-only.
+- Security workflows are defensive-only. The defensive scope, threat-model
+  assumptions, and review gates live in
+  [docs/governance/cybersecurity-strengthening.md](docs/governance/cybersecurity-strengthening.md).
 - No exploit weaponization, persistence, stealth, credential theft, or bypass guidance.
-- Use budgets and validation gates before launching parallel agents.
+- Use budgets and validation gates before launching parallel agents. Adopted
+  workflow patterns and gate criteria are documented in
+  [docs/governance/best-practices.md](docs/governance/best-practices.md).
 - Treat user reports as anecdotal unless independently reproduced.
 - Preserve provenance for all research claims.
 - See [SECURITY.md](SECURITY.md) for vulnerability reporting and defensive-use
   boundaries.
-
-## Primary docs
-
-- [Research summary](docs/research-summary.md)
-- [Benchmark validation plan](docs/benchmark-validation-plan.md)
-- [Domain gap analysis](docs/domain-gap-analysis.md)
-- [Cybersecurity strengthening](docs/cybersecurity-strengthening.md)
-- [ARC-AGI-3 lab analysis](docs/arc-agi-3-lab-analysis.md)
-- [Best practices](docs/best-practices.md)
-- [OpenMythos external adapter](docs/openmythos-external-adapter.md)
-- [Similarity refactoring adapter](docs/similarity-refactoring-adapter.md)
-- [Legal feedback analysis](docs/legal-feedback-analysis.md)
-- [Feedback governance](docs/feedback-governance.md)
-- [OSS watch](docs/oss-watch.md)
-- [Core Fairy Tale skill](skills/fairy-tale/SKILL.md)
-- [Legal feedback skill](skills/fairy-tale-legal-feedback/SKILL.md)
-- [Fairy Fusion adapter](adapters/fairy-fusion.adapter.json)
-- [Feedback pruning adapter](adapters/feedback-pruning.adapter.json)
-- [Fairy adapter runner](crates/fairy-adapter-runner/)
-- [BioMystery runner](scripts/biomystery_runner.py)
-- [SWE-Bench Pro preparer](scripts/swebench_pro_prepare.py)
-- [SWE-Bench Pro runner](scripts/swebench_pro_run.py)
-- [ExploitBench runner](scripts/exploitbench_run.py)
-- [Legal feedback analyzer](scripts/legal_feedback_analyzer.py)
-- [Feedback pruner](scripts/feedback_pruner.py)
-- [Fairy Fusion reviewer](scripts/fairy_fusion_review.py)
-- [SWE-Bench Pro adapter](adapters/swe-bench-pro.adapter.json)
-- [ExploitBench adapter](adapters/exploitbench.adapter.json)
-- [Contributing guide](CONTRIBUTING.md)
-- [Security policy](SECURITY.md)
-- [Release notes](RELEASE_NOTES.md)
 
 ## Claude Code plugin
 
