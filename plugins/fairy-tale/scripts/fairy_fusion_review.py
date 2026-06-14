@@ -22,6 +22,52 @@ from typing import Any
 
 
 DEFAULT_ROLES: dict[str, list[dict[str, Any]]] = {
+    "swe": [
+        {
+            "name": "interface_reviewer",
+            "objective": "Find missing or incorrectly exposed public interfaces, imports, exports, call signatures, and named paths.",
+            "checklist": [
+                "requested symbols",
+                "import/export path",
+                "constructor and method signature",
+                "typing or schema compatibility",
+                "backward-compatible wrapper needs",
+            ],
+        },
+        {
+            "name": "regression_reviewer",
+            "objective": "Find existing behavior, edge cases, and local invariants that the patch could accidentally break.",
+            "checklist": [
+                "existing callers",
+                "adjacent tests",
+                "default behavior",
+                "error handling",
+                "data migration or compatibility",
+            ],
+        },
+        {
+            "name": "validation_reviewer",
+            "objective": "Find the smallest credible validation commands and identify gaps between self-selected checks and benchmark checks.",
+            "checklist": [
+                "focused test command",
+                "adjacent compatibility command",
+                "container execution",
+                "unrelated infrastructure blockers",
+                "validation ledger completeness",
+            ],
+        },
+        {
+            "name": "minimality_reviewer",
+            "objective": "Find broad rewrites, duplicated abstractions, formatting churn, test edits, or patches not tied to the stated requirement.",
+            "checklist": [
+                "diff scope",
+                "local abstraction reuse",
+                "temporary artifacts",
+                "test and fixture edits",
+                "style-only churn",
+            ],
+        },
+    ],
     "legal": [
         {
             "name": "coverage_reviewer",

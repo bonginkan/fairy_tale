@@ -211,7 +211,202 @@ def init_patch_worktree(worktree: Path) -> None:
             raise SystemExit(f"worktree init failed in {worktree}: {' '.join(command)}\n{result.stderr}")
 
 
-def codex_prompt(task: dict[str, Any], container_name: str, repo_path: str) -> str:
+def truncate_text(text: str, limit: int = 12000) -> str:
+    if len(text) <= limit:
+        return text
+    head = limit // 3
+    tail = limit - head
+    return f"{text[:head]}\n\n...[truncated {len(text) - limit} chars]...\n\n{text[-tail:]}"
+
+
+def compact_swe_fusion_hint(fusion_payload: dict[str, Any]) -> str:
+    synthesis = fusion_payload.get("synthesis") if isinstance(fusion_payload.get("synthesis"), dict) else {}
+    parsed = synthesis.get("parsed") if isinstance(synthesis, dict) else None
+    if not isinstance(parsed, dict):
+        return "Fairy Fusion ran, but no parsed synthesis was returned. Apply the standard SWE validation gate."
+    sections = [
+        ("consensus", "Consensus"),
+        ("contradictions", "Contradictions to resolve"),
+        ("partial_coverage", "Partial coverage"),
+        ("unique_insights", "Unique insights"),
+        ("blind_spots", "Blind spots"),
+        ("final_closure_actions", "Closure actions"),
+    ]
+    lines = ["Fairy Fusion SWE review summary:"]
+    for key, title in sections:
+        items = parsed.get(key)
+        if not items:
+            continue
+        lines.append(f"- {title}:")
+        if isinstance(items, list):
+            for item in items[:6]:
+                lines.append(f"  - {str(item)[:600]}")
+        else:
+            lines.append(f"  - {str(items)[:600]}")
+    if len(lines) == 1:
+        lines.append("- No specific closure actions were parsed; use the standard validation gate.")
+    return "\n".join(lines)
+
+
+def swe_fusion_task_payload(
+    task: dict[str, Any],
+    raw_row: dict[str, Any],
+    phase: str,
+    container_name: str,
+    repo_path: str,
+    trigger_reasons: list[str] | None = None,
+    stdout_text: str = "",
+    stderr_text: str = "",
+    diff_text: str = "",
+) -> dict[str, Any]:
+    return {
+        "benchmark": "SWE-Bench Pro",
+        "phase": phase,
+        "instance_id": task["instance_id"],
+        "repo": task.get("repo"),
+        "base_commit": task.get("base_commit"),
+        "container_name": container_name,
+        "repo_path": repo_path,
+        "problem_statement": task.get("prompt"),
+        "raw_metadata": {
+            "repo": raw_row.get("repo"),
+            "dockerhub_tag": raw_row.get("dockerhub_tag"),
+            "base_commit": raw_row.get("base_commit"),
+        },
+        "trigger_reasons": trigger_reasons or [],
+        "visible_attempt_artifacts": {
+            "stdout_tail": truncate_text(stdout_text, 10000),
+            "stderr_tail": truncate_text(stderr_text, 6000),
+            "diff": truncate_text(diff_text, 12000),
+        },
+        "review_contract": [
+            "Use only the task statement, visible logs, visible diff, and local SWE workflow rules.",
+            "Do not infer hidden tests, gold patches, scorer internals, or benchmark answers.",
+            "Return generic closure actions: interface, regression, validation, and minimality checks.",
+            "Prefer local invariants and focused validation over broad rewrites.",
+        ],
+    }
+
+
+def run_swe_fusion_review(
+    args: argparse.Namespace,
+    task: dict[str, Any],
+    raw_row: dict[str, Any],
+    phase: str,
+    container_name: str,
+    repo_path: str,
+    fusion_dir: Path,
+    trigger_reasons: list[str] | None = None,
+    stdout_text: str = "",
+    stderr_text: str = "",
+    diff_text: str = "",
+) -> dict[str, str]:
+    script = Path(__file__).resolve().parent / "fairy_fusion_review.py"
+    if not script.exists():
+        raise SystemExit(f"fairy fusion runner not found: {script}")
+    fusion_dir.mkdir(parents=True, exist_ok=True)
+    task_path = fusion_dir / f"{phase}-task.json"
+    output_path = fusion_dir / f"{phase}-review.json"
+    hint_path = fusion_dir / f"{phase}-hint.txt"
+    payload = swe_fusion_task_payload(
+        task=task,
+        raw_row=raw_row,
+        phase=phase,
+        container_name=container_name,
+        repo_path=repo_path,
+        trigger_reasons=trigger_reasons,
+        stdout_text=stdout_text,
+        stderr_text=stderr_text,
+        diff_text=diff_text,
+    )
+    write_json(task_path, payload)
+    command = [
+        sys.executable,
+        str(script),
+        "--domain",
+        "swe",
+        "--task-json",
+        str(task_path),
+        "--max-reviewers",
+        str(args.fusion_reviewers),
+        "--workers",
+        str(args.fusion_workers),
+        "--model",
+        args.fusion_model,
+        "--effort",
+        args.fusion_effort,
+        "--timeout",
+        str(args.fusion_timeout),
+        "--output",
+        str(output_path),
+    ]
+    if args.fusion_judge_model:
+        command.extend(["--judge-model", args.fusion_judge_model])
+    if args.fusion_execute:
+        command.append("--execute")
+    else:
+        command.append("--dry-run")
+    env = os.environ.copy()
+    if "OPENAI_API_KEY" not in env and "CODEX_API_KEY" in env:
+        env["OPENAI_API_KEY"] = env["CODEX_API_KEY"]
+    result = subprocess.run(command, check=False, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
+    if result.returncode != 0:
+        raise SystemExit(f"fairy fusion SWE review failed:\n{result.stderr.strip()}")
+    fusion_payload = load_manifest(output_path)
+    hint_path.write_text(compact_swe_fusion_hint(fusion_payload), encoding="utf-8")
+    return {
+        "phase": phase,
+        "mode": "executed" if args.fusion_execute else "dry_run",
+        "task_path": str(task_path),
+        "output_path": str(output_path),
+        "hint_path": str(hint_path),
+        "trigger_reasons": trigger_reasons or [],
+    }
+
+
+def repeated_failure_reasons(
+    result_returncode: int,
+    stdout_text: str,
+    stderr_text: str,
+    diff_text: str,
+    repeat_threshold: int,
+) -> list[str]:
+    reasons: list[str] = []
+    if result_returncode != 0:
+        reasons.append(f"codex_returncode_{result_returncode}")
+    if not diff_text.strip():
+        reasons.append("empty_patch")
+    merged = "\n".join([stdout_text, stderr_text])
+    lowered = merged.lower()
+    if "validation" not in lowered and "test" not in lowered:
+        reasons.append("missing_visible_validation_ledger")
+    candidates: dict[str, int] = {}
+    for line in merged.splitlines():
+        normalized = re.sub(r"\s+", " ", line.strip())
+        if len(normalized) < 24:
+            continue
+        low = normalized.lower()
+        if not any(marker in low for marker in ("error", "fail", "failed", "exception", "traceback", "not found", "cannot", "missing")):
+            continue
+        key = re.sub(r"0x[0-9a-fA-F]+|\d+", "<n>", low)
+        candidates[key] = candidates.get(key, 0) + 1
+    repeated = [key for key, count in candidates.items() if count >= repeat_threshold]
+    if repeated:
+        reasons.append(f"repeated_failure_signature_x{repeat_threshold}")
+    return reasons
+
+
+def codex_prompt(task: dict[str, Any], container_name: str, repo_path: str, fusion_hint: str | None = None) -> str:
+    fusion_section = ""
+    if fusion_hint:
+        fusion_section = f"""
+
+Fairy Fusion sidechain guidance:
+{fusion_hint}
+
+Use this guidance as a review checklist, not as an answer key. Verify it against
+the repository before editing.
+"""
     return f"""Use the installed fairy-tale plugin/skill for the workflow gates.
 Also apply the fairy-tale-benchmark-feedback skill: preserve observed success
 practices, verify named public interfaces, protect existing visible behavior,
@@ -253,6 +448,7 @@ Validation gate:
    unrelated blocker.
 5. Before finishing, report the validation commands, results, remaining
    blockers, and why the final diff is still minimal.
+{fusion_section}
 
 Problem statement:
 
@@ -317,24 +513,51 @@ def generate_codex_patch_for_task(
         if not args.dry_run:
             copy_repo_from_image(image, repo_path, worktree, args.docker_platform)
             init_patch_worktree(worktree)
-        prompt = codex_prompt(task, container_name, repo_path)
-        command = [
-            args.codex_bin,
-            "--ask-for-approval",
-            "never",
-            "exec",
-            "--ephemeral",
-            "--sandbox",
-            args.sandbox,
-            "-m",
-            args.model,
-            "-c",
-            f'model_reasoning_effort="{args.reasoning_effort}"',
-            "--cd",
-            str(worktree),
-            prompt,
-        ]
-        record["command"] = command
+        fusion_dir = args.run_dir / "fairy-fusion" / safe_name(instance_id)
+        fusion_records: list[dict[str, Any]] = []
+        fusion_hint: str | None = None
+        if args.fairy_fusion:
+            if args.dry_run:
+                fusion_records.append({"phase": "preflight", "mode": "dry_run"})
+                fusion_hint = "Fairy Fusion preflight is enabled; run reviewers before patch generation."
+            else:
+                preflight = run_swe_fusion_review(
+                    args=args,
+                    task=task,
+                    raw_row=raw_row,
+                    phase="preflight",
+                    container_name=container_name,
+                    repo_path=repo_path,
+                    fusion_dir=fusion_dir,
+                )
+                fusion_records.append(preflight)
+                fusion_hint = Path(preflight["hint_path"]).read_text(encoding="utf-8")
+
+        prompt = codex_prompt(task, container_name, repo_path, fusion_hint)
+
+        def codex_command(rendered_prompt: str) -> list[str]:
+            return [
+                args.codex_bin,
+                "--ask-for-approval",
+                "never",
+                "exec",
+                "--ephemeral",
+                "--sandbox",
+                args.sandbox,
+                "-m",
+                args.model,
+                "-c",
+                f'model_reasoning_effort="{args.reasoning_effort}"',
+                "--cd",
+                str(worktree),
+                rendered_prompt,
+            ]
+
+        record["command"] = codex_command(prompt)
+        record["fairy_fusion"] = args.fairy_fusion
+        record["fusion_auto"] = args.fusion_auto
+        record["fusion_execute"] = args.fusion_execute
+        record["fusion_records"] = fusion_records
         if args.dry_run:
             return record
 
@@ -370,9 +593,11 @@ def generate_codex_patch_for_task(
         if run.returncode != 0:
             raise SystemExit(f"docker run failed for {instance_id}:\n{run.stderr.strip()}")
         logs_dir.mkdir(parents=True, exist_ok=True)
-        stdout_path = logs_dir / f"{safe_name(instance_id)}.stdout.txt"
-        stderr_path = logs_dir / f"{safe_name(instance_id)}.stderr.txt"
-        try:
+
+        def run_codex_attempt(label: str, rendered_prompt: str) -> dict[str, Any]:
+            stdout_path = logs_dir / f"{safe_name(instance_id)}.{label}.stdout.txt"
+            stderr_path = logs_dir / f"{safe_name(instance_id)}.{label}.stderr.txt"
+            command = codex_command(rendered_prompt)
             with stdout_path.open("w", encoding="utf-8") as stdout, stderr_path.open(
                 "w", encoding="utf-8"
             ) as stderr:
@@ -380,14 +605,80 @@ def generate_codex_patch_for_task(
             diff = run_capture(["git", "diff", "--binary", "HEAD"], cwd=worktree)
             if diff.returncode != 0:
                 raise SystemExit(f"git diff failed for {instance_id}:\n{diff.stderr.strip()}")
-            pred_path = write_patch_prediction(pred_dir, args.prefix, instance_id, diff.stdout)
+            stdout_text = stdout_path.read_text(encoding="utf-8", errors="replace")
+            stderr_text = stderr_path.read_text(encoding="utf-8", errors="replace")
+            return {
+                "label": label,
+                "returncode": result.returncode,
+                "stdout_path": str(stdout_path),
+                "stderr_path": str(stderr_path),
+                "stdout_text": stdout_text,
+                "stderr_text": stderr_text,
+                "diff": diff.stdout,
+                "command": command,
+                "patch_bytes": len(diff.stdout.encode("utf-8")),
+            }
+
+        try:
+            attempts: list[dict[str, Any]] = []
+            current = run_codex_attempt("attempt1", prompt)
+            attempts.append(current)
+            auto_trigger_reasons = repeated_failure_reasons(
+                result_returncode=current["returncode"],
+                stdout_text=current["stdout_text"],
+                stderr_text=current["stderr_text"],
+                diff_text=current["diff"],
+                repeat_threshold=args.fusion_stuck_repeats,
+            )
+            if args.fusion_auto and auto_trigger_reasons and args.fusion_retry_on_stuck:
+                stuck_review = run_swe_fusion_review(
+                    args=args,
+                    task=task,
+                    raw_row=raw_row,
+                    phase="stuck-retry",
+                    container_name=container_name,
+                    repo_path=repo_path,
+                    fusion_dir=fusion_dir,
+                    trigger_reasons=auto_trigger_reasons,
+                    stdout_text=current["stdout_text"],
+                    stderr_text=current["stderr_text"],
+                    diff_text=current["diff"],
+                )
+                fusion_records.append(stuck_review)
+                retry_hint = Path(stuck_review["hint_path"]).read_text(encoding="utf-8")
+                combined_hint = "\n\n".join(part for part in [fusion_hint, retry_hint] if part)
+                reset = run_capture(["git", "reset", "--hard", "HEAD"], cwd=worktree)
+                clean = run_capture(["git", "clean", "-fd"], cwd=worktree)
+                if reset.returncode != 0 or clean.returncode != 0:
+                    raise SystemExit(
+                        f"could not reset worktree for fusion retry {instance_id}:\n"
+                        f"{reset.stderr.strip()}\n{clean.stderr.strip()}"
+                    )
+                current = run_codex_attempt(
+                    "attempt2-fusion-retry",
+                    codex_prompt(task, container_name, repo_path, combined_hint),
+                )
+                attempts.append(current)
+            pred_path = write_patch_prediction(pred_dir, args.prefix, instance_id, current["diff"])
             record.update(
                 {
-                    "returncode": result.returncode,
-                    "stdout_path": str(stdout_path),
-                    "stderr_path": str(stderr_path),
+                    "returncode": current["returncode"],
+                    "stdout_path": current["stdout_path"],
+                    "stderr_path": current["stderr_path"],
                     "pred_path": str(pred_path),
-                    "patch_bytes": len(diff.stdout.encode("utf-8")),
+                    "patch_bytes": current["patch_bytes"],
+                    "attempts": [
+                        {
+                            "label": attempt["label"],
+                            "returncode": attempt["returncode"],
+                            "stdout_path": attempt["stdout_path"],
+                            "stderr_path": attempt["stderr_path"],
+                            "patch_bytes": attempt["patch_bytes"],
+                        }
+                        for attempt in attempts
+                    ],
+                    "fusion_records": fusion_records,
+                    "fusion_auto_trigger_reasons": auto_trigger_reasons,
                 }
             )
             return record
@@ -412,6 +703,8 @@ def generate_codex_patches(args: argparse.Namespace) -> int:
     logs_dir = args.run_dir / "codex-logs"
     records: list[dict[str, Any]] = []
     errors: list[dict[str, Any]] = []
+    if args.fusion_stuck_repeats < 1:
+        raise SystemExit("--fusion-stuck-repeats must be positive")
     if args.api_key_env not in os.environ and not args.dry_run:
         raise SystemExit(f"{args.api_key_env} is required for codex-patches")
     if shutil.which(args.codex_bin) is None and not args.dry_run:
@@ -980,6 +1273,25 @@ def build_parser() -> argparse.ArgumentParser:
     codex_parser.add_argument("--docker-platform", default="linux/amd64")
     codex_parser.add_argument("--repo-path")
     codex_parser.add_argument("--num-workers", type=int, default=1)
+    codex_parser.add_argument("--fairy-fusion", action="store_true")
+    codex_parser.add_argument(
+        "--fusion-auto",
+        action="store_true",
+        help="Detect stuck or repeated failure signatures after a Codex attempt and trigger Fairy Fusion.",
+    )
+    codex_parser.add_argument(
+        "--fusion-retry-on-stuck",
+        action="store_true",
+        help="After an automatic stuck-trigger review, reset the worktree and retry once with the fusion hint.",
+    )
+    codex_parser.add_argument("--fusion-execute", action="store_true")
+    codex_parser.add_argument("--fusion-reviewers", type=int, default=4)
+    codex_parser.add_argument("--fusion-workers", type=int, default=4)
+    codex_parser.add_argument("--fusion-model", default="gpt-5.5")
+    codex_parser.add_argument("--fusion-judge-model")
+    codex_parser.add_argument("--fusion-effort", default="medium")
+    codex_parser.add_argument("--fusion-timeout", type=int, default=0)
+    codex_parser.add_argument("--fusion-stuck-repeats", type=int, default=3)
     codex_parser.add_argument(
         "--skip-existing",
         action="store_true",

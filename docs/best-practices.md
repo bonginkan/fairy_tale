@@ -118,6 +118,31 @@ Fairy Tale rule:
   use absolute paths, quote shell variables, and skip sensitive files such as
   `.env`, `.git/`, keys, and credentials.
 
+## Agent harness architecture
+
+Known practice: recent agent-system design analysis emphasizes a small model
+loop surrounded by deterministic operational infrastructure: permission gates,
+context management, layered extensibility, isolated subagents, append-only
+session artifacts, and recovery paths.
+
+Fairy Tale rule:
+
+- Keep the main agent loop simple. Put reliability in the harness: validation
+  gates, budget checks, provenance records, sidechain reviewer artifacts, and
+  scorer-compatible outputs.
+- Treat fusion reviewers as isolated subagent sidechains. Pass task context and
+  visible artifacts only, persist their full JSON review, and return a compact
+  synthesis hint to the main agent.
+- Prefer append-only run artifacts for benchmark and long-agent sessions:
+  manifests, prompts, reviewer outputs, compact hints, patches, eval logs,
+  feedback ledgers, and pruning decisions.
+- Add automatic fusion only at clear trigger points: repeated failure
+  signatures, empty or meaningless artifacts, missing validation ledgers,
+  high-stakes near-miss patterns, or explicit user request.
+- Close silent-failure gaps by separating generation from evaluation. A patch,
+  draft, or answer is not complete until an external scorer, focused test,
+  reviewer synthesis, or manual signoff artifact says what was checked.
+
 ## Defensive cybersecurity
 
 Known practice: frontier models can increase vulnerability-finding volume, but
@@ -206,6 +231,9 @@ Fairy Tale rule:
   https://developers.openai.com/api/docs/guides/reasoning
 - OpenAI agent safety guidance:
   https://developers.openai.com/api/docs/guides/agent-builder-safety
+- Dive into Claude Code: The Design Space of Today's and Future AI Agent
+  Systems:
+  https://arxiv.org/abs/2604.14228
 - Anthropic Project Glasswing:
   https://www.anthropic.com/glasswing
 - Anthropic Project Glasswing initial update:

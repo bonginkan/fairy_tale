@@ -26,9 +26,13 @@ harness artifacts, logs, and local work product.
    `scripts/feedback_pruner.py --ledger <ledger.json> --output <prune.json>`.
 4. Keep only narrow candidate or observed-success rules with evidence. Do not
    promote a rule because it sounds plausible.
-5. Retry a held-out or failed slice under the same scorer. Record before/after
+5. If the same failure signature repeats, a run produces no meaningful artifact,
+   or the validation ledger is missing, run bounded Fairy Fusion before retry:
+   isolated reviewers, one synthesis pass, append-only review artifacts, and
+   only a compact closure hint returned to the main agent.
+6. Retry a held-out or failed slice under the same scorer. Record before/after
    pass rate, confidence interval when applicable, cost, and regressions.
-6. Promote only rules that improve the retry without task-ID hardcoding or
+7. Promote only rules that improve the retry without task-ID hardcoding or
    cross-domain regression.
 
 ## SWE-Bench Pro Miss Classes
@@ -51,7 +55,10 @@ Before finalizing a SWE patch:
    touched helper/API.
 3. If new and old behavior appear to conflict, preserve old behavior by adding
    a narrower condition, not by replacing the old invariant.
-4. Use benchmark tools and container checks, but do not inspect hidden answers
+4. If progress stalls, use Fairy Fusion SWE reviewers: interface, regression,
+   validation, and minimality. Treat their synthesis as a checklist to verify,
+   not as a replacement for repository evidence.
+5. Use benchmark tools and container checks, but do not inspect hidden answers
    or gold patches.
 
 ## SWE-Bench Pro Success Practices

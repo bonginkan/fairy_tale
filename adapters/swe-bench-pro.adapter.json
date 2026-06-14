@@ -15,7 +15,8 @@
     "Docker or Modal-based reproducible evaluation",
     "patch generation with SWE-agent or Codex CLI as the external coding-agent harness",
     "fail-to-pass and pass-to-pass test evaluation",
-    "Fairy Tale maintainability and evidence gates around the same model"
+    "Fairy Tale maintainability and evidence gates around the same model",
+    "Fairy Fusion preflight and stuck-trigger sidechain review for coding tasks"
   ],
   "entrypoints": {
     "import": "from datasets import load_dataset",
@@ -30,6 +31,7 @@
       "scripts/swebench_pro_run.py --python tmp/swe-agent-venv/bin/python sweagent-compat",
       "scripts/swebench_pro_run.py plan --prepared-manifest tmp/swe-bench-pro-runs/prepared-smoke/manifest.json",
       "scripts/swebench_pro_run.py codex-patches --prepared-manifest tmp/swe-bench-pro-runs/prepared-smoke/manifest.json --dry-run",
+      "scripts/swebench_pro_run.py codex-patches --prepared-manifest tmp/swe-bench-pro-runs/prepared-smoke/manifest.json --fairy-fusion --fusion-auto --fusion-retry-on-stuck --dry-run",
       "scripts/swebench_pro_run.py gather --pred-dir tmp/swe-bench-pro-runs/predictions --prefix gpt-5.5-fairy-tale-codex --dry-run",
       "scripts/swebench_pro_run.py eval --prepared-manifest tmp/swe-bench-pro-runs/prepared-smoke/manifest.json --patch-path tmp/swe-bench-pro-runs/current/patches.json --use-local-docker --dry-run",
       "python helper_code/gather_patches.py --help",
@@ -58,6 +60,7 @@
       "SWE-Bench Pro OS commit",
       "instance ids and docker image tags",
       "agent prompt and Fairy Tale skill revision",
+      "Fairy Fusion task, review, and compact hint artifacts when enabled",
       "evaluation command and backend",
       "raw logs and summary JSON"
     ]
@@ -86,6 +89,7 @@
       "SWE-agent instance/config generation records reproducible manifests",
       "SWE-agent compatibility patch handles top_p null, newly named model cost accounting, and empty python_standalone_dir",
       "Codex CLI patch-generation runner records worktree, container, model, effort, sandbox, and patch artifacts",
+      "Fairy Fusion run records reviewer cap, trigger reason, sidechain review JSON, and compact hint when enabled",
       "one dry-run patch-generation task records prompt, model, effort, and artifact paths before scoring",
       "runner wrapper records gather and eval manifests before executing official scorer"
     ],

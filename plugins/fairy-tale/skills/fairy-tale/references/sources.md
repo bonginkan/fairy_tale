@@ -132,6 +132,9 @@
   https://openrouter.ai/docs/guides/features/server-tools/advisor
 - OpenRouter Subagent design reference:
   https://openrouter.ai/docs/guides/features/server-tools/subagent
+- Dive into Claude Code: The Design Space of Today's and Future AI Agent
+  Systems:
+  https://arxiv.org/abs/2604.14228
 - Anthropic agent eval guidance:
   https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents
 - OpenAI agent safety guidance:

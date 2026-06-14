@@ -317,6 +317,16 @@ python3 scripts/fairy_tale_residency_check.py
   insights, blind spots, rejected items, cost, latency, and closure actions.
 - Do not majority-vote away a minority risk. Promote a fused answer only after
   the synthesis has resolved or explicitly carried forward the contradiction.
+- Treat fusion reviewers as isolated sidechains: pass only the task context,
+  visible artifacts, role contract, and output schema. Keep full reviewer
+  outputs as append-only artifacts, then return only a compact synthesis hint to
+  the main agent.
+- In plugin-managed harnesses, enable automatic fusion when the same failure
+  signature repeats at least three times, an implementation attempt produces no
+  meaningful diff, or the validation ledger is missing. Run at most one
+  automatic retry unless a human approves a larger fan-out.
+- For coding tasks, use SWE specialist roles before retrying: interface
+  reviewer, regression reviewer, validation reviewer, and minimality reviewer.
 - Keep fan-out capped and recursion one-level unless a human explicitly
   approves more.
 
