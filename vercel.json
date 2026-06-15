@@ -19,7 +19,7 @@
       ]
     },
     {
-      "source": "/patterns(\\.html)?",
+      "source": "/patterns(\\.html|/)?",
       "headers": [
         { "key": "X-Robots-Tag", "value": "noindex, nofollow" }
       ]
