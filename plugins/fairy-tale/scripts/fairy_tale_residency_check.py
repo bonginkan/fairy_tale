@@ -86,6 +86,28 @@ RUNNER_MARKERS = {
     ),
 }
 
+HOOK_FILES = {
+    Path("plugins/fairy-tale/hooks/hooks.json"): (
+        "SessionStart",
+        "CLAUDE_PLUGIN_ROOT",
+        "fairy_tale_residency_check.py",
+        "--inject",
+    ),
+}
+
+STANDING_INSTRUCTION = (
+    "[fairy-tale] Residency active: apply Fable/Mythos-informed workflow this "
+    "session.\n"
+    "- Set an explicit budget (time, context, tool calls, write scope) before "
+    "long tasks.\n"
+    "- Work evidence-driven and validation-gated; preserve sources and "
+    "provenance.\n"
+    "- Keep security work defensive-only and within authorized targets.\n"
+    "- Do not fan out broad parallel agents without an explicit cap.\n"
+    "- Validate before claiming completion. Invoke the `fairy-tale` skill for "
+    "substantive coding, research, benchmark, legal, or defensive-security work."
+)
+
 
 @dataclass
 class Check:
@@ -241,6 +263,9 @@ def collect_checks(args: argparse.Namespace) -> list[Check]:
     for path, markers in RUNNER_MARKERS.items():
         check_contains(checks, path, markers, f"{path} prompt residency")
 
+    for path, markers in HOOK_FILES.items():
+        check_contains(checks, path, markers, f"{path} residency hook")
+
     if args.check_installed:
         home = Path.home()
         check_installed_root(checks, home / ".codex" / "skills", args.strict_installed)
@@ -248,6 +273,26 @@ def collect_checks(args: argparse.Namespace) -> list[Check]:
         check_installed_root(checks, home / ".agents" / "skills", args.strict_installed)
 
     return checks
+
+
+def inject_residency() -> int:
+    """Plugin SessionStart residency: verify locally shipped skills, emit the
+    standing instruction, and fail open so a degraded install never blocks a
+    session from starting."""
+    skills_root = ROOT / "skills"
+    degraded: list[str] = []
+    for skill in REQUIRED_SKILLS:
+        text = read_text(skills_root / skill / "SKILL.md")
+        if text is None:
+            degraded.append(f"{skill}: missing")
+            continue
+        gaps = [marker for marker in SKILL_MARKERS[skill] if marker not in text]
+        if gaps:
+            degraded.append(f"{skill}: stale ({', '.join(gaps)})")
+    print(STANDING_INSTRUCTION)
+    if degraded:
+        print("[fairy-tale] residency degraded: " + "; ".join(degraded), file=sys.stderr)
+    return 0
 
 
 def print_human(checks: list[Check]) -> None:
@@ -270,7 +315,15 @@ def main() -> int:
         help="treat missing user-level installs as failures instead of warnings",
     )
     parser.add_argument("--json", action="store_true", help="emit JSON results")
+    parser.add_argument(
+        "--inject",
+        action="store_true",
+        help="emit standing residency context for a plugin SessionStart hook (fail-open)",
+    )
     args = parser.parse_args()
+
+    if args.inject:
+        return inject_residency()
 
     checks = collect_checks(args)
     failed = [check for check in checks if check.failed]

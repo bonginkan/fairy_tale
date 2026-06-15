@@ -100,7 +100,7 @@ Rows marked reference-only are not official benchmark submissions.
 
 | Domain | Benchmark | Fable/Mythos | GPT-5.5 | **GPT-5.5 + Fairy Tale** | Delta |
 | --- | --- | --- | --- | --- | --- |
-| Agentic coding | SWE-Bench Pro random sample, n=20 | 80.3% | 58.6% | **55.0%** | **-3.6 pp** |
+| Agentic coding | SWE-Bench Pro fusion-history-aware random sample, n=15 | 80.3% | 58.6% | **60.0%** | **+1.4 pp** |
 | Biology | BioMysteryBench-preview, n=5 | 46.1% / 83.9% | 60.0% | **80.0%** | **+20.0 pp** |
 | Cybersecurity | ExploitBench v8 ladder sample, n=6 | 78.0% Cap% | 34.0% Cap% | **1.33 avg; 4/6 positive** | **reference only** |
 | Legal | Harvey LAB-compatible random sample, n=100 | 13.3% | 2.1% | **11.0%** | **+8.9 pp** |
@@ -109,9 +109,9 @@ Notes:
 
 - Agentic coding Fable/Mythos and GPT-5.5 values are image-reported
   SWE-Bench Pro scores. **Fairy Tale** is a local random sample using Codex CLI
-  tools and the generic implementation validation gate, 11/20, with 95% Wilson
-  CI 34.2-74.2%. This is reference information, not an official leaderboard
-  submission.
+  tools, the residency hook, and the fusion-history-aware stuck retry loop,
+  9/15, with 95% Wilson CI 35.7-80.2%. This is reference information, not an
+  official leaderboard submission.
 - Biology Fable/Mythos values are image-reported BioMysteryBench hard /
   human-solved scores. GPT-5.5 is a local medium baseline, 3/5. **Fairy Tale**
   is a local medium run, 4/5, with 95% Wilson CI 37.6-96.4%.
@@ -147,6 +147,26 @@ Feedback retry note: **Fairy Tale** feedback used the same model, effort,
 judge, and task IDs as the before-feedback slice. After-feedback all-pass was
 3/15 with 95% Wilson CI 7.05-45.19%; criterion score was 1004/1108.
 
+### SWE-Bench Pro Failure Review
+
+The latest SWE-Bench Pro sample solved 9/15 tasks. The 6 misses were mostly
+contract-preservation failures rather than complete task non-starts:
+
+| Failure class | Count | Observed pattern |
+| --- | ---: | --- |
+| API compatibility break | 2 | Changed public or internal call signatures without updating all existing callers or tests. |
+| Missing adjacent file / symbol | 2 | Added a partial implementation while leaving required helper files or type definitions absent. |
+| Behavior edge-case miss | 1 | Main implementation compiled, but a migration or mapping invariant still differed from expected data. |
+| Test-mock contract break | 1 | Refactor changed construction shape and broke an existing test double expectation. |
+
+Concrete examples: one Ansible patch changed `recursive_finder` so existing
+tests hit missing positional arguments; one Element Web patch made
+`Recorder` non-constructable under the existing mock; one Vuls patch referenced
+undefined `ServerTypePseudo` / `Distro`; one Teleport AI patch referenced new
+token-count symbols without adding the definitions; one Teleport migration patch
+lost the expected trusted-cluster role mapping; one ProtonMail composer patch
+referenced a missing `PasswordInnerModalForm` module.
+
 BioMysteryBench-preview was run through `scripts/biomystery_runner.py`.
 The Fairy Tale run uses generic evidence gates for expression signatures,
 context-only BLAST evidence, and bacterial marker-sequence identity. The current
@@ -160,22 +180,20 @@ They are not final leaderboard claims.
 
 | Benchmark | Initial **Fairy Tale** | Feedback **Fairy Tale** | Tool / Gate **Fairy Tale** | Effect |
 | --- | ---: | ---: | ---: | ---: |
-| SWE-Bench Pro | 60.0% +/-32.6 pp (n=5) | 40.0% +/-32.6 pp (n=5) | 55.0% +/-20.0 pp (n=20) | -5.0 pp / +15.0 pp |
+| SWE-Bench Pro | 60.0% +/-32.6 pp (n=5) | 40.0% +/-32.6 pp (n=5) | 60.0% +/-22.2 pp (n=15) | +0.0 pp / +20.0 pp |
 | HLE random sample, n=100 | 35.0% +/-9.4 pp | 37.0% +/-9.5 pp | 51.0% +/-9.8 pp | +16.0 pp |
 | ExploitBench v8 sample | 0.67 | 3.00 | 1.33 | +0.66 vs initial |
 
 Notes:
 
-- SWE-Bench Pro: feedback-only regressed on the small sample. The generic
-  implementation validation gate reached 3/5 on the first slice, then 8/15 on
-  the added slice, for 11/20 overall. The tool/gate value is reported with a
-  95% Wilson CI of 34.2-74.2% (half-width 20.0 pp), so treat the 55.0% point
-  estimate as reference information until a larger held-out sample narrows the
-  interval. The latest feedback ledger keeps the observed success practices
-  `local_invariant_mapping`,
+- SWE-Bench Pro: feedback-only regressed on the small sample. The latest
+  history-aware fusion run reached 9/15 with 95% Wilson CI 35.7-80.2%
+  (half-width 22.2 pp), so treat the 60.0% point estimate as reference
+  information until a larger held-out sample narrows the interval. The latest
+  feedback ledger keeps the observed success practices `local_invariant_mapping`,
   `targeted_container_validation`, and `named_interface_completion`, while the
-  failure-derived candidates remain under review until a held-out retry shows
-  measured improvement.
+  failure review now prioritizes API compatibility, adjacent-symbol closure,
+  migration invariants, and test-double contract checks.
 - HLE: feedback-only improved from 35/100 to 37/100. The Codex-tools +
   residency-harness run reached 51/100, but it changes the tool condition and
   remains within the uncertainty band of the image-reported GPT-5.5 with-tools
@@ -243,6 +261,21 @@ and install the plugin:
 ```text
 /plugin marketplace add bonginkan/fairy_tale
 /plugin install fairy-tale@fairy-tale-marketplace
+```
+
+The plugin ships a `SessionStart` residency hook at
+`plugins/fairy-tale/hooks/hooks.json` that runs
+`fairy_tale_residency_check.py --inject` at every session start, so the Fairy
+Tale workflow stays resident without a per-session reminder. The hook fails
+open: a degraded skill install warns on stderr but never blocks the session.
+
+When this repository changes, pull the new plugin version into an existing
+install and reload so the updated hook and skills take effect:
+
+```text
+/plugin marketplace update fairy-tale-marketplace
+/plugin update fairy-tale@fairy-tale-marketplace
+/reload-plugins
 ```
 
 For local development, `git clone` this repository and use
