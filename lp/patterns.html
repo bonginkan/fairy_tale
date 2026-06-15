@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Fairy Tale LP responsive patterns</title>
+    <style>
+      :root {
+        --paper: #fbf3e6;
+        --ink: #231815;
+        --ink-soft: #6d574a;
+        --moss: #315a48;
+        --line: rgba(35, 24, 21, 0.16);
+        --plum: #3a2748;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        background: var(--paper);
+        font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        min-height: 72px;
+        padding: 16px 24px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(251, 243, 230, 0.92);
+        backdrop-filter: blur(16px);
+      }
+
+      h1 {
+        margin: 0;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 24px;
+        line-height: 1.1;
+      }
+
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .toolbar a {
+        display: inline-flex;
+        align-items: center;
+        min-height: 36px;
+        padding: 0 14px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        text-decoration: none;
+      }
+
+      .toolbar a.active {
+        border-color: var(--moss);
+        background: var(--moss);
+        color: #fff8ec;
+      }
+
+      main {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 24px;
+        padding: 24px;
+      }
+
+      .pattern {
+        min-width: 0;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(255, 252, 245, 0.6);
+        overflow: hidden;
+      }
+
+      .pattern-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .pattern-title {
+        font-weight: 800;
+      }
+
+      .pattern-meta {
+        color: var(--ink-soft);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 12px;
+      }
+
+      .viewport {
+        --w: 430;
+        --h: 980;
+        --scale: 1;
+        height: calc(var(--h) * 1px * var(--scale));
+        overflow: hidden;
+        background: #fff8ec;
+      }
+
+      iframe {
+        width: calc(var(--w) * 1px);
+        height: calc(var(--h) * 1px);
+        border: 0;
+        transform: scale(var(--scale));
+        transform-origin: top left;
+      }
+
+      .desktop .viewport { --w: 1440; --h: 930; }
+      .laptop .viewport { --w: 1024; --h: 850; }
+      .tablet .viewport { --w: 820; --h: 1160; }
+      .mobile-lg .viewport { --w: 430; --h: 940; }
+      .mobile-md .viewport { --w: 360; --h: 980; }
+      .mobile-sm .viewport { --w: 320; --h: 980; }
+
+      @media (min-width: 720px) {
+        main { grid-template-columns: repeat(2, minmax(320px, 1fr)); }
+      }
+
+      @media (min-width: 1280px) {
+        main { grid-template-columns: repeat(3, minmax(320px, 1fr)); }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Responsive pattern board</h1>
+      <nav class="toolbar" aria-label="Language previews">
+        <a class="active" href="patterns.html">EN patterns</a>
+        <a href="patterns.html?lang=ja">JA patterns</a>
+        <a href="./">Live page</a>
+      </nav>
+    </header>
+
+    <main aria-label="Responsive viewport previews">
+      <article class="pattern desktop">
+        <div class="pattern-head">
+          <div class="pattern-title">Desktop</div>
+          <div class="pattern-meta">1440px</div>
+        </div>
+        <div class="viewport"><iframe title="Desktop preview" src="./"></iframe></div>
+      </article>
+
+      <article class="pattern laptop">
+        <div class="pattern-head">
+          <div class="pattern-title">Laptop</div>
+          <div class="pattern-meta">1024px</div>
+        </div>
+        <div class="viewport"><iframe title="Laptop preview" src="./"></iframe></div>
+      </article>
+
+      <article class="pattern tablet">
+        <div class="pattern-head">
+          <div class="pattern-title">Tablet</div>
+          <div class="pattern-meta">820px</div>
+        </div>
+        <div class="viewport"><iframe title="Tablet preview" src="./"></iframe></div>
+      </article>
+
+      <article class="pattern mobile-lg">
+        <div class="pattern-head">
+          <div class="pattern-title">Mobile large</div>
+          <div class="pattern-meta">430px</div>
+        </div>
+        <div class="viewport"><iframe title="Mobile large preview" src="./"></iframe></div>
+      </article>
+
+      <article class="pattern mobile-md">
+        <div class="pattern-head">
+          <div class="pattern-title">Mobile medium</div>
+          <div class="pattern-meta">360px</div>
+        </div>
+        <div class="viewport"><iframe title="Mobile medium preview" src="./"></iframe></div>
+      </article>
+
+      <article class="pattern mobile-sm">
+        <div class="pattern-head">
+          <div class="pattern-title">Mobile small</div>
+          <div class="pattern-meta">320px</div>
+        </div>
+        <div class="viewport"><iframe title="Mobile small preview" src="./"></iframe></div>
+      </article>
+    </main>
+
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      const isJa = params.get("lang") === "ja";
+      const target = isJa ? "ja/" : "./";
+
+      document.querySelectorAll("iframe").forEach((frame) => {
+        frame.src = target;
+      });
+
+      document.querySelectorAll(".toolbar a").forEach((link) => {
+        const href = link.getAttribute("href");
+        link.classList.toggle(
+          "active",
+          (isJa && href === "patterns.html?lang=ja") || (!isJa && href === "patterns.html")
+        );
+      });
+
+      const resizePatterns = () => {
+        document.querySelectorAll(".viewport").forEach((viewport) => {
+          const width = Number.parseFloat(getComputedStyle(viewport).getPropertyValue("--w"));
+          const scale = Math.min(1, viewport.clientWidth / width);
+          viewport.style.setProperty("--scale", scale.toString());
+        });
+      };
+
+      window.addEventListener("resize", resizePatterns);
+      resizePatterns();
+    </script>
+  </body>
+</html>
