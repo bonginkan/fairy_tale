@@ -274,7 +274,6 @@ h1 {
 .hero-art img {
   width: 100%;
   height: clamp(420px, 50vw, 640px);
-  aspect-ratio: 3 / 2;
   object-fit: cover;
   object-position: 52% 50%;
   border: 1px solid var(--line-strong);
@@ -350,7 +349,7 @@ h1 {
 
 .section-heading h2 {
   font-size: clamp(32px, 4.4vw, 56px);
-  line-height: 1.1;
+  line-height: 1.15;
 }
 .section-heading > p {
   color: var(--ink-soft);
@@ -791,8 +790,11 @@ code {
   .boundary-list li { grid-column: span 6; }
 }
 
-@media (max-width: 920px) {
+@media (max-width: 860px) {
   .nav-links { display: none; }
+}
+
+@media (max-width: 920px) {
   .hero { padding: 48px 0 64px; }
   .hero-copy { grid-column: 1 / 13; }
   .hero-art  { grid-column: 1 / 13; }
@@ -839,12 +841,21 @@ code {
   }
   .feature-grid article { grid-column: 1 / 13; min-height: 0; }
   .boundary-list li     { grid-column: 1 / 13; min-height: 0; }
-  .trust-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .trust-strip > div { padding: 12px 10px; }
-  .trust-strip dt { font-size: 10px; letter-spacing: 0.04em; }
-  .trust-strip dd { font-size: 12px; line-height: 20px; }
+  .trust-strip { grid-template-columns: 1fr; }
+  .trust-strip > div { padding: 14px 16px; }
   .hero-art img { height: clamp(200px, 58vw, 260px); }
-  .hero-art figcaption { display: none; }
+  .hero-art figcaption {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
   .section-heading h2 { font-size: 32px; line-height: 40px; }
   .intro-band h2 { font-size: 26px; line-height: 32px; }
   .brand img { width: 128px; }
