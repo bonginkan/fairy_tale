@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Fairy Tale - エージェントのための親しみやすいワークフロー寓話集</title>
+    <meta
+      name="description"
+      content="Fairy Tale は、公開された Fable/Mythos レポートを、再現可能な agent skill、plugin package、validation gate、sample result へ翻訳するオープンソースプロジェクトです。"
+    >
+    <meta name="theme-color" content="#f5ead8">
+    <meta property="og:title" content="Fairy Tale - エージェントのためのオープンソース workflow skill">
+    <meta
+      property="og:description"
+      content="公開 Fable/Mythos レポートから、Codex、Claude Code、skill-compatible assistant で使える親しみやすい再現可能 workflow を作ります。"
+    >
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="../assets/fable-workbench.png">
+    <link rel="icon" href="../assets/fairy-tale-wordmark.svg" type="image/svg+xml">
+    <link rel="alternate" hreflang="en" href="../">
+    <link rel="alternate" hreflang="ja" href="./">
+    <link rel="stylesheet" href="../styles.css">
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareSourceCode",
+        "name": "Fairy Tale",
+        "description": "Evidence-driven coding agents のための open-source workflow augmentation skills、plugins、validation gates、adapters、sample results。",
+        "programmingLanguage": ["Python", "Rust", "Markdown", "JSON"],
+        "license": "https://www.apache.org/licenses/LICENSE-2.0",
+        "codeRepository": "https://github.com/bonginkan/fairy_tale",
+        "applicationCategory": "DeveloperTool"
+      }
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">本文へスキップ</a>
+
+    <header class="site-header" aria-label="Primary navigation">
+      <div class="wrap">
+        <a class="brand" href="#top" aria-label="Fairy Tale home">
+          <img src="../assets/fairy-tale-wordmark.svg" alt="Fairy Tale wordmark">
+        </a>
+        <nav class="nav-links" aria-label="Page sections">
+          <a href="#spellbook">Spellbook</a>
+          <a href="#samples">Samples</a>
+          <a href="#install">Install</a>
+          <a href="#boundaries">Boundaries</a>
+        </nav>
+        <div class="header-actions">
+          <div class="lang-switch" aria-label="言語切替">
+            <a href="../" hreflang="en">EN</a>
+            <a class="active" href="./" hreflang="ja" aria-current="page">JA</a>
+          </div>
+          <a class="github-link" href="https://github.com/bonginkan/fairy_tale">GitHub</a>
+        </div>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="hero" id="top" aria-labelledby="hero-title">
+        <div class="wrap">
+          <div class="band">
+            <div class="hero-copy">
+              <p class="eyebrow">Open-source agent skills · Codex · Claude Code</p>
+              <h1 id="hero-title">エージェントのための、親しみやすい寓話集。</h1>
+              <p class="hero-lede">
+                Fairy Tale は、公開された Fable/Mythos クラスの報告を古い寓話のように読み解きます。
+                魔法を盗むのではなく、再現できる知恵を skill、validation gate、adapter、sample result
+                として書き留めるためのプロジェクトです。
+              </p>
+              <div class="hero-actions" aria-label="Primary actions">
+                <a class="button primary" href="#install">Spellbook を導入する</a>
+                <a class="button secondary" href="#samples">サンプルを見る</a>
+              </div>
+              <dl class="trust-strip" aria-label="Project signals">
+                <div>
+                  <dt>License</dt>
+                  <dd>Apache-2.0</dd>
+                </div>
+                <div>
+                  <dt>Package</dt>
+                  <dd>Codex + Claude Code plugins</dd>
+                </div>
+                <div>
+                  <dt>Rule</dt>
+                  <dd>Public reports only</dd>
+                </div>
+              </dl>
+            </div>
+
+            <figure class="hero-art">
+              <img
+                src="../assets/fable-workbench.png"
+                alt="開いた寓話集、羽根ペン、鍵、ランタン、ページから舞い上がる紙片の鳥"
+              >
+              <figcaption>Stories become checks. Checks become workflows.</figcaption>
+            </figure>
+          </div>
+        </div>
+      </section>
+
+      <section class="intro-band" aria-label="Core idea">
+        <div class="wrap">
+          <div class="band">
+            <div class="symbol-card">
+              <span class="symbol-mark" aria-hidden="true">book</span>
+              <h2>モデルではなく、迂回でもなく、読める方法。</h2>
+            </div>
+            <p class="intro-text">
+              Fairy Tale の見た目はやわらかくても、約束するものは実用的です。
+              神話めいた成果から再利用できる型を分け、根拠を残し、agent workflow として再現できる形へ整えます。
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section spellbook" id="spellbook" aria-labelledby="spellbook-title">
+        <div class="wrap">
+          <div class="section-heading">
+            <div class="section-kicker">The Spellbook</div>
+            <h2 id="spellbook-title">Fairy Tale が提供するもの</h2>
+            <p>
+              エージェント作業を「なんとなくうまい」から「再現して検証できる」へ近づける、
+              小さく親しみやすい workflow artifact 群です。
+            </p>
+          </div>
+
+          <div class="feature-grid">
+            <article>
+              <span class="feature-icon">quill</span>
+              <h3>方法を書き留める skills</h3>
+              <p>
+                長い coding task、benchmark feedback、legal closure sweep、evidence map、
+                validation gate、bounded autonomy のための canonical skill を収録します。
+              </p>
+            </article>
+            <article>
+              <span class="feature-icon">key</span>
+              <h3>入口を開く plugins</h3>
+              <p>
+                Codex と Claude Code の plugin package として、普段の開発環境に workflow を置けます。
+              </p>
+            </article>
+            <article>
+              <span class="feature-icon">lantern</span>
+              <h3>迷子にしない checks</h3>
+              <p>
+                Residency check、feedback governance、benchmark ledger によって、
+                長い実行中も process の劣化を見つけやすくします。
+              </p>
+            </article>
+            <article>
+              <span class="feature-icon">mirror</span>
+              <h3>効き方を映す samples</h3>
+              <p>
+                Legal、finance、security、biology、spatial、narrative などの task で、
+                with / without Fairy Tale の差分を確認できます。
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section snapshot" aria-labelledby="snapshot-title">
+        <div class="wrap">
+          <div class="section-heading">
+            <div class="section-kicker">Measured, Not Mythologized</div>
+            <h2 id="snapshot-title">測定値は、別々の小瓶に入れておく</h2>
+            <p>
+              公開 score、local baseline、Fairy Tale の local measurement を混ぜずに扱う。
+              その地味さが、この project の信用です。
+            </p>
+          </div>
+
+          <div class="snapshot-table" role="region" aria-label="Benchmark snapshot" tabindex="0">
+            <table>
+              <thead>
+                <tr>
+                  <th>Domain</th>
+                  <th>Sample</th>
+                  <th>Fairy Tale signal</th>
+                  <th>How to read it</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Legal</td>
+                  <td>Harvey LAB-compatible retry</td>
+                  <td>prior misses で all-pass +20.0 pp</td>
+                  <td>同じ model / judge で feedback loop を確認</td>
+                </tr>
+                <tr>
+                  <td>Biology</td>
+                  <td>BioMysteryBench preview</td>
+                  <td>local medium run で 4/5</td>
+                  <td>marker と signature reasoning の evidence gate</td>
+                </tr>
+                <tr>
+                  <td>HLE</td>
+                  <td>Random sample, n=100</td>
+                  <td>tools + residency harness で 51/100</td>
+                  <td>tool condition が違うため leaderboard claim ではない</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="section samples" id="samples" aria-labelledby="samples-title">
+        <div class="wrap">
+          <div class="section-heading">
+            <div class="section-kicker">Sample Outputs</div>
+            <h2 id="samples-title">寓話を開き、教訓を点検する</h2>
+            <p>
+              ここにあるのは slogan ではなく、具体的な comparison output です。
+              product proof としても、次の workflow 改善素材としても使えます。
+            </p>
+          </div>
+
+          <div class="sample-list">
+            <a href="../../sample_results/01-advanced-legal-comparison.md">
+              <span>01</span>
+              <strong>Advanced legal comparison</strong>
+              <em>Redline matrix、diligence questions、hard stops</em>
+            </a>
+            <a href="../../sample_results/02-finance-document-comparison.md">
+              <span>02</span>
+              <strong>Finance document comparison</strong>
+              <em>Board memo correction と follow-up analysis</em>
+            </a>
+            <a href="../../sample_results/03-bio-health-ai-safety-comparison.md">
+              <span>03</span>
+              <strong>Bio / health AI safety</strong>
+              <em>Evidence gate と safety-aware classification</em>
+            </a>
+            <a href="../../sample_results/04-spatial-3d-comparison.md">
+              <span>04</span>
+              <strong>Spatial / 3D comparison</strong>
+              <em>Visual reconstruction と validation discipline</em>
+            </a>
+            <a href="../../sample_results/05-agentic-coding-security-comparison.md">
+              <span>05</span>
+              <strong>Agentic coding security</strong>
+              <em>Patch slice、test、rollout caution</em>
+            </a>
+            <a href="../../sample_results/06-cybersecurity-comparison.md">
+              <span>06</span>
+              <strong>Cybersecurity comparison</strong>
+              <em>Defensive finding、safe evidence、detection coverage</em>
+            </a>
+            <a href="../../sample_results/07-narrative-expression-comparison.md">
+              <span>07</span>
+              <strong>Narrative expression</strong>
+              <em>Constraint adherence、motif discipline、resonance</em>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <section class="section install" id="install" aria-labelledby="install-title">
+        <div class="wrap">
+          <div class="section-heading">
+            <div class="section-kicker">Quick Start</div>
+            <h2 id="install-title">入口を選ぶ</h2>
+            <p>
+              agent が plugin に対応しているなら plugin package を、skill だけ使いたいなら
+              canonical skills を compatible skills directory に導入します。
+            </p>
+          </div>
+
+          <div class="command-panel">
+            <div class="tabs" role="tablist" aria-label="Install methods">
+              <button class="tab active" type="button" role="tab" aria-selected="true" aria-controls="cmd-claude" id="tab-claude">
+                Claude Code
+              </button>
+              <button class="tab" type="button" role="tab" aria-selected="false" aria-controls="cmd-codex" id="tab-codex">
+                Codex
+              </button>
+              <button class="tab" type="button" role="tab" aria-selected="false" aria-controls="cmd-skills" id="tab-skills">
+                Skill only
+              </button>
+            </div>
+            <div class="command-body">
+              <pre id="cmd-claude" role="tabpanel" aria-labelledby="tab-claude"><code>/plugin marketplace add bonginkan/fairy_tale
+/plugin install fairy-tale@fairy-tale-marketplace</code></pre>
+              <pre id="cmd-codex" role="tabpanel" aria-labelledby="tab-codex" hidden><code>codex plugin marketplace add bonginkan/fairy_tale</code></pre>
+              <pre id="cmd-skills" role="tabpanel" aria-labelledby="tab-skills" hidden><code>mkdir -p "$HOME/.codex/skills"
+curl -fsSL https://raw.githubusercontent.com/bonginkan/fairy_tale/main/install.sh | sh -s -- --agent codex</code></pre>
+            </div>
+            <button class="copy-button" type="button">Copy command</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="section boundaries" id="boundaries" aria-labelledby="boundaries-title">
+        <div class="wrap">
+          <div class="section-heading">
+            <div class="section-kicker">Safety Boundaries</div>
+            <h2 id="boundaries-title">ランタンであって、ピッキング道具ではない</h2>
+            <p>
+              Fairy Tale は、公式に公開された情報と公開ユーザー報告を workflow evidence として扱います。
+              restricted model への access、safeguard bypass、security weaponization は目的に含めません。
+            </p>
+          </div>
+
+          <ul class="boundary-list">
+            <li>Research claim には provenance を残す。</li>
+            <li>Security work は authorized / defensive に限定する。</li>
+            <li>長い agent run の前に budget と validation gate を置く。</li>
+            <li>Workflow improvement を主張する前に検証する。</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap">
+        <img src="../assets/fairy-tale-wordmark.svg" alt="Fairy Tale wordmark">
+        <p>
+          Lesson を読んでから spell を唱える agent のための、open-source skills、
+          adapters、validation gates。
+        </p>
+        <a href="../../README_ja.md">README を読む</a>
+      </div>
+    </footer>
+
+    <script src="../script.js"></script>
+  </body>
+</html>
