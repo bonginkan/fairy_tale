@@ -216,11 +216,15 @@
         );
       });
 
+      const warnedViewports = new WeakSet();
       const resizePatterns = () => {
         document.querySelectorAll(".viewport").forEach((viewport) => {
           const width = Number.parseFloat(getComputedStyle(viewport).getPropertyValue("--w"));
           if (!width || Number.isNaN(width)) {
-            console.warn("viewport missing --w override", viewport);
+            if (!warnedViewports.has(viewport)) {
+              warnedViewports.add(viewport);
+              console.warn("viewport missing --w override", viewport);
+            }
             return;
           }
           const scale = Math.min(1, viewport.clientWidth / width);
