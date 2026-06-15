@@ -288,6 +288,7 @@ h1 {
   line-height: var(--lh);
   text-align: right;
 }
+.hero-tagline { display: none; }
 
 /* ---------- Sections — uniform vertical rhythm ---------- */
 .section,
@@ -827,6 +828,14 @@ code {
   .hero-lede {
     font-size: 16px;
     margin-bottom: 24px;
+  }
+  .hero-tagline {
+    display: block;
+    color: var(--ink-soft);
+    font-style: italic;
+    font-size: 14px;
+    line-height: 1.4;
+    margin: 0 0 16px;
   }
   .hero-actions {
     gap: 8px;
