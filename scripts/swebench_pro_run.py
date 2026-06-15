@@ -258,7 +258,24 @@ def swe_fusion_task_payload(
     stdout_text: str = "",
     stderr_text: str = "",
     diff_text: str = "",
+    attempt_history: dict[str, Any] | None = None,
+    stuck_cycle_count: int = 0,
 ) -> dict[str, Any]:
+    review_contract = [
+        "Use only the task statement, visible logs, visible diff, attempt history, and local SWE workflow rules.",
+        "Do not infer hidden tests, gold patches, scorer internals, or benchmark answers.",
+        "Return generic closure actions: interface, regression, validation, and minimality checks.",
+        "Prefer local invariants and focused validation over broad rewrites.",
+    ]
+    if stuck_cycle_count >= 3:
+        review_contract.extend(
+            [
+                "This task has looped through multiple stuck retries; first identify why the loop is persisting.",
+                "Do not repeat prior closure actions unless the current artifacts show they remain unresolved.",
+                "Consider alternate causes such as missing retained tests, stale worktree resets, command mismatch, public interface drift, over-sensitive stuck detection, or insufficient validation evidence.",
+                "If the current attempt has returncode 0, a nonempty diff, visible validation, and explicit no-blockers closure, call out possible harness false-positive instead of adding another generic retry checklist.",
+            ]
+        )
     return {
         "benchmark": "SWE-Bench Pro",
         "phase": phase,
@@ -279,12 +296,9 @@ def swe_fusion_task_payload(
             "stderr_tail": truncate_text(stderr_text, 6000),
             "diff": truncate_text(diff_text, 12000),
         },
-        "review_contract": [
-            "Use only the task statement, visible logs, visible diff, and local SWE workflow rules.",
-            "Do not infer hidden tests, gold patches, scorer internals, or benchmark answers.",
-            "Return generic closure actions: interface, regression, validation, and minimality checks.",
-            "Prefer local invariants and focused validation over broad rewrites.",
-        ],
+        "attempt_history": attempt_history or {"attempts": [], "fusion_reviews": []},
+        "stuck_cycle_count": stuck_cycle_count,
+        "review_contract": review_contract,
     }
 
 
@@ -300,6 +314,8 @@ def run_swe_fusion_review(
     stdout_text: str = "",
     stderr_text: str = "",
     diff_text: str = "",
+    attempt_history: dict[str, Any] | None = None,
+    stuck_cycle_count: int = 0,
 ) -> dict[str, str]:
     script = Path(__file__).resolve().parent / "fairy_fusion_review.py"
     if not script.exists():
@@ -318,6 +334,8 @@ def run_swe_fusion_review(
         stdout_text=stdout_text,
         stderr_text=stderr_text,
         diff_text=diff_text,
+        attempt_history=attempt_history,
+        stuck_cycle_count=stuck_cycle_count,
     )
     write_json(task_path, payload)
     command = [
@@ -364,6 +382,79 @@ def run_swe_fusion_review(
     }
 
 
+def visible_validation_signal(stdout_text: str, stderr_text: str) -> bool:
+    lowered = "\n".join([stdout_text, stderr_text]).lower()
+    return "validation" in lowered or "test" in lowered
+
+
+def explicit_positive_closure(
+    result_returncode: int,
+    stdout_text: str,
+    stderr_text: str,
+    diff_text: str,
+) -> bool:
+    if result_returncode != 0 or not diff_text.strip() or not visible_validation_signal(stdout_text, stderr_text):
+        return False
+    lowered = "\n".join([stdout_text, stderr_text]).lower()
+    markers = (
+        "remaining blockers: none",
+        "no remaining blockers",
+        "no blockers remain",
+        "blockers: none",
+        "validation passed",
+        "all requested validation passed",
+        "all focused validation passed",
+    )
+    return any(marker in lowered for marker in markers)
+
+
+def swe_fusion_attempt_history(
+    attempts: list[dict[str, Any]],
+    fusion_records: list[dict[str, Any]],
+    max_attempts: int = 6,
+    max_reviews: int = 6,
+) -> dict[str, Any]:
+    attempt_items: list[dict[str, Any]] = []
+    for attempt in attempts[-max_attempts:]:
+        attempt_items.append(
+            {
+                "label": attempt["label"],
+                "returncode": attempt["returncode"],
+                "patch_bytes": attempt["patch_bytes"],
+                "has_diff": bool(attempt["diff"].strip()),
+                "has_visible_validation": visible_validation_signal(attempt["stdout_text"], attempt["stderr_text"]),
+                "explicit_positive_closure": explicit_positive_closure(
+                    result_returncode=attempt["returncode"],
+                    stdout_text=attempt["stdout_text"],
+                    stderr_text=attempt["stderr_text"],
+                    diff_text=attempt["diff"],
+                ),
+                "stdout_tail": truncate_text(attempt["stdout_text"], 2000),
+                "stderr_tail": truncate_text(attempt["stderr_text"], 1200),
+                "diff_tail": truncate_text(attempt["diff"], 2500),
+            }
+        )
+    review_items: list[dict[str, Any]] = []
+    for record in fusion_records[-max_reviews:]:
+        hint_excerpt = ""
+        hint_path = record.get("hint_path")
+        if hint_path and Path(hint_path).exists():
+            hint_excerpt = truncate_text(Path(hint_path).read_text(encoding="utf-8", errors="replace"), 2500)
+        review_items.append(
+            {
+                "phase": record.get("phase"),
+                "trigger_reasons": record.get("trigger_reasons", []),
+                "hint_excerpt": hint_excerpt,
+            }
+        )
+    return {
+        "total_attempts": len(attempts),
+        "total_fusion_reviews": len(fusion_records),
+        "attempts": attempt_items,
+        "fusion_reviews": review_items,
+    }
+
+
 def repeated_failure_reasons(
     result_returncode: int,
     stdout_text: str,
@@ -378,8 +469,15 @@ def repeated_failure_reasons(
         reasons.append("empty_patch")
     merged = "\n".join([stdout_text, stderr_text])
     lowered = merged.lower()
-    if "validation" not in lowered and "test" not in lowered:
+    if not visible_validation_signal(stdout_text, stderr_text):
         reasons.append("missing_visible_validation_ledger")
+    if explicit_positive_closure(
+        result_returncode=result_returncode,
+        stdout_text=stdout_text,
+        stderr_text=stderr_text,
+        diff_text=diff_text,
+    ):
+        return reasons
     candidates: dict[str, int] = {}
     for line in merged.splitlines():
         normalized = re.sub(r"\s+", " ", line.strip())
@@ -648,6 +746,8 @@ def generate_codex_patch_for_task(
                     stdout_text=current["stdout_text"],
                     stderr_text=current["stderr_text"],
                     diff_text=current["diff"],
+                    attempt_history=swe_fusion_attempt_history(attempts, fusion_records),
+                    stuck_cycle_count=retry_count,
                 )
                 fusion_records.append(stuck_review)
                 retry_hint = Path(stuck_review["hint_path"]).read_text(encoding="utf-8")
@@ -1298,7 +1398,7 @@ def build_parser() -> argparse.ArgumentParser:
     codex_parser.add_argument(
         "--fusion-retry-on-stuck",
         action="store_true",
-        help="After an automatic stuck-trigger review, reset the worktree and retry once with the fusion hint.",
+        help="After an automatic stuck-trigger review, reset the worktree and retry with history-aware fusion hints until locally clear or the max-retry cap is reached.",
     )
     codex_parser.add_argument("--fusion-execute", action="store_true")
     codex_parser.add_argument("--fusion-reviewers", type=int, default=4)
