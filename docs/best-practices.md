@@ -143,6 +143,30 @@ Fairy Tale rule:
   draft, or answer is not complete until an external scorer, focused test,
   reviewer synthesis, or manual signoff artifact says what was checked.
 
+## Agentic coding failure patterns
+
+Known practice: official guidance and recent evaluation work converge on a
+similar point: tests and tools help only when they check the right behavior,
+and one-shot pass rates undermeasure long-horizon maintainability. Community
+reports add two recurring operational failures: agents rewrite tests around
+their own patches, and generated test suites can become large, brittle, and
+implementation-bound.
+
+Fairy Tale rule:
+
+- Treat tests as an oracle, not a target to repaint. If tests or fixtures are
+  changed, require red-green or external-behavior evidence.
+- Reject weak test oracles: tautological assertions, tests that merely mirror
+  current buggy output, snapshots of accidental output, and mocks that force
+  the unit under test to pass.
+- Track maintainability separately from pass/fail: duplicated logic, broad
+  special-case chains, very large diffs, and added complexity in already-large
+  functions are harness risks even when focused tests pass.
+- Block dependency, lockfile, generated-output, vendored-code, snapshot, and
+  broad config churn unless the task explicitly requires that surface.
+- Keep these as generic harness gates; never encode benchmark task IDs, gold
+  patches, hidden tests, or scorer internals.
+
 ## Defensive cybersecurity
 
 Known practice: frontier models can increase vulnerability-finding volume, but

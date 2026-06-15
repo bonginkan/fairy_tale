@@ -38,6 +38,28 @@ harness artifacts, logs, and local work product.
 
 ## SWE-Bench Pro Miss Classes
 
+- `api_compatibility_break`: a patch changes a function, method, constructor,
+  return shape, argument list, exported symbol, or file path in a way that
+  breaks existing callers or visible tests.
+- `missing_adjacent_symbol`: a patch references a helper, type, component,
+  module, constant, or path that was not added, exported, generated, or
+  imported on the touched surface.
+- `test_mock_contract_break`: production code may work, but the patch changes
+  construction or dependency-injection shape in a way that breaks existing test
+  doubles, mocks, or factories.
+- `edge_case_invariant_gap`: the main path compiles, but an existing invariant
+  still fails for a migration, mapping, default, empty, boundary, duplicate,
+  ordering, or error-path case.
+- `weak_test_oracle`: the patch changes or adds tests that can pass without
+  proving the requested behavior, such as tautological assertions, testing
+  implementation details, mirroring current buggy output, or mocking the unit
+  under test into success.
+- `architectural_erosion`: the patch may pass current tests while making the
+  next change harder through duplicated logic, large special-case chains,
+  unrelated surface area, or added complexity in already-large functions.
+- `dependency_or_artifact_churn`: the patch changes dependencies, lockfiles,
+  generated outputs, vendored code, snapshots, or broad config without clear
+  task necessity and validation.
 - `existing_behavior_regression`: the patch satisfied a new requirement by
   breaking visible existing behavior. Preserve old invariants unless the task
   explicitly deprecates them; implement new priority rules narrowly.
@@ -46,20 +68,49 @@ harness artifacts, logs, and local work product.
 - `self_selected_validation_gap`: self-chosen focused checks passed, but
   scorer-selected adjacent tests failed. Add compatibility checks for touched
   helper/API surfaces.
+- `implicit_contract_gap`: the prompt did not spell out an invariant, but
+  adjacent code, legacy callers, mocks, fixtures, generated files, docs, or
+  domain conventions relied on it. Recover tacit intent from artifacts before
+  editing and verify the inferred contract with a neighboring check.
 - `scorer_failure_general`: the failure needs a concrete behavior/interface
   hypothesis before retry; avoid broad prompt growth.
 
 Before finalizing a SWE patch:
 
 1. List every named new interface and verify exact export/import/callability.
-2. Run or inspect adjacent existing tests that encode prior behavior for every
+2. Before changing an existing contract, list affected callers and visible
+   tests for the touched function/method/type/component/module. Preserve
+   backward-compatible wrappers, defaults, overloads, or adapters unless the
+   task explicitly removes the old behavior.
+3. Recover tacit contracts from artifacts: adjacent files, old tests,
+   generated code, mocks/fixtures, docs, issue wording, naming conventions,
+   and existing error handling. Mark each inferred contract as confirmed,
+   likely, risky, or needs user/input evidence.
+4. Verify every referenced helper/type/component/module exists at the final
+   path and is exported/imported exactly as the surrounding code expects.
+5. Run or inspect adjacent existing tests that encode prior behavior for every
    touched helper/API.
-3. If new and old behavior appear to conflict, preserve old behavior by adding
+6. If new and old behavior appear to conflict, preserve old behavior by adding
    a narrower condition, not by replacing the old invariant.
-4. If progress stalls, use Fairy Fusion SWE reviewers: interface, regression,
-   validation, and minimality. Treat their synthesis as a checklist to verify,
-   not as a replacement for repository evidence.
-5. Use benchmark tools and container checks, but do not inspect hidden answers
+7. Design one applicable edge-case check for each changed surface: empty,
+   nil/null, default/legacy path, boundary size, duplicate/order,
+   mapping/migration, permission/error path, or fixture/mock construction.
+8. If validation logs show missing arguments, undefined symbols, missing
+   modules, constructor/type errors, or equality invariant failures, classify
+   the patch as a contract failure and fix that before adding more feature
+   logic.
+9. If tests or fixtures are edited, require red-green or external-behavior
+   proof. Reject tests that assert `true`, assert only implementation details,
+   snapshot accidental output, or mock the unit under test so the test cannot
+   fail for the real bug.
+10. Review maintainability and change surface: reject duplicated logic, broad
+   special-case chains, dependency/lockfile churn, generated/vendor artifacts,
+   and large unrelated diffs unless the task explicitly requires them.
+11. If progress stalls, use Fairy Fusion SWE reviewers: interface,
+   contract-compatibility, regression, edge-case validation, and minimality.
+   Treat their synthesis as a checklist to verify, not as a replacement for
+   repository evidence.
+12. Use benchmark tools and container checks, but do not inspect hidden answers
    or gold patches.
 
 ## SWE-Bench Pro Success Practices
@@ -71,6 +122,10 @@ Before finalizing a SWE patch:
 - `named_interface_completion`: implement the exact requested symbol at the
   requested path while preserving backward-compatible wrappers when existing
   callers rely on them.
+- `executable_model_verification`: before spending broad retries, encode the
+  current understanding as a small checkable model: expected inputs, state,
+  transitions, public contract, old invariants, and success condition; then
+  falsify it with adjacent tests or a focused script.
 
 ## HLE-Style Miss Classes
 

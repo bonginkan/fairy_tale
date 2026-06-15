@@ -132,6 +132,9 @@
   https://openrouter.ai/docs/guides/features/server-tools/advisor
 - OpenRouter Subagent design reference:
   https://openrouter.ai/docs/guides/features/server-tools/subagent
+- Dive into Claude Code: The Design Space of Today's and Future AI Agent
+  Systems:
+  https://arxiv.org/abs/2604.14228
 - Anthropic agent eval guidance:
   https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents
 - OpenAI agent safety guidance:
@@ -148,3 +151,47 @@
   https://docs.github.com/en/code-security/how-tos/report-and-fix-vulnerabilities/configure-vulnerability-reporting/add-security-policy
 - OpenSSF Scorecard:
   https://github.com/ossf/scorecard
+
+## Generalization, ARC-AGI-3, and tacit-knowledge recovery
+
+- ARC-AGI-3 technical report:
+  https://arxiv.org/abs/2603.24621
+- ARC-AGI-3 official page and SDK links:
+  https://arcprize.org/arc-agi/3
+- ARC-AGI-3 official benchmarking repo:
+  https://github.com/arcprize/arc-agi-3-benchmarking
+- ARC Prize Community Leaderboard:
+  https://github.com/arcprize/ARC-AGI-Community-Leaderboard
+- ARC Prize analysis of GPT-5.5 and Opus 4.7 failure modes:
+  https://arcprize.org/blog/arc-agi-3-gpt-5-5-opus-4-7-analysis
+- Executable World Models for ARC-AGI-3:
+  https://arxiv.org/abs/2605.05138
+- `astroseger/arc-3-agents-baseline1` executable world-model agent:
+  https://github.com/astroseger/arc-3-agents-baseline1
+- TELL test-time experiential lifelong learning:
+  https://github.com/rednote-hilab/TELL
+- RGB-Agent / Read-Grep-Bash ARC-AGI-3 agent:
+  https://github.com/alexisfox7/RGB-Agent
+- Symbolica ARC-AGI-3 Agentica harness:
+  https://www.symbolica.ai/blog/arc-agi-3
+  https://github.com/symbolica-ai/ARC-AGI-3-Agents
+  https://github.com/symbolica-ai/agentica-server
+- StochasticGoose ARC-AGI-3 action-learning agent:
+  https://github.com/DriesSmit/ARC3-solution
+- Graph-based exploration for ARC-AGI-3:
+  https://arxiv.org/abs/2512.24156
+  https://github.com/dolphin-in-a-coma/arc-agi-3-just-explore
+- TELL-style lifelong memory and prior-memory transfer report:
+  https://github.com/rednote-hilab/TELL
+- Tacit requirements overview:
+  https://oro.open.ac.uk/26738/
+- CMU SEI unstated requirements approach:
+  https://www.sei.cmu.edu/blog/eliciting-and-analyzing-unstated-requirements/
+- Cognitive Task Analysis overview:
+  https://pmc.ncbi.nlm.nih.gov/articles/PMC8903544/
+- Applied Cognitive Task Analysis / tacit knowledge extraction overview:
+  https://commoncog.com/an-easier-method-for-extracting-tacit-knowledge/
+- Reward-driven clarification for software engineering tasks:
+  https://arxiv.org/abs/2604.14624
+- Code as Agent Harness:
+  https://arxiv.org/abs/2605.18747

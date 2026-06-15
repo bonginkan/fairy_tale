@@ -264,8 +264,14 @@ def swe_fusion_task_payload(
     review_contract = [
         "Use only the task statement, visible logs, visible diff, attempt history, and local SWE workflow rules.",
         "Do not infer hidden tests, gold patches, scorer internals, or benchmark answers.",
-        "Return generic closure actions: interface, regression, validation, and minimality checks.",
+        "Return generic closure actions: interface, contract compatibility, regression, edge-case validation, and minimality checks.",
         "Prefer local invariants and focused validation over broad rewrites.",
+        "If logs show missing arguments, undefined symbols, missing modules, constructor/type errors, or failed equality invariants, treat them as contract-break signals before proposing more feature code.",
+        "Check whether the patch changed an existing call signature, return shape, constructor shape, exported symbol, file path, or test-double contract without preserving backward compatibility.",
+        "For edge cases, propose focused tests around empty, nil/null, boundary, legacy/default, duplicate, ordering, mapping, migration, and error-path inputs when they match the touched surface.",
+        "If the diff changes tests, fixtures, dependencies, lockfiles, generated outputs, vendored files, or broad unrelated files, require explicit justification and red-green or external-behavior evidence.",
+        "Guard against weak test oracles: tests must assert externally visible behavior and must not merely assert the implementation's current output, mock the unit under test to always pass, or use tautological assertions.",
+        "Guard against architectural erosion: passing tests are not enough if the patch duplicates logic, concentrates more complexity into already-large functions, or adds broad special cases instead of a local abstraction.",
     ]
     if stuck_cycle_count >= 3:
         review_contract.extend(
@@ -408,6 +414,211 @@ def explicit_positive_closure(
     return any(marker in lowered for marker in markers)
 
 
+def actual_failure_signal(stdout_text: str, stderr_text: str) -> bool:
+    lowered = "\n".join([stdout_text, stderr_text]).lower()
+    markers = (
+        " exited 1 ",
+        " exited 2 ",
+        " exited 127 ",
+        " exited 128 ",
+        " failed in ",
+        " failed with ",
+        "tests failed",
+        " build failed",
+        "compilation terminated",
+        "error command failed",
+        "traceback (most recent call last)",
+    )
+    return (
+        any(marker in lowered for marker in markers)
+        or re.search(r"test suites:\s*[1-9][0-9]*\s+failed", lowered) is not None
+        or re.search(r"tests:\s*[1-9][0-9]*\s+failed", lowered) is not None
+    )
+
+
+def known_infrastructure_blocker_signal(stdout_text: str, stderr_text: str) -> bool:
+    lowered = "\n".join([stdout_text, stderr_text]).lower()
+    markers = (
+        "fatal error: linux/hidraw.h: no such file or directory",
+        "fatal error: gnu/libc-version.h: no such file or directory",
+        "'pread64' undeclared",
+        "'pwrite64' undeclared",
+        "unknown type name 'off64_t'",
+        "property 'enteredviaanothersession' does not exist on type 'groupcall'",
+    )
+    return any(marker in lowered for marker in markers)
+
+
+def focused_success_signal(stdout_text: str, stderr_text: str) -> bool:
+    lowered = "\n".join([stdout_text, stderr_text]).lower()
+    markers = (
+        " succeeded in ",
+        "\nok  \t",
+        "\npass ",
+        "test suites: ",
+    )
+    return any(marker in lowered for marker in markers)
+
+
+def contract_break_reasons(stdout_text: str, stderr_text: str) -> list[str]:
+    merged = "\n".join([stdout_text, stderr_text]).lower()
+    reasons: list[str] = []
+    patterns: tuple[tuple[str, tuple[str, ...]], ...] = (
+        (
+            "contract_api_compatibility_break",
+            (
+                "missing 1 required positional argument",
+                "missing 2 required positional arguments",
+                "missing required positional argument",
+                "too many arguments",
+                "not enough arguments",
+                "wrong number of arguments",
+                "takes 0 positional arguments but",
+                "takes 1 positional argument but",
+                "takes 2 positional arguments but",
+                "cannot use",
+                "has no field or method",
+                "no method named",
+                "attributeerror:",
+            ),
+        ),
+        (
+            "contract_missing_adjacent_symbol",
+            (
+                "undefined:",
+                "cannot find module",
+                "module not found",
+                "no such file or directory",
+                "unresolved import",
+                "unresolved reference",
+                "nameerror:",
+                "is not defined",
+            ),
+        ),
+        (
+            "contract_test_mock_break",
+            (
+                "is not a constructor",
+                "mock constructor",
+                "jest.fn",
+                "sinon",
+                "expected mock",
+            ),
+        ),
+        (
+            "edge_case_invariant_failure",
+            (
+                "not equal:",
+                "expected:",
+                "to equal",
+                "assertionerror",
+                "assertion failed",
+                "mismatch",
+                "invariant",
+            ),
+        ),
+    )
+    for reason, markers in patterns:
+        if any(marker in merged for marker in markers):
+            reasons.append(reason)
+    return reasons
+
+
+def diff_files(diff_text: str) -> list[str]:
+    files: list[str] = []
+    for line in diff_text.splitlines():
+        if line.startswith("+++ b/"):
+            files.append(line[6:])
+    return files
+
+
+def diff_added_lines(diff_text: str) -> list[str]:
+    lines: list[str] = []
+    for line in diff_text.splitlines():
+        if line.startswith("+") and not line.startswith("+++"):
+            lines.append(line[1:])
+    return lines
+
+
+def is_test_path(path: str) -> bool:
+    normalized = path.lower()
+    parts = re.split(r"[/\\]", normalized)
+    return (
+        "test" in parts
+        or "tests" in parts
+        or "__tests__" in parts
+        or normalized.endswith(("_test.go", "_test.py", ".test.ts", ".test.tsx", ".spec.ts", ".spec.tsx"))
+        or "/test_" in normalized
+    )
+
+
+def diff_risk_reasons(diff_text: str) -> list[str]:
+    if not diff_text.strip():
+        return []
+    files = diff_files(diff_text)
+    added = diff_added_lines(diff_text)
+    changed_lines = sum(
+        1
+        for line in diff_text.splitlines()
+        if (line.startswith("+") and not line.startswith("+++"))
+        or (line.startswith("-") and not line.startswith("---"))
+    )
+    lowered_files = [path.lower() for path in files]
+    lowered_added = "\n".join(added).lower()
+    reasons: list[str] = []
+
+    if any(is_test_path(path) for path in files):
+        reasons.append("test_oracle_change_requires_red_green_evidence")
+
+    lock_or_manifest_names = {
+        "package-lock.json",
+        "yarn.lock",
+        "pnpm-lock.yaml",
+        "cargo.lock",
+        "go.sum",
+        "poetry.lock",
+        "pdm.lock",
+        "requirements.txt",
+        "pyproject.toml",
+        "package.json",
+        "gemfile.lock",
+        "composer.lock",
+    }
+    if any(Path(path).name.lower() in lock_or_manifest_names for path in lowered_files):
+        reasons.append("dependency_or_lockfile_churn_requires_justification")
+
+    generated_markers = (
+        "/dist/",
+        "/build/",
+        "/coverage/",
+        "/vendor/",
+        "/vendors/",
+        "/node_modules/",
+        "/generated/",
+        ".min.js",
+        ".snap",
+    )
+    if any(any(marker in f"/{path}" for marker in generated_markers) for path in lowered_files):
+        reasons.append("generated_or_vendor_artifact_churn")
+
+    if len(files) > 10 or changed_lines > 900:
+        reasons.append("broad_diff_surface_requires_minimality_review")
+
+    weak_test_markers = (
+        "assert true",
+        "assert.true(true",
+        "expect(true).tobe(true",
+        "expect(true).tobetruthy",
+        "mockreturnvalue(true",
+        "mockresolvedvalue(true",
+        "return true",
+    )
+    if any(is_test_path(path) for path in files) and any(marker in lowered_added for marker in weak_test_markers):
+        reasons.append("weak_test_oracle_suspected")
+
+    return reasons
+
+
 def swe_fusion_attempt_history(
     attempts: list[dict[str, Any]],
     fusion_records: list[dict[str, Any]],
@@ -423,6 +634,10 @@ def swe_fusion_attempt_history(
                 "patch_bytes": attempt["patch_bytes"],
                 "has_diff": bool(attempt["diff"].strip()),
                 "has_visible_validation": visible_validation_signal(attempt["stdout_text"], attempt["stderr_text"]),
+                "contract_break_reasons": contract_break_reasons(
+                    attempt["stdout_text"], attempt["stderr_text"]
+                ),
+                "diff_risk_reasons": diff_risk_reasons(attempt["diff"]),
                 "explicit_positive_closure": explicit_positive_closure(
                     result_returncode=attempt["returncode"],
                     stdout_text=attempt["stdout_text"],
@@ -471,13 +686,36 @@ def repeated_failure_reasons(
     lowered = merged.lower()
     if not visible_validation_signal(stdout_text, stderr_text):
         reasons.append("missing_visible_validation_ledger")
+    for reason in diff_risk_reasons(diff_text):
+        if reason not in reasons:
+            reasons.append(reason)
+    if (
+        result_returncode == 0
+        and diff_text.strip()
+        and visible_validation_signal(stdout_text, stderr_text)
+        and not diff_risk_reasons(diff_text)
+        and not actual_failure_signal(stdout_text, stderr_text)
+    ):
+        return reasons
+    if (
+        result_returncode == 0
+        and diff_text.strip()
+        and visible_validation_signal(stdout_text, stderr_text)
+        and not diff_risk_reasons(diff_text)
+        and known_infrastructure_blocker_signal(stdout_text, stderr_text)
+        and focused_success_signal(stdout_text, stderr_text)
+    ):
+        return reasons
     if explicit_positive_closure(
         result_returncode=result_returncode,
         stdout_text=stdout_text,
         stderr_text=stderr_text,
         diff_text=diff_text,
-    ):
+    ) and not any(reason in reasons for reason in diff_risk_reasons(diff_text)):
         return reasons
+    for reason in contract_break_reasons(stdout_text, stderr_text):
+        if reason not in reasons:
+            reasons.append(reason)
     candidates: dict[str, int] = {}
     for line in merged.splitlines():
         normalized = re.sub(r"\s+", " ", line.strip())
@@ -535,16 +773,34 @@ Validation gate:
 1. Before editing, identify the smallest command, smoke script, or existing test
    that localizes the affected behavior. If no direct test exists, create only a
    temporary one-off command or script outside the final patch.
-2. After editing, run at least one relevant validation command inside the
+2. Before changing an existing function, method, type, constructor, exported
+   symbol, file path, or return shape, map current call sites and visible tests.
+   Preserve backward compatibility with wrappers/defaults unless the task
+   explicitly deprecates the old contract.
+3. After editing, run at least one relevant validation command inside the
    benchmark container. Prefer the repository's existing test runner over ad hoc
    assertions when it is available.
-3. If a visible adjacent test fails, treat that as a patch problem unless the
+4. If a visible adjacent test fails, treat that as a patch problem unless the
    task explicitly deprecates the old behavior. Preserve compatibility with a
    narrower condition rather than dismissing the red test as expected.
-4. If a broad validation command is blocked by unrelated infrastructure, run a
+5. For touched surfaces, add or run at least one focused edge-case check when
+   feasible: empty/nil/null, default/legacy path, boundary size, duplicate,
+   ordering, mapping/migration, and error-path behavior as applicable.
+6. If logs show missing arguments, undefined symbols, missing modules,
+   constructor/type errors, or equality invariant failures, fix the contract
+   break before adding more feature logic.
+7. Do not modify tests, fixtures, dependency manifests, lockfiles, generated
+   outputs, or vendored files unless the task explicitly requires that surface.
+   If tests must change, prove the test is meaningful: it should fail before the
+   fix or assert an externally visible behavior, not mirror the implementation
+   or mock the unit under test into success.
+8. Review maintainability before finishing: avoid duplicate logic, broad
+   special-case chains, large unrelated diffs, and complexity added to already
+   large functions when a local abstraction is available.
+9. If a broad validation command is blocked by unrelated infrastructure, run a
    focused validation that covers the touched surface and record the exact
    unrelated blocker.
-5. Before finishing, report the validation commands, results, remaining
+10. Before finishing, report the validation commands, results, remaining
    blockers, and why the final diff is still minimal.
 {fusion_section}
 
@@ -580,7 +836,8 @@ def generate_codex_patch_for_task(
         instance_id = task["instance_id"]
         image = sweagent_image_name(raw_row, args.dockerhub_username)
         worktree = output_dir / safe_name(instance_id)
-        container_name = f"fairy-codex-{safe_name(instance_id)[:48]}"
+        container_suffix = f"-{safe_name(args.container_name_suffix)}" if args.container_name_suffix else ""
+        container_name = f"fairy-codex-{safe_name(instance_id)[:48]}{container_suffix}"
         pred_path = patch_prediction_path(pred_dir, args.prefix, instance_id)
         if args.skip_existing and pred_path.exists():
             return {
@@ -609,8 +866,17 @@ def generate_codex_patch_for_task(
             "sandbox": args.sandbox,
         }
         if not args.dry_run:
-            copy_repo_from_image(image, repo_path, worktree, args.docker_platform)
-            init_patch_worktree(worktree)
+            if (worktree / ".git").exists():
+                reset = run_capture(["git", "reset", "--hard", "HEAD"], cwd=worktree)
+                clean = run_capture(["git", "clean", "-fd"], cwd=worktree)
+                if reset.returncode != 0 or clean.returncode != 0:
+                    raise SystemExit(
+                        f"could not reset existing worktree for {instance_id}:\n"
+                        f"{reset.stderr.strip()}\n{clean.stderr.strip()}"
+                    )
+            else:
+                copy_repo_from_image(image, repo_path, worktree, args.docker_platform)
+                init_patch_worktree(worktree)
         fusion_dir = args.run_dir / "fairy-fusion" / safe_name(instance_id)
         fusion_records: list[dict[str, Any]] = []
         fusion_hint: str | None = None
@@ -659,6 +925,17 @@ def generate_codex_patch_for_task(
         if args.dry_run:
             return record
 
+        def codex_env() -> dict[str, str]:
+            env = os.environ.copy()
+            if args.api_key_env in env:
+                env.setdefault("OPENAI_API_KEY", env[args.api_key_env])
+                env.setdefault("CODEX_API_KEY", env[args.api_key_env])
+            if "OPENAI_API_KEY" in env:
+                env.setdefault("CODEX_API_KEY", env["OPENAI_API_KEY"])
+            if "CODEX_API_KEY" in env:
+                env.setdefault("OPENAI_API_KEY", env["CODEX_API_KEY"])
+            return env
+
         subprocess.run(
             ["docker", "rm", "-f", container_name],
             check=False,
@@ -699,7 +976,7 @@ def generate_codex_patch_for_task(
             with stdout_path.open("w", encoding="utf-8") as stdout, stderr_path.open(
                 "w", encoding="utf-8"
             ) as stderr:
-                result = subprocess.run(command, check=False, stdout=stdout, stderr=stderr)
+                result = subprocess.run(command, check=False, stdout=stdout, stderr=stderr, env=codex_env())
             diff = run_capture(["git", "diff", "--binary", "HEAD"], cwd=worktree)
             if diff.returncode != 0:
                 raise SystemExit(f"git diff failed for {instance_id}:\n{diff.stderr.strip()}")
@@ -975,12 +1252,17 @@ def write_sweagent_config(args: argparse.Namespace) -> int:
           1. Build a compact evidence map: relevant files, invariants, and uncertainty.
           2. Reproduce or localize the issue with the cheapest command or script available.
           3. Patch the smallest stable surface consistent with local conventions.
-          4. Validate the changed behavior and at least one relevant edge case when feasible.
-          5. Review the final diff for accidental broad changes, test edits, formatting churn, and missing imports.
+          4. Preserve contracts before extending behavior: map call sites, exported symbols, constructors, return shapes, test doubles, and adjacent tests for touched surfaces.
+          5. Validate the changed behavior and at least one relevant edge case when feasible: empty/default, legacy path, boundary size, duplicate/order, mapping/migration, and error path.
+          6. Treat tests as an oracle, not a target to repaint. Do not change tests or fixtures unless explicitly required; if you must, show red-green or external-behavior evidence.
+          7. Review the final diff for accidental broad changes, test edits, dependency/lockfile churn, generated or vendored artifacts, formatting churn, missing imports, missing adjacent symbols, signature drift, duplicated logic, and large special-case chains.
 
           Validation gate:
           - Run at least one focused validation command after editing, using the existing repository test runner when available.
+          - If validation logs show missing arguments, undefined symbols, missing modules, constructor/type errors, or equality invariant failures, treat that as a contract break to fix before submitting.
           - If a visible adjacent test fails, do not mark it as expected unless the PR description explicitly deprecates that old behavior. Prefer a narrower compatibility-preserving fix.
+          - If you wrote or changed tests, ensure they assert externally visible behavior and would fail against the broken implementation. Avoid tautological assertions and mocks that force the unit under test to succeed.
+          - If the patch touches dependency manifests, lockfiles, generated files, vendored code, or many unrelated files, justify why that surface is required and prefer a smaller source-only fix.
           - If a broad test command fails because of unrelated infrastructure, run a narrower validation on the touched surface and record the exact blocker.
           - Final submission must include a concise validation ledger: commands run, pass/fail result, unrelated blockers, and why the diff remains minimal.
 
@@ -1013,9 +1295,12 @@ def write_sweagent_config(args: argparse.Namespace) -> int:
               Review your patch before final submission.
 
               1. If you changed source after reproducing or validating, rerun the most relevant validation command when feasible.
-              2. Remove temporary reproduction scripts unless they are intentionally part of the fix.
-              3. Revert unintended test edits or broad formatting churn.
-              4. Confirm the patch is minimal, internally consistent, and addresses the stated requirements.
+              2. Check contract preservation: existing callers, exports/imports, constructors, return shapes, test doubles, and adjacent symbols still resolve.
+              3. Check at least one applicable edge case for each touched surface: empty/default, legacy path, boundary, duplicate/order, mapping/migration, or error path.
+              4. Reject weak test oracles: no tautological assertions, no tests that simply mirror current buggy output, and no mocks that force the unit under test to pass.
+              5. Remove temporary reproduction scripts unless they are intentionally part of the fix.
+              6. Revert unintended test edits, dependency/lockfile churn, generated/vendor artifact changes, or broad formatting churn.
+              7. Confirm the patch is minimal, internally consistent, maintainable across the next likely change, and addresses the stated requirements.
 
               Current diff:
 
@@ -1421,6 +1706,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     codex_parser.add_argument("--keep-containers", action="store_true")
     codex_parser.add_argument("--keep-going", action="store_true")
+    codex_parser.add_argument("--container-name-suffix", default="")
     codex_parser.set_defaults(func=generate_codex_patches, need_harness=False, need_python=False)
 
     gather_parser = subparsers.add_parser("gather")
