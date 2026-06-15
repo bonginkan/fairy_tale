@@ -3,6 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
     <title>Fairy Tale LP responsive patterns</title>
     <style>
       :root {
@@ -154,7 +155,7 @@
           <div class="pattern-title">Desktop</div>
           <div class="pattern-meta">1440px</div>
         </div>
-        <div class="viewport"><iframe title="Desktop preview" src="./"></iframe></div>
+        <div class="viewport"><iframe title="Desktop preview" src="about:blank"></iframe></div>
       </article>
 
       <article class="pattern laptop">
@@ -162,7 +163,7 @@
           <div class="pattern-title">Laptop</div>
           <div class="pattern-meta">1024px</div>
         </div>
-        <div class="viewport"><iframe title="Laptop preview" src="./"></iframe></div>
+        <div class="viewport"><iframe title="Laptop preview" src="about:blank"></iframe></div>
       </article>
 
       <article class="pattern tablet">
@@ -170,7 +171,7 @@
           <div class="pattern-title">Tablet</div>
           <div class="pattern-meta">820px</div>
         </div>
-        <div class="viewport"><iframe title="Tablet preview" src="./"></iframe></div>
+        <div class="viewport"><iframe title="Tablet preview" src="about:blank"></iframe></div>
       </article>
 
       <article class="pattern mobile-lg">
@@ -178,7 +179,7 @@
           <div class="pattern-title">Mobile large</div>
           <div class="pattern-meta">430px</div>
         </div>
-        <div class="viewport"><iframe title="Mobile large preview" src="./"></iframe></div>
+        <div class="viewport"><iframe title="Mobile large preview" src="about:blank"></iframe></div>
       </article>
 
       <article class="pattern mobile-md">
@@ -186,7 +187,7 @@
           <div class="pattern-title">Mobile medium</div>
           <div class="pattern-meta">360px</div>
         </div>
-        <div class="viewport"><iframe title="Mobile medium preview" src="./"></iframe></div>
+        <div class="viewport"><iframe title="Mobile medium preview" src="about:blank"></iframe></div>
       </article>
 
       <article class="pattern mobile-sm">
@@ -194,7 +195,7 @@
           <div class="pattern-title">Mobile small</div>
           <div class="pattern-meta">320px</div>
         </div>
-        <div class="viewport"><iframe title="Mobile small preview" src="./"></iframe></div>
+        <div class="viewport"><iframe title="Mobile small preview" src="about:blank"></iframe></div>
       </article>
     </main>
 
@@ -218,6 +219,10 @@
       const resizePatterns = () => {
         document.querySelectorAll(".viewport").forEach((viewport) => {
           const width = Number.parseFloat(getComputedStyle(viewport).getPropertyValue("--w"));
+          if (!width || Number.isNaN(width)) {
+            console.warn("viewport missing --w override", viewport);
+            return;
+          }
           const scale = Math.min(1, viewport.clientWidth / width);
           viewport.style.setProperty("--scale", scale.toString());
         });
