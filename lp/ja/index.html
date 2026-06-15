@@ -173,37 +173,140 @@
             </p>
           </div>
 
-          <div class="snapshot-table" role="region" aria-label="Benchmark snapshot" tabindex="0">
+          <figure class="chart" aria-label="ドメイン別 pass rate 比較">
+            <figcaption class="chart-caption">
+              <span class="chart-title">ドメイン別 Pass rate</span>
+              <span class="chart-legend" aria-hidden="true">
+                <span class="lg lg-fable">Fable / Mythos (公開値)</span>
+                <span class="lg lg-base">GPT-5.5 baseline</span>
+                <span class="lg lg-ft">GPT-5.5 + Fairy Tale</span>
+              </span>
+            </figcaption>
+            <div class="chart-grid" role="img" aria-label="Pass rate chart">
+              <div class="chart-row">
+                <div class="chart-label">Legal<br><small>n=100, Harvey LAB 互換</small></div>
+                <div class="chart-bars">
+                  <div class="bar bar-fable" style="--v:13.3"><span>13.3%</span></div>
+                  <div class="bar bar-base"  style="--v:2.1"><span>2.1%</span></div>
+                  <div class="bar bar-ft"    style="--v:11.0"><span>11.0%</span></div>
+                </div>
+              </div>
+              <div class="chart-row">
+                <div class="chart-label">Biology<br><small>n=5, BioMysteryBench-preview</small></div>
+                <div class="chart-bars">
+                  <div class="bar bar-fable" style="--v:83.9"><span>83.9%</span></div>
+                  <div class="bar bar-base"  style="--v:60.0"><span>60.0%</span></div>
+                  <div class="bar bar-ft"    style="--v:80.0"><span>80.0%</span></div>
+                </div>
+              </div>
+              <div class="chart-row">
+                <div class="chart-label">Agentic coding<br><small>n=20, SWE-Bench Pro</small></div>
+                <div class="chart-bars">
+                  <div class="bar bar-fable" style="--v:80.3"><span>80.3%</span></div>
+                  <div class="bar bar-base"  style="--v:58.6"><span>58.6%</span></div>
+                  <div class="bar bar-ft"    style="--v:55.0"><span>55.0%</span></div>
+                </div>
+              </div>
+              <div class="chart-row">
+                <div class="chart-label">HLE<br><small>n=100, random sample</small></div>
+                <div class="chart-bars">
+                  <div class="bar bar-fable bar-na" style="--v:0"><span>—</span></div>
+                  <div class="bar bar-base"  style="--v:35.0"><span>35.0%</span></div>
+                  <div class="bar bar-ft"    style="--v:51.0"><span>51.0%</span></div>
+                </div>
+              </div>
+            </div>
+            <p class="chart-note">
+              いずれも local 再現値です。95% Wilson CI は README 参照。
+              Fable/Mythos は画像公開値、HLE には比較可能な Fable 行はありません。
+            </p>
+          </figure>
+
+          <div class="snapshot-table" role="region" aria-label="ベンチマーク詳細" tabindex="0">
             <table>
               <thead>
                 <tr>
                   <th>Domain</th>
-                  <th>Sample</th>
-                  <th>Fairy Tale signal</th>
-                  <th>How to read it</th>
+                  <th>Benchmark</th>
+                  <th>Fable / Mythos</th>
+                  <th>GPT-5.5</th>
+                  <th>+ Fairy Tale</th>
+                  <th>Delta</th>
+                  <th>CI / note</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td>Legal</td>
-                  <td>Harvey LAB-compatible retry</td>
-                  <td>prior misses で all-pass +20.0 pp</td>
-                  <td>同じ model / judge で feedback loop を確認</td>
+                  <td>Agentic coding</td>
+                  <td>SWE-Bench Pro, n=20</td>
+                  <td>80.3%</td>
+                  <td>58.6%</td>
+                  <td class="ft">55.0%</td>
+                  <td class="neg">-3.6 pp</td>
+                  <td>Wilson 34.2–74.2%</td>
                 </tr>
                 <tr>
                   <td>Biology</td>
-                  <td>BioMysteryBench preview</td>
-                  <td>local medium run で 4/5</td>
-                  <td>marker と signature reasoning の evidence gate</td>
+                  <td>BioMysteryBench-preview, n=5</td>
+                  <td>46.1 / 83.9%</td>
+                  <td>60.0%</td>
+                  <td class="ft">80.0%</td>
+                  <td class="pos">+20.0 pp</td>
+                  <td>Wilson 37.6–96.4%</td>
                 </tr>
                 <tr>
-                  <td>HLE</td>
-                  <td>Random sample, n=100</td>
-                  <td>tools + residency harness で 51/100</td>
-                  <td>tool condition が違うため leaderboard claim ではない</td>
+                  <td>Cybersecurity</td>
+                  <td>ExploitBench v8 ladder, n=6</td>
+                  <td>78.0% Cap%</td>
+                  <td>34.0% Cap%</td>
+                  <td class="ft">1.33 avg · 4/6 +</td>
+                  <td class="ref">reference only</td>
+                  <td>Ladder score, defensive</td>
+                </tr>
+                <tr>
+                  <td>Legal</td>
+                  <td>Harvey LAB-compatible, n=100</td>
+                  <td>13.3%</td>
+                  <td>2.1%</td>
+                  <td class="ft">11.0%</td>
+                  <td class="pos">+8.9 pp</td>
+                  <td>Wilson 6.25–18.63%, p=8.9e-6</td>
                 </tr>
               </tbody>
             </table>
+          </div>
+
+          <div class="metric-block">
+            <div class="metric-block-head">
+              <div class="section-kicker">Legal Feedback Retry — 過去ミス n=15</div>
+              <p>model / effort / judge / task ID は同一。feedback skill のみ変更。</p>
+            </div>
+            <div class="metric-grid">
+              <div class="metric">
+                <span class="metric-label">All-pass rate</span>
+                <span class="metric-bar"><span class="metric-from" style="--w:0"></span><span class="metric-to" style="--w:20"></span></span>
+                <span class="metric-values"><b>0.0%</b> → <strong>20.0%</strong></span>
+                <span class="metric-delta pos">+20.0 pp</span>
+              </div>
+              <div class="metric">
+                <span class="metric-label">Criterion pass rate</span>
+                <span class="metric-bar"><span class="metric-from" style="--w:83.21"></span><span class="metric-to" style="--w:90.61"></span></span>
+                <span class="metric-values"><b>83.21%</b> → <strong>90.61%</strong></span>
+                <span class="metric-delta pos">+7.40 pp</span>
+              </div>
+              <div class="metric">
+                <span class="metric-label">One-miss failures</span>
+                <span class="metric-bar metric-bar-inv"><span class="metric-from" style="--w:100"></span><span class="metric-to" style="--w:50"></span></span>
+                <span class="metric-values"><b>10</b> → <strong>5</strong></span>
+                <span class="metric-delta pos">-5</span>
+              </div>
+              <div class="metric">
+                <span class="metric-label">大崩れ &lt; 70%</span>
+                <span class="metric-bar metric-bar-inv"><span class="metric-from" style="--w:100"></span><span class="metric-to" style="--w:80"></span></span>
+                <span class="metric-values"><b>5</b> → <strong>4</strong></span>
+                <span class="metric-delta pos">-1</span>
+              </div>
+            </div>
           </div>
         </div>
       </section>
