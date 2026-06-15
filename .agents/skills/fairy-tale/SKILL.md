@@ -74,6 +74,10 @@ python3 scripts/fairy_tale_residency_check.py
    - For code migration: map ownership, invariants, call sites, tests, and
      rollback plan before editing.
    - For research: prioritize primary sources, then high-signal field reports.
+   - For underspecified requests: recover tacit intent before implementing.
+     List inferred goals, latent constraints, destructive assumptions, and
+     validation probes. Ask only for missing information that cannot be safely
+     inferred or tested.
    - For legal, HLE-style, bio/health, finance/document, or other benchmark
      work: use the Domain Router before applying any agentic-coding harness.
    - For workflow improvement: inspect existing commands, skills, agents,
@@ -116,13 +120,34 @@ python3 scripts/fairy_tale_residency_check.py
 - Before editing, identify the smallest existing test, command, harness,
   rendered output, smoke script, or runtime check that can expose the target
   behavior.
+- Before changing an existing public or internal contract, map the current
+  call sites, visible tests, exported symbols, constructor shape, return shape,
+  dependency-injection shape, and adjacent generated files/helpers. Preserve
+  backward compatibility with wrappers, defaults, or narrow adapters unless the
+  task explicitly deprecates the old contract.
 - If no direct test exists, create a temporary or project-appropriate focused
   check before claiming the implementation is complete.
 - After editing, run the focused check and at least one adjacent compatibility
   check for the touched surface when feasible.
+- Include edge-case coverage for each touched surface when feasible: empty,
+  nil/null, default or legacy path, boundary size, duplicate or ordering case,
+  mapping/migration case, error path, and test-double/mock construction shape.
 - Treat visible failing tests or harness checks as patch failures unless the
   task explicitly changes that old behavior. Preserve old behavior with a
   narrower condition instead of dismissing the red check as expected.
+- Treat missing-argument errors, undefined symbols, missing modules,
+  constructor/type errors, or equality invariant failures as contract breaks.
+  Fix them before adding more feature logic.
+- Treat tests as an oracle, not a target to repaint. Do not rewrite tests or
+  fixtures just to match the patch. If tests must change, require red-green or
+  external-behavior evidence, and reject tautological assertions or mocks that
+  force the unit under test to succeed.
+- Preserve long-horizon maintainability: avoid duplicated logic, broad
+  special-case chains, large unrelated diffs, and added complexity in already
+  large functions when a small local abstraction or wrapper can satisfy the
+  requirement.
+- Avoid dependency, lockfile, generated-output, vendored-code, and broad config
+  churn unless that surface is explicitly required and validated.
 - If broad validation is blocked by unrelated infrastructure, record the exact
   blocker and still run the narrowest meaningful check that exercises the
   changed behavior.
@@ -302,6 +327,11 @@ python3 scripts/fairy_tale_residency_check.py
   review with `scripts/fairy_fusion_review.py` or a harness-native equivalent:
   independent specialist reviewers, contradiction table, blind-spot closure,
   artifact logging, and one-level recursion cap.
+- When a miss looks like poor generalization rather than missing effort, run a
+  generalization audit before adding task-specific rules: identify the latent
+  invariant, the evidence that should have revealed it, the false analogy or
+  over-compression that displaced it, and the smallest verifier that would
+  have caught the miss on a neighboring task.
 
 ### Fairy Fusion Harness
 
@@ -387,6 +417,35 @@ python3 scripts/fairy_tale_residency_check.py
   failure.
 - Once the grammar is stable, compile it into search, planning, choreography, or
   verification code.
+
+### Generalization Harness: executable world models and tacit intent
+
+- Use this for unfamiliar tools, hidden-rule tasks, ambiguous implementation
+  requests, and repeated benchmark misses where the model is seeing local facts
+  but failing to form a transferable rule.
+- Build an executable or checkable model of the task before spending expensive
+  actions: state, transitions, invariants, public interfaces, old behavior,
+  constraints, and success conditions.
+- Verify the model against observed transitions, existing tests, logs, examples,
+  screenshots, or user statements. Refactor the model toward fewer rules only
+  after it predicts the evidence.
+- Keep confirmed knowledge, refuted hypotheses, no-op observations, and open
+  assumptions in separate sections. Do not let lucky successes harden into
+  rules until the success reason has been tested.
+- Detect false analogies: if an unfamiliar task is being mapped to a known game,
+  framework, legal form, or coding pattern, require at least two independent
+  observations before acting on that analogy.
+- For unstated user intent, infer conservatively from the repo, prior local
+  patterns, domain norms, and explicit constraints. Mark each inference as
+  `confirmed`, `likely`, `risky`, or `needs user/input evidence`.
+- Ask a clarification question only when the unresolved assumption is
+  irreversible, safety-relevant, cost-heavy, externally visible, or likely to
+  change the user's intended outcome. Otherwise, make the smallest reversible
+  choice and validate it.
+- Before finalizing, run an implicit-contract sweep: adjacent files, exported
+  APIs, legacy behavior, mocks/fixtures, edge cases, non-functional constraints,
+  and user-facing output that the prompt did not spell out but the system
+  relies on.
 
 ### External Reconstruction Adapter Harness
 

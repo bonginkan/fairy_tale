@@ -209,6 +209,16 @@ def response_text(response: dict[str, Any]) -> str:
     return "\n".join(parts).strip()
 
 
+def retry_delay_seconds(headers: Any, attempt: int) -> float:
+    retry_after = headers.get("Retry-After") if headers else None
+    if retry_after:
+        try:
+            return min(float(retry_after), 60.0)
+        except ValueError:
+            pass
+    return min(2.0**attempt, 30.0)
+
+
 def call_openai(messages: list[dict[str, Any]], model: str, effort: str, timeout: int) -> dict[str, Any]:
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
@@ -216,19 +226,34 @@ def call_openai(messages: list[dict[str, Any]], model: str, effort: str, timeout
     body: dict[str, Any] = {"model": model, "input": messages}
     if effort and effort != "none":
         body["reasoning"] = {"effort": effort}
-    request = urllib.request.Request(
-        "https://api.openai.com/v1/responses",
-        data=json.dumps(body).encode("utf-8"),
-        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-        method="POST",
-    )
     request_timeout = None if timeout <= 0 else timeout
-    try:
-        with urllib.request.urlopen(request, timeout=request_timeout) as response:
-            return json.loads(response.read().decode("utf-8"))
-    except urllib.error.HTTPError as error:
-        detail = error.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"OpenAI API error {error.code}: {detail}") from error
+    last_error: Exception | None = None
+    for attempt in range(6):
+        request = urllib.request.Request(
+            "https://api.openai.com/v1/responses",
+            data=json.dumps(body).encode("utf-8"),
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=request_timeout) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as error:
+            detail = error.read().decode("utf-8", errors="replace")
+            last_error = RuntimeError(f"OpenAI API error {error.code}: {detail}")
+            if error.code not in {408, 409, 425, 429} and error.code < 500:
+                raise last_error from error
+            if attempt == 5:
+                raise last_error from error
+            time.sleep(retry_delay_seconds(error.headers, attempt))
+        except urllib.error.URLError as error:
+            last_error = RuntimeError(f"OpenAI API transport error: {error.reason}")
+            if attempt == 5:
+                raise last_error from error
+            time.sleep(retry_delay_seconds(None, attempt))
+    if last_error:
+        raise last_error
+    raise RuntimeError("OpenAI API call failed without a captured error")
 
 
 def parse_jsonish(text: str) -> Any:
@@ -360,7 +385,19 @@ def execute(task: dict[str, Any], roles: list[dict[str, Any]], args: argparse.Na
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
         future_map = {pool.submit(run_reviewer, task, role, args): role["name"] for role in roles}
         for future in as_completed(future_map):
-            reviewer_outputs.append(future.result())
+            role_name = future_map[future]
+            try:
+                reviewer_outputs.append(future.result())
+            except Exception as error:
+                reviewer_outputs.append(
+                    {
+                        "role": role_name,
+                        "raw_text": "",
+                        "parsed": None,
+                        "error": str(error),
+                        "elapsed_seconds": None,
+                    }
+                )
     reviewer_outputs.sort(key=lambda item: item["role"])
 
     started = time.time()
@@ -383,6 +420,7 @@ def execute(task: dict[str, Any], roles: list[dict[str, Any]], args: argparse.Na
         "model": args.model,
         "judge_model": args.judge_model or args.model,
         "reviewer_outputs": reviewer_outputs,
+        "reviewer_error_count": sum(1 for output in reviewer_outputs if output.get("error")),
         "synthesis": {
             "raw_text": synthesis_text,
             "parsed": parse_jsonish(synthesis_text),

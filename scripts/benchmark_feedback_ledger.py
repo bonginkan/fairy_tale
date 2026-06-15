@@ -239,9 +239,17 @@ def exploitbench(args: argparse.Namespace) -> int:
 
 
 SWE_RULES = {
+    "api_compatibility_break": "For SWE-style patches, before changing a function, method, constructor, return shape, argument list, exported symbol, or file path, map existing callers and visible tests. Preserve backward-compatible wrappers, defaults, or adapters unless the task explicitly deprecates the old contract.",
+    "missing_adjacent_symbol": "For SWE-style patches, verify every referenced helper, type, component, module, constant, generated file, and import path exists in the final diff and is exported or importable exactly as surrounding code expects.",
+    "test_mock_contract_break": "For SWE-style patches, preserve construction and dependency-injection shapes used by existing tests, mocks, factories, and fixtures; when refactoring construction, add compatibility shims or update the touched surface narrowly.",
+    "edge_case_invariant_gap": "For SWE-style patches, add or run focused checks for touched-surface edge cases: empty, nil/null, default or legacy path, boundary size, duplicate or ordering case, mapping or migration invariant, and error path.",
+    "weak_test_oracle": "For SWE-style patches, tests are an oracle rather than a target to repaint. If tests or fixtures change, require red-green or external-behavior evidence and reject tautological assertions, implementation-detail tests, snapshots of accidental output, or mocks that force the unit under test to pass.",
+    "architectural_erosion": "For SWE-style patches, review maintainability even when tests pass: avoid duplicated logic, broad special-case chains, large unrelated diffs, and added complexity in already-large functions when a small local abstraction or compatibility wrapper can satisfy the requirement.",
+    "dependency_or_artifact_churn": "For SWE-style patches, avoid dependency manifests, lockfiles, generated outputs, vendored code, snapshots, and broad config churn unless the task explicitly requires that surface and the validation ledger covers it.",
     "existing_behavior_regression": "For SWE-style patches, preserve existing visible behavior unless the requirement explicitly deprecates it. Before finalizing, inspect and run adjacent existing tests that encode old behavior; if a new priority rule appears to conflict, implement it narrowly instead of replacing the old invariant.",
     "missing_public_interface": "When a SWE task names a new function, type, method, or helper path, verify the exact symbol is exported or otherwise importable from that path, and run at least one targeted check that imports or calls the public interface exactly as specified.",
     "self_selected_validation_gap": "For SWE-style patches, do not rely only on self-selected focused tests. After editing, run or inspect the benchmark-selected adjacent tests for every touched helper/API surface, plus one compatibility test that covers prior behavior when available.",
+    "implicit_contract_gap": "For SWE-style patches, recover tacit contracts from adjacent files, legacy callers, mocks, fixtures, generated code, docs, issue wording, naming conventions, and existing error handling before editing. Verify each inferred contract with a neighboring check before finalizing.",
     "scorer_failure_general": "For SWE-style patches, convert each scorer failure into a concrete interface, behavior, or validation-gap hypothesis before retrying; avoid broad rewrites that are not tied to the failing assertion.",
 }
 
@@ -249,6 +257,7 @@ SWE_SUCCESS_PRACTICES = {
     "local_invariant_mapping": "For SWE-style patches, first map existing helpers, types, call sites, and adjacent tests, then reuse local abstractions instead of introducing a parallel mechanism.",
     "targeted_container_validation": "For SWE-style patches, validate inside the benchmark container with focused tests that exercise the touched surface and record exact commands and outputs.",
     "named_interface_completion": "When a SWE patch succeeds with named new interfaces, preserve the practice of implementing the exact requested symbol at the requested path while keeping backward-compatible wrappers when existing callers rely on them.",
+    "executable_model_verification": "For unfamiliar SWE-style behavior, encode the current understanding as a small checkable model of inputs, state, transitions, public contract, old invariants, and success condition; falsify it with adjacent tests or a focused script before spending broad retries.",
 }
 
 
@@ -258,8 +267,129 @@ def read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8", errors="replace")
 
 
-def classify_swe_failure(instance_id: str, output_payload: dict[str, Any], stdout: str, stderr: str) -> str:
-    text = "\n".join([instance_id, json.dumps(output_payload, sort_keys=True), stdout, stderr]).lower()
+def swe_diff_files(diff: str) -> list[str]:
+    return [line[6:] for line in diff.splitlines() if line.startswith("+++ b/")]
+
+
+def swe_diff_added_lines(diff: str) -> list[str]:
+    return [line[1:] for line in diff.splitlines() if line.startswith("+") and not line.startswith("+++")]
+
+
+def swe_is_test_path(path: str) -> bool:
+    normalized = path.lower()
+    parts = re.split(r"[/\\]", normalized)
+    return (
+        "test" in parts
+        or "tests" in parts
+        or "__tests__" in parts
+        or normalized.endswith(("_test.go", "_test.py", ".test.ts", ".test.tsx", ".spec.ts", ".spec.tsx"))
+        or "/test_" in normalized
+    )
+
+
+def classify_swe_failure(instance_id: str, output_payload: dict[str, Any], stdout: str, stderr: str, diff: str = "") -> str:
+    text = "\n".join([instance_id, json.dumps(output_payload, sort_keys=True), stdout, stderr, diff]).lower()
+    files = swe_diff_files(diff)
+    added_text = "\n".join(swe_diff_added_lines(diff)).lower()
+    if files:
+        lock_or_manifest_names = {
+            "package-lock.json",
+            "yarn.lock",
+            "pnpm-lock.yaml",
+            "cargo.lock",
+            "go.sum",
+            "poetry.lock",
+            "pdm.lock",
+            "requirements.txt",
+            "pyproject.toml",
+            "package.json",
+            "gemfile.lock",
+            "composer.lock",
+        }
+        generated_markers = (
+            "/dist/",
+            "/build/",
+            "/coverage/",
+            "/vendor/",
+            "/vendors/",
+            "/node_modules/",
+            "/generated/",
+            ".min.js",
+            ".snap",
+        )
+        changed_lines = sum(
+            1
+            for line in diff.splitlines()
+            if (line.startswith("+") and not line.startswith("+++"))
+            or (line.startswith("-") and not line.startswith("---"))
+        )
+        lower_files = [path.lower() for path in files]
+        if any(Path(path).name.lower() in lock_or_manifest_names for path in lower_files) or any(
+            any(marker in f"/{path}" for marker in generated_markers) for path in lower_files
+        ):
+            return "dependency_or_artifact_churn"
+        weak_test_markers = (
+            "assert true",
+            "assert.true(true",
+            "expect(true).tobe(true",
+            "expect(true).tobetruthy",
+            "mockreturnvalue(true",
+            "mockresolvedvalue(true",
+        )
+        if any(swe_is_test_path(path) for path in files) and any(marker in added_text for marker in weak_test_markers):
+            return "weak_test_oracle"
+        if len(files) > 10 or changed_lines > 900:
+            return "architectural_erosion"
+    if any(
+        marker in text
+        for marker in (
+            "missing required positional argument",
+            "too many arguments",
+            "not enough arguments",
+            "wrong number of arguments",
+            "cannot use",
+            "has no field or method",
+            "no method named",
+            "attributeerror:",
+        )
+    ):
+        return "api_compatibility_break"
+    if any(
+        marker in text
+        for marker in (
+            "undefined:",
+            "cannot find module",
+            "module not found",
+            "no such file or directory",
+            "unresolved import",
+            "unresolved reference",
+            "nameerror:",
+            "is not defined",
+        )
+    ):
+        return "missing_adjacent_symbol"
+    if any(marker in text for marker in ("is not a constructor", "mock constructor", "expected mock")):
+        return "test_mock_contract_break"
+    if any(marker in text for marker in ("not equal:", "expected:", "to equal", "assertionerror", "assertion failed", "mismatch")):
+        return "edge_case_invariant_gap"
+    if any(
+        marker in text
+        for marker in (
+            "fixture",
+            "snapshot",
+            "golden",
+            "legacy",
+            "backward compatible",
+            "compatibility",
+            "regression",
+            "migration",
+            "mock",
+            "generated",
+        )
+    ):
+        return "implicit_contract_gap"
+    if any(swe_is_test_path(path) for path in files):
+        return "weak_test_oracle"
     if "is not a function" in text or "undefined is not a function" in text or "not exported" in text:
         return "missing_public_interface"
     if "expected" in text and "to equal" in text:
@@ -287,6 +417,7 @@ def swe_bench_pro(args: argparse.Namespace) -> int:
         output_path = instance_dir / f"{args.prefix}_output.json"
         stdout_path = instance_dir / f"{args.prefix}_stdout.log"
         stderr_path = instance_dir / f"{args.prefix}_stderr.log"
+        patch_path = instance_dir / f"{args.prefix}_patch.diff"
         try:
             output_payload = load_json(output_path)
         except (FileNotFoundError, json.JSONDecodeError):
@@ -296,6 +427,7 @@ def swe_bench_pro(args: argparse.Namespace) -> int:
             output_payload=output_payload if isinstance(output_payload, dict) else {},
             stdout=read_text(stdout_path),
             stderr=read_text(stderr_path),
+            diff=read_text(patch_path),
         )
         counts[failure_class] += 1
         evidence_by_class.setdefault(failure_class, []).extend(
@@ -303,6 +435,7 @@ def swe_bench_pro(args: argparse.Namespace) -> int:
                 evidence_id("swe-output", output_path),
                 evidence_id("swe-stdout", stdout_path),
                 evidence_id("swe-stderr", stderr_path),
+                evidence_id("swe-patch", patch_path),
             ]
         )
 

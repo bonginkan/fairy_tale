@@ -247,6 +247,46 @@ retry result:
 promote to default: yes | no | needs confirmation
 ```
 
+## Generalization audit record
+
+Use this when a miss suggests poor generalization, false analogy, unlucky
+success, or failure to convert local observations into a transferable rule.
+
+```text
+source run / task:
+local facts observed:
+latent invariant that should transfer:
+false analogy / over-compression:
+under-compression / failure to commit:
+lucky success risk:
+evidence that would falsify the inferred rule:
+executable/checkable world model:
+verifier command / probe:
+confirmed rules:
+refuted rules / no-ops:
+neighboring task retry:
+promotion decision:
+```
+
+## Tacit intent recovery record
+
+Use this before acting on an underspecified user request, issue, ticket, or
+benchmark task where unstated constraints may determine correctness.
+
+```text
+explicit user request:
+artifact context inspected:
+inferred objective:
+likely implicit requirements:
+risky assumptions:
+irreversible / external-facing choices:
+questions required before action:
+reversible default chosen:
+implicit contract checks:
+validation artifact:
+remaining unknowns:
+```
+
 ## Feedback pruning record
 
 Use this before promoting, merging, or keeping accumulated feedback rules.

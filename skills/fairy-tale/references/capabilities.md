@@ -217,6 +217,78 @@ Workflow translation:
 - switch from exploration to BFS/planning only after the grammar is stable,
 - preserve recovery handles for long runs, scorecards, and remote sessions.
 
+## Generalization from ARC-AGI-3 harness reports
+
+ARC-AGI-3 field reports are useful only when their lessons transfer beyond the
+benchmark. Do not import game-specific prompts, hidden strategies, public-game
+answer keys, or scorecard-tuned policies. Extract reusable mechanisms instead:
+
+- executable world models: maintain a small program or structured model that
+  predicts state transitions, verify it against observations, simplify it, then
+  plan through it before acting;
+- experiential memory: write confirmed rules, failed hypotheses, no-op facts,
+  and open assumptions to a durable file so later levels or attempts can reuse
+  evidence without re-litigating it;
+- raw-log analysis: keep uncompressed logs available to tool-using agents so
+  grep, scripts, and replay inspection can recover facts that summary memory
+  lost;
+- subagent specialization: separate explorer, theorist, tester, solver,
+  interface, regression, and minimality roles when one reasoning path stalls;
+- success-reason verification: after a level, test why the win happened before
+  carrying the rule forward;
+- false-analogy control: reject familiar-game, familiar-framework, or
+  familiar-contract analogies until local evidence confirms the mapping;
+- action-budget awareness: treat every environment action, code edit, API call,
+  or legal conclusion as a costed probe with predicted and measured outcomes.
+
+Workflow translation:
+
+- before editing or answering, state the current world model: objects,
+  interfaces, invariants, transitions, constraints, and win condition;
+- run the smallest verifier that can falsify the model, such as an import
+  check, adjacent test, replay probe, table recalculation, or citation check;
+- keep confirmed and refuted knowledge separate, and prune stale rules before
+  promoting them to default behavior;
+- when a pass was lucky or poorly explained, do not treat it as training data;
+  add a success-reason check first;
+- prefer mechanisms that also improve SWE, legal, HLE, bio, document, and
+  security work. Benchmark-only scaffolding is not a Fairy Tale capability.
+
+## Tacit intent and implicit-contract recovery
+
+Users often provide goals without all domain assumptions, legacy constraints,
+acceptance criteria, or non-functional requirements. Research on tacit
+requirements and cognitive task analysis treats this as a knowledge-elicitation
+problem rather than a prompting problem. The useful translation for agents is a
+controlled inference protocol:
+
+- elicit intent from artifacts: existing code shape, tests, docs, issue text,
+  adjacent files, production conventions, prior conversation, domain norms, and
+  failure logs;
+- distinguish explicit requirements, likely implicit requirements, risky
+  assumptions, and unknowns;
+- use cognitive-task-analysis style probes: goals, cues, decisions, edge cases,
+  error recovery, expert shortcuts, and what would make the work unacceptable;
+- prefer reversible implementation choices when intent is likely but not fully
+  stated;
+- ask for clarification only when a missing assumption is irreversible,
+  safety-relevant, external-facing, expensive, or likely to change the desired
+  outcome;
+- validate inferred intent through artifacts before claiming completion.
+
+Workflow translation:
+
+- for SWE: inspect exported symbols, legacy callers, mocks, adjacent tests,
+  generated files, and edge cases before changing a contract;
+- for legal/document tasks: infer the missing task frame, but label
+  jurisdiction, authority, date, party role, and risk allocation assumptions;
+- for HLE-style tasks: identify hidden independent terms and answer-format
+  constraints before reasoning;
+- for UI/narrative tasks: infer audience and emotional need, then verify that
+  the next action and tone match the brief;
+- for security: never infer authorization or destructive permission from
+  silence.
+
 ## External theoretical reconstruction
 
 OpenMythos provides a public MIT-licensed theoretical reconstruction of a

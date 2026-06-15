@@ -49,6 +49,28 @@ For the active ecosystem watchlist, see [OSS watch](oss-watch.md).
 - `exploitbench/exploitbench` - public ExploitBench V8 capability-ladder
   benchmark harness. <https://github.com/exploitbench/exploitbench>
 
+## Generalization and ARC-AGI-3 References
+
+- `arcprize/arc-agi-3-benchmarking` - official ARC-AGI-3 benchmarking
+  harness. <https://github.com/arcprize/arc-agi-3-benchmarking>
+- `arcprize/ARC-AGI-Community-Leaderboard` - public method showcase used to
+  identify reproducible, general-purpose approaches.
+  <https://github.com/arcprize/ARC-AGI-Community-Leaderboard>
+- `astroseger/arc-3-agents-baseline1` - executable world-model coding-agent
+  approach for ARC-AGI-3. <https://github.com/astroseger/arc-3-agents-baseline1>
+- `rednote-hilab/TELL` - test-time experiential lifelong learning with
+  file-backed world memory. <https://github.com/rednote-hilab/TELL>
+- `alexisfox7/RGB-Agent` - Read-Grep-Bash/OpenCode-style raw-log analysis and
+  batched action planning. <https://github.com/alexisfox7/RGB-Agent>
+- `symbolica-ai/ARC-AGI-3-Agents` and `symbolica-ai/agentica-server` -
+  multi-agent Arcgentica/Agentica orchestration references.
+  <https://github.com/symbolica-ai/ARC-AGI-3-Agents>
+  <https://github.com/symbolica-ai/agentica-server>
+- `DriesSmit/ARC3-solution` - StochasticGoose action-learning preview winner.
+  <https://github.com/DriesSmit/ARC3-solution>
+- `dolphin-in-a-coma/arc-agi-3-just-explore` - graph-based exploration
+  approach. <https://github.com/dolphin-in-a-coma/arc-agi-3-just-explore>
+
 ## Security Health References
 
 - `ossf/scorecard` - future OSS repository security-health reference.
