@@ -104,6 +104,7 @@ Rows marked reference-only are not official benchmark submissions.
 | Biology | BioMysteryBench-preview, n=5 | 46.1% / 83.9% | 60.0% | **80.0%** | **+20.0 pp** |
 | Cybersecurity | ExploitBench v8 ladder sample, n=6 | 78.0% Cap% | 34.0% Cap% | **1.33 avg; 4/6 positive** | **reference only** |
 | Legal | Harvey LAB-compatible random sample, n=100 | 13.3% | 2.1% | **11.0%** | **+8.9 pp** |
+| Context efficiency | Less-Context Bench hard seeds, n=6 x 3 runs | n/a | 10/18 correct; 6/18 budgeted | **11/18 correct; 3/18 budgeted** | **+5.6 pp correct; -16.7 pp budgeted** |
 
 Notes:
 
@@ -124,6 +125,17 @@ Notes:
   Benchmark scores. **Fairy Tale** is a local Harvey LAB-compatible random
   sample, 11/100, with 95% Wilson CI 6.25-18.63% and one-sided p vs 2.1%
   baseline = 8.90e-6.
+- Less-Context Bench is a private local hard-seed calibration run, not a public
+  leaderboard. The repeated smoke used the same `gpt-5.5` API model with and
+  without the canonical `SKILL.md` text injected as resident process
+  instructions. Correctness was 10/18 without Fairy Tale, 95% Wilson CI
+  33.7-75.4%, and 11/18 with Fairy Tale, CI 38.6-79.7%. Budgeted retrieval
+  worsened from 6/18, CI 16.3-56.3%, to 3/18, CI 5.8-39.2%, and mean read ratio
+  increased from 1.179 to 1.214. The per-run correctness delta changed sign, so
+  this does not support a stable positive effect. The result is best read as a
+  measurement caveat: `SKILL.md` text injection may encourage more exhaustive
+  verification and does not reproduce full skill residency, sub-file loading, or
+  tool-gated workflow behavior.
 
 ### Legal Feedback Retry
 
