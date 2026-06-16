@@ -2062,3 +2062,1508 @@ SWE-style misses:
 If Fairy Tale works here, the with-condition should show fewer independent
 checklists and more transferable invariants backed by executable or checkable
 evidence.
+
+## Measured n=1 Less-Leading v2 Comparison
+
+Date: 2026-06-16
+
+### Why v2 Exists
+
+The first measured run was useful, but the user prompt directly asked for
+several mechanisms that Fairy Tale is supposed to recover: latent invariants,
+implicit contracts, and a checkable model. That made the baseline unusually
+strong and reduced the space where generalization could show up.
+
+This v2 run removes those mechanism labels from the user prompt. The prompt is
+still artifact-rich, but it asks for an ordinary design-review deliverable:
+what to change, what to test, release risks, and only necessary questions.
+The hidden evaluator still checks whether the answer recovers the transferable
+structure.
+
+### Run Conditions
+
+- Model: `gpt-5.5`
+- API: OpenAI Responses API
+- Reasoning effort: `medium`
+- Samples: one less-leading prompt x two conditions
+- Without condition: careful senior engineer design-review system guidance
+- With condition: same user prompt plus Fairy Tale generalization harness process guidance
+- Judge: `gpt-5.5`, same API path, hidden rubric
+- Artifact IDs:
+  - without: `resp_0ba5ef70ed227483006a30ce34d61081988543b3cfec7deaa9`
+  - with: `resp_07025025e9fb8d8f006a30ce77f1808198865ce89f469ce719`
+  - judge: `resp_0b6af03ac79d1054006a30cefd4618819ba1303a9ba9ae44ca`
+
+### v2 User Prompt
+
+~~~text
+あなたは次のrepo断片を引き継いだエンジニアです。
+新しいPRを作る前に、設計レビューとして「どう進めるべきか」「何をテストすべきか」「どこをリリース前に確認すべきか」をまとめてください。
+コード実装そのものではなく、レビューコメント/実装方針として返してください。
+
+状況:
+enterprise AI intake platformに、tenantごとのregional policy packとdelegated reviewerを追加したい。
+既存顧客の連携は壊したくないが、どこが壊れやすいかはまだ整理できていない。
+
+packages/api/src/recipient.ts
+```ts
+export type Recipient = {
+  id: string;
+  email: string;
+  tenantId: string;
+  role?: "owner" | "agent" | "viewer";
+};
+
+// Existing public helper. Used by API, worker, tests, and customer plugins.
+export function normalizeRecipient(input: string | Recipient): Recipient {
+  if (typeof input === "string") {
+    return {
+      id: input.toLowerCase(),
+      email: input.toLowerCase(),
+      tenantId: "legacy-default",
+    };
+  }
+  return {
+    ...input,
+    email: input.email.toLowerCase(),
+  };
+}
+```
+
+packages/api/src/policy.ts
+```ts
+export type Region = "jp" | "eu" | "us";
+export type PolicyPack = {
+  region: Region;
+  allowAiDraft: boolean;
+  requireHumanReview: boolean;
+  exportMode: "full" | "redacted";
+};
+
+export const DEFAULT_POLICY: PolicyPack = {
+  region: "us",
+  allowAiDraft: true,
+  requireHumanReview: false,
+  exportMode: "full",
+};
+```
+
+packages/worker/src/events.py
+```python
+def emit_case_event(case_id, tenant_id, actor_id, action, metadata=None):
+    return {
+        "caseId": case_id,
+        "tenantId": tenant_id,
+        "actorId": actor_id,
+        "action": action,
+        "metadata": metadata or {},
+    }
+```
+
+packages/web/src/components/ReviewModal.tsx
+```tsx
+export function ReviewModal({ open, onClose, children }) {
+  if (!open) return null;
+  return (
+    <div role="dialog" aria-modal="true">
+      <button aria-label="Close" onClick={onClose}>x</button>
+      {children}
+    </div>
+  );
+}
+```
+
+contracts/dpa-ai-addendum.md excerpt:
+```text
+Provider may process Customer Data to provide AI intake, routing, draft
+generation, analytics, and service improvement. Provider will support
+region-specific configurations where enabled in the product. Customer remains
+responsible for final decisions based on AI Outputs.
+```
+
+Existing tests:
+```text
+recipient.test.ts
+- normalizeRecipient("USER@EXAMPLE.COM") returns tenantId "legacy-default"
+- normalizeRecipient({ email: "A@B.COM", tenantId: "t1" }) preserves tenantId
+- plugins can import normalizeRecipient from packages/api/src/recipient
+
+events.test.py
+- emit_case_event(..., metadata=None) returns metadata {}
+- event keys are caseId, tenantId, actorId, action, metadata
+
+ReviewModal.test.tsx
+- close button can be clicked with keyboard
+- role="dialog" exists when open
+```
+
+New requested behavior:
+```text
+- Customers can enable a regional policy pack per tenant.
+- In JP/EU policy packs, AI drafts may still be generated, but a delegated reviewer must approve before customer-facing send/export.
+- A delegated reviewer may belong to the same tenant or a parent tenant, but never a sibling tenant.
+- Export must be redacted when policy.exportMode is "redacted".
+- Audit logs must show whether an action was AI-drafted, human-approved, or blocked by policy.
+- Existing integrations that call normalizeRecipient(input) must keep working.
+- Existing event consumers must keep working.
+- Existing ReviewModal keyboard behavior must keep working.
+```
+
+Previous failed PR notes:
+```text
+FAIL recipient.test.ts
+TypeError: normalizeRecipient() missing required argument 'policy'
+
+FAIL customer-plugin-smoke.test.ts
+Cannot import normalizeRecipient from packages/api/src/recipient
+
+FAIL events.test.py
+AssertionError: event keys changed:
+expected ['caseId','tenantId','actorId','action','metadata']
+actual ['caseId','tenantId','actorId','action','metadata','policy','approval']
+
+FAIL ReviewModal.test.tsx
+Expected close button to be keyboard reachable after reviewer selector appears
+
+Incident note:
+After enabling jp policy for tenant t-parent, two child tenants could approve each other's exports because parentTenantId was treated as a flat group id.
+
+Customer note:
+A JP customer was told "regional policy pack means data stays in Japan", but engineering only implemented review/export behavior. No storage or processing location control exists yet.
+```
+
+Deliverable:
+- Proposed design direction.
+- Tests/probes to add before merging.
+- Rollout/release risks.
+- Clarifying questions, only where the repo notes are insufficient.
+~~~
+
+### Hidden Evaluator Rubric
+
+~~~text
+Hidden evaluator rubric for this less-leading v2 run.
+
+The user prompt intentionally does not name world models, tacit contracts, latent invariants, or executable verification. A strong answer should still recover them from artifacts.
+
+Score each answer out of 100:
+
+| Category | Points | Hidden expectation |
+|---|---:|---|
+| Artifact-grounded model | 15 | Identifies entities/actions/state-like lifecycle enough to reason across API, worker events, UI, tenant auth, and customer-facing wording. Does not need the phrase "world model". |
+| Shared invariant recovery | 15 | Explicitly or operationally identifies: add policy/review behavior as an additive layer while preserving legacy signatures, imports, event envelope, keyboard behavior, tenant hierarchy semantics, and truthful compliance claims. |
+| Tacit contract recovery | 20 | Recovers public helper signature/import path, exact event top-level shape, modal keyboard/close affordance, directional parent-child delegation, and the fact that regional policy is not data residency. |
+| Checkable verifier or probes | 15 | Provides a small executable/pseudocode model or concrete test fixtures that catch sibling approval and at least one compatibility invariant. High-level "add tests" alone is insufficient. |
+| Validation matrix / coverage map | 15 | Maps surfaces to old behavior, new behavior, test/probe, and failure prevented. A table is not required, but coverage must be systematic. |
+| Assumption governance | 10 | Separates confirmed prompt facts, inferred requirements, risky assumptions, and questions/blockers. Does not ask unnecessary questions where artifacts already answer. |
+| Minimal compatible design | 10 | Keeps existing helpers/events/modal behavior intact through wrappers/metadata/versioning/focused additions; avoids broad rewrites and customer-facing overclaims. |
+
+Expected high-value findings:
+- normalizeRecipient(input) and import path are public contracts; do not add required policy argument or move export.
+- Existing string behavior returns legacy-default; do not silently reinterpret it.
+- emit_case_event top-level keys are asserted; policy/approval should be nested under metadata or put in a versioned/secondary stream.
+- Parent-child delegation is directional; siblings sharing a parent are not authorized.
+- ReviewModal close button and keyboard reachability must remain tested after reviewer selector is added.
+- Regional policy pack is review/export policy, not data residency without storage/processing controls.
+
+Return:
+1. A score table with both answers.
+2. Total score and delta.
+3. Item-level comparison.
+4. Whether the v2 prompt meaningfully reduced hints compared with a prompt that asks directly for latent invariant/world model/checkable model.
+~~~
+
+### Comparison Evaluation
+
+## 1. Score table
+
+| Category | Points | Answer A | Answer B |
+|---|---:|---:|---:|
+| Artifact-grounded model | 15 | 15 | 15 |
+| Shared invariant recovery | 15 | 15 | 15 |
+| Tacit contract recovery | 20 | 20 | 20 |
+| Checkable verifier or probes | 15 | 14 | 15 |
+| Validation matrix / coverage map | 15 | 13 | 14 |
+| Assumption governance | 10 | 8 | 10 |
+| Minimal compatible design | 10 | 10 | 10 |
+| **Total** | **100** | **95** | **99** |
+
+**Delta:** Answer B +4 over Answer A.
+
+---
+
+## 2. Total score and delta
+
+- **Answer A: 95/100**
+- **Answer B: 99/100**
+- **Delta: 4 points in favor of Answer B**
+
+Both answers are very strong and recover the important hidden expectations. Answer B is slightly better because it more explicitly separates confirmed facts, inferred requirements, risky assumptions, and blockers, and it gives a clearer invariant/model framing with more concrete pseudo-model language.
+
+---
+
+## 3. Item-level comparison
+
+### Artifact-grounded model
+
+Both answers correctly identify the relevant surfaces:
+
+- API helper: `normalizeRecipient`
+- Worker event envelope: `emit_case_event`
+- Web modal accessibility contract: `ReviewModal`
+- Tenant policy and reviewer delegation
+- Export redaction
+- Audit logging
+- Customer/legal wording around regional policy
+
+**Result:** tie. Both deserve full credit.
+
+---
+
+### Shared invariant recovery
+
+Both recover the key compatibility invariants:
+
+- Do not change `normalizeRecipient(input)` signature.
+- Do not move or remove the public import path.
+- Preserve string input behavior returning `tenantId: "legacy-default"`.
+- Do not change event top-level shape.
+- Put policy/approval/audit data under `metadata` or a v2/secondary event.
+- Preserve ReviewModal close button keyboard reachability.
+- Enforce parent-child reviewer authorization directionally.
+- Do not claim regional policy implies data residency.
+
+**Result:** tie. Full credit for both.
+
+---
+
+### Tacit contract recovery
+
+Both answers explicitly recover the hidden public/tacit contracts:
+
+- `normalizeRecipient(input: string | Recipient): Recipient` is public.
+- Existing plugin import path is a contract.
+- Existing event keys must remain exactly `caseId`, `tenantId`, `actorId`, `action`, `metadata`.
+- `metadata=None` must remain `{}`.
+- Close button keyboard accessibility remains a modal contract.
+- Parent/ancestor delegation is not sibling delegation.
+- Regional policy pack is not data residency.
+
+Answer B is a little more explicit about `normalizeRecipient.length`, role union breakage, and metadata-shape consumer risk, but Answer A still covers all mandatory elements.
+
+**Result:** both full credit.
+
+---
+
+### Checkable verifier or probes
+
+Answer A gives many concrete tests and fixtures, including:
+
+```text
+t-parent
+  ├─ t-child-a
+  └─ t-child-b
+```
+
+and explicitly requires sibling approval regression tests plus compatibility tests for `normalizeRecipient`, events, and ReviewModal.
+
+Answer B does the same, but also states a crisp invariant:
+
+```text
+canApprove(caseTenant, reviewerTenant) is true iff
+  reviewerTenant == caseTenant
+  OR reviewerTenant is ancestor of caseTenant.
+```
+
+This is closer to the expected “small model / verifier” recovery. It is still not fully executable, but it is operational enough and paired with concrete fixtures.
+
+**Result:** Answer B slightly stronger.
+A: 14/15, B: 15/15.
+
+---
+
+### Validation matrix / coverage map
+
+Neither answer gives a literal matrix mapping each surface to old behavior, new behavior, test/probe, and failure prevented. However, both provide systematic coverage across:
+
+- recipient compatibility
+- event compatibility
+- ReviewModal accessibility
+- policy resolution
+- approval gate
+- tenant hierarchy authorization
+- export redaction
+- audit logging
+- rollout risks
+- customer messaging
+
+Answer B’s structure is more systematic: it includes invariants, tests, release risks, rollout plan, and PR breakdown. Answer A is also comprehensive but less explicitly organized as a coverage map.
+
+**Result:** Answer B slightly stronger.
+A: 13/15, B: 14/15.
+
+---
+
+### Assumption governance
+
+Answer A includes clarifying questions and identifies risk areas, but it does not clearly separate:
+
+- confirmed prompt facts
+- inferred requirements
+- risky assumptions
+- blockers
+
+It does not ask unnecessary questions, and the questions are relevant, so it scores well but not perfectly.
+
+Answer B explicitly starts with:
+
+- confirmed facts
+- inferred requirements
+- dangerous assumptions
+
+and later separates release-blocking questions from non-blocking clarifications. This maps very directly to the rubric.
+
+**Result:** Answer B clearly stronger.
+A: 8/10, B: 10/10.
+
+---
+
+### Minimal compatible design
+
+Both answers recommend an additive, compatibility-preserving implementation:
+
+- keep existing helper
+- add separate policy resolver
+- keep event top-level schema
+- add metadata or v2 audit stream
+- enforce on API/worker, not only UI
+- feature flag rollout
+- avoid overclaiming residency
+- avoid broad rewrites
+
+Answer B adds a useful staged PR plan, but Answer A also meets the category fully.
+
+**Result:** tie. Full credit for both.
+
+---
+
+## 4. Did the v2 prompt meaningfully reduce hints?
+
+Yes, the v2 prompt meaningfully reduced direct conceptual hints compared with a prompt that explicitly asks for “latent invariants,” “world model,” or “checkable model.”
+
+However, the repo artifacts and failure notes still strongly point to the expected conclusions. The prompt does not name the concepts, but it gives enough concrete evidence for a strong respondent to infer them:
+
+- Failed `normalizeRecipient(policy)` call reveals public signature invariant.
+- Failed plugin import reveals import-path contract.
+- Failed event-key assertion reveals event envelope invariant.
+- Failed ReviewModal keyboard test reveals accessibility contract.
+- Incident note reveals directional tenant hierarchy invariant.
+- Customer note reveals regional-policy-vs-data-residency distinction.
+
+So the v2 prompt is less leading at the terminology level, but still artifact-rich. It effectively tests whether the respondent can recover the invariants from evidence rather than from named abstractions. Both answers did recover them; Answer B did so with slightly more explicit assumption governance and model-like invariants.
+
+### v2 Result Interpretation
+
+The less-leading v2 run produced a larger measured gap than v1:
+
+| Condition | Score |
+|---|---:|
+| Without Fairy Tale | 95 / 100 |
+| With Fairy Tale | 99 / 100 |
+| Delta | +4 |
+
+This is still an `n=1` reference sample, not a benchmark claim. The useful
+signal is qualitative: removing direct mechanism labels did not prevent the
+control answer from recovering most obvious contracts, but the Fairy Tale
+condition was stronger on assumption governance, model-like invariants, and
+systematic validation coverage.
+
+The remaining caveat is that the prompt still includes rich failure evidence.
+That is intentional for this sample because the task targets artifact-based
+generalization, not blind puzzle solving. A harder held-out variant should
+remove some failure notes and test whether the process still reconstructs the
+same contracts from neighboring artifacts.
+
+### Full Output: Without Fairy Tale v2
+
+~~~text
+## 1. Proposed design direction
+
+### Backward compatibilityを最優先にする
+過去PRの失敗から、まず以下は破らない方針にすべきです。
+
+- `normalizeRecipient(input)` の既存シグネチャは変更しない
+  - `policy` などを必須引数にしない
+  - customer pluginが `packages/api/src/recipient` から import できる状態を維持する
+- `emit_case_event(...)` のトップレベルキーは変更しない
+  - 既存キーは必ず `caseId, tenantId, actorId, action, metadata`
+  - `policy` や `approval` はトップレベルに追加しない
+  - 必要な監査情報は `metadata` 配下に追加する
+- `ReviewModal` の既存keyboard操作を維持する
+  - reviewer selector追加後もClose buttonがキーボード到達可能であること
+
+### PolicyはRecipient正規化から分離する
+`normalizeRecipient` は既存の public helper なので、policy解決やreviewer判定を混ぜるべきではありません。
+
+推奨方針:
+
+- `normalizeRecipient` は現状維持
+- tenantごとのpolicy取得は別レイヤーに切り出す
+  - 例: `getPolicyForTenant(tenantId)`
+  - 未設定tenantは `DEFAULT_POLICY`
+- policy適用は send/export/review workflow 側で行う
+- Recipientの正規化とpolicy enforcementを結合しない
+
+これにより、既存API・worker・tests・customer pluginの破壊リスクを抑えられます。
+
+### Regional policy packは「review/export制御」として明確化する
+現在のcontract文言とcustomer noteを見る限り、実装済みまたは今回実装予定の範囲は以下です。
+
+- JP/EU policy:
+  - AI draft生成は許可される場合がある
+  - customer-facing send/export前にdelegated reviewer approvalが必須
+- `policy.exportMode === "redacted"` の場合:
+  - export payloadをredactedにする
+- audit log:
+  - AI-drafted
+  - human-approved
+  - blocked-by-policy
+  を識別可能にする
+
+ただし、**data residency / storage location / processing location control は未実装**です。
+「regional policy pack = data stays in Japan」と誤認されるリスクがあるため、リリース前にproduct/legal/customer-facing messagingを修正すべきです。
+
+### Delegated reviewer判定はtenant階層で厳密に行う
+過去incidentでは `parentTenantId` をflat group扱いしたことで sibling tenant間のapprovalが可能になっています。
+
+判定ルールは以下にすべきです。
+
+- reviewer tenant == case/customer tenant: OK
+- reviewer tenant is parent/ancestor of case tenant: OK
+- reviewer tenant is sibling of case tenant: NG
+- reviewer tenant is child of case tenant: 原則NG unless明示要件あり
+- tenant hierarchyは単なる `parentTenantId` 一致ではなく、方向性のある ancestor check にする
+
+特に以下のような誤判定を避ける必要があります。
+
+```text
+t-parent
+  ├─ t-child-a
+  └─ t-child-b
+```
+
+`t-child-a` のreviewerが `t-child-b` のexportをapproveできてはいけません。
+
+### EnforcementはUIではなくserver/worker側で行う
+ReviewModalやweb UIは補助であり、最終的なpolicy enforcementはAPI/worker側に置くべきです。
+
+必須ゲート:
+
+- send/export実行前にpolicyを解決
+- policyがhuman review必須ならapproval recordを確認
+- approval reviewerのtenant権限を確認
+- 未承認ならblockedとしてaudit eventを出す
+- export時は `exportMode` を見てredactionを強制
+
+UIだけで制御するとAPI直叩きやworker経由で抜ける可能性があります。
+
+### Audit eventはmetadata拡張で対応する
+既存consumer互換性を維持するため、イベントのトップレベルshapeは固定します。
+
+例として、監査情報は `metadata` 内に入れる方針が安全です。
+
+```json
+{
+  "caseId": "...",
+  "tenantId": "...",
+  "actorId": "...",
+  "action": "export_blocked",
+  "metadata": {
+    "audit": {
+      "aiDrafted": true,
+      "humanApproved": false,
+      "blockedByPolicy": true,
+      "policyRegion": "jp",
+      "exportMode": "redacted"
+    }
+  }
+}
+```
+
+注意点:
+
+- metadataの追加は既存consumerが許容する前提だが、厳格schema consumerがいる可能性は確認する
+- PIIやunredacted contentをmetadataに入れない
+- reviewerIdを入れる場合も最小限にする
+
+---
+
+## 2. Tests / probes to add before merging
+
+### Backward compatibility tests
+
+#### `normalizeRecipient`
+既存テストは維持し、追加で以下を確認します。
+
+- `normalizeRecipient("USER@EXAMPLE.COM")` が引き続き動く
+- 引数は1つで呼べる
+- `tenantId: "legacy-default"` が維持される
+- object入力時に `tenantId` が保持される
+- `role` など既存optional fieldが壊れない
+- customer plugin smoke importが通る
+- public export pathが変わっていない
+
+#### Events
+既存consumer互換性として以下を固定します。
+
+- `emit_case_event(...).keys()` が既存5キーのみ
+- `metadata=None` は `{}` のまま
+- policy/approval/audit情報を入れる場合もトップレベルキーは増えない
+- metadata内に追加しても既存の空metadataケースが壊れない
+
+#### ReviewModal
+既存keyboard behaviorを維持するため、以下を追加します。
+
+- reviewer selector表示後もClose buttonにTabで到達できる
+- Close buttonがkeyboardでクリック可能
+- dialog roleが維持される
+- selector追加時にfocus trapやauto-focusがClose buttonを到達不能にしない
+- `aria-modal="true"` が維持される
+
+---
+
+### Policy resolution tests
+
+- policy未設定tenantは `DEFAULT_POLICY`
+- tenantにJP policyを設定するとそのpolicyが返る
+- tenantにEU policyを設定するとそのpolicyが返る
+- tenantにUS/default policyを設定した場合のreview要否
+- invalid region/configを拒否する
+- policy変更後、send/export判定に反映される
+- policy pack versionを持つならauditに記録される
+
+---
+
+### JP/EU approval gate tests
+
+- JP policyでAI draft生成は可能
+- JP policyで未承認send/exportはblocked
+- JP policyで承認済みsend/exportは成功
+- EU policyでも同様
+- US/default policyでは既存挙動が維持される
+- `requireHumanReview: true` のときはregionに関係なくgateされる
+- `allowAiDraft: false` の場合はdraft生成自体がblockedされる
+- blocked時にaudit logが出る
+- approval済みでもpolicy変更後に再承認が必要かどうかを仕様化し、その通りテストする
+
+---
+
+### Delegated reviewer authorization tests
+
+tenant treeを使ったテストを必ず入れるべきです。
+
+```text
+t-parent
+  ├─ t-child-a
+  └─ t-child-b
+```
+
+必要なケース:
+
+- reviewer tenant == case tenant: approve OK
+- reviewer tenant == parent tenant: approve OK
+- reviewer tenant == sibling tenant: approve NG
+- reviewer tenant == child tenant: approve NG
+- unrelated tenant: approve NG
+- parentのparentなどancestor tenantを許可するかどうか
+  - 許可するならOKテスト
+  - 許可しないならNGテスト
+- tenant hierarchy cycleがある場合の防御
+- deleted/disabled tenant reviewerはNG
+- reviewer role/permissionが必要ならrole不足はNG
+
+過去incident再発防止として、sibling approvalのregression testは必須です。
+
+---
+
+### Export redaction tests
+
+- `exportMode: "redacted"` ではcustomer-facing export payloadがredactedされる
+- `exportMode: "full"` では既存挙動が維持される
+- audit metadataやevent payloadにunredacted dataが漏れない
+- blocked export時にexport artifactが生成されない
+- approval済みredacted exportでもredactionは維持される
+- nested fields / attachments / free text / AI draft contentなどredaction対象の境界を確認する
+- redaction失敗時はfail-closedにする
+
+---
+
+### Audit log tests
+
+- AI draft生成時に `aiDrafted` が分かる
+- human approval時に `humanApproved` が分かる
+- policy block時に `blockedByPolicy` が分かる
+- action名またはmetadataで状態を判別できる
+- event top-level schemaは変わらない
+- reviewer approval eventにtenant/reviewer情報が最小限入る
+- export redacted/fullが監査上判別できる
+- audit logにPIIやunredacted customer dataが入らない
+
+---
+
+### End-to-end / smoke probes
+
+最低限、feature flag有効tenantと無効tenantでE2Eを分けて確認したいです。
+
+- legacy tenant:
+  - 既存API/plugin/event/UIが変わらない
+- JP tenant:
+  - draft生成
+  - reviewer選択
+  - approval
+  - redacted export
+  - audit確認
+- sibling tenant:
+  - approval拒否
+  - auditにblocked記録
+- direct API call:
+  - UIを経由せずsend/exportしてもpolicy gateされる
+- worker path:
+  - worker経由のexport/sendでもpolicy gateされる
+
+---
+
+## 3. Rollout / release risks
+
+### 互換性リスク
+最も壊れやすい箇所は以下です。
+
+- `normalizeRecipient` のsignature変更
+- public import path変更
+- event top-level schema変更
+- metadata schemaを厳格に見ている外部consumer
+- ReviewModalのfocus順序変更
+- APIとworkerでpolicy enforcementが片方だけになること
+
+対策:
+
+- feature flag per tenant
+- default off
+- legacy tenantは既存挙動維持
+- contract testsをCIに追加
+- customer plugin smoke testをrelease gateにする
+
+### Security / authorization risk
+delegated reviewerのtenant判定は高リスクです。
+
+特に以下はrelease前に必ず確認すべきです。
+
+- sibling approvalが不可能
+- parent/ancestor approvalの定義が明確
+- reviewer role/permissionの確認
+- approval recordの改ざん防止
+- approval後に対象case/export内容が変わった場合の扱い
+- race conditionで未承認exportが通らないこと
+
+### Compliance / customer communication risk
+JP customer noteがかなり重要です。
+
+現状の実装範囲がreview/export policyだけなら、以下は明確にすべきです。
+
+- data residencyは保証しない
+- Japan内保存・処理を意味しない
+- AI provider processing locationも制御しない
+- product UI / docs / sales collateral / DPA文言の整合性を確認する
+
+このまま「regional」と表現すると誤認リスクがあります。
+必要なら名称を `regional review/export policy pack` などに寄せるべきです。
+
+### Rollout方針
+推奨:
+
+1. schema/API互換性を守ったままコード追加
+2. feature flag default off
+3. internal tenantでdry-run
+   - 実際にはblockしないが、block would happenのauditを出す
+4. pilot tenantでJP/EU policy有効化
+5. blocked/export/redaction/audit metricsを監視
+6. 問題なければtenant単位で段階展開
+
+監視したい指標:
+
+- policy blocked count
+- approval success/failure count
+- sibling/unrelated approval denied count
+- redacted export count
+- export failures
+- event consumer errors
+- plugin import/runtime errors
+- UI accessibility errors or support tickets
+
+---
+
+## 4. Release前に確認すべきポイント
+
+- `normalizeRecipient` の既存テストがそのまま通る
+- customer plugin smoke testが通る
+- event top-level keysが変わっていない
+- ReviewModalのkeyboard accessibilityが維持される
+- JP/EU policyで未承認send/exportがserver側でblockedされる
+- approval済みでのみsend/export可能
+- sibling tenant approvalが不可能
+- redacted exportで漏洩がない
+- audit logでAI draft / approval / blockが判別できる
+- audit/event metadataにunredacted customer dataが入らない
+- feature flag off tenantで既存挙動が維持される
+- product/legal/docsで「regional policy pack」の意味が正しく説明されている
+- data residencyを保証しないなら、その旨が明記されている
+
+---
+
+## 5. Clarifying questions
+
+実装前に確認したい不足情報は以下です。
+
+1. 「parent tenant」はdirect parentのみですか、それともancestor全体を含みますか？
+2. delegated reviewerには特定role/permissionが必要ですか？ 例: `owner` のみ、または reviewer permission
+3. approval後にcase content、AI draft、export対象が変更された場合、再approvalが必要ですか？
+4. `requireHumanReview` と region の関係はどちらが優先ですか？
+   例: USでも `requireHumanReview: true` なら必須でよいですか？
+5. redaction対象フィールドの正式な定義はありますか？ attachmentsやAI draft本文も対象ですか？
+6. audit logは既存event streamで満たす想定ですか、それとも別の監査ストアがありますか？
+7. 「regional policy pack」という名称はdata residencyを連想させますが、product/legalとしてこの名称のままでよいですか？
+~~~
+
+### Full Output: With Fairy Tale v2
+
+~~~text
+## 1. 前提整理：確認済み事実 / 推定要件 / 危険な仮定
+
+### 確認済み事実
+
+- `normalizeRecipient(input)` は既存の公開ヘルパーであり、API / worker / tests / customer plugins から利用されている。
+- 既存連携は `normalizeRecipient(input)` の引数数・import path・戻り値の基本形に依存している。
+- `emit_case_event()` の既存イベントは top-level keys が以下に固定されている前提のテストがある。
+  `caseId, tenantId, actorId, action, metadata`
+- `ReviewModal` は既存の keyboard 操作、特に close button の到達性が契約になっている。
+- 新要件では、tenant ごとの regional policy pack と delegated reviewer が必要。
+- JP/EU policy pack では AI draft 自体は生成可能だが、customer-facing send/export 前に delegated reviewer approval が必要。
+- reviewer は同一 tenant または parent tenant に所属可能。ただし sibling tenant は不可。
+- `policy.exportMode === "redacted"` の場合、export は redacted でなければならない。
+- audit log には `AI-drafted`, `human-approved`, `blocked by policy` が分かる必要がある。
+- 以前の PR は public contract 破壊で失敗している。
+
+### 推定要件
+
+- regional policy pack は既存 tenant にはデフォルト無効、または `DEFAULT_POLICY` 相当で後方互換にするべき。
+- JP/EU の human review requirement は、UI だけでなく API / worker / export path 側でも強制されるべき。
+- reviewer 承認は「その時点の case/export payload/version」に紐づくべき。承認後に内容が変わった場合の扱いを決める必要がある。
+- audit log は既存 event consumers を壊さずに拡張する必要がある。top-level event schema を無断で変えるべきではない。
+- tenant hierarchy は flat group ではなく、親子関係を方向付きで扱う必要がある。
+
+### 危険な仮定
+
+- 「JP policy pack」はデータ保存・処理のリージョン制御を意味する、という解釈は現時点の実装範囲と矛盾している。
+- `parentTenantId` を「同じグループの一員」程度に扱うと、過去 incident のように sibling tenant 間 approval が発生する。
+- `metadata` に何でも入れれば既存 consumer は問題ない、とは限らない。top-level keys よりは安全だが、metadata の shape に依存する consumer がいる可能性はある。
+- `role?: "owner" | "agent" | "viewer"` に `"reviewer"` を追加すれば済む、とは限らない。既存 role union 変更は TypeScript consumer に影響し得る。
+
+---
+
+## 2. Proposed design direction
+
+### 2.1 後方互換を最優先にする
+
+#### `normalizeRecipient` は変更しない
+
+`normalizeRecipient(input: string | Recipient): Recipient` の public contract は維持するべきです。
+
+やってはいけないこと:
+
+- 必須引数 `policy` や `tenantContext` を追加する。
+- import path `packages/api/src/recipient` を削除・移動する。
+- string input の `tenantId: "legacy-default"` 挙動を変える。
+- 既存 `Recipient` 型に breaking な必須フィールドを追加する。
+
+推奨方針:
+
+- recipient normalization と policy resolution を分離する。
+- 必要なら additive な helper を追加する。
+
+例の設計方向:
+
+- `normalizeRecipient(input)` はそのまま。
+- 新規に `resolveRecipientContext(recipient, tenantId)` や `normalizeRecipientForTenant(input, options)` のような optional wrapper を追加。
+- customer plugin 向けには既存 import path を維持しつつ、将来的には package entrypoint からも re-export する。ただし既存 path は deprecate する場合でも即削除しない。
+
+---
+
+### 2.2 Policy は tenant 単位の effective policy resolver にする
+
+`DEFAULT_POLICY` は既存 tenant の後方互換として維持するべきです。
+
+推奨構成:
+
+- tenant ごとの policy override を保存する。
+- `getEffectivePolicy(tenantId)` のような resolver で最終 policy を返す。
+- policy 未設定 tenant は `DEFAULT_POLICY` を返す。
+- regional pack の有効化は feature flag / tenant config 経由にする。
+- JP/EU pack では customer-facing send/export に human approval が必要、という enforcement rule を policy resolver または gate 側で保証する。
+
+注意点:
+
+`PolicyPack` に `requireHumanReview` がある一方で、新要件は「JP/EU では必ず delegated reviewer approval」と読めます。
+そのため、以下のどちらかに統一すべきです。
+
+1. JP/EU pack では `requireHumanReview: true` 以外の保存を禁止する。
+2. `requireHumanReview` とは別に、region-derived rule として `requiresApprovalBeforeExternalization(policy)` を計算する。
+
+後者の方が将来拡張に強いですが、設定画面で「JP なのに requireHumanReview=false」と見えると混乱するため、validation も必要です。
+
+---
+
+### 2.3 Enforcement point は UI ではなく send/export pipeline に置く
+
+UI 側で reviewer selector を表示するだけでは不十分です。
+
+承認が必要な gate は、少なくとも以下に置くべきです。
+
+- customer-facing send
+- export
+- worker 経由の非同期 export
+- API 経由の direct export
+- bulk export が存在する場合は bulk path
+- plugin / integration 経由で customer-facing output を作る path
+
+基本ルール:
+
+```text
+AI draft generation:
+  JP/EU でも許可され得る。
+
+customer-facing send/export:
+  effective policy が human approval を要求する場合、
+  valid delegated reviewer approval がなければ block。
+
+export:
+  policy.exportMode === "redacted" なら redacted export のみ許可。
+```
+
+重要なのは「draft 生成」と「外部送信・export」を分けることです。
+JP/EU policy で AI draft generation まで止める実装にすると、新要件とずれます。
+
+---
+
+### 2.4 Delegated reviewer authorization は tenant hierarchy の不変条件で守る
+
+過去 incident の原因は、`parentTenantId` を flat group のように扱ったことです。
+ここは小さく検証可能なモデルを先に定義すべきです。
+
+#### 推奨 invariant
+
+対象 case の tenant を `caseTenantId`、reviewer の所属 tenant を `reviewerTenantId` とすると、approval 可能なのは次の場合のみ。
+
+```text
+reviewerTenantId === caseTenantId
+OR
+reviewerTenantId is an ancestor of caseTenantId
+```
+
+明示的に禁止:
+
+```text
+reviewerTenantId is a sibling of caseTenantId
+reviewerTenantId is a descendant of caseTenantId
+reviewerTenantId is unrelated
+```
+
+例:
+
+```text
+t-parent
+  ├── t-child-a
+  └── t-child-b
+```
+
+- `t-child-a` の export を `t-child-a` reviewer が承認: allow
+- `t-child-a` の export を `t-parent` reviewer が承認: allow
+- `t-child-a` の export を `t-child-b` reviewer が承認: deny
+- `t-parent` の export を `t-child-a` reviewer が承認: deny
+
+実装方針:
+
+- tenant relation は方向付きの tree / DAG として扱う。
+- 「同じ parentTenantId を持つか」ではなく「reviewer tenant が case tenant の ancestor か」を判定する。
+- hierarchy lookup は central function に寄せる。
+- authorization 判定は UI 表示だけでなく API 側で必ず行う。
+- delegated reviewer は `Recipient.role` に直接混ぜるより、別の permission / assignment モデルで扱う方が安全。
+
+---
+
+### 2.5 Approval は対象 version に紐づける
+
+承認済みかどうかは単純な boolean だけでは危険です。
+
+最低限、approval record には以下の概念が必要です。
+
+- case id
+- tenant id
+- reviewer id
+- reviewer tenant id
+- action scope: send / export / both
+- approved target version または content hash
+- policy version
+- timestamp
+- approval result
+
+これにより、以下を防げます。
+
+- draft 変更後に古い approval を再利用する。
+- full export 用 approval を redacted export に流用する、または逆。
+- policy 変更前の approval を policy 変更後にも無制限に使う。
+- sibling tenant approval を後から検出できない。
+
+---
+
+### 2.6 Audit log は既存 event schema を壊さず拡張する
+
+前回 PR の失敗から、`emit_case_event()` の top-level keys は変更しない方針にすべきです。
+
+やってはいけないこと:
+
+```text
+{
+  caseId,
+  tenantId,
+  actorId,
+  action,
+  metadata,
+  policy,
+  approval
+}
+```
+
+これは既存 consumer を壊しています。
+
+推奨方針はどちらかです。
+
+#### 案 A: 既存 event の `metadata` に additive に格納
+
+top-level keys は維持。
+
+```text
+metadata: {
+  aiDrafted: true,
+  humanApproved: false,
+  blockedByPolicy: true,
+  policyRegion: "jp",
+  exportMode: "redacted",
+  approvalId: "...",
+  blockReason: "human_review_required"
+}
+```
+
+メリット:
+
+- 既存 `emit_case_event` contract を維持しやすい。
+- 既存 event stream に乗せられる。
+
+注意点:
+
+- metadata shape に依存している consumer がいないか compatibility probe が必要。
+
+#### 案 B: 新規 v2 event を追加
+
+既存 `emit_case_event()` はそのままにし、新たに明示的な schema を持つ event emitter を追加。
+
+例:
+
+- `emit_case_audit_event_v2(...)`
+- `emit_policy_decision_event(...)`
+
+メリット:
+
+- audit schema を強く定義できる。
+- 既存 event consumer への影響が最小。
+
+注意点:
+
+- 監査要件上、既存 event と v2 event の二重記録・順序・欠落をどう扱うか決める必要がある。
+
+現時点では、既存 consumers の依存度が不明なので、まずは案 A または A+B の併用が安全です。
+ただし top-level keys 変更は避けるべきです。
+
+---
+
+### 2.7 ReviewModal は汎用 modal contract を維持する
+
+`ReviewModal` 自体は汎用 component なので、reviewer selector の追加で keyboard reachability を壊してはいけません。
+
+方針:
+
+- close button は引き続き keyboard で到達可能にする。
+- reviewer selector を入れても focus trap / tab order が破綻しないようにする。
+- `role="dialog"` と `aria-modal="true"` は維持。
+- selector 側に focus を奪わせる場合でも、close button に戻れることを保証する。
+- 可能なら modal title / `aria-labelledby` / `aria-describedby` も追加検討。ただし既存 contract を壊さない additive change にする。
+
+---
+
+## 3. 小さく検証可能なモデル / invariants
+
+PR 前に、次の invariants を設計ドキュメントかテスト名として明文化するとよいです。
+
+### Recipient invariant
+
+```text
+normalizeRecipient(input) は policy / tenant config に依存しない。
+string input は引き続き tenantId "legacy-default" を返す。
+object input は tenantId を preserve する。
+既存 import path は維持される。
+```
+
+### Event invariant
+
+```text
+emit_case_event(...).keys == ["caseId", "tenantId", "actorId", "action", "metadata"]
+metadata=None の場合は {}
+policy / approval 情報を追加しても top-level keys は増やさない。
+```
+
+### Reviewer authorization invariant
+
+```text
+canApprove(caseTenant, reviewerTenant) is true iff
+  reviewerTenant == caseTenant
+  OR reviewerTenant is ancestor of caseTenant.
+```
+
+### Policy gate invariant
+
+```text
+If action in ["send", "export"]
+and effectivePolicy requires human approval
+and no valid approval exists for current target version,
+then action is blocked and audit log records blockedByPolicy.
+```
+
+### Redaction invariant
+
+```text
+If effectivePolicy.exportMode == "redacted",
+all export paths return redacted output.
+No full export is produced for that tenant/action.
+```
+
+### Audit invariant
+
+```text
+For each gated action, audit can answer:
+- Was AI draft involved?
+- Was human approval present?
+- Was action blocked by policy?
+- Which policy/effective region/exportMode applied?
+```
+
+---
+
+## 4. Tests / probes to add before merging
+
+### 4.1 Backward compatibility tests
+
+#### `recipient.test.ts`
+
+既存テストをそのまま維持した上で追加。
+
+- `normalizeRecipient("USER@EXAMPLE.COM")` は引き続き:
+  - lowercased id
+  - lowercased email
+  - `tenantId: "legacy-default"`
+- `normalizeRecipient({ email: "A@B.COM", tenantId: "t1" })` は `tenantId: "t1"` を preserve。
+- `normalizeRecipient` は policy 未指定で呼べる。
+- `normalizeRecipient.length` などに依存する consumer がある場合は引数数 compatibility も検討。
+- `packages/api/src/recipient` から customer plugin が import できる smoke test を維持。
+- 新しい policy helper を追加しても `normalizeRecipient` の挙動が変わらないこと。
+
+#### Plugin compatibility smoke
+
+前回失敗しているので必須です。
+
+- 実際の customer plugin に近い fixture から `normalizeRecipient` を import。
+- build / typecheck / runtime import が通ること。
+- package boundary や tsconfig path alias 変更で壊れないこと。
+
+---
+
+### 4.2 Policy resolution tests
+
+追加したいケース:
+
+- policy 未設定 tenant は `DEFAULT_POLICY`。
+- tenant ごとの policy override が効く。
+- JP policy pack で send/export 前 approval が required になる。
+- EU policy pack で send/export 前 approval が required になる。
+- US/default policy では既存挙動が維持される。
+- `exportMode: "redacted"` の場合、export gate が redaction を要求する。
+- 不正な config を保存できない、または effective policy で安全側に倒す。
+  - 例: `region: "jp"` かつ `requireHumanReview: false` を許すのか拒否するのか。
+
+---
+
+### 4.3 Delegated reviewer authorization tests
+
+tenant hierarchy fixture を作るべきです。
+
+```text
+root
+  └── t-parent
+        ├── t-child-a
+        └── t-child-b
+```
+
+テストケース:
+
+- same tenant reviewer can approve。
+- parent tenant reviewer can approve child tenant case。
+- sibling tenant reviewer cannot approve。
+- child tenant reviewer cannot approve parent tenant case。
+- unrelated tenant reviewer cannot approve。
+- multi-level ancestor を許すかどうか。許すなら grandparent approval test。
+- parentTenantId が同じだけでは許可されないこと。
+- hierarchy cache がある場合、tenant relation 更新後に古い cache で誤承認しないこと。
+
+特に前回 incident の再発防止テスト:
+
+```text
+Given t-child-a and t-child-b share t-parent,
+When reviewer from t-child-b tries to approve export for t-child-a,
+Then approval is denied.
+```
+
+---
+
+### 4.4 Approval workflow tests
+
+ケース単位で追加。
+
+- JP tenant:
+  - AI draft generation は成功する。
+  - approval なしの customer-facing send は block。
+  - approval なしの export は block。
+  - valid delegated reviewer approval 後に send/export 可能。
+- EU tenant も同様。
+- US/default tenant:
+  - 既存 send/export path が変わらない。
+- approval 後に draft 内容が変わった場合:
+  - 古い approval が無効になる、または再承認が必要になること。
+- approval の scope:
+  - send approval と export approval を分けるなら、誤流用できないこと。
+- policy 変更後:
+  - policy version が変わった場合、既存 approval をどう扱うかのテスト。
+
+---
+
+### 4.5 Export redaction tests
+
+すべての export path に対して必要です。
+
+- API export。
+- worker async export。
+- bulk export がある場合。
+- plugin/export integration がある場合。
+- `exportMode: "redacted"` で full data が含まれない。
+- `exportMode: "full"` で既存出力が変わらない。
+- redaction の対象フィールド一覧が固定されている場合は snapshot / golden test。
+- redaction の漏れを検出する negative test。
+  - email
+  - phone
+  - free text PII
+  - attachments / metadata があるならそれも対象確認。
+
+---
+
+### 4.6 Audit event tests
+
+既存 `events.test.py` は維持。
+
+追加:
+
+- `emit_case_event(..., metadata=None)` は引き続き `metadata: {}`。
+- top-level keys は増えない。
+- AI draft ありの action で metadata に `aiDrafted` 相当が記録される。
+- human approval ありの action で metadata に `humanApproved` / `approvalId` 相当が記録される。
+- policy block 時に `blockedByPolicy` / `blockReason` 相当が記録される。
+- redacted export 時に `exportMode: "redacted"` が監査できる。
+- 既存 consumer fixture が unknown metadata fields を許容できるか確認。
+- もし v2 audit event を追加するなら:
+  - v1 event が引き続き発行される。
+  - v2 schema validation。
+  - v1/v2 の相関 id がある。
+
+---
+
+### 4.7 ReviewModal accessibility / regression tests
+
+既存テストは維持。
+
+追加:
+
+- reviewer selector が children として入っても close button に keyboard で到達できる。
+- Tab / Shift+Tab の順序が破綻しない。
+- selector 操作後も close button が keyboard reachable。
+- dialog role は維持。
+- close button click / keyboard activation は維持。
+- 可能なら accessibility test:
+  - accessible name
+  - focus containment
+  - screen reader label
+
+前回失敗しているので、reviewer selector を表示する integration test は必須です。
+
+---
+
+### 4.8 End-to-end / contract probes
+
+local unit green だけでは不足です。
+
+追加したい probe:
+
+- tenant policy 未設定の既存 customer flow が変わらない。
+- JP tenant の draft → approval → redacted export flow。
+- JP tenant の draft → approval なし export block flow。
+- sibling tenant approval attempt が block され audit に残る。
+- customer plugin import/build smoke。
+- event consumer fixture が既存 schema で動く。
+- worker が古い event schema を期待していても落ちない。
+- web modal keyboard regression。
+
+---
+
+## 5. Rollout / release risks
+
+### 5.1 Data residency 誤認リスクは release-blocking
+
+Customer note にある通り、JP customer が「regional policy pack = data stays in Japan」と説明されていた点は重大です。
+
+現状の engineering scope は以下に見えます。
+
+- review requirement
+- export redaction
+- audit metadata
+- tenant policy behavior
+
+一方で、以下は未実装です。
+
+- storage region pinning
+- processing region pinning
+- AI model execution location control
+- cross-region routing prevention
+- backup / logs / analytics の residency control
+
+したがって、JP/EU regional policy pack をリリースする前に、Product / Legal / Sales / Support と表現を合わせる必要があります。
+
+リリース前に確認すべき文言:
+
+- 「regional policy pack」は compliance workflow policy なのか。
+- data residency を保証しないことを明記するのか。
+- DPA の “region-specific configurations where enabled in the product” が今回機能をどうカバーするのか。
+- customer-facing docs / sales materials / UI label に “data stays in Japan” と誤解される表現がないか。
+
+ここは release-blocking と扱うべきです。
+
+---
+
+### 5.2 既存 integration 破壊リスク
+
+高リスク箇所:
+
+- `normalizeRecipient` の signature / import path。
+- `Recipient` 型の required field 追加。
+- `emit_case_event` の top-level schema 変更。
+- `metadata` shape の暗黙依存。
+- export output shape の変更。
+- ReviewModal の focus behavior。
+
+対策:
+
+- 既存 contract tests を削除しない。
+- additive helper / v2 API を使う。
+- feature flag で tenant 単位に有効化。
+- customer plugin smoke を CI に入れる。
+- event consumer compatibility fixture を CI に入れる。
+
+---
+
+### 5.3 Authorization bug 再発リスク
+
+過去 incident の再発防止として、tenant hierarchy 判定は release gate にするべきです。
+
+特に確認:
+
+- sibling approval が必ず deny。
+- parent approval の方向が正しい。
+- tenant hierarchy cache が古くても安全側に倒れる。
+- UI で選べないだけでなく API でも拒否する。
+- audit log に denied approval attempt が残る。
+
+---
+
+### 5.4 Redaction 漏れリスク
+
+`exportMode: "redacted"` は実装漏れが起きやすいです。
+
+注意する export surface:
+
+- synchronous export
+- async worker export
+- CSV / JSON / PDF など形式別 export
+- attachment export
+- metadata export
+- analytics export
+- plugin export
+- audit export 自体に PII が含まれないか
+
+リリース前に redaction 対象フィールドの一覧と責任者を明確にするべきです。
+
+---
+
+### 5.5 Audit の完全性リスク
+
+監査要件は「ログに何か出す」だけでは足りません。
+
+確認すべきこと:
+
+- blocked action も audit に残る。
+- approval success も denial も残る。
+- AI draft involved かどうかが後から判断できる。
+- policy version / region / exportMode が後から判断できる。
+- event delivery failure 時の扱い。
+- worker retry で重複 audit が出る場合の idempotency。
+- customer-facing action と audit record を相関できる id がある。
+
+---
+
+### 5.6 段階的 rollout 方針
+
+推奨 rollout:
+
+1. schema / resolver / tests を追加。ただし feature flag off。
+2. existing tenants で shadow mode。
+   - policy decision を計算するが block はしない。
+   - audit metadata だけ観測。
+3. internal tenant または test tenant で enforce。
+4. selected JP/EU pilot tenant で enforce。
+5. monitor:
+   - blocked send/export count
+   - approval latency
+   - denied sibling approval attempt
+   - export redaction failures
+   - event consumer errors
+6. rollback plan:
+   - tenant policy flag を off にできる。
+   - enforcement だけ off にして audit は残せる。
+   - migration rollback なしでも安全に動く additive schema にする。
+
+---
+
+## 6. リリース前に確認すべき質問
+
+### Release-blocking questions
+
+1. **Regional policy pack は data residency を含むのか。**
+   含むなら現状設計では不足。含まないなら Product / Legal / Sales 文言修正が必要。
+
+2. **JP/EU policy pack では `requireHumanReview` は常に true でよいのか。**
+   tenant admin が false にできる余地を残すのか、validation で禁止するのかを決める必要があります。
+
+3. **parent tenant reviewer の範囲は direct parent のみか、ancestor 全体か。**
+   “parent tenant” という表現が direct parent を意味するのか、親会社階層全体を意味するのか確認が必要です。
+
+4. **approval はどの単位に紐づくべきか。**
+   case 単位、draft version 単位、export payload hash 単位、action 単位のどれか。
+   ここが曖昧だと承認後変更の抜け道ができます。
+
+5. **redacted export の仕様。**
+   どのフィールドを redacted にするのか。attachments / free text / metadata / audit fields は対象か。
+
+6. **audit log の正式 schema と保持要件。**
+   既存 event metadata で足りるのか、専用 audit event/table が必要か。保持期間や customer export 可能性も確認が必要です。
+
+### Non-blocking but should clarify
+
+1. delegated reviewer は既存 `Recipient.role` と統合するのか、別 permission model にするのか。
+2. tenant policy は child tenant に継承されるのか、完全に tenant ごとに独立か。
+3. approval UI は reviewer を検索・選択するのか、現在ユーザー自身が reviewer として承認するのか。
+4. policy change 時に既存 in-flight cases をどう扱うか。
+5. 既存 customer plugins が export/send を直接行える場合、どこで enforcement するか。
+
+---
+
+## 7. この PR の進め方の推奨
+
+最初の PR で広範囲に作り替えるのは避けるべきです。分割を推奨します。
+
+### PR 1: Contract preservation + policy model skeleton
+
+- `normalizeRecipient` 不変テストを強化。
+- event top-level schema 不変テストを強化。
+- tenant policy resolver を追加。
+- feature flag off。
+- no behavior change。
+
+### PR 2: Delegated reviewer authorization
+
+- tenant hierarchy function を追加。
+- same / parent / sibling / child / unrelated tests。
+- incident regression test を追加。
+- API-side authorization enforcement の土台を追加。
+
+### PR 3: Send/export policy gate
+
+- draft generation と externalization gate を分離。
+- approval なし block。
+- valid approval あり allow。
+- audit metadata 追加。
+- feature flag gated。
+
+### PR 4: Redacted export
+
+- redaction engine / export path integration。
+- export path ごとの tests。
+- golden/snapshot tests。
+- leakage tests。
+
+### PR 5: UI integration
+
+- ReviewModal contract 維持。
+- reviewer selector integration。
+- keyboard/focus regression tests。
+
+### PR 6: Rollout hardening
+
+- shadow mode。
+- metrics。
+- event consumer probes。
+- customer plugin smoke。
+- docs/legal/product wording update。
+
+---
+
+## 8. 最終的なレビューコメントとしての結論
+
+この機能は単なる UI 追加ではなく、tenant policy、authorization、export enforcement、audit、法務表現が絡む変更です。
+実装方針としては、既存 public contracts を維持しながら additive に進めるべきです。
+
+特に以下は必須です。
+
+- `normalizeRecipient(input)` は絶対に breaking change しない。
+- `emit_case_event()` の top-level schema は変えない。
+- delegated reviewer 判定は ancestor relation で実装し、sibling approval を明示的に拒否する。
+- JP/EU では draft generation は許可しつつ、send/export を approval gate で止める。
+- redacted export は全 export path で強制する。
+- audit は AI draft / human approval / policy block を後から判別可能にする。
+- ReviewModal の keyboard accessibility は維持する。
+- 「regional policy pack = data residency」と誤認されないよう、リリース前に Product / Legal / Sales と確認する。
+
+この確認が終わるまでは、既存 tenant に対して enforcement を有効化せず、feature flag + shadow mode で段階的に進めるのが安全です。
+~~~
