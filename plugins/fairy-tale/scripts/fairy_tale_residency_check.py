@@ -24,6 +24,7 @@ SKILL_MARKERS = {
         "Residency Guard",
         "Implementation Validation Gate",
         "Benchmark Delta Harness",
+        "Latent Structure Harness",
         "fairy-tale-benchmark-feedback",
     ),
     "fairy-tale-benchmark-feedback": (
@@ -74,6 +75,11 @@ GUARD_FILES = {
 }
 
 RUNNER_MARKERS = {
+    Path("scripts/latent_structure_harness.py"): (
+        "Generic latent-structure ledger",
+        "pre-act",
+        "promotion_decision",
+    ),
     Path("scripts/swebench_pro_run.py"): (
         "fairy-tale",
         "fairy-tale-benchmark-feedback",
@@ -92,6 +98,44 @@ HOOK_FILES = {
         "CLAUDE_PLUGIN_ROOT",
         "fairy_tale_residency_check.py",
         "--inject",
+    ),
+}
+
+LATENT_STRUCTURE_FILES = {
+    Path("schemas/latent-structure-ledger.schema.json"): (
+        "Fairy Tale Latent Structure Ledger",
+        "negative_evidence",
+        "promotion_decision",
+    ),
+    Path("adapters/latent-structure-harness.adapter.json"): (
+        "latent-structure-harness",
+        "domain-neutral",
+        "bench",
+    ),
+    Path("docs/latent-structure-harness.md"): (
+        "Latent Structure Harness",
+        "domain-neutral",
+        "pre-act",
+    ),
+    Path("plugins/fairy-tale/schemas/latent-structure-ledger.schema.json"): (
+        "Fairy Tale Latent Structure Ledger",
+        "negative_evidence",
+        "promotion_decision",
+    ),
+    Path("plugins/fairy-tale/scripts/latent_structure_harness.py"): (
+        "Generic latent-structure ledger",
+        "pre-act",
+        "promotion_decision",
+    ),
+    Path("plugins/fairy-tale/adapters/latent-structure-harness.adapter.json"): (
+        "latent-structure-harness",
+        "domain-neutral",
+        "bench",
+    ),
+    Path("plugins/fairy-tale/docs/latent-structure-harness.md"): (
+        "Latent Structure Harness",
+        "domain-neutral",
+        "pre-act",
     ),
 }
 
@@ -265,6 +309,9 @@ def collect_checks(args: argparse.Namespace) -> list[Check]:
 
     for path, markers in HOOK_FILES.items():
         check_contains(checks, path, markers, f"{path} residency hook")
+
+    for path, markers in LATENT_STRUCTURE_FILES.items():
+        check_contains(checks, path, markers, f"{path} latent-structure artifact")
 
     if args.check_installed:
         home = Path.home()
