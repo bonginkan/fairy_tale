@@ -1,0 +1,90 @@
+{
+  "schema_version": "1.0",
+  "id": "latent-structure-harness",
+  "name": "Latent Structure Harness",
+  "kind": "evaluation-harness",
+  "source": {
+    "upstream": "https://github.com/bonginkan/fairy_tale",
+    "package": "scripts/latent_structure_harness.py",
+    "local_path_hint": "scripts/latent_structure_harness.py",
+    "license": "Apache-2.0",
+    "notes": "Domain-neutral ledger and gate for hidden rules, implicit contracts, black-box environments, and benchmark misses. It records observations, negative evidence, hypotheses, inferred invariants, probes, validators, actions, and promotion decisions without encoding any benchmark-specific scorer."
+  },
+  "capabilities": [
+    "latent rule and implicit contract ledger initialization",
+    "pre-action gate for observations, hypotheses, probes, validators, and high-risk assumptions",
+    "final gate for invariant evidence, completed probes, validation results, and promotion decisions",
+    "domain-neutral support for coding, ARC-style, legal, research, UI, spatial, security, and generic tasks",
+    "machine-readable JSON output for downstream agent wrappers"
+  ],
+  "entrypoints": {
+    "import": "from scripts.latent_structure_harness import validate_ledger",
+    "construct": "scripts/latent_structure_harness.py init --task '<objective>' --task-family generic --trigger implicit_contract --output latent-structure-ledger.json",
+    "run": "scripts/latent_structure_harness.py validate --ledger latent-structure-ledger.json --stage final",
+    "optional": [
+      "scripts/latent_structure_harness.py demo --output tmp/latent-structure-demo.json",
+      "scripts/latent_structure_harness.py validate --ledger tmp/latent-structure-demo.json --stage pre-act",
+      "scripts/latent_structure_harness.py validate --ledger tmp/latent-structure-demo.json --stage final",
+      "scripts/latent_structure_harness.py summarize --ledger tmp/latent-structure-demo.json --json"
+    ]
+  },
+  "contracts": {
+    "inputs": [
+      "task objective",
+      "task family",
+      "risk level",
+      "latent-structure triggers",
+      "observations and source evidence",
+      "negative evidence and no-op probes",
+      "hypotheses and inferred invariants",
+      "validators or validation results"
+    ],
+    "outputs": [
+      "latent-structure ledger JSON",
+      "pre-action gate findings",
+      "final gate findings",
+      "compact ledger summary",
+      "machine-readable validation result"
+    ],
+    "evidence": [
+      "observation ids",
+      "negative evidence ids",
+      "probe ids",
+      "validator ids",
+      "validation result ids",
+      "promotion decision evidence ids"
+    ]
+  },
+  "safety": {
+    "boundaries": [
+      "Do not encode benchmark answer keys, hidden test details, or task-specific scorer shortcuts in the ledger gate.",
+      "Do not treat a single lucky success as a promoted invariant without evidence and validation.",
+      "Do not use the harness to bypass user clarification when an unresolved assumption is irreversible, safety-relevant, externally visible, or cost-heavy.",
+      "Keep the harness domain-neutral; benchmark-specific wrappers may consume ledger output but must not change the core gate into a benchmark heuristic."
+    ],
+    "forbidden_claims": [
+      "Passing the ledger gate proves the final answer is correct.",
+      "A promoted invariant is valid outside its recorded scope.",
+      "The harness reproduces model-weight improvements.",
+      "A task-specific hidden-answer workaround is a Fairy Tale latent-structure improvement."
+    ]
+  },
+  "validation": {
+    "checks": [
+      "adapter manifest validates against schemas/fairy-tale-adapter.schema.json",
+      "ledger skeleton can be initialized with scripts/latent_structure_harness.py init",
+      "demo ledger passes pre-action validation",
+      "demo ledger passes final validation",
+      "empty ledger fails the pre-action gate",
+      "final gate fails when promoted invariants lack evidence or validators fail",
+      "residency check verifies the latent-structure skill marker and script marker"
+    ],
+    "minimum_artifacts": [
+      "schemas/latent-structure-ledger.schema.json",
+      "scripts/latent_structure_harness.py",
+      "docs/latent-structure-harness.md",
+      "latent-structure ledger JSON",
+      "validation findings"
+    ]
+  }
+}

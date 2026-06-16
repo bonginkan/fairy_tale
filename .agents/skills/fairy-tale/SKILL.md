@@ -447,6 +447,30 @@ python3 scripts/fairy_tale_residency_check.py
   and user-facing output that the prompt did not spell out but the system
   relies on.
 
+### Latent Structure Harness: hidden rules and implicit contracts
+
+- Use this harness when the visible prompt is likely incomplete: hidden rules,
+  implicit repository or product contracts, black-box environments, ambiguous
+  specs, benchmark misses, false analogies, or generalization gaps.
+- Keep it domain-neutral. The harness may support SWE-style coding, ARC-style
+  mechanism discovery, legal, research, UI, spatial, and security work, but it
+  must not encode benchmark answers, hidden tests, task ids, or rubric-specific
+  shortcuts.
+- Create or update a latent-structure ledger before acting when the task is
+  medium/high risk or has a latent-structure trigger:
+  `python3 scripts/latent_structure_harness.py init --task "<objective>" --task-family generic --trigger implicit_contract --output latent-structure-ledger.json`.
+- Separate observations, negative evidence, hypotheses, inferred invariants,
+  risky assumptions, probes, validators, actions, validation results, and the
+  promotion decision. Do not promote a local pattern into a general rule until
+  it predicts the evidence and survives a probe or validator.
+- Run the pre-action gate before expensive or externally visible action:
+  `python3 scripts/latent_structure_harness.py validate --ledger latent-structure-ledger.json --stage pre-act`.
+- Run the final gate before claiming completion or reusing the inferred rule:
+  `python3 scripts/latent_structure_harness.py validate --ledger latent-structure-ledger.json --stage final`.
+- If the gate fails, either gather more evidence, narrow the invariant scope,
+  downgrade the promotion decision, or ask the user when the unresolved
+  assumption is irreversible, safety-relevant, externally visible, or cost-heavy.
+
 ### External Reconstruction Adapter Harness
 
 - Use external reconstruction repos through adapter manifests instead of

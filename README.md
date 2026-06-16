@@ -67,6 +67,11 @@ python3 scripts/fairy_tale_residency_check.py
 Use `--check-installed --strict-installed` when you also want to require
 machine-level Codex, Claude Code, and AGENTS skill installs.
 
+For tasks where visible context may be incomplete, use the domain-neutral
+[Latent Structure Harness](docs/latent-structure-harness.md) to record
+observations, negative evidence, hypotheses, inferred invariants, probes, and
+validators before promoting a local pattern into a general rule.
+
 ## Goals
 
 - Describe the strongest reported Fable 5 / Mythos 5 capabilities in operational terms.
