@@ -188,8 +188,13 @@ python3 scripts/fairy_tale_residency_check.py
 - Inspect current agent config, skills, commands, hooks, and usage patterns.
 - Search for comparable OSS workflows only when useful.
 - Ask targeted questions before changing user workflow.
+- For failed agent runs, localize the first actionable fault before changing
+  skills. Link the fault to an existing skill when it misled the run, otherwise
+  treat it as a missing-coverage candidate.
 - Add the smallest reusable command/skill/memory structure that reduces future
   repeated prompting.
+- Prefer targeted skill revision over new skill generation when an existing
+  skill is responsible for the miss.
 - Keep skill bodies concise and move long checklists into references.
 
 ### High-signal research synthesis
@@ -309,6 +314,10 @@ python3 scripts/fairy_tale_residency_check.py
 ### Evaluated Feedback Loop
 
 - Treat failed benchmark criteria as reusable feedback, not just result data.
+- Convert failures into skill updates only through the step-level route:
+  preserve the trace, identify the first actionable fault, link responsible
+  skills, choose `revise_existing` or `generate_new`, then qualify the candidate
+  with retry and regression evidence.
 - For SWE-Bench Pro, HLE-style closed-ended tasks, and ExploitBench sandbox
   misses, apply `fairy-tale-benchmark-feedback`: classify measured failures,
   add only narrow candidate rules, prune contradictions, then retry a held-out

@@ -22,18 +22,24 @@ harness artifacts, logs, and local work product.
    - SWE-Bench Pro: `scripts/benchmark_feedback_ledger.py swe-bench-pro`
    - HLE-style tasks: `scripts/benchmark_feedback_ledger.py hle`
    - ExploitBench: `scripts/benchmark_feedback_ledger.py exploitbench`
-3. Run pruning before promotion:
+3. Before writing a candidate rule, localize the first actionable fault step
+   in the failed trajectory or work product. Link it to an existing Fairy Tale
+   rule when that rule misled the run; otherwise mark it as missing coverage.
+4. Revise an existing rule when responsibility is clear. Generate a new narrow
+   rule only when no existing rule can be safely revised. Make no skill update
+   when the trace does not support the attribution.
+5. Run pruning before promotion:
    `scripts/feedback_pruner.py --ledger <ledger.json> --output <prune.json>`.
-4. Keep only narrow candidate or observed-success rules with evidence. Do not
+6. Keep only narrow candidate or observed-success rules with evidence. Do not
    promote a rule because it sounds plausible.
-5. If the same failure signature repeats, a run produces no meaningful artifact,
+7. If the same failure signature repeats, a run produces no meaningful artifact,
    or the validation ledger is missing, run bounded Fairy Fusion before retry:
    isolated reviewers, one synthesis pass, append-only review artifacts, and
    only a compact closure hint returned to the main agent. Continue retrying
    until the local clear condition is met or the user/operator stops the run.
-6. Retry a held-out or failed slice under the same scorer. Record before/after
+8. Retry a held-out or failed slice under the same scorer. Record before/after
    pass rate, confidence interval when applicable, cost, and regressions.
-7. Promote only rules that improve the retry without task-ID hardcoding or
+9. Promote only rules that improve the retry without task-ID hardcoding or
    cross-domain regression.
 
 ## SWE-Bench Pro Miss Classes
@@ -177,6 +183,7 @@ Successful ExploitBench practice includes:
 Keep candidate feedback out of default behavior until it has:
 
 - measured evidence,
+- first-actionable-fault attribution and a revise-or-generate decision,
 - a held-out retry result,
 - no task-ID or sample-specific wording,
 - no contradiction with existing kept rules,
