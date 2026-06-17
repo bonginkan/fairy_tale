@@ -110,6 +110,7 @@ Rows marked reference-only are not official benchmark submissions.
 | Cybersecurity | ExploitBench v8 ladder sample, n=6 | 78.0% Cap% | 34.0% Cap% | **1.33 avg; 4/6 positive** | **reference only** |
 | Legal | Harvey LAB-compatible random sample, n=100 | 13.3% | 2.1% | **11.0%** | **+8.9 pp** |
 | Context efficiency | Less-Context Bench hard seeds, n=6 x 3 runs | n/a | 10/18 correct; 6/18 budgeted | **11/18 correct; 3/18 budgeted** | **+5.6 pp correct; -16.7 pp budgeted** |
+| Context completion | Less-Context Bench hard completion, n=6 x 1 run | n/a | 1/6 guarded; 4/6 recoverable; 3/6 abstain | **3/6 guarded; 4/6 recoverable; 4/6 abstain** | **+33.3 pp guarded; +16.7 pp abstain** |
 
 Notes:
 
@@ -141,6 +142,16 @@ Notes:
   measurement caveat: `SKILL.md` text injection may encourage more exhaustive
   verification and does not reproduce full skill residency, sub-file loading, or
   tool-gated workflow behavior.
+- Less-Context Bench hard completion is a separate local completion-track smoke
+  from sibling `less-context-bench` commit `3c48b47`. It used Codex CLI
+  `gpt-5.5` with `model_reasoning_effort="xhigh"` over 6 public hard seeds,
+  one recoverable and one unrecoverable completion pack per task, and no solver
+  errors in either condition. Guarded completion improved from 1/6 without
+  Fairy Tale, 95% Wilson CI 3.0-56.4%, to 3/6 with Fairy Tale, CI 18.8-81.2%.
+  Recoverable accuracy stayed 4/6 in both conditions; the gain came from better
+  abstention/citation discipline on incomplete workspaces, not from recovering
+  more answerable packs. Treat this as a single-run signal, not a stable
+  leaderboard claim.
 
 ### Legal Feedback Retry
 
