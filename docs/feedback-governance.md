@@ -54,7 +54,9 @@ session summary. First assign credit to the smallest actionable fault:
    examples, and qualification checks only where the trace supports them.
 5. Qualify the candidate with a retry and a neighboring or held-out regression
    slice before promotion. Reject broad updates whose benefit is unmeasured or
-   whose regression cost is unresolved.
+   whose regression cost is unresolved. When no scorer exists, qualify with a
+   focused replay, neighboring task check, existing validator, or explicit user
+   confirmation tied to the localized fault.
 
 Record this route with the step-level skill adaptation template in
 `skills/fairy-tale/references/process.md`. This follows the SkillAdaptor lesson
