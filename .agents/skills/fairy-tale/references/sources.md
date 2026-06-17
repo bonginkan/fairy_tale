@@ -114,6 +114,9 @@
   https://code.claude.com/docs/en/sub-agents
 - OpenAI skill creation guidance:
   https://github.com/openai/skills/blob/main/skills/.system/skill-creator/SKILL.md
+- SkillAdaptor: Self-Adapting Skills for LLM Agents from Trajectories:
+  https://arxiv.org/abs/2606.01311
+  PDF: https://arxiv.org/pdf/2606.01311
 - Fusion-Fable blind-panel skill:
   https://github.com/duolahypercho/fusion-fable
 - Anthropic tool definition guidance:
