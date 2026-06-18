@@ -336,6 +336,23 @@ Phase 3: smoke.
 - Report headroom size, recovery count, cost, failure classes, and
   `review_only`.
 
+Implemented smoke connector:
+
+```bash
+python3 scripts/agentic_loop_runner.py run \
+  --tasks fixtures/agentic-loop/smoke.jsonl \
+  --output tmp/agentic-loop-smoke \
+  --solver-command python3 /absolute/path/to/scripts/agentic_loop_codex_solver.py \
+    --model gpt-5.5 --reasoning-effort xhigh
+```
+
+`agentic_loop_codex_solver.py` is action-only: it strips the task
+`workspace_path` before prompting Codex, runs Codex in a separate scratch
+directory, and returns only one JSON action for the controller. It rejects
+hidden-validator or scorer-only fields if they appear in the request or model
+output. The public `fixtures/agentic-loop/smoke.jsonl` file is a smoke and
+connection fixture only; it is not confirmatory or held-out promotion evidence.
+
 Phase 4: confirmation.
 
 - Use fresh held-out tasks and fixed validators.
