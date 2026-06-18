@@ -22,8 +22,7 @@ from typing import Any
 
 
 SCHEMA_VERSION = "agentic_loop_codex_solver.v1"
-FORBIDDEN_REQUEST_FIELDS = {"hidden_validators", "judge_manifest", "ground_truth", "verdicts"}
-FORBIDDEN_RESPONSE_FIELDS = {
+SCORER_ONLY_FIELDS = {
     "changed_belief",
     "changed_strategy_after_observation",
     "decisive_for_recovery",
@@ -33,6 +32,15 @@ FORBIDDEN_RESPONSE_FIELDS = {
     "state_diff_changed_answer_or_action",
     "verified_pass",
 }
+FORBIDDEN_REQUEST_FIELDS = {
+    *SCORER_ONLY_FIELDS,
+    "hidden_validators",
+    "judge_manifest",
+    "ground_truth",
+    "verdicts",
+    "workspace_path",
+}
+FORBIDDEN_RESPONSE_FIELDS = set(SCORER_ONLY_FIELDS)
 DEFAULT_WORK_ROOT = Path("/tmp/fairy-agentic-loop-codex-solver")
 
 
@@ -43,6 +51,9 @@ def read_request() -> dict[str, Any]:
         raise SystemExit(f"solver request must be JSON: {exc}") from None
     if not isinstance(payload, dict):
         raise SystemExit("solver request must be a JSON object")
+    forbidden = forbidden_request_paths(payload)
+    if forbidden:
+        raise SystemExit("solver request leaked hidden, workspace, or scorer-only fields: " + ", ".join(forbidden))
     return payload
 
 
@@ -57,6 +68,15 @@ def forbidden_paths(value: Any, forbidden: set[str], path: str = "$") -> list[st
     elif isinstance(value, list):
         for index, child in enumerate(value):
             paths.extend(forbidden_paths(child, forbidden, f"{path}[{index}]"))
+    return paths
+
+
+def forbidden_request_paths(value: Any) -> list[str]:
+    paths: list[str] = []
+    for path in forbidden_paths(value, FORBIDDEN_REQUEST_FIELDS):
+        if path == "$.workspace_path":
+            continue
+        paths.append(path)
     return paths
 
 
@@ -86,6 +106,9 @@ def action_schema(allowed_actions: list[str]) -> dict[str, Any]:
 
 
 def sanitized_request(request: dict[str, Any]) -> dict[str, Any]:
+    forbidden = forbidden_request_paths(request)
+    if forbidden:
+        raise SystemExit("solver request leaked hidden, workspace, or scorer-only fields: " + ", ".join(forbidden))
     allowed_actions = request.get("allowed_actions")
     if not isinstance(allowed_actions, list) or not all(isinstance(item, str) for item in allowed_actions):
         raise SystemExit("request.allowed_actions must be a list of strings")
@@ -262,9 +285,6 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = build_parser().parse_args()
     request = read_request()
-    forbidden = forbidden_paths(request, FORBIDDEN_REQUEST_FIELDS)
-    if forbidden:
-        raise SystemExit("solver request leaked hidden fields: " + ", ".join(forbidden))
     response = dry_run_response(request) if args.dry_run else call_codex(args, request)
     print(json.dumps(response, sort_keys=True))
     return 0
