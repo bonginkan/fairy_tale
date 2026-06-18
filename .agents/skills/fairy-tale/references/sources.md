@@ -198,3 +198,121 @@
   https://arxiv.org/abs/2604.14624
 - Code as Agent Harness:
   https://arxiv.org/abs/2605.18747
+
+## Historical and Silicon Valley method sources
+
+- Stanford Encyclopedia of Philosophy, scientific method:
+  https://plato.stanford.edu/entries/scientific-method/
+- Stanford Encyclopedia of Philosophy, abduction:
+  https://plato.stanford.edu/entries/abduction/
+- Stanford Encyclopedia of Philosophy, Karl Popper:
+  https://plato.stanford.edu/entries/popper/
+- Britannica, Ibn al-Haytham:
+  https://www.britannica.com/biography/Ibn-al-Haytham
+- Britannica, Panini:
+  https://www.britannica.com/biography/Panini-Indian-grammarian
+- Britannica, Ashtadhyayi:
+  https://www.britannica.com/topic/Ashtadhyayi
+- Britannica, Dmitri Mendeleev:
+  https://www.britannica.com/biography/Dmitri-Mendeleev
+- Britannica, Aristotle's Poetics:
+  https://www.britannica.com/topic/Poetics
+- Britannica, The Art of War by Sunzi:
+  https://www.britannica.com/topic/The-Art-of-War-by-Sunzi
+- Britannica, Carl von Clausewitz:
+  https://www.britannica.com/biography/Carl-von-Clausewitz
+- Britannica, Leonardo da Vinci:
+  https://www.britannica.com/biography/Leonardo-da-Vinci
+- Britannica, Darwin and evolution:
+  https://www.britannica.com/science/evolution-scientific-theory/History-of-evolutionary-theory
+- Britannica, special relativity:
+  https://www.britannica.com/science/relativity/Special-relativity
+- Britannica, Florence Nightingale:
+  https://www.britannica.com/biography/Florence-Nightingale
+- Caltech, Feynman's lecture notes:
+  https://www.feynmanlectures.caltech.edu/Notes.html
+- Toyota Production System:
+  https://global.toyota/en/company/vision-and-philosophy/production-system/index.html
+- Toyota UK, Genchi Genbutsu:
+  https://mag.toyota.co.uk/genchi-genbutsu/
+- Christopher Alexander, pattern language overview:
+  https://arl.human.cornell.edu/linked%20docs/Alexander_A_Pattern_Language.pdf
+- Amazon Leadership Principles:
+  https://www.amazon.jobs/content/en/our-workplace/leadership-principles
+- AWS Prescriptive Guidance, Working Backwards PR/FAQ:
+  https://docs.aws.amazon.com/prescriptive-guidance/latest/strategy-product-development/start-with-why.html
+- Paul Graham, Do Things that Don't Scale:
+  https://www.paulgraham.com/ds.html
+- Paul Graham, Maker's Schedule, Manager's Schedule:
+  https://www.paulgraham.com/makersschedule.html
+- Y Combinator Startup Library, essential startup advice:
+  https://www.ycombinator.com/library/4D-yc-s-essential-startup-advice
+- Stanford News, Steve Jobs commencement prepared text:
+  https://news.stanford.edu/stories/2005/06/youve-got-find-love-jobs-says
+- X, The Moonshot Factory:
+  https://x.company/
+- X, Moonshot Factory operating manual:
+  https://x.company/blog/posts/a-peek-inside-the-moonshot-factory-operating-manual/
+- X, project killing and rapid evaluation:
+  https://blog.x.company/how-to-kill-good-things-to-make-room-for-truly-great-ones-867fb6ef026
+- Stanford GSB, Jensen Huang first-principles interview:
+  https://www.gsb.stanford.edu/insights/jensen-huang-how-use-first-principles-thinking-drive-decisions
+- Berkeley Haas, Patrick Collison on Stripe culture:
+  https://haas.berkeley.edu/culture/culture-kit-podcast/posts/bonus-episode-3-stripe-ceo-patrick-collison-on-crafting-a-culture-that-prizes-details/
+- Sam Altman, Startup Playbook:
+  https://playbook.samaltman.com/
+- Reid Hoffman Blitzscaling Toolkit:
+  https://coda.io/@reidhoffman/reid-hoffman-blitzscaling-toolkit
+- Marc Andreessen, "Why Software Is Eating the World":
+  https://www.wsj.com/articles/SB10001424053111903480904576512250915629460
+
+## Investing and financial engineering method sources
+
+- Berkshire Hathaway shareholder letters:
+  https://www.berkshirehathaway.com/letters/letters.html
+- Berkshire Hathaway Owner's Manual:
+  https://www.berkshirehathaway.com/owners.html
+- Columbia Business School, value investing history:
+  https://business.columbia.edu/heilbrunn/about/valueinvestinghistory
+- McGraw Hill, Graham and Dodd, Security Analysis:
+  https://www.mheducation.com/highered/mhp/product/security-analysis-seventh-edition-principles-techniques.html
+- Simon & Schuster, Peter Lynch, One Up On Wall Street:
+  https://www.simonandschuster.com/books/One-Up-On-Wall-Street/Peter-Lynch/9780743200400
+- Oaktree Capital Management, Howard Marks memo collection:
+  https://www.oaktreecapital.com/insights/memo/the-best-of
+- Oaktree Capital Management, Howard Marks risk course:
+  https://www.oaktreecapital.com/insights/insight-video/education/how-to-think-about-risk-with-howard-marks
+- Vanguard history and John Bogle / shareholder-owned structure:
+  https://corporate.vanguard.com/content/corporatesite/us/en/corp/why-vanguard/who-we-are/our-history.html
+- Vanguard case for low-cost index-fund investing:
+  https://www.nl.vanguard/professional/vanguard-365/the-case-for-indexing
+- Yale Investments, the Yale Model:
+  https://investments.yale.edu/the-endowment
+- Yale Open Courses, David Swensen guest lecture:
+  https://oyc.yale.edu/economics/econ-252-08/lecture-9
+- Bridgewater, the All Weather story:
+  https://www.bridgewater.com/research-and-insights/the-all-weather-story
+- Renaissance Technologies official description:
+  https://www.rentec.com/Home.action?index=true
+- Nobel Prize, 1990 economics prize presentation speech
+  (Markowitz / Sharpe / Miller):
+  https://www.nobelprize.org/prizes/economic-sciences/1990/ceremony-speech/
+- Nobel Prize, 1997 economics prize advanced information
+  (Black / Scholes / Merton option pricing):
+  https://www.nobelprize.org/prizes/economic-sciences/1997/advanced-information/
+- Chicago Booth Review, Eugene Fama and efficient markets:
+  https://www.chicagobooth.edu/review/eugene-fama-efficient-markets-and-the-nobel-prize
+- Goldman Sachs, Black-Litterman global asset allocation model:
+  https://www.goldmansachs.com/our-firm/history/moments/1990-black-litterman-model
+- George Soros, fallibility and reflexivity in financial markets:
+  https://www.georgesoros.com/2014/01/13/fallibility-reflexivity-and-the-human-uncertainty-principle-2/
+- Kelly, "A New Interpretation of Information Rate" (Bell System Technical
+  Journal, 1956):
+  https://archive.org/details/bstj35-4-917
+- CAIA Association, Edward Thorp and Kelly capital growth overview:
+  https://www.caia.org/sites/default/files/AIAR_Q3_2016_05_KellyCapital.pdf
+- Mandelbrot, "The Variation of Certain Speculative Prices"
+  (Journal of Business, 1963):
+  https://doi.org/10.1086/294632
+- Taleb, "Statistical Consequences of Fat Tails":
+  https://arxiv.org/abs/2001.10488
