@@ -123,6 +123,11 @@ RUNNER_MARKERS = {
         "scored_observation_effects",
         "headroom",
     ),
+    Path("scripts/agentic_loop_runner.py"): (
+        "controlled Agentic Loop",
+        "hidden_validators",
+        "allowed_actions",
+    ),
 }
 
 HOOK_FILES = {
@@ -201,6 +206,11 @@ AGENTIC_LOOP_FILES = {
         "scored_observation_effects",
         "placebo_loop",
     ),
+    Path("scripts/agentic_loop_runner.py"): (
+        "controlled Agentic Loop",
+        "hidden_validators",
+        "allowed_actions",
+    ),
     Path("plugins/fairy-tale/docs/agentic-loop-design.md"): (
         "Agentic Loop Design Plan",
         "headroom_recovery_rate",
@@ -210,6 +220,11 @@ AGENTIC_LOOP_FILES = {
         "Agentic Loop",
         "scored_observation_effects",
         "placebo_loop",
+    ),
+    Path("plugins/fairy-tale/scripts/agentic_loop_runner.py"): (
+        "controlled Agentic Loop",
+        "hidden_validators",
+        "allowed_actions",
     ),
 }
 
