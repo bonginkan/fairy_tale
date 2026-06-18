@@ -264,6 +264,8 @@ Smoke results can only support planning. A candidate result requires:
 - `agentic_loop` improves the pre-registered primary metric over both
   `control` and `placebo_loop` on paired headroom tasks;
 - `agentic_loop` does not regress ceiling/negative tasks beyond the margin;
+- non-headroom positive tasks and negative tasks are both present so regression
+  can be checked fail-closed;
 - cost and iteration budgets have 100% coverage and pass the gate;
 - trace review shows that at least some recoveries followed from external
   observations, not from format compliance alone;

@@ -28,7 +28,7 @@ REQUIRED_BUDGET_FIELDS = (
     "max_elapsed_seconds",
     "max_cost_estimate",
 )
-LOOP_BUDGET_FIELDS = ("max_iterations", "allowed_actions")
+BUDGET_PARITY_FIELDS = REQUIRED_BUDGET_FIELDS + ("allowed_actions",)
 EXTERNAL_OBSERVATION_SOURCES = {
     "command",
     "command_output",
@@ -491,6 +491,29 @@ def headroom_summary(rows: list[dict[str, Any]], seed: int) -> dict[str, Any]:
     }
 
 
+def non_headroom_positive_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    headroom_ids = headroom_task_ids(rows)
+    positive_tasks = tasks_by_arm(rows, "positive")
+    ids = {task_id for task_id in positive_tasks if task_id not in headroom_ids}
+    selected_rows = [row for row in rows if row["task_id"] in ids and row["polarity"] == "positive"]
+    by_arm = {arm: [row for row in selected_rows if row["arm"] == arm] for arm in ARMS}
+    metrics: dict[str, Any] = {}
+    for arm, group in by_arm.items():
+        metrics[arm] = {
+            "n": len(group),
+            "verified_pass_rate": rate(group, "verified_pass"),
+            "budgeted_verified_pass_rate": rate(group, "budgeted_verified_pass"),
+            "false_success_claim_rate": rate(group, "false_success"),
+            "mean_iterations_used": mean(group, "iterations_used"),
+            "mean_cost_estimate": mean(group, "cost_estimate"),
+        }
+    return {
+        "task_ids": sorted(ids),
+        "n_non_headroom_positive_tasks": len(ids),
+        "by_arm": metrics,
+    }
+
+
 def budget_parity(rows: list[dict[str, Any]]) -> dict[str, Any]:
     issues: list[dict[str, Any]] = []
     by_task: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
@@ -501,7 +524,7 @@ def budget_parity(rows: list[dict[str, Any]]) -> dict[str, Any]:
             continue
         placebo_budget = arms["placebo_loop"].get("budgets", {})
         agentic_budget = arms["agentic_loop"].get("budgets", {})
-        for field in LOOP_BUDGET_FIELDS:
+        for field in BUDGET_PARITY_FIELDS:
             if canonical(placebo_budget.get(field)) != canonical(agentic_budget.get(field)):
                 issues.append(
                     {
@@ -550,12 +573,14 @@ def score(args: argparse.Namespace) -> int:
 
     grouped = grouped_summary(rows)
     headroom = headroom_summary(rows, args.seed)
+    non_headroom = non_headroom_positive_summary(rows)
     summary = {
         "schema_version": SCHEMA_VERSION,
         "n_results": len(rows),
         "arms": list(ARMS),
         "grouped": grouped,
         "headroom": headroom,
+        "non_headroom_positive": non_headroom,
         "budget_parity": budget_parity(rows),
         "cost_estimates_complete": missing_total({"grouped": grouped}, "cost_estimate_missing_count") == 0,
         "budget_fields_complete": missing_total({"grouped": grouped}, "budget_missing_count") == 0,
@@ -652,6 +677,35 @@ def check_payload(name: str, passed: bool, observed: Any, threshold: Any, note: 
     }
 
 
+def arm_metric(container: dict[str, Any], arm: str, metric: str) -> float | None:
+    by_arm = container.get("by_arm") if isinstance(container.get("by_arm"), dict) else {}
+    arm_data = by_arm.get(arm)
+    if not isinstance(arm_data, dict):
+        return None
+    value = arm_data.get(metric)
+    return float(value) if isinstance(value, (int, float)) else None
+
+
+def grouped_arm_metric(grouped: dict[str, Any], polarity: str, arm: str, metric: str) -> float | None:
+    group = grouped.get(f"{polarity}:{arm}")
+    if not isinstance(group, dict):
+        return None
+    value = group.get(metric)
+    return float(value) if isinstance(value, (int, float)) else None
+
+
+def delta_at_least(value: float | None, baseline: float | None, minimum: float) -> tuple[bool, Any]:
+    if value is None or baseline is None:
+        return False, {"value": value, "baseline": baseline}
+    return value - baseline >= minimum, value - baseline
+
+
+def increase_at_most(value: float | None, baseline: float | None, maximum: float) -> tuple[bool, Any]:
+    if value is None or baseline is None:
+        return False, {"value": value, "baseline": baseline}
+    return value - baseline <= maximum, value - baseline
+
+
 def promotion_check(args: argparse.Namespace) -> int:
     summary = json.loads(args.summary.read_text(encoding="utf-8"))
     headroom = summary.get("headroom") if isinstance(summary.get("headroom"), dict) else {}
@@ -659,6 +713,11 @@ def promotion_check(args: argparse.Namespace) -> int:
     agentic_vs_placebo = contrasts.get("agentic_loop_vs_placebo_loop")
     agentic_vs_control = contrasts.get("agentic_loop_vs_control")
     grouped = summary.get("grouped") if isinstance(summary.get("grouped"), dict) else {}
+    non_headroom = (
+        summary.get("non_headroom_positive")
+        if isinstance(summary.get("non_headroom_positive"), dict)
+        else {}
+    )
     checks: list[dict[str, Any]] = []
     stage_allows_promotion = args.stage in {"confirmatory", "heldout"}
     checks.append(
@@ -722,6 +781,61 @@ def promotion_check(args: argparse.Namespace) -> int:
             "requires scorer-derived pre/post state diff after allowlisted external observation",
         )
     )
+
+    for baseline_arm in ("control", "placebo_loop"):
+        for metric in ("verified_pass_rate", "budgeted_verified_pass_rate"):
+            passed, observed = delta_at_least(
+                grouped_arm_metric(grouped, "negative", "agentic_loop", metric),
+                grouped_arm_metric(grouped, "negative", baseline_arm, metric),
+                args.regression_margin,
+            )
+            checks.append(
+                check_payload(
+                    f"negative_{metric}_noninferior_vs_{baseline_arm}",
+                    passed,
+                    observed,
+                    f">= {args.regression_margin}",
+                )
+            )
+            passed, observed = delta_at_least(
+                arm_metric(non_headroom, "agentic_loop", metric),
+                arm_metric(non_headroom, baseline_arm, metric),
+                args.regression_margin,
+            )
+            checks.append(
+                check_payload(
+                    f"non_headroom_positive_{metric}_noninferior_vs_{baseline_arm}",
+                    passed,
+                    observed,
+                    f">= {args.regression_margin}",
+                )
+            )
+        passed, observed = increase_at_most(
+            grouped_arm_metric(grouped, "negative", "agentic_loop", "false_success_claim_rate"),
+            grouped_arm_metric(grouped, "negative", baseline_arm, "false_success_claim_rate"),
+            args.max_false_success_increase,
+        )
+        checks.append(
+            check_payload(
+                f"negative_false_success_not_increased_vs_{baseline_arm}",
+                passed,
+                observed,
+                f"<= {args.max_false_success_increase}",
+            )
+        )
+        passed, observed = increase_at_most(
+            arm_metric(non_headroom, "agentic_loop", "false_success_claim_rate"),
+            arm_metric(non_headroom, baseline_arm, "false_success_claim_rate"),
+            args.max_false_success_increase,
+        )
+        checks.append(
+            check_payload(
+                f"non_headroom_positive_false_success_not_increased_vs_{baseline_arm}",
+                passed,
+                observed,
+                f"<= {args.max_false_success_increase}",
+            )
+        )
 
     budget_missing = missing_total({"grouped": grouped}, "budget_missing_count")
     cost_missing = missing_total({"grouped": grouped}, "cost_estimate_missing_count")
@@ -891,6 +1005,8 @@ def build_parser() -> argparse.ArgumentParser:
     promotion_parser.add_argument("--min-ci-low", type=float, default=0.0)
     promotion_parser.add_argument("--min-decisive-recoveries", type=int, default=1)
     promotion_parser.add_argument("--min-headroom-n", type=int, default=8)
+    promotion_parser.add_argument("--regression-margin", type=float, default=-0.03)
+    promotion_parser.add_argument("--max-false-success-increase", type=float, default=0.0)
     promotion_parser.set_defaults(func=promotion_check)
     return parser
 
