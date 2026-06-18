@@ -76,15 +76,22 @@ Primary outcomes:
   ground-truth validator. This value must come from a separate blind verdict
   artifact, not from the model answer.
 
+Each Eval card must pre-register exactly one primary metric for the promotion
+gate, such as `positive_verified_pass` or `positive_not_false_success`. Do not
+run multiple primary metrics and promote on whichever passes.
+
 Secondary outcomes:
 
 - `quality_per_token`: verified or rubric score divided by total prompt and
   completion tokens when available.
 - `elapsed_seconds`.
 - `budgeted_correct`: verified pass within the pre-registered token/time budget.
+  Positive promotion rows must define `max_prompt_tokens`,
+  `max_completion_tokens`, and `max_elapsed_seconds`; missing budgets fail the
+  promotion gate.
 - `cost_estimate`: numeric run cost estimate recorded by the runner when
-  available. The promotion gate treats missing cost estimates as not passing
-  the cost gate.
+  available. The promotion gate treats any missing cost estimate in the scored
+  rows as not passing the cost gate.
 
 Mechanism trace, not a primary outcome:
 
@@ -154,9 +161,11 @@ Default promotion-contract thresholds are:
 - primary positive treatment-minus-placebo delta >= +0.05 and bootstrap CI low
   >= 0.0;
 - positive budgeted-correct treatment-minus-placebo delta >= 0.0;
+- positive task budgets have zero missing rows;
 - negative-family treatment-minus-control quality delta >= -0.03;
 - routing negative abstention >= 0.80 and positive selection >= 0.80;
 - treatment mean cost estimate <= 1.20x placebo mean cost estimate.
+- cost estimates have zero missing rows before the cost ratio can pass.
 
 These thresholds are applied by `promotion-check`. Smoke-stage summaries are
 always blocked from promotion even when their exploratory checks look good.

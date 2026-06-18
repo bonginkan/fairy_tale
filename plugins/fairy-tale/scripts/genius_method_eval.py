@@ -23,6 +23,7 @@ from typing import Any
 ARMS = ("control", "placebo", "treatment")
 POLARITIES = {"positive", "negative"}
 SUPPORTED_CARDS = {"empirical_experiment_ledger"}
+REQUIRED_BUDGET_FIELDS = ("max_prompt_tokens", "max_completion_tokens", "max_elapsed_seconds")
 
 EMPIRICAL_LEDGER_SCHEMA = """Empirical Experiment Ledger
 
@@ -341,6 +342,10 @@ def within_optional_budget(value: float, limit: Any) -> bool:
     return value <= parsed
 
 
+def has_required_budget(budgets: dict[str, Any]) -> bool:
+    return all(as_optional_float(budgets.get(field)) is not None for field in REQUIRED_BUDGET_FIELDS)
+
+
 def first_numeric(*values: Any) -> float | None:
     for value in values:
         parsed = as_optional_float(value)
@@ -400,7 +405,8 @@ def normalize_answer(row: dict[str, Any], verdict: dict[str, Any], key: dict[str
         usage.get("cost_estimate_usd"),
         usage.get("cost_usd"),
     )
-    within_budget = (
+    budget_complete = has_required_budget(budgets)
+    within_budget = budget_complete and (
         within_optional_budget(prompt_tokens, budgets.get("max_prompt_tokens"))
         and within_optional_budget(completion_tokens, budgets.get("max_completion_tokens"))
         and within_optional_budget(elapsed_seconds, budgets.get("max_elapsed_seconds"))
@@ -410,6 +416,7 @@ def normalize_answer(row: dict[str, Any], verdict: dict[str, Any], key: dict[str
         "claimed_success": claimed_success,
         "verified_pass": verified_pass,
         "budgeted_correct": verified_pass and within_budget,
+        "budget_complete": budget_complete,
         "false_success": claimed_success and not verified_pass,
         "quality_score": quality_score,
         "prompt_tokens": prompt_tokens,
@@ -418,6 +425,7 @@ def normalize_answer(row: dict[str, Any], verdict: dict[str, Any], key: dict[str
         "quality_per_token": quality_score / total_tokens if total_tokens > 0 else None,
         "elapsed_seconds": elapsed_seconds,
         "cost_estimate": cost_estimate,
+        "cost_estimate_present": cost_estimate is not None,
         "artifact_completed": artifact_completed,
         "artifact_changed_decision": as_bool(trace.get("artifact_changed_decision")),
         "no_misapplied_artifact": not artifact_completed,
@@ -448,6 +456,8 @@ def grouped_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "n": len(group),
             "verified_pass_rate": rate(group, "verified_pass"),
             "budgeted_correct_rate": rate(group, "budgeted_correct"),
+            "budget_complete_rate": rate(group, "budget_complete"),
+            "budget_missing_count": sum(1 for row in group if not row.get("budget_complete")),
             "false_success_claim_rate": rate(group, "false_success"),
             "artifact_completed_rate": rate(group, "artifact_completed"),
             "artifact_changed_decision_rate": rate(group, "artifact_changed_decision"),
@@ -457,6 +467,8 @@ def grouped_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "mean_quality_per_token": mean(group, "quality_per_token"),
             "mean_elapsed_seconds": mean(group, "elapsed_seconds"),
             "mean_cost_estimate": mean(group, "cost_estimate"),
+            "cost_estimate_count": sum(1 for row in group if row.get("cost_estimate_present")),
+            "cost_estimate_missing_count": sum(1 for row in group if not row.get("cost_estimate_present")),
         }
     return summary
 
@@ -738,6 +750,23 @@ def weighted_arm_mean(summary: dict[str, Any], arm: str, field: str) -> float | 
     return total / count
 
 
+def grouped_missing_total(summary: dict[str, Any], field: str, prefix: str | None = None) -> int | None:
+    grouped = summary.get("grouped") if isinstance(summary.get("grouped"), dict) else {}
+    total = 0
+    matched = False
+    for group_key, group in grouped.items():
+        if prefix is not None and not str(group_key).startswith(prefix):
+            continue
+        if not isinstance(group, dict):
+            return None
+        value = group.get(field)
+        if not isinstance(value, int):
+            return None
+        total += value
+        matched = True
+    return total if matched else None
+
+
 def check_payload(name: str, passed: bool, observed: Any, threshold: Any, note: str = "") -> dict[str, Any]:
     return {
         "name": name,
@@ -789,6 +818,16 @@ def promotion_check(args: argparse.Namespace) -> int:
 
     budgeted = paired_metric(summary, args.budgeted_metric)
     budgeted_delta = budgeted.get("treatment_minus_placebo") if budgeted else None
+    positive_budget_missing = grouped_missing_total(summary, "budget_missing_count", "positive:")
+    checks.append(
+        check_payload(
+            "positive_budget_fields_complete",
+            positive_budget_missing == 0,
+            positive_budget_missing,
+            "0 missing budget rows",
+            "requires max_prompt_tokens, max_completion_tokens, and max_elapsed_seconds for positive promotion rows",
+        )
+    )
     checks.append(
         check_payload(
             "budgeted_correct_not_worse",
@@ -809,9 +848,20 @@ def promotion_check(args: argparse.Namespace) -> int:
         )
     )
 
+    cost_missing = grouped_missing_total(summary, "cost_estimate_missing_count")
     treatment_cost = weighted_arm_mean(summary, "treatment", "mean_cost_estimate")
     placebo_cost = weighted_arm_mean(summary, "placebo", "mean_cost_estimate")
-    if treatment_cost is not None and placebo_cost is not None and placebo_cost > 0:
+    cost_complete = cost_missing == 0
+    checks.append(
+        check_payload(
+            "cost_estimates_complete",
+            cost_complete,
+            cost_missing,
+            "0 missing cost rows",
+            "requires numeric cost_estimate for every scored row before cost ratios can promote",
+        )
+    )
+    if cost_complete and treatment_cost is not None and placebo_cost is not None and placebo_cost > 0:
         cost_ratio = treatment_cost / placebo_cost
         cost_passed = cost_ratio <= 1.0 + args.max_cost_increase
         cost_observed: Any = cost_ratio
@@ -820,6 +870,7 @@ def promotion_check(args: argparse.Namespace) -> int:
         cost_observed = {
             "treatment_mean_cost_estimate": treatment_cost,
             "placebo_mean_cost_estimate": placebo_cost,
+            "cost_estimate_missing_count": cost_missing,
         }
     checks.append(
         check_payload(
