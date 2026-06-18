@@ -113,6 +113,11 @@ RUNNER_MARKERS = {
         "fairy-tale-benchmark-feedback",
         "xhigh",
     ),
+    Path("scripts/genius_method_eval.py"): (
+        "Accessible Genius Method",
+        "placebo",
+        "paired",
+    ),
 }
 
 HOOK_FILES = {
@@ -159,6 +164,24 @@ LATENT_STRUCTURE_FILES = {
         "Latent Structure Harness",
         "domain-neutral",
         "pre-act",
+    ),
+}
+
+GENIUS_METHOD_EVAL_FILES = {
+    Path("docs/genius-method-eval-plan.md"): (
+        "Empirical Experiment Ledger",
+        "control",
+        "placebo",
+        "treatment",
+    ),
+    Path("fixtures/genius-method-eval/empirical-smoke.jsonl"): (
+        "empirical-positive-validator-claim-001",
+        "empirical-negative-formatting-001",
+    ),
+    Path("plugins/fairy-tale/scripts/genius_method_eval.py"): (
+        "Accessible Genius Method",
+        "placebo",
+        "paired",
     ),
 }
 
@@ -390,6 +413,9 @@ def collect_checks(args: argparse.Namespace) -> list[Check]:
 
     for path, markers in LATENT_STRUCTURE_FILES.items():
         check_contains(checks, path, markers, f"{path} latent-structure artifact")
+
+    for path, markers in GENIUS_METHOD_EVAL_FILES.items():
+        check_contains(checks, path, markers, f"{path} genius-method eval artifact")
 
     if args.check_installed:
         home = Path.home()

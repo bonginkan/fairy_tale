@@ -247,6 +247,7 @@ Notes:
 
 - [Research summary](docs/research-summary.md)
 - [Benchmark validation plan](docs/benchmark-validation-plan.md)
+- [Genius method eval plan](docs/genius-method-eval-plan.md)
 - [Domain gap analysis](docs/domain-gap-analysis.md)
 - [Cybersecurity strengthening](docs/cybersecurity-strengthening.md)
 - [ARC-AGI-3 lab analysis](docs/arc-agi-3-lab-analysis.md)
@@ -268,6 +269,7 @@ Notes:
 - [SWE-Bench Pro runner](scripts/swebench_pro_run.py)
 - [ExploitBench runner](scripts/exploitbench_run.py)
 - [Benchmark feedback ledger](scripts/benchmark_feedback_ledger.py)
+- [Genius method eval harness](scripts/genius_method_eval.py)
 - [Legal feedback analyzer](scripts/legal_feedback_analyzer.py)
 - [Feedback pruner](scripts/feedback_pruner.py)
 - [Residency check](scripts/fairy_tale_residency_check.py)
