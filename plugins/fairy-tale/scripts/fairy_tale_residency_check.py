@@ -113,6 +113,16 @@ RUNNER_MARKERS = {
         "fairy-tale-benchmark-feedback",
         "xhigh",
     ),
+    Path("scripts/genius_method_eval.py"): (
+        "Accessible Genius Method",
+        "placebo",
+        "paired",
+    ),
+    Path("scripts/agentic_loop_eval.py"): (
+        "Agentic Loop",
+        "scored_observation_effects",
+        "headroom",
+    ),
 }
 
 HOOK_FILES = {
@@ -159,6 +169,47 @@ LATENT_STRUCTURE_FILES = {
         "Latent Structure Harness",
         "domain-neutral",
         "pre-act",
+    ),
+}
+
+GENIUS_METHOD_EVAL_FILES = {
+    Path("docs/genius-method-eval-plan.md"): (
+        "Empirical Experiment Ledger",
+        "control",
+        "placebo",
+        "treatment",
+    ),
+    Path("fixtures/genius-method-eval/empirical-smoke.jsonl"): (
+        "empirical-positive-validator-claim-001",
+        "empirical-negative-formatting-001",
+    ),
+    Path("plugins/fairy-tale/scripts/genius_method_eval.py"): (
+        "Accessible Genius Method",
+        "placebo",
+        "paired",
+    ),
+}
+
+AGENTIC_LOOP_FILES = {
+    Path("docs/agentic-loop-design.md"): (
+        "Agentic Loop Design Plan",
+        "headroom_recovery_rate",
+        "scored_observation_effects",
+    ),
+    Path("scripts/agentic_loop_eval.py"): (
+        "Agentic Loop",
+        "scored_observation_effects",
+        "placebo_loop",
+    ),
+    Path("plugins/fairy-tale/docs/agentic-loop-design.md"): (
+        "Agentic Loop Design Plan",
+        "headroom_recovery_rate",
+        "scored_observation_effects",
+    ),
+    Path("plugins/fairy-tale/scripts/agentic_loop_eval.py"): (
+        "Agentic Loop",
+        "scored_observation_effects",
+        "placebo_loop",
     ),
 }
 
@@ -390,6 +441,12 @@ def collect_checks(args: argparse.Namespace) -> list[Check]:
 
     for path, markers in LATENT_STRUCTURE_FILES.items():
         check_contains(checks, path, markers, f"{path} latent-structure artifact")
+
+    for path, markers in GENIUS_METHOD_EVAL_FILES.items():
+        check_contains(checks, path, markers, f"{path} genius-method eval artifact")
+
+    for path, markers in AGENTIC_LOOP_FILES.items():
+        check_contains(checks, path, markers, f"{path} agentic-loop artifact")
 
     if args.check_installed:
         home = Path.home()

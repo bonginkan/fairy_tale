@@ -118,6 +118,11 @@ RUNNER_MARKERS = {
         "placebo",
         "paired",
     ),
+    Path("scripts/agentic_loop_eval.py"): (
+        "Agentic Loop",
+        "scored_observation_effects",
+        "headroom",
+    ),
 }
 
 HOOK_FILES = {
@@ -182,6 +187,29 @@ GENIUS_METHOD_EVAL_FILES = {
         "Accessible Genius Method",
         "placebo",
         "paired",
+    ),
+}
+
+AGENTIC_LOOP_FILES = {
+    Path("docs/agentic-loop-design.md"): (
+        "Agentic Loop Design Plan",
+        "headroom_recovery_rate",
+        "scored_observation_effects",
+    ),
+    Path("scripts/agentic_loop_eval.py"): (
+        "Agentic Loop",
+        "scored_observation_effects",
+        "placebo_loop",
+    ),
+    Path("plugins/fairy-tale/docs/agentic-loop-design.md"): (
+        "Agentic Loop Design Plan",
+        "headroom_recovery_rate",
+        "scored_observation_effects",
+    ),
+    Path("plugins/fairy-tale/scripts/agentic_loop_eval.py"): (
+        "Agentic Loop",
+        "scored_observation_effects",
+        "placebo_loop",
     ),
 }
 
@@ -416,6 +444,9 @@ def collect_checks(args: argparse.Namespace) -> list[Check]:
 
     for path, markers in GENIUS_METHOD_EVAL_FILES.items():
         check_contains(checks, path, markers, f"{path} genius-method eval artifact")
+
+    for path, markers in AGENTIC_LOOP_FILES.items():
+        check_contains(checks, path, markers, f"{path} agentic-loop artifact")
 
     if args.check_installed:
         home = Path.home()
