@@ -592,7 +592,7 @@ def run_tasks(args: argparse.Namespace) -> int:
             "tasks": str(args.tasks),
             "seed": args.seed,
             "arms": list(ARMS),
-            "hidden_validator_isolation": "hidden_validators are written only to judge_manifest.jsonl, not workspaces or solver requests",
+            "hidden_validator_isolation": "hidden validator specs are written only to judge_manifest.jsonl, not workspaces or solver requests",
         },
     )
     print(f"wrote agentic loop run: {output}")

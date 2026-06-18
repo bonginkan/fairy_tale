@@ -128,6 +128,11 @@ RUNNER_MARKERS = {
         "hidden_validators",
         "allowed_actions",
     ),
+    Path("scripts/agentic_loop_codex_solver.py"): (
+        "action-only solver",
+        "FORBIDDEN_REQUEST_FIELDS",
+        "--ignore-rules",
+    ),
 }
 
 HOOK_FILES = {
@@ -211,6 +216,15 @@ AGENTIC_LOOP_FILES = {
         "hidden_validators",
         "allowed_actions",
     ),
+    Path("scripts/agentic_loop_codex_solver.py"): (
+        "action-only solver",
+        "workspace_path",
+        "FORBIDDEN_RESPONSE_FIELDS",
+    ),
+    Path("fixtures/agentic-loop/smoke.jsonl"): (
+        "agentic-loop-smoke-public-probe-001",
+        "agentic-loop-smoke-negative-format-001",
+    ),
     Path("plugins/fairy-tale/docs/agentic-loop-design.md"): (
         "Agentic Loop Design Plan",
         "headroom_recovery_rate",
@@ -225,6 +239,11 @@ AGENTIC_LOOP_FILES = {
         "controlled Agentic Loop",
         "hidden_validators",
         "allowed_actions",
+    ),
+    Path("plugins/fairy-tale/scripts/agentic_loop_codex_solver.py"): (
+        "action-only solver",
+        "workspace_path",
+        "FORBIDDEN_RESPONSE_FIELDS",
     ),
 }
 
