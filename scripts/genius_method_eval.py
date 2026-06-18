@@ -325,6 +325,30 @@ def as_float(value: Any, default: float = 0.0) -> float:
         return default
 
 
+def as_optional_float(value: Any) -> float | None:
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def within_optional_budget(value: float, limit: Any) -> bool:
+    parsed = as_optional_float(limit)
+    if parsed is None:
+        return True
+    return value <= parsed
+
+
+def first_numeric(*values: Any) -> float | None:
+    for value in values:
+        parsed = as_optional_float(value)
+        if parsed is not None:
+            return parsed
+    return None
+
+
 def load_key(path: Path) -> dict[str, dict[str, Any]]:
     data = json.loads(path.read_text(encoding="utf-8"))
     rows = data.get("rows") if isinstance(data, dict) else None
@@ -366,17 +390,34 @@ def normalize_answer(row: dict[str, Any], verdict: dict[str, Any], key: dict[str
     total_tokens = prompt_tokens + completion_tokens
     quality_score = as_float(verdict.get("quality_score"), 1.0 if verified_pass else 0.0)
     artifact_completed = as_bool(trace.get("artifact_completed"))
+    elapsed_seconds = as_float(row.get("elapsed_seconds", usage.get("elapsed_seconds")), 0.0)
+    budgets = key.get("budgets") if isinstance(key.get("budgets"), dict) else {}
+    cost_estimate = first_numeric(
+        row.get("cost_estimate"),
+        row.get("cost_estimate_usd"),
+        row.get("cost_usd"),
+        usage.get("cost_estimate"),
+        usage.get("cost_estimate_usd"),
+        usage.get("cost_usd"),
+    )
+    within_budget = (
+        within_optional_budget(prompt_tokens, budgets.get("max_prompt_tokens"))
+        and within_optional_budget(completion_tokens, budgets.get("max_completion_tokens"))
+        and within_optional_budget(elapsed_seconds, budgets.get("max_elapsed_seconds"))
+    )
     return {
         **key,
         "claimed_success": claimed_success,
         "verified_pass": verified_pass,
+        "budgeted_correct": verified_pass and within_budget,
         "false_success": claimed_success and not verified_pass,
         "quality_score": quality_score,
         "prompt_tokens": prompt_tokens,
         "completion_tokens": completion_tokens,
         "total_tokens": total_tokens,
         "quality_per_token": quality_score / total_tokens if total_tokens > 0 else None,
-        "elapsed_seconds": as_float(row.get("elapsed_seconds"), 0.0),
+        "elapsed_seconds": elapsed_seconds,
+        "cost_estimate": cost_estimate,
         "artifact_completed": artifact_completed,
         "artifact_changed_decision": as_bool(trace.get("artifact_changed_decision")),
         "no_misapplied_artifact": not artifact_completed,
@@ -406,6 +447,7 @@ def grouped_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
         summary[key] = {
             "n": len(group),
             "verified_pass_rate": rate(group, "verified_pass"),
+            "budgeted_correct_rate": rate(group, "budgeted_correct"),
             "false_success_claim_rate": rate(group, "false_success"),
             "artifact_completed_rate": rate(group, "artifact_completed"),
             "artifact_changed_decision_rate": rate(group, "artifact_changed_decision"),
@@ -414,6 +456,7 @@ def grouped_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "mean_total_tokens": mean(group, "total_tokens"),
             "mean_quality_per_token": mean(group, "quality_per_token"),
             "mean_elapsed_seconds": mean(group, "elapsed_seconds"),
+            "mean_cost_estimate": mean(group, "cost_estimate"),
         }
     return summary
 
@@ -476,8 +519,10 @@ def paired_delta(rows: list[dict[str, Any]], polarity: str, metric: str, seed: i
     tasks = paired_tasks(rows, polarity)
     deltas_tp: list[float] = []
     deltas_pc: list[float] = []
+    deltas_tc: list[float] = []
     t_beats_p = p_beats_t = 0
     p_beats_c = c_beats_p = 0
+    t_beats_c = c_beats_t = 0
     binary_metric = True
     for arms in tasks.values():
         treatment = arms["treatment"]
@@ -491,8 +536,10 @@ def paired_delta(rows: list[dict[str, Any]], polarity: str, metric: str, seed: i
         c_value = as_float(control.get(metric), 0.0)
         delta_tp = t_value - p_value
         delta_pc = p_value - c_value
+        delta_tc = t_value - c_value
         deltas_tp.append(delta_tp)
         deltas_pc.append(delta_pc)
+        deltas_tc.append(delta_tc)
         if t_value > p_value:
             t_beats_p += 1
         elif p_value > t_value:
@@ -501,18 +548,27 @@ def paired_delta(rows: list[dict[str, Any]], polarity: str, metric: str, seed: i
             p_beats_c += 1
         elif c_value > p_value:
             c_beats_p += 1
+        if t_value > c_value:
+            t_beats_c += 1
+        elif c_value > t_value:
+            c_beats_t += 1
     return {
         "polarity": polarity,
         "metric": metric,
         "n_paired_tasks": len(tasks),
         "treatment_minus_placebo": sum(deltas_tp) / len(deltas_tp) if deltas_tp else None,
         "placebo_minus_control": sum(deltas_pc) / len(deltas_pc) if deltas_pc else None,
+        "treatment_minus_control": sum(deltas_tc) / len(deltas_tc) if deltas_tc else None,
         "treatment_vs_placebo_bootstrap_ci": bootstrap_ci(deltas_tp, seed),
         "placebo_vs_control_bootstrap_ci": bootstrap_ci(deltas_pc, seed + 1),
+        "treatment_vs_control_bootstrap_ci": bootstrap_ci(deltas_tc, seed + 2),
         "treatment_vs_placebo_mcnemar_p": exact_mcnemar_p(t_beats_p, p_beats_t)
         if binary_metric
         else None,
         "placebo_vs_control_mcnemar_p": exact_mcnemar_p(p_beats_c, c_beats_p)
+        if binary_metric
+        else None,
+        "treatment_vs_control_mcnemar_p": exact_mcnemar_p(t_beats_c, c_beats_t)
         if binary_metric
         else None,
         "discordant": {
@@ -520,6 +576,8 @@ def paired_delta(rows: list[dict[str, Any]], polarity: str, metric: str, seed: i
             "placebo_beats_treatment": p_beats_t,
             "placebo_beats_control": p_beats_c,
             "control_beats_placebo": c_beats_p,
+            "treatment_beats_control": t_beats_c,
+            "control_beats_treatment": c_beats_t,
         },
     }
 
@@ -549,6 +607,7 @@ def score(args: argparse.Namespace) -> int:
         "schema_version": "1.0",
         "n_results": len(rows),
         "positive_primary_metrics": ["false_success_claim_rate", "verified_pass_rate"],
+        "budget_metrics": ["budgeted_correct_rate", "mean_cost_estimate"],
         "negative_noninferiority_metrics": [
             "quality_score",
             "quality_per_token",
@@ -557,6 +616,7 @@ def score(args: argparse.Namespace) -> int:
         "grouped": grouped_summary(rows),
         "paired": {
             "positive_verified_pass": paired_delta(rows, "positive", "verified_pass", args.seed),
+            "positive_budgeted_correct": paired_delta(rows, "positive", "budgeted_correct", args.seed + 5),
             "positive_not_false_success": paired_delta(
                 [{**row, "not_false_success": not row["false_success"]} for row in rows],
                 "positive",
@@ -655,6 +715,169 @@ def power(args: argparse.Namespace) -> int:
     return 0 if required_n is not None else 1
 
 
+def paired_metric(summary: dict[str, Any], name: str) -> dict[str, Any] | None:
+    paired = summary.get("paired") if isinstance(summary.get("paired"), dict) else {}
+    metric = paired.get(name)
+    return metric if isinstance(metric, dict) else None
+
+
+def weighted_arm_mean(summary: dict[str, Any], arm: str, field: str) -> float | None:
+    grouped = summary.get("grouped") if isinstance(summary.get("grouped"), dict) else {}
+    total = 0.0
+    count = 0
+    for group_key, group in grouped.items():
+        if not isinstance(group, dict) or not str(group_key).endswith(f":{arm}"):
+            continue
+        value = group.get(field)
+        n = int(group.get("n") or 0)
+        if isinstance(value, (int, float)) and n > 0:
+            total += float(value) * n
+            count += n
+    if count == 0:
+        return None
+    return total / count
+
+
+def check_payload(name: str, passed: bool, observed: Any, threshold: Any, note: str = "") -> dict[str, Any]:
+    return {
+        "name": name,
+        "passed": bool(passed),
+        "observed": observed,
+        "threshold": threshold,
+        "note": note,
+    }
+
+
+def promotion_check(args: argparse.Namespace) -> int:
+    summary = json.loads(args.summary.read_text(encoding="utf-8"))
+    routing_summary = None
+    if args.routing_summary:
+        routing_summary = json.loads(args.routing_summary.read_text(encoding="utf-8"))
+
+    checks: list[dict[str, Any]] = []
+    stage_allows_promotion = args.stage in {"confirmatory", "heldout"}
+    checks.append(
+        check_payload(
+            "stage_allows_promotion",
+            stage_allows_promotion,
+            args.stage,
+            "confirmatory|heldout",
+            "smoke and demo runs are planning evidence only",
+        )
+    )
+
+    primary = paired_metric(summary, args.primary_metric)
+    primary_delta = primary.get("treatment_minus_placebo") if primary else None
+    primary_ci = primary.get("treatment_vs_placebo_bootstrap_ci") if primary else None
+    primary_ci_low = primary_ci.get("low") if isinstance(primary_ci, dict) else None
+    checks.append(
+        check_payload(
+            "primary_treatment_beats_placebo",
+            isinstance(primary_delta, (int, float)) and primary_delta >= args.min_positive_delta,
+            primary_delta,
+            f">= {args.min_positive_delta}",
+        )
+    )
+    checks.append(
+        check_payload(
+            "primary_ci_low_nonnegative",
+            isinstance(primary_ci_low, (int, float)) and primary_ci_low >= args.min_primary_ci_low,
+            primary_ci_low,
+            f">= {args.min_primary_ci_low}",
+        )
+    )
+
+    budgeted = paired_metric(summary, args.budgeted_metric)
+    budgeted_delta = budgeted.get("treatment_minus_placebo") if budgeted else None
+    checks.append(
+        check_payload(
+            "budgeted_correct_not_worse",
+            isinstance(budgeted_delta, (int, float)) and budgeted_delta >= args.min_budgeted_delta,
+            budgeted_delta,
+            f">= {args.min_budgeted_delta}",
+        )
+    )
+
+    negative = paired_metric(summary, args.negative_metric)
+    negative_delta = negative.get("treatment_minus_control") if negative else None
+    checks.append(
+        check_payload(
+            "negative_noninferiority_vs_control",
+            isinstance(negative_delta, (int, float)) and negative_delta >= args.negative_margin,
+            negative_delta,
+            f">= {args.negative_margin}",
+        )
+    )
+
+    treatment_cost = weighted_arm_mean(summary, "treatment", "mean_cost_estimate")
+    placebo_cost = weighted_arm_mean(summary, "placebo", "mean_cost_estimate")
+    if treatment_cost is not None and placebo_cost is not None and placebo_cost > 0:
+        cost_ratio = treatment_cost / placebo_cost
+        cost_passed = cost_ratio <= 1.0 + args.max_cost_increase
+        cost_observed: Any = cost_ratio
+    else:
+        cost_passed = False
+        cost_observed = {
+            "treatment_mean_cost_estimate": treatment_cost,
+            "placebo_mean_cost_estimate": placebo_cost,
+        }
+    checks.append(
+        check_payload(
+            "cost_increase_within_limit",
+            cost_passed,
+            cost_observed,
+            f"<= {1.0 + args.max_cost_increase}",
+            "requires numeric cost_estimate in answer usage",
+        )
+    )
+
+    if routing_summary is None:
+        checks.append(
+            check_payload(
+                "routing_summary_present",
+                False,
+                None,
+                "required",
+                "run score-routing for Use when / Do not use when promotion",
+            )
+        )
+    else:
+        negative_abstention = routing_summary.get("negative_abstention_rate")
+        positive_selection = routing_summary.get("positive_selection_rate")
+        checks.append(
+            check_payload(
+                "routing_negative_abstention",
+                isinstance(negative_abstention, (int, float))
+                and negative_abstention >= args.min_routing_negative_abstention,
+                negative_abstention,
+                f">= {args.min_routing_negative_abstention}",
+            )
+        )
+        checks.append(
+            check_payload(
+                "routing_positive_selection",
+                isinstance(positive_selection, (int, float))
+                and positive_selection >= args.min_routing_positive_selection,
+                positive_selection,
+                f">= {args.min_routing_positive_selection}",
+            )
+        )
+
+    candidate_eligible = all(check["passed"] for check in checks)
+    payload = {
+        "schema_version": "1.0",
+        "stage": args.stage,
+        "candidate_eligible": candidate_eligible,
+        "default_promotion_allowed": False,
+        "recommendation": "candidate" if candidate_eligible else "review_only",
+        "checks": checks,
+        "interpretation_guard": "This gate can only support candidate/review status for the measured card and task family. It never authorizes default promotion.",
+    }
+    write_json(args.output, payload)
+    print(json.dumps(payload, indent=2, sort_keys=True))
+    return 0 if candidate_eligible else 1
+
+
 def demo_answers(args: argparse.Namespace) -> int:
     key = load_key(args.key)
     rows: list[dict[str, Any]] = []
@@ -668,6 +891,7 @@ def demo_answers(args: argparse.Namespace) -> int:
                 "claimed_success": claimed,
                 "prompt_tokens": 1000 if arm == "control" else 1200,
                 "completion_tokens": 300,
+                "cost_estimate": 0.010 if arm != "treatment" else 0.011,
                 "elapsed_seconds": 10,
                 "method_trace": {
                     "card_used": "empirical_experiment_ledger" if arm == "treatment" else "none",
@@ -782,6 +1006,23 @@ def build_parser() -> argparse.ArgumentParser:
     power_parser.add_argument("--max-n", type=int, default=1000)
     power_parser.add_argument("--output", required=True, type=Path)
     power_parser.set_defaults(func=power)
+
+    promotion = subparsers.add_parser("promotion-check", help="apply the pre-registered promotion gate")
+    promotion.add_argument("--summary", required=True, type=Path)
+    promotion.add_argument("--routing-summary", type=Path)
+    promotion.add_argument("--output", required=True, type=Path)
+    promotion.add_argument("--stage", choices=["smoke", "confirmatory", "heldout"], default="smoke")
+    promotion.add_argument("--primary-metric", default="positive_verified_pass")
+    promotion.add_argument("--budgeted-metric", default="positive_budgeted_correct")
+    promotion.add_argument("--negative-metric", default="negative_quality_score")
+    promotion.add_argument("--min-positive-delta", type=float, default=0.05)
+    promotion.add_argument("--min-primary-ci-low", type=float, default=0.0)
+    promotion.add_argument("--min-budgeted-delta", type=float, default=0.0)
+    promotion.add_argument("--negative-margin", type=float, default=-0.03)
+    promotion.add_argument("--min-routing-negative-abstention", type=float, default=0.8)
+    promotion.add_argument("--min-routing-positive-selection", type=float, default=0.8)
+    promotion.add_argument("--max-cost-increase", type=float, default=0.2)
+    promotion.set_defaults(func=promotion_check)
 
     route_score = subparsers.add_parser("score-routing", help="summarize routing probe outputs")
     route_score.add_argument("--key", required=True, type=Path)
