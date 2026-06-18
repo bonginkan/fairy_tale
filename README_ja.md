@@ -1,209 +1,97 @@
-<div align="center">
+# fairy_tale
 
-# 🪶 fairy_tale (日本語版)
+[English README](README.md)
 
 ![Fairy Tale wide logo](assets/fairy-tale-wide-logo-gpt-image-2.png)
-
-***Fable / Mythos クラスのエージェント仕事を写し取るための、ナイチンゲールの楽譜帳。***
-
-[English README](./README.md)
-
-</div>
-
-> *「本物の小鳥の歌は、簡素でありながら、いちばん真実だった。」*
-> — H. C. アンデルセン『ナイチンゲール』より
 
 公開されている Fable / Mythos クラスのエージェント報告を、再現可能な
 ワークフロー強化スキルおよびプラグインパッケージへ翻訳するための研究
 ワークスペース。
 
-アンデルセン童話では、宝石をちりばめた機械仕掛けの小鳥に宮廷が魅了されたあと、
-本物の小鳥の生きた歌こそが価値を持つことに気付く。Fairy Tale は機械仕掛けの
-鳥を盗もうとせず、籠を開けようとせず、皇帝の鍵師のふりもしない。優れた
-エージェント作業についての公開記述と実地レポートを調査し、神話 (myth) と
-旋律 (melody) を切り分け、再現可能なパターンをスキル・チェック・アダプタ・
-サンプル成果物として書き残す。
-
-このリポジトリはアクセス制御、輸出規制、モデルの安全装置を迂回しようとは
+Fairy Tale はアクセス制御、輸出規制、モデルの安全装置を迂回しようとは
 しない。公式に公開された情報と公開ユーザー報告を研究対象とし、Codex、
 Claude Code、その他のエージェント-スキル互換コーディングアシスタントで
 実行できる、再利用可能なワークフロー強化を定義する。
 
----
+## Quick Start
 
-## 🚪 クイックスタート
+Claude Code では、GitHub repo を marketplace として直接追加できる。
+
+```text
+/plugin marketplace add bonginkan/fairy_tale
+/plugin install fairy-tale@fairy-tale-marketplace
+```
+
+Codex では、公式 manual 上は GitHub shorthand の marketplace 追加が
+サポートされている。CLI または plugin directory から marketplace を追加し、
+`fairy-tale` をインストールする。
+
+```text
+codex plugin marketplace add bonginkan/fairy_tale
+```
+
+plugin を使わず skill だけを導入する場合は、install script を使う。対象
+ディレクトリが存在しない場合は安全のため失敗するので、明示的に作成してから
+実行する。
+
+```bash
+mkdir -p "$HOME/.codex/skills"
+curl -fsSL https://raw.githubusercontent.com/bonginkan/fairy_tale/main/install.sh | sh -s -- --agent codex
+```
+
+ローカルで直接使う場合:
 
 ```bash
 git clone https://github.com/bonginkan/fairy_tale.git
 cd fairy_tale
 ```
 
-その後、Claude Code 内で:
-
-```text
-/plugin marketplace add .
-/plugin install fairy-tale@fairy-tale-marketplace
-```
-
-Codex、汎用エージェント、または plugin を使わず project skill として
-利用する場合は、`skills/`、`.agents/skills/`、`.claude/skills/` 配下の
-対応する `SKILL.md` をエージェントに読み込ませる。測定結果を公開する前に
-[SECURITY.md](SECURITY.md)、[CONTRIBUTING.md](CONTRIBUTING.md)、
-[docs/governance/feedback-governance.md](docs/governance/feedback-governance.md)
+測定結果を公開する前に [SECURITY.md](SECURITY.md)、
+[CONTRIBUTING.md](CONTRIBUTING.md)、[Feedback governance](docs/feedback-governance.md)
 を確認する。
 
-## 🎯 目的 (Goals)
+## 目的
 
-- 報告されている Fable 5 / Mythos 5 の最強クラス能力を、運用上の用語で記述する。
+- 報告されている Fable 5 / Mythos 5 の強い能力を、運用上の用語で記述する。
 - それらの能力を再現可能なエージェントワークフローへ変換する。
-- ワークフローを次の形でパッケージ化する。
-  - `skills/fairy-tale/` 配下の汎用 Agent Skill
-  - `.agents/skills/fairy-tale/` 配下の Codex リポジトリスキル
-  - `.claude/skills/fairy-tale/` 配下の Claude Code プロジェクトスキル
-  - `plugins/fairy-tale/` 配下の配布用 Codex プラグイン
-  - `plugins/fairy-tale/` 配下の配布用 Claude Code プラグイン
-- OSS のパイオニアや再利用可能なアイデアを追跡しつつ、安全でない挙動は取り込まない。
-  現行の監視対象は [docs/ecosystem/oss-watch.md](docs/ecosystem/oss-watch.md)、
-  能力面の総括は [docs/research/research-summary.md](docs/research/research-summary.md) を参照。
+- ワークフローを汎用 skill、Codex skill、Claude Code skill、Codex plugin、
+  Claude Code plugin として配布できる形に保つ。
+- OSS の先行事例や再利用可能なアイデアを追跡しつつ、安全でない挙動は取り込まない。
 
-外部アダプタ設計メモ:
-[OpenMythos 外部アダプタ](docs/adapters/openmythos-external-adapter.md) は
-理論再構成基盤を、
-[Similarity リファクタリングアダプタ](docs/adapters/similarity-refactoring-adapter.md) は
-TypeScript 構造類似度に基づくリファクタリング探索を扱う。フィードバックの
-剪定と矛盾処理を含むガバナンスは
-[docs/governance/feedback-governance.md](docs/governance/feedback-governance.md)
-にまとめており、ベンチマーク単位の ledger gate は
-[`scripts/benchmark_feedback_ledger.py`](scripts/benchmark_feedback_ledger.py)
-が実装する。
-
-## 📖 現状 (Current status)
-
-最初のソングブックは利用可能:
+## 現状
 
 - Fairy Tale skill は汎用エージェント、Codex、Claude Code 向けにパッケージ済み。
-- プラグインパッケージは Codex と Claude Code 両方のマニフェストに対応。
-- 研究ノート、防御的セキュリティ制約、ベスト プラクティスゲート、OSS 監視
-  ノート、アダプタ計画、サンプル比較出力をリポジトリに含めている。
-- Apache-2.0 ライセンス、ブランド資産境界、防御利用制約を整備し、公開リリースに
-  備えている。
+- plugin package は Codex と Claude Code 両方の manifest に対応。
+- 研究ノート、防御的セキュリティ制約、best-practice gates、OSS 監視ノート、
+  adapter plans、sample comparison outputs を含む。
+- Apache-2.0 license、brand asset boundary、防御利用制約を整備済み。
 
-## 🎼 ベンチマーク スナップショット
+## 重要な境界
 
-これらは再現可能なローカル計測結果であり、最終的なリーダーボード主張ではない。
-ベンチマーク行では、既知の Fable / Mythos 値、既知または測定済みの GPT-5.5 値、
-測定済みの GPT-5.5 + Fairy Tale 値を分けて記載する。測定 Fairy Tale 結果が
-サンプル推定の場合は、信頼区間または半幅を併記する。再現プロトコル、
-サンプリング規則、報告要件は
-[docs/benchmarks/benchmark-validation-plan.md](docs/benchmarks/benchmark-validation-plan.md)
-に定義されている。ドメイン別のギャップと将来ターゲットは
-[docs/research/domain-gap-analysis.md](docs/research/domain-gap-analysis.md)
-および
-[docs/research/arc-agi-3-lab-analysis.md](docs/research/arc-agi-3-lab-analysis.md)
-で追跡している。
+- Security workflow は防御専用。
+- Exploit weaponization、persistence、stealth、credential theft、bypass guidance は扱わない。
+- 並列 agent を起動する前に、budget と validation gate を使う。
+- User report は独立に再現されるまで anecdotal として扱う。
+- すべての研究的主張に provenance を保持する。
 
-| ドメイン | ベンチマーク | Fable/Mythos | GPT-5.5 | **GPT-5.5 + Fairy Tale** | 差分 |
-| --- | --- | --- | --- | --- | --- |
-| Biology | BioMysteryBench-preview, n=5 | 46.1% / 83.9% | 60.0% | **80.0%** | **+20.0 pp** |
-| Legal | Harvey LAB-compatible random sample, n=100 | 13.3% | 2.1% | **11.0%** | **+8.9 pp** |
+## 主要ドキュメント
 
-補足:
+- [Research summary](docs/research-summary.md)
+- [Benchmark validation plan](docs/benchmark-validation-plan.md)
+- [Domain gap analysis](docs/domain-gap-analysis.md)
+- [Best practices](docs/best-practices.md)
+- [Feedback governance](docs/feedback-governance.md)
+- [Referenced GitHub repositories](docs/referenced-repositories.md)
+- [Core Fairy Tale skill](skills/fairy-tale/SKILL.md)
+- [Legal feedback skill](skills/fairy-tale-legal-feedback/SKILL.md)
 
-- Biology の Fable/Mythos 値は、画像で報告された BioMysteryBench の hard /
-  human-solved スコア。GPT-5.5 はローカル medium ベースライン (3/5)。
-  **Fairy Tale** はローカル medium 実行 (4/5)、95% Wilson CI 37.6-96.4%。
-- Legal の Fable/Mythos と GPT-5.5 は、画像で報告された Legal Agent Benchmark
-  スコア。**Fairy Tale** はローカル Harvey LAB 互換ランダムサンプル (11/100)、
-  95% Wilson CI 6.25-18.63%、ベースライン 2.1% に対する片側 p = 8.90e-6。
+## ライセンス
 
-### 🪞 Legal フィードバック再試行
-
-Legal フィードバック機構は、先行する n=100 Legal サンプルでの過去のミスから
-選んだ 15 タスクで検証した。再試行では、同一モデル・同一エフォート・同一ジャッジ・
-同一タスク ID を維持し、既存の Legal ハーネスに `fairy-tale-legal-feedback` を
-追加した。タスク単位のフィードバック導出と closure-sweep の設計は
-[docs/research/legal-feedback-analysis.md](docs/research/legal-feedback-analysis.md)
-を参照。
-
-| 指標 | フィードバック前 | **Fairy Tale フィードバック後** | 変化 |
-| --- | ---: | ---: | ---: |
-| 全項目通過率 (all-pass) | 0.0% | **20.0%** | **+20.0 pp** |
-| 基準項目通過率 (criterion pass) | 83.21% | **90.61%** | **+7.40 pp** |
-| 1 項目落ち失敗 (one-miss) | 10 | **5** | **-5** |
-| 基準 70% 未満の大崩壊 | 5 | **4** | **-1** |
-
-最大の回復: `corporate-ma/draft-stock-purchase-agreement` は 17/117 から
-102/117 criteria へ改善 (+72.6 pp)。残る弱点として、いくつかの契約 / redline
-タスクは最後の 1 基準を満たせず終わっており、次の Legal ループは広範な
-スキャフォールディングではなく最終基準クロージャを狙うべき。
-
-フィードバック再試行に関する注記: **Fairy Tale** フィードバックは、前スライス
-と同一モデル・同一エフォート・同一ジャッジ・同一タスク ID を使用。
-フィードバック後 all-pass は 3/15、95% Wilson CI 7.05-45.19%、criterion スコア
-は 1004/1108。
-
-BioMysteryBench-preview は `scripts/biomystery_runner.py` で実行している。
-Fairy Tale 実行では、発現シグネチャに対する汎用エビデンスゲート、文脈のみの
-BLAST エビデンス、細菌マーカー配列の同一性ゲートを用いる。現時点で残るミスは
-Brachypodium ストレスタイプの問題 (`hb053`) で、ヒート特異エビデンスが十分でない
-状況でモデルが非ヒートストレスのラベルを選ぶ。
-
-## 🛡️ 重要な境界
-
-> [!WARNING]
-> Fairy Tale は歌の研究であって、鳥籠の鍵ではない。
->
-> - セキュリティワークフローは防御専用。防御スコープ、脅威モデルの前提、
->   レビューゲートは
->   [docs/governance/cybersecurity-strengthening.md](docs/governance/cybersecurity-strengthening.md)
->   にまとまっている。
-> - エクスプロイトの武器化、永続化、隠蔽、認証情報窃取、迂回ガイドの提供は禁止。
-> - 並列エージェントを起動する前に、予算と検証ゲートを使用する。採用済みの
->   ワークフローパターンとゲート基準は
->   [docs/governance/best-practices.md](docs/governance/best-practices.md)
->   に記載されている。
-> - ユーザー報告は独立に再現されるまで anecdotal として扱う。
-> - すべての研究的主張に対して provenance を保持する。
-> - 脆弱性報告と防御利用境界については [SECURITY.md](SECURITY.md) を参照。
-
-## 🧩 Claude Code プラグイン
-
-このリポジトリには `.claude-plugin/marketplace.json` に Claude Code 向け
-マーケットプレースカタログが含まれている。Claude Code 上でローカル
-マーケットプレースを追加し、プラグインをインストールする。
-
-```text
-/plugin marketplace add .
-/plugin install fairy-tale@fairy-tale-marketplace
-```
-
-同じ `plugins/fairy-tale/` パッケージは、`plugins/fairy-tale/.codex-plugin/plugin.json`
-を通じて Codex プラグインとしても引き続き機能する。
-
-## 📜 ライセンス
-
-本リポジトリのオリジナルのソースコード、スキル、アダプタ、スキーマ、スクリプト、
-ドキュメントは、ファイルまたはディレクトリで別途明示されていない限り、
+本リポジトリのオリジナルのソースコード、スキル、アダプタ、スキーマ、
+スクリプト、ドキュメントは、ファイルまたはディレクトリで別途明示されていない限り、
 Apache License, Version 2.0 (`Apache-2.0`) の下でライセンスされる。
 [LICENSE](LICENSE) および [NOTICE](NOTICE) を参照。
 
 Fairy Tale の名称、ロゴ、その他のブランド資産は Apache-2.0 の対象外である。
 これらは本プロジェクトを正確に参照する目的に限って使用でき、推薦、スポンサー、
 公式ステータス、提携を示唆する形で使用してはならない。
-
-本リポジトリが参照するサードパーティのリポジトリ、ベンチマーク資料、レポート、
-データセット、資産は、それぞれの本来のライセンスおよび条件に従う。
-
-## 🗺️ 参照 GitHub リポジトリ
-
-スキル、アダプタ、ベンチマークハーネスなど、上流リポジトリの一覧と分類は
-[docs/ecosystem/referenced-repositories.md](docs/ecosystem/referenced-repositories.md)
-にまとめている。
-
----
-
-<div align="center">
-
-*繰り返し歌える旋律だけを書き残す。*
-
-</div>

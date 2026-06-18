@@ -247,6 +247,72 @@ retry result:
 promote to default: yes | no | needs confirmation
 ```
 
+## Step-level skill adaptation record
+
+Use this when a failed trajectory or repeated work-product miss may justify a
+skill update. Localize the fault before changing the skill library.
+
+```text
+source run / task:
+trajectory or artifact:
+active skills / guidance:
+candidate fault chain (2-4 steps):
+first actionable fault step:
+observed failure:
+improvement principle:
+responsible skill links:
+decision: revise_existing | generate_new | no_update
+target skill:
+missing coverage:
+candidate update:
+deduplication / drift check:
+qualification retry:
+regression slice:
+result delta:
+accepted: yes | no
+promotion target:
+```
+
+## Generalization audit record
+
+Use this when a miss suggests poor generalization, false analogy, unlucky
+success, or failure to convert local observations into a transferable rule.
+
+```text
+source run / task:
+local facts observed:
+latent invariant that should transfer:
+false analogy / over-compression:
+under-compression / failure to commit:
+lucky success risk:
+evidence that would falsify the inferred rule:
+executable/checkable world model:
+verifier command / probe:
+confirmed rules:
+refuted rules / no-ops:
+neighboring task retry:
+promotion decision:
+```
+
+## Tacit intent recovery record
+
+Use this before acting on an underspecified user request, issue, ticket, or
+benchmark task where unstated constraints may determine correctness.
+
+```text
+explicit user request:
+artifact context inspected:
+inferred objective:
+likely implicit requirements:
+risky assumptions:
+irreversible / external-facing choices:
+questions required before action:
+reversible default chosen:
+implicit contract checks:
+validation artifact:
+remaining unknowns:
+```
+
 ## Feedback pruning record
 
 Use this before promoting, merging, or keeping accumulated feedback rules.
@@ -559,4 +625,21 @@ tests/typecheck:
 refactor plan:
 post-refactor validation:
 false positive / false negative note:
+```
+
+## Accessible genius method record
+
+Use this when applying a method from `references/genius-methods.md`. Record the
+operational method, not the personality or myth around the source figure.
+
+```text
+task:
+selected cards:
+why these cards fit:
+discarded famous methods:
+modern limiter:
+artifact produced:
+validation:
+misuse avoided:
+next checkpoint:
 ```

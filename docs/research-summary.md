@@ -248,7 +248,7 @@ modify that source by default. Instead, it uses an adapter manifest:
 
 - `adapters/openmythos.adapter.json`
 - `schemas/fairy-tale-adapter.schema.json`
-- `docs/adapters/openmythos-external-adapter.md`
+- `docs/openmythos-external-adapter.md`
 
 This creates an `External Reconstruction Adapter Harness`: external repos
 provide speculative implementations; Fairy Tale provides orchestration,

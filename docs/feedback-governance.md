@@ -39,6 +39,31 @@ Minimum fields:
 - `evidence`
 - `metrics` or a reason why measurement is pending
 
+## Step-Level Skill Adaptation Route
+
+Do not update the default skill from a whole failed trajectory or a vague
+session summary. First assign credit to the smallest actionable fault:
+
+1. Preserve the trace, run conditions, active skills, and validation artifact.
+2. Extract a short fault chain and select the first step whose correction could
+   have changed the outcome.
+3. Link that fault to active or candidate skills. If an existing skill misled
+   the run, revise that skill. If no skill meaningfully applies, generate a
+   narrow new candidate. If the evidence is insufficient, make no skill update.
+4. Keep revisions minimal: add preconditions, disambiguation, negative
+   examples, and qualification checks only where the trace supports them.
+5. Qualify the candidate with a retry and a neighboring or held-out regression
+   slice before promotion. Reject broad updates whose benefit is unmeasured or
+   whose regression cost is unresolved. When no scorer exists, qualify with a
+   focused replay, neighboring task check, existing validator, or explicit user
+   confirmation tied to the localized fault.
+
+Record this route with the step-level skill adaptation template in
+`skills/fairy-tale/references/process.md`. This follows the SkillAdaptor lesson
+that stable skill maintenance comes from step-level failure attribution,
+responsible-skill linking, targeted modification, and explicit qualification,
+not from broad trajectory-level reflection.
+
 ## Pruning Gate
 
 Run pruning before promoting feedback into the default skill, and periodically

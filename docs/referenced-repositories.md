@@ -1,0 +1,77 @@
+# Referenced GitHub Repositories
+
+This document tracks public repositories that informed the current Fairy Tale
+skill, adapter, and plugin architecture. They remain external sources unless
+explicitly vendored or forked. Licenses and ownership remain with each upstream
+project.
+
+For the active ecosystem watchlist, see [OSS watch](oss-watch.md).
+
+## Skill and Plugin Ecosystem
+
+- `openai/skills` - reference point for portable agent skill structure.
+  <https://github.com/openai/skills>
+- `ComposioHQ/awesome-claude-skills` - Claude skill ecosystem examples.
+  <https://github.com/ComposioHQ/awesome-claude-skills>
+- `composiohq/awesome-codex-skills` - Codex skill ecosystem examples.
+  <https://github.com/composiohq/awesome-codex-skills>
+- `VoltAgent/awesome-agent-skills` - broader agent-skill curation.
+  <https://github.com/VoltAgent/awesome-agent-skills>
+- `VoltAgent/awesome-claude-code-subagents` - subagent workflow references.
+  <https://github.com/VoltAgent/awesome-claude-code-subagents>
+- `disler/claude-code-hooks-mastery` - Claude Code hooks workflow references.
+  <https://github.com/disler/claude-code-hooks-mastery>
+
+## Fable / Mythos Workflow References
+
+- `duolahypercho/fusion-fable` - local Claude Code skill reference for
+  independent blind panelists followed by structured synthesis.
+  <https://github.com/duolahypercho/fusion-fable>
+- `Anil-matcha/awesome-claude-fable-5` - curated public Fable 5 reports and
+  demos. <https://github.com/Anil-matcha/awesome-claude-fable-5>
+- `openrouter/fusion` - public design reference for multi-model deliberation.
+  Fairy Fusion is implemented inside this repo and does not call OpenRouter.
+  <https://openrouter.ai/openrouter/fusion>
+
+## External Adapter Substrates
+
+- `kyegomez/OpenMythos` - external theoretical reconstruction substrate.
+  <https://github.com/kyegomez/OpenMythos>
+- `bonginkan/OpenMythos` - pinned fork for future external-adapter experiments.
+  <https://github.com/bonginkan/OpenMythos>
+- `kongyo2/similarity` - TypeScript structural similarity / refactoring scout.
+  <https://github.com/kongyo2/similarity>
+
+## Benchmark Harnesses
+
+- `scaleapi/SWE-bench_Pro-os` - public SWE-Bench Pro evaluation harness.
+  <https://github.com/scaleapi/SWE-bench_Pro-os>
+- `exploitbench/exploitbench` - public ExploitBench V8 capability-ladder
+  benchmark harness. <https://github.com/exploitbench/exploitbench>
+
+## Generalization and ARC-AGI-3 References
+
+- `arcprize/arc-agi-3-benchmarking` - official ARC-AGI-3 benchmarking
+  harness. <https://github.com/arcprize/arc-agi-3-benchmarking>
+- `arcprize/ARC-AGI-Community-Leaderboard` - public method showcase used to
+  identify reproducible, general-purpose approaches.
+  <https://github.com/arcprize/ARC-AGI-Community-Leaderboard>
+- `astroseger/arc-3-agents-baseline1` - executable world-model coding-agent
+  approach for ARC-AGI-3. <https://github.com/astroseger/arc-3-agents-baseline1>
+- `rednote-hilab/TELL` - test-time experiential lifelong learning with
+  file-backed world memory. <https://github.com/rednote-hilab/TELL>
+- `alexisfox7/RGB-Agent` - Read-Grep-Bash/OpenCode-style raw-log analysis and
+  batched action planning. <https://github.com/alexisfox7/RGB-Agent>
+- `symbolica-ai/ARC-AGI-3-Agents` and `symbolica-ai/agentica-server` -
+  multi-agent Arcgentica/Agentica orchestration references.
+  <https://github.com/symbolica-ai/ARC-AGI-3-Agents>
+  <https://github.com/symbolica-ai/agentica-server>
+- `DriesSmit/ARC3-solution` - StochasticGoose action-learning preview winner.
+  <https://github.com/DriesSmit/ARC3-solution>
+- `dolphin-in-a-coma/arc-agi-3-just-explore` - graph-based exploration
+  approach. <https://github.com/dolphin-in-a-coma/arc-agi-3-just-explore>
+
+## Security Health References
+
+- `ossf/scorecard` - future OSS repository security-health reference.
+  <https://github.com/ossf/scorecard>

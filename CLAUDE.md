@@ -1,11 +1,25 @@
-@AGENTS.md
+# fairy_tale
 
-## Claude 専用メモ
+Use the project skill at `.claude/skills/fairy-tale/SKILL.md` or the canonical
+skill at `skills/fairy-tale/SKILL.md`.
+Before long context, benchmark, or multi-agent work, run
+`python3 scripts/fairy_tale_residency_check.py` and repair any failure before
+continuing.
 
-- 作業時は `.claude/skills/fairy-tale/SKILL.md` (canonical は `skills/fairy-tale/SKILL.md`) を参照する。
-- 配布形態を試す場合は次を使用する。
+For distributable usage, install the Claude Code plugin from GitHub:
 
-  ```text
-  /plugin marketplace add .
-  /plugin install fairy-tale@fairy-tale-marketplace
-  ```
+```text
+/plugin marketplace add bonginkan/fairy_tale
+/plugin install fairy-tale@fairy-tale-marketplace
+```
+
+For local development, clone this repository and use `/plugin marketplace add .`.
+
+Rules:
+
+- Do not attempt to access, bypass, or reconstruct restricted models.
+- Treat Fable/Mythos public reports as workflow evidence, not model weights.
+- Keep security work defensive-only and authorized.
+- Preserve provenance for research claims.
+- Prefer small, validated workflow artifacts over broad autonomous fan-out.
+- Treat missing or stale Fairy Tale residency as a harness failure.

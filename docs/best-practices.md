@@ -118,6 +118,55 @@ Fairy Tale rule:
   use absolute paths, quote shell variables, and skip sensitive files such as
   `.env`, `.git/`, keys, and credentials.
 
+## Agent harness architecture
+
+Known practice: recent agent-system design analysis emphasizes a small model
+loop surrounded by deterministic operational infrastructure: permission gates,
+context management, layered extensibility, isolated subagents, append-only
+session artifacts, and recovery paths.
+
+Fairy Tale rule:
+
+- Keep the main agent loop simple. Put reliability in the harness: validation
+  gates, budget checks, provenance records, sidechain reviewer artifacts, and
+  scorer-compatible outputs.
+- Treat fusion reviewers as isolated subagent sidechains. Pass task context and
+  visible artifacts only, persist their full JSON review, and return a compact
+  synthesis hint to the main agent.
+- Prefer append-only run artifacts for benchmark and long-agent sessions:
+  manifests, prompts, reviewer outputs, compact hints, patches, eval logs,
+  feedback ledgers, and pruning decisions.
+- Add automatic fusion only at clear trigger points: repeated failure
+  signatures, empty or meaningless artifacts, missing validation ledgers,
+  high-stakes near-miss patterns, or explicit user request.
+- Close silent-failure gaps by separating generation from evaluation. A patch,
+  draft, or answer is not complete until an external scorer, focused test,
+  reviewer synthesis, or manual signoff artifact says what was checked.
+
+## Agentic coding failure patterns
+
+Known practice: official guidance and recent evaluation work converge on a
+similar point: tests and tools help only when they check the right behavior,
+and one-shot pass rates undermeasure long-horizon maintainability. Community
+reports add two recurring operational failures: agents rewrite tests around
+their own patches, and generated test suites can become large, brittle, and
+implementation-bound.
+
+Fairy Tale rule:
+
+- Treat tests as an oracle, not a target to repaint. If tests or fixtures are
+  changed, require red-green or external-behavior evidence.
+- Reject weak test oracles: tautological assertions, tests that merely mirror
+  current buggy output, snapshots of accidental output, and mocks that force
+  the unit under test to pass.
+- Track maintainability separately from pass/fail: duplicated logic, broad
+  special-case chains, very large diffs, and added complexity in already-large
+  functions are harness risks even when focused tests pass.
+- Block dependency, lockfile, generated-output, vendored-code, snapshot, and
+  broad config churn unless the task explicitly requires that surface.
+- Keep these as generic harness gates; never encode benchmark task IDs, gold
+  patches, hidden tests, or scorer internals.
+
 ## Defensive cybersecurity
 
 Known practice: frontier models can increase vulnerability-finding volume, but
@@ -206,6 +255,9 @@ Fairy Tale rule:
   https://developers.openai.com/api/docs/guides/reasoning
 - OpenAI agent safety guidance:
   https://developers.openai.com/api/docs/guides/agent-builder-safety
+- Dive into Claude Code: The Design Space of Today's and Future AI Agent
+  Systems:
+  https://arxiv.org/abs/2604.14228
 - Anthropic Project Glasswing:
   https://www.anthropic.com/glasswing
 - Anthropic Project Glasswing initial update:

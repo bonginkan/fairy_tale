@@ -6,13 +6,15 @@
   "source": {
     "upstream": "https://github.com/bonginkan/fairy_tale",
     "license": "Fairy Tale internal workflow contract",
-    "notes": "Internal bounded multi-reviewer orchestration. OpenRouter Fusion, Subagent, and Advisor documentation is used only as a public design reference; this adapter does not call OpenRouter."
+    "notes": "Internal bounded multi-reviewer orchestration. OpenRouter Fusion, Subagent, Advisor, and agent-system design-space papers are used only as public design references; this adapter does not call OpenRouter."
   },
   "capabilities": [
     "local fusion-style deliberation contract",
     "structured consensus and contradiction synthesis",
     "blind-spot and partial-coverage review",
     "bounded specialist subagent fan-out",
+    "automatic stuck-trigger review for plugin-managed harnesses",
+    "append-only sidechain review artifacts with compact synthesis return",
     "legal near-miss closure review"
   ],
   "entrypoints": {
@@ -22,6 +24,7 @@
     "optional": [
       "scripts/fairy_fusion_review.py --task-json <task.json> --dry-run",
       "scripts/fairy_fusion_review.py --roles-file <roles.json> --execute",
+      "scripts/swebench_pro_run.py codex-patches --fairy-fusion --fusion-auto --fusion-retry-on-stuck --fusion-max-retries 0",
       "scripts/legal_feedback_analyzer.py --retry-output <tasks.json>"
     ]
   },
@@ -57,7 +60,8 @@
       "Keep legal reviewers evidence-grounded and do not present outputs as legal advice.",
       "Do not send confidential matter files to external providers without explicit authorization.",
       "Label this as Fairy Fusion or fusion-style review, not OpenRouter Fusion.",
-      "Keep each reviewer isolated: task context and output schema only, no parent conversation transcript."
+      "Keep each reviewer isolated: task context and output schema only, no parent conversation transcript.",
+      "For automatic activation, trigger on repeated failure signatures, empty or meaningless artifacts, or missing validation ledgers rather than benchmark sample IDs."
     ],
     "forbidden_claims": [
       "Fusion guarantees correctness.",
@@ -72,6 +76,7 @@
       "adapter manifest validates against schemas/fairy-tale-adapter.schema.json",
       "source documentation checked date is recorded",
       "reviewer fan-out cap is set",
+      "automatic trigger threshold is explicit",
       "runner compiles with python3 -m py_compile",
       "synthesis includes contradictions and blind spots",
       "benchmark retry records before/after scores"

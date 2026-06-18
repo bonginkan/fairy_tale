@@ -18,4 +18,6 @@ __pycache__/
 .env
 .env.*
 !.env.example
-.temp/
+.vercel
+package.json
+package-lock.json

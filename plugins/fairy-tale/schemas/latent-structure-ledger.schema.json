@@ -1,0 +1,422 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/bonginkan/fairy_tale/schemas/latent-structure-ledger.schema.json",
+  "title": "Fairy Tale Latent Structure Ledger",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "task",
+    "observations",
+    "negative_evidence",
+    "hypotheses",
+    "inferred_invariants",
+    "risky_assumptions",
+    "probes_run",
+    "compiled_validators",
+    "actions",
+    "validation_results",
+    "promotion_decision"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^1\\.0$"
+    },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["objective", "family", "risk", "triggers"],
+      "properties": {
+        "objective": {
+          "type": "string",
+          "minLength": 1
+        },
+        "family": {
+          "type": "string",
+          "enum": [
+            "generic",
+            "coding",
+            "arc",
+            "legal",
+            "research",
+            "document",
+            "security",
+            "ui",
+            "spatial",
+            "other"
+          ]
+        },
+        "risk": {
+          "type": "string",
+          "enum": ["low", "medium", "high"]
+        },
+        "triggers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "hidden_rule",
+              "implicit_contract",
+              "black_box_environment",
+              "unknown_tool",
+              "benchmark_miss",
+              "ambiguous_spec",
+              "external_contract",
+              "generalization_gap",
+              "none"
+            ]
+          }
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/artifact"
+          }
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "observations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/observation"
+      }
+    },
+    "negative_evidence": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/negative_evidence"
+      }
+    },
+    "hypotheses": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/hypothesis"
+      }
+    },
+    "inferred_invariants": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/invariant"
+      }
+    },
+    "risky_assumptions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/risky_assumption"
+      }
+    },
+    "probes_run": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/probe"
+      }
+    },
+    "compiled_validators": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/validator"
+      }
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/action"
+      }
+    },
+    "validation_results": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/validation_result"
+      }
+    },
+    "promotion_decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "reason", "evidence_ids"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["none", "candidate", "promoted", "rejected"]
+        },
+        "reason": {
+          "type": "string"
+        },
+        "evidence_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "path", "notes"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "claim", "source", "confidence"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "claim": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "confidence": {
+          "$ref": "#/$defs/confidence"
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "negative_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "probe", "observation", "implication"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "probe": {
+          "type": "string",
+          "minLength": 1
+        },
+        "observation": {
+          "type": "string",
+          "minLength": 1
+        },
+        "implication": {
+          "type": "string",
+          "minLength": 1
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "hypothesis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "statement", "status", "evidence_ids"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "statement": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "string",
+          "enum": ["open", "supported", "refuted", "promoted"]
+        },
+        "evidence_ids": {
+          "$ref": "#/$defs/id_array"
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "invariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "statement", "scope", "status", "evidence_ids"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "statement": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scope": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "string",
+          "enum": ["confirmed", "likely", "risky", "needs_evidence"]
+        },
+        "evidence_ids": {
+          "$ref": "#/$defs/id_array"
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "risky_assumption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "assumption", "risk", "resolution", "mitigation"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "assumption": {
+          "type": "string",
+          "minLength": 1
+        },
+        "risk": {
+          "type": "string",
+          "enum": ["low", "medium", "high"]
+        },
+        "resolution": {
+          "type": "string",
+          "enum": ["resolved", "accepted", "blocked", "open"]
+        },
+        "mitigation": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "probe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "question", "method", "result", "status", "evidence_ids"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "question": {
+          "type": "string",
+          "minLength": 1
+        },
+        "method": {
+          "type": "string",
+          "minLength": 1
+        },
+        "result": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["passed", "failed", "inconclusive", "not_run"]
+        },
+        "evidence_ids": {
+          "$ref": "#/$defs/id_array"
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "validator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "validator", "command", "status", "covers_invariant_ids"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "validator": {
+          "type": "string",
+          "minLength": 1
+        },
+        "command": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["planned", "passed", "failed", "blocked", "not_applicable"]
+        },
+        "covers_invariant_ids": {
+          "$ref": "#/$defs/id_array"
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "description", "depends_on_invariant_ids"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "depends_on_invariant_ids": {
+          "$ref": "#/$defs/id_array"
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "validation_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "validator_id", "result", "evidence"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "validator_id": {
+          "$ref": "#/$defs/id"
+        },
+        "result": {
+          "type": "string",
+          "enum": ["passed", "failed", "blocked", "not_applicable"]
+        },
+        "evidence": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["confirmed", "likely", "risky", "refuted", "unknown"]
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]{1,63}$"
+    },
+    "id_array": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

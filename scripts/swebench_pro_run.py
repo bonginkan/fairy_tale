@@ -5,9 +5,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import re
+import shutil
 import subprocess
 import sys
 import textwrap
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
@@ -73,6 +77,17 @@ def command_result(command: list[str], cwd: Path, dry_run: bool) -> int:
     return subprocess.run(command, cwd=cwd, check=False).returncode
 
 
+def run_capture(command: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        command,
+        cwd=cwd,
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+
 def create_problem_statement(row: dict[str, Any]) -> str:
     parts = [row.get("problem_statement") or ""]
     requirements = row.get("requirements")
@@ -94,6 +109,1067 @@ def sweagent_image_name(row: dict[str, Any], dockerhub_username: str) -> str:
     if repo and not tag.startswith(repo):
         tag = f"{repo}-{tag}"
     return f"{dockerhub_username}/sweap-images:{tag}"
+
+
+def safe_name(value: str) -> str:
+    return re.sub(r"[^A-Za-z0-9_.-]+", "-", value).strip("-") or "instance"
+
+
+def discover_image_repo_path(image: str, docker_platform: str) -> str:
+    script = r"""
+set -eu
+for d in /testbed /app /workspace /repo /project /root/project; do
+  if [ -d "$d/.git" ]; then
+    echo "$d"
+    exit 0
+  fi
+done
+git_dir="$(find / -maxdepth 5 -type d -name .git 2>/dev/null | grep -Ev '^/(usr|opt/conda|root/.cache)/' | head -1 || true)"
+if [ -n "$git_dir" ]; then
+  dirname "$git_dir"
+  exit 0
+fi
+for d in /testbed /app /workspace /repo /project /root/project; do
+  if [ -d "$d" ]; then
+    echo "$d"
+    exit 0
+  fi
+done
+exit 2
+"""
+    result = run_capture(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "--platform",
+            docker_platform,
+            "--entrypoint",
+            "/bin/sh",
+            image,
+            "-lc",
+            script,
+        ]
+    )
+    if result.returncode != 0:
+        raise SystemExit(
+            f"could not discover repository path in {image}:\n{result.stderr.strip()}"
+        )
+    repo_path = result.stdout.strip().splitlines()[-1]
+    if not repo_path.startswith("/"):
+        raise SystemExit(f"discovered non-absolute repository path for {image}: {repo_path}")
+    return repo_path
+
+
+def copy_repo_from_image(image: str, repo_path: str, dest: Path, docker_platform: str) -> None:
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    if dest.exists() and any(dest.iterdir()):
+        raise SystemExit(f"refusing to overwrite non-empty worktree: {dest}")
+    dest.mkdir(parents=True, exist_ok=True)
+    create = run_capture(
+        [
+            "docker",
+            "create",
+            "--platform",
+            docker_platform,
+            "--entrypoint",
+            "/bin/sh",
+            image,
+            "-lc",
+            "true",
+        ]
+    )
+    if create.returncode != 0:
+        raise SystemExit(f"docker create failed for {image}:\n{create.stderr.strip()}")
+    container_id = create.stdout.strip()
+    try:
+        copy = run_capture(["docker", "cp", f"{container_id}:{repo_path}/.", str(dest)])
+        if copy.returncode != 0:
+            raise SystemExit(f"docker cp failed for {image}:{repo_path}:\n{copy.stderr.strip()}")
+    finally:
+        subprocess.run(
+            ["docker", "rm", "-f", container_id],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+
+def init_patch_worktree(worktree: Path) -> None:
+    if (worktree / ".git").exists():
+        shutil.rmtree(worktree / ".git")
+    commands = [
+        ["git", "init", "-q"],
+        ["git", "config", "user.email", "fairy-tale-bench@example.invalid"],
+        ["git", "config", "user.name", "Fairy Tale Bench"],
+        ["git", "add", "-A"],
+        ["git", "commit", "-q", "--no-gpg-sign", "-m", "benchmark base"],
+    ]
+    for command in commands:
+        result = run_capture(command, cwd=worktree)
+        if result.returncode != 0:
+            raise SystemExit(f"worktree init failed in {worktree}: {' '.join(command)}\n{result.stderr}")
+
+
+def truncate_text(text: str, limit: int = 12000) -> str:
+    if len(text) <= limit:
+        return text
+    head = limit // 3
+    tail = limit - head
+    return f"{text[:head]}\n\n...[truncated {len(text) - limit} chars]...\n\n{text[-tail:]}"
+
+
+def compact_swe_fusion_hint(fusion_payload: dict[str, Any]) -> str:
+    synthesis = fusion_payload.get("synthesis") if isinstance(fusion_payload.get("synthesis"), dict) else {}
+    parsed = synthesis.get("parsed") if isinstance(synthesis, dict) else None
+    if not isinstance(parsed, dict):
+        return "Fairy Fusion ran, but no parsed synthesis was returned. Apply the standard SWE validation gate."
+    sections = [
+        ("consensus", "Consensus"),
+        ("contradictions", "Contradictions to resolve"),
+        ("partial_coverage", "Partial coverage"),
+        ("unique_insights", "Unique insights"),
+        ("blind_spots", "Blind spots"),
+        ("final_closure_actions", "Closure actions"),
+    ]
+    lines = ["Fairy Fusion SWE review summary:"]
+    for key, title in sections:
+        items = parsed.get(key)
+        if not items:
+            continue
+        lines.append(f"- {title}:")
+        if isinstance(items, list):
+            for item in items[:6]:
+                lines.append(f"  - {str(item)[:600]}")
+        else:
+            lines.append(f"  - {str(items)[:600]}")
+    if len(lines) == 1:
+        lines.append("- No specific closure actions were parsed; use the standard validation gate.")
+    return "\n".join(lines)
+
+
+def swe_fusion_task_payload(
+    task: dict[str, Any],
+    raw_row: dict[str, Any],
+    phase: str,
+    container_name: str,
+    repo_path: str,
+    trigger_reasons: list[str] | None = None,
+    stdout_text: str = "",
+    stderr_text: str = "",
+    diff_text: str = "",
+    attempt_history: dict[str, Any] | None = None,
+    stuck_cycle_count: int = 0,
+) -> dict[str, Any]:
+    review_contract = [
+        "Use only the task statement, visible logs, visible diff, attempt history, and local SWE workflow rules.",
+        "Do not infer hidden tests, gold patches, scorer internals, or benchmark answers.",
+        "Return generic closure actions: interface, contract compatibility, regression, edge-case validation, and minimality checks.",
+        "Prefer local invariants and focused validation over broad rewrites.",
+        "If logs show missing arguments, undefined symbols, missing modules, constructor/type errors, or failed equality invariants, treat them as contract-break signals before proposing more feature code.",
+        "Check whether the patch changed an existing call signature, return shape, constructor shape, exported symbol, file path, or test-double contract without preserving backward compatibility.",
+        "For edge cases, propose focused tests around empty, nil/null, boundary, legacy/default, duplicate, ordering, mapping, migration, and error-path inputs when they match the touched surface.",
+        "If the diff changes tests, fixtures, dependencies, lockfiles, generated outputs, vendored files, or broad unrelated files, require explicit justification and red-green or external-behavior evidence.",
+        "Guard against weak test oracles: tests must assert externally visible behavior and must not merely assert the implementation's current output, mock the unit under test to always pass, or use tautological assertions.",
+        "Guard against architectural erosion: passing tests are not enough if the patch duplicates logic, concentrates more complexity into already-large functions, or adds broad special cases instead of a local abstraction.",
+    ]
+    if stuck_cycle_count >= 3:
+        review_contract.extend(
+            [
+                "This task has looped through multiple stuck retries; first identify why the loop is persisting.",
+                "Do not repeat prior closure actions unless the current artifacts show they remain unresolved.",
+                "Consider alternate causes such as missing retained tests, stale worktree resets, command mismatch, public interface drift, over-sensitive stuck detection, or insufficient validation evidence.",
+                "If the current attempt has returncode 0, a nonempty diff, visible validation, and explicit no-blockers closure, call out possible harness false-positive instead of adding another generic retry checklist.",
+            ]
+        )
+    return {
+        "benchmark": "SWE-Bench Pro",
+        "phase": phase,
+        "instance_id": task["instance_id"],
+        "repo": task.get("repo"),
+        "base_commit": task.get("base_commit"),
+        "container_name": container_name,
+        "repo_path": repo_path,
+        "problem_statement": task.get("prompt"),
+        "raw_metadata": {
+            "repo": raw_row.get("repo"),
+            "dockerhub_tag": raw_row.get("dockerhub_tag"),
+            "base_commit": raw_row.get("base_commit"),
+        },
+        "trigger_reasons": trigger_reasons or [],
+        "visible_attempt_artifacts": {
+            "stdout_tail": truncate_text(stdout_text, 10000),
+            "stderr_tail": truncate_text(stderr_text, 6000),
+            "diff": truncate_text(diff_text, 12000),
+        },
+        "attempt_history": attempt_history or {"attempts": [], "fusion_reviews": []},
+        "stuck_cycle_count": stuck_cycle_count,
+        "review_contract": review_contract,
+    }
+
+
+def run_swe_fusion_review(
+    args: argparse.Namespace,
+    task: dict[str, Any],
+    raw_row: dict[str, Any],
+    phase: str,
+    container_name: str,
+    repo_path: str,
+    fusion_dir: Path,
+    trigger_reasons: list[str] | None = None,
+    stdout_text: str = "",
+    stderr_text: str = "",
+    diff_text: str = "",
+    attempt_history: dict[str, Any] | None = None,
+    stuck_cycle_count: int = 0,
+) -> dict[str, str]:
+    script = Path(__file__).resolve().parent / "fairy_fusion_review.py"
+    if not script.exists():
+        raise SystemExit(f"fairy fusion runner not found: {script}")
+    fusion_dir.mkdir(parents=True, exist_ok=True)
+    task_path = fusion_dir / f"{phase}-task.json"
+    output_path = fusion_dir / f"{phase}-review.json"
+    hint_path = fusion_dir / f"{phase}-hint.txt"
+    payload = swe_fusion_task_payload(
+        task=task,
+        raw_row=raw_row,
+        phase=phase,
+        container_name=container_name,
+        repo_path=repo_path,
+        trigger_reasons=trigger_reasons,
+        stdout_text=stdout_text,
+        stderr_text=stderr_text,
+        diff_text=diff_text,
+        attempt_history=attempt_history,
+        stuck_cycle_count=stuck_cycle_count,
+    )
+    write_json(task_path, payload)
+    command = [
+        sys.executable,
+        str(script),
+        "--domain",
+        "swe",
+        "--task-json",
+        str(task_path),
+        "--max-reviewers",
+        str(args.fusion_reviewers),
+        "--workers",
+        str(args.fusion_workers),
+        "--model",
+        args.fusion_model,
+        "--effort",
+        args.fusion_effort,
+        "--timeout",
+        str(args.fusion_timeout),
+        "--output",
+        str(output_path),
+    ]
+    if args.fusion_judge_model:
+        command.extend(["--judge-model", args.fusion_judge_model])
+    if args.fusion_execute:
+        command.append("--execute")
+    else:
+        command.append("--dry-run")
+    env = os.environ.copy()
+    if "OPENAI_API_KEY" not in env and "CODEX_API_KEY" in env:
+        env["OPENAI_API_KEY"] = env["CODEX_API_KEY"]
+    result = subprocess.run(command, check=False, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
+    if result.returncode != 0:
+        raise SystemExit(f"fairy fusion SWE review failed:\n{result.stderr.strip()}")
+    fusion_payload = load_manifest(output_path)
+    hint_path.write_text(compact_swe_fusion_hint(fusion_payload), encoding="utf-8")
+    return {
+        "phase": phase,
+        "mode": "executed" if args.fusion_execute else "dry_run",
+        "task_path": str(task_path),
+        "output_path": str(output_path),
+        "hint_path": str(hint_path),
+        "trigger_reasons": trigger_reasons or [],
+    }
+
+
+def visible_validation_signal(stdout_text: str, stderr_text: str) -> bool:
+    lowered = "\n".join([stdout_text, stderr_text]).lower()
+    return "validation" in lowered or "test" in lowered
+
+
+def explicit_positive_closure(
+    result_returncode: int,
+    stdout_text: str,
+    stderr_text: str,
+    diff_text: str,
+) -> bool:
+    if result_returncode != 0 or not diff_text.strip() or not visible_validation_signal(stdout_text, stderr_text):
+        return False
+    lowered = "\n".join([stdout_text, stderr_text]).lower()
+    markers = (
+        "remaining blockers: none",
+        "no remaining blockers",
+        "no blockers remain",
+        "blockers: none",
+        "validation passed",
+        "all requested validation passed",
+        "all focused validation passed",
+    )
+    return any(marker in lowered for marker in markers)
+
+
+def actual_failure_signal(stdout_text: str, stderr_text: str) -> bool:
+    lowered = "\n".join([stdout_text, stderr_text]).lower()
+    markers = (
+        " exited 1 ",
+        " exited 2 ",
+        " exited 127 ",
+        " exited 128 ",
+        " failed in ",
+        " failed with ",
+        "tests failed",
+        " build failed",
+        "compilation terminated",
+        "error command failed",
+        "traceback (most recent call last)",
+    )
+    return (
+        any(marker in lowered for marker in markers)
+        or re.search(r"test suites:\s*[1-9][0-9]*\s+failed", lowered) is not None
+        or re.search(r"tests:\s*[1-9][0-9]*\s+failed", lowered) is not None
+    )
+
+
+def known_infrastructure_blocker_signal(stdout_text: str, stderr_text: str) -> bool:
+    lowered = "\n".join([stdout_text, stderr_text]).lower()
+    markers = (
+        "fatal error: linux/hidraw.h: no such file or directory",
+        "fatal error: gnu/libc-version.h: no such file or directory",
+        "'pread64' undeclared",
+        "'pwrite64' undeclared",
+        "unknown type name 'off64_t'",
+        "property 'enteredviaanothersession' does not exist on type 'groupcall'",
+    )
+    return any(marker in lowered for marker in markers)
+
+
+def focused_success_signal(stdout_text: str, stderr_text: str) -> bool:
+    lowered = "\n".join([stdout_text, stderr_text]).lower()
+    markers = (
+        " succeeded in ",
+        "\nok  \t",
+        "\npass ",
+        "test suites: ",
+    )
+    return any(marker in lowered for marker in markers)
+
+
+def contract_break_reasons(stdout_text: str, stderr_text: str) -> list[str]:
+    merged = "\n".join([stdout_text, stderr_text]).lower()
+    reasons: list[str] = []
+    patterns: tuple[tuple[str, tuple[str, ...]], ...] = (
+        (
+            "contract_api_compatibility_break",
+            (
+                "missing 1 required positional argument",
+                "missing 2 required positional arguments",
+                "missing required positional argument",
+                "too many arguments",
+                "not enough arguments",
+                "wrong number of arguments",
+                "takes 0 positional arguments but",
+                "takes 1 positional argument but",
+                "takes 2 positional arguments but",
+                "cannot use",
+                "has no field or method",
+                "no method named",
+                "attributeerror:",
+            ),
+        ),
+        (
+            "contract_missing_adjacent_symbol",
+            (
+                "undefined:",
+                "cannot find module",
+                "module not found",
+                "no such file or directory",
+                "unresolved import",
+                "unresolved reference",
+                "nameerror:",
+                "is not defined",
+            ),
+        ),
+        (
+            "contract_test_mock_break",
+            (
+                "is not a constructor",
+                "mock constructor",
+                "jest.fn",
+                "sinon",
+                "expected mock",
+            ),
+        ),
+        (
+            "edge_case_invariant_failure",
+            (
+                "not equal:",
+                "expected:",
+                "to equal",
+                "assertionerror",
+                "assertion failed",
+                "mismatch",
+                "invariant",
+            ),
+        ),
+    )
+    for reason, markers in patterns:
+        if any(marker in merged for marker in markers):
+            reasons.append(reason)
+    return reasons
+
+
+def diff_files(diff_text: str) -> list[str]:
+    files: list[str] = []
+    for line in diff_text.splitlines():
+        if line.startswith("+++ b/"):
+            files.append(line[6:])
+    return files
+
+
+def diff_added_lines(diff_text: str) -> list[str]:
+    lines: list[str] = []
+    for line in diff_text.splitlines():
+        if line.startswith("+") and not line.startswith("+++"):
+            lines.append(line[1:])
+    return lines
+
+
+def is_test_path(path: str) -> bool:
+    normalized = path.lower()
+    parts = re.split(r"[/\\]", normalized)
+    return (
+        "test" in parts
+        or "tests" in parts
+        or "__tests__" in parts
+        or normalized.endswith(("_test.go", "_test.py", ".test.ts", ".test.tsx", ".spec.ts", ".spec.tsx"))
+        or "/test_" in normalized
+    )
+
+
+def diff_risk_reasons(diff_text: str) -> list[str]:
+    if not diff_text.strip():
+        return []
+    files = diff_files(diff_text)
+    added = diff_added_lines(diff_text)
+    changed_lines = sum(
+        1
+        for line in diff_text.splitlines()
+        if (line.startswith("+") and not line.startswith("+++"))
+        or (line.startswith("-") and not line.startswith("---"))
+    )
+    lowered_files = [path.lower() for path in files]
+    lowered_added = "\n".join(added).lower()
+    reasons: list[str] = []
+
+    if any(is_test_path(path) for path in files):
+        reasons.append("test_oracle_change_requires_red_green_evidence")
+
+    lock_or_manifest_names = {
+        "package-lock.json",
+        "yarn.lock",
+        "pnpm-lock.yaml",
+        "cargo.lock",
+        "go.sum",
+        "poetry.lock",
+        "pdm.lock",
+        "requirements.txt",
+        "pyproject.toml",
+        "package.json",
+        "gemfile.lock",
+        "composer.lock",
+    }
+    if any(Path(path).name.lower() in lock_or_manifest_names for path in lowered_files):
+        reasons.append("dependency_or_lockfile_churn_requires_justification")
+
+    generated_markers = (
+        "/dist/",
+        "/build/",
+        "/coverage/",
+        "/vendor/",
+        "/vendors/",
+        "/node_modules/",
+        "/generated/",
+        ".min.js",
+        ".snap",
+    )
+    if any(any(marker in f"/{path}" for marker in generated_markers) for path in lowered_files):
+        reasons.append("generated_or_vendor_artifact_churn")
+
+    if len(files) > 10 or changed_lines > 900:
+        reasons.append("broad_diff_surface_requires_minimality_review")
+
+    weak_test_markers = (
+        "assert true",
+        "assert.true(true",
+        "expect(true).tobe(true",
+        "expect(true).tobetruthy",
+        "mockreturnvalue(true",
+        "mockresolvedvalue(true",
+        "return true",
+    )
+    if any(is_test_path(path) for path in files) and any(marker in lowered_added for marker in weak_test_markers):
+        reasons.append("weak_test_oracle_suspected")
+
+    return reasons
+
+
+def swe_fusion_attempt_history(
+    attempts: list[dict[str, Any]],
+    fusion_records: list[dict[str, Any]],
+    max_attempts: int = 6,
+    max_reviews: int = 6,
+) -> dict[str, Any]:
+    attempt_items: list[dict[str, Any]] = []
+    for attempt in attempts[-max_attempts:]:
+        attempt_items.append(
+            {
+                "label": attempt["label"],
+                "returncode": attempt["returncode"],
+                "patch_bytes": attempt["patch_bytes"],
+                "has_diff": bool(attempt["diff"].strip()),
+                "has_visible_validation": visible_validation_signal(attempt["stdout_text"], attempt["stderr_text"]),
+                "contract_break_reasons": contract_break_reasons(
+                    attempt["stdout_text"], attempt["stderr_text"]
+                ),
+                "diff_risk_reasons": diff_risk_reasons(attempt["diff"]),
+                "explicit_positive_closure": explicit_positive_closure(
+                    result_returncode=attempt["returncode"],
+                    stdout_text=attempt["stdout_text"],
+                    stderr_text=attempt["stderr_text"],
+                    diff_text=attempt["diff"],
+                ),
+                "stdout_tail": truncate_text(attempt["stdout_text"], 2000),
+                "stderr_tail": truncate_text(attempt["stderr_text"], 1200),
+                "diff_tail": truncate_text(attempt["diff"], 2500),
+            }
+        )
+    review_items: list[dict[str, Any]] = []
+    for record in fusion_records[-max_reviews:]:
+        hint_excerpt = ""
+        hint_path = record.get("hint_path")
+        if hint_path and Path(hint_path).exists():
+            hint_excerpt = truncate_text(Path(hint_path).read_text(encoding="utf-8", errors="replace"), 2500)
+        review_items.append(
+            {
+                "phase": record.get("phase"),
+                "trigger_reasons": record.get("trigger_reasons", []),
+                "hint_excerpt": hint_excerpt,
+            }
+        )
+    return {
+        "total_attempts": len(attempts),
+        "total_fusion_reviews": len(fusion_records),
+        "attempts": attempt_items,
+        "fusion_reviews": review_items,
+    }
+
+
+def repeated_failure_reasons(
+    result_returncode: int,
+    stdout_text: str,
+    stderr_text: str,
+    diff_text: str,
+    repeat_threshold: int,
+) -> list[str]:
+    reasons: list[str] = []
+    if result_returncode != 0:
+        reasons.append(f"codex_returncode_{result_returncode}")
+    if not diff_text.strip():
+        reasons.append("empty_patch")
+    merged = "\n".join([stdout_text, stderr_text])
+    lowered = merged.lower()
+    if not visible_validation_signal(stdout_text, stderr_text):
+        reasons.append("missing_visible_validation_ledger")
+    for reason in diff_risk_reasons(diff_text):
+        if reason not in reasons:
+            reasons.append(reason)
+    if (
+        result_returncode == 0
+        and diff_text.strip()
+        and visible_validation_signal(stdout_text, stderr_text)
+        and not diff_risk_reasons(diff_text)
+        and not actual_failure_signal(stdout_text, stderr_text)
+    ):
+        return reasons
+    if (
+        result_returncode == 0
+        and diff_text.strip()
+        and visible_validation_signal(stdout_text, stderr_text)
+        and not diff_risk_reasons(diff_text)
+        and known_infrastructure_blocker_signal(stdout_text, stderr_text)
+        and focused_success_signal(stdout_text, stderr_text)
+    ):
+        return reasons
+    if explicit_positive_closure(
+        result_returncode=result_returncode,
+        stdout_text=stdout_text,
+        stderr_text=stderr_text,
+        diff_text=diff_text,
+    ) and not any(reason in reasons for reason in diff_risk_reasons(diff_text)):
+        return reasons
+    for reason in contract_break_reasons(stdout_text, stderr_text):
+        if reason not in reasons:
+            reasons.append(reason)
+    candidates: dict[str, int] = {}
+    for line in merged.splitlines():
+        normalized = re.sub(r"\s+", " ", line.strip())
+        if len(normalized) < 24:
+            continue
+        low = normalized.lower()
+        if not any(marker in low for marker in ("error", "fail", "failed", "exception", "traceback", "not found", "cannot", "missing")):
+            continue
+        key = re.sub(r"0x[0-9a-fA-F]+|\d+", "<n>", low)
+        candidates[key] = candidates.get(key, 0) + 1
+    repeated = [key for key, count in candidates.items() if count >= repeat_threshold]
+    if repeated:
+        reasons.append(f"repeated_failure_signature_x{repeat_threshold}")
+    return reasons
+
+
+def codex_prompt(task: dict[str, Any], container_name: str, repo_path: str, fusion_hint: str | None = None) -> str:
+    fusion_section = ""
+    if fusion_hint:
+        fusion_section = f"""
+
+Fairy Fusion sidechain guidance:
+{fusion_hint}
+
+Use this guidance as a review checklist, not as an answer key. Verify it against
+the repository before editing.
+"""
+    return f"""Use the installed fairy-tale plugin/skill for the workflow gates.
+Also apply the fairy-tale-benchmark-feedback skill: preserve observed success
+practices, verify named public interfaces, protect existing visible behavior,
+and validate touched surfaces inside the benchmark container. Keep the feedback
+generic; do not hardcode sample IDs, repositories, hidden answers, or scorer
+internals.
+
+You are solving a SWE-Bench Pro software engineering task.
+
+Instance: {task["instance_id"]}
+Repository: {task.get("repo")}
+Base commit: {task.get("base_commit")}
+
+The current working directory is a host-side copy of the benchmark repository.
+It is also mounted into Docker container `{container_name}` at `{repo_path}`.
+Edit files in the current working directory. When validation is useful, run it
+inside the benchmark image with:
+
+  docker exec -u root -w {repo_path} {container_name} <command>
+
+The benchmark container has network disabled. Do not inspect or rely on gold
+patches, hidden tests, fail/pass scorer fields, or benchmark answers. Do not
+modify tests unless the issue explicitly requires a non-test fixture change.
+Keep the patch minimal and aligned with local project conventions. Leave the
+final changes unstaged in the working tree; do not commit.
+
+Validation gate:
+1. Before editing, identify the smallest command, smoke script, or existing test
+   that localizes the affected behavior. If no direct test exists, create only a
+   temporary one-off command or script outside the final patch.
+2. Before changing an existing function, method, type, constructor, exported
+   symbol, file path, or return shape, map current call sites and visible tests.
+   Preserve backward compatibility with wrappers/defaults unless the task
+   explicitly deprecates the old contract.
+3. After editing, run at least one relevant validation command inside the
+   benchmark container. Prefer the repository's existing test runner over ad hoc
+   assertions when it is available.
+4. If a visible adjacent test fails, treat that as a patch problem unless the
+   task explicitly deprecates the old behavior. Preserve compatibility with a
+   narrower condition rather than dismissing the red test as expected.
+5. For touched surfaces, add or run at least one focused edge-case check when
+   feasible: empty/nil/null, default/legacy path, boundary size, duplicate,
+   ordering, mapping/migration, and error-path behavior as applicable.
+6. If logs show missing arguments, undefined symbols, missing modules,
+   constructor/type errors, or equality invariant failures, fix the contract
+   break before adding more feature logic.
+7. Do not modify tests, fixtures, dependency manifests, lockfiles, generated
+   outputs, or vendored files unless the task explicitly requires that surface.
+   If tests must change, prove the test is meaningful: it should fail before the
+   fix or assert an externally visible behavior, not mirror the implementation
+   or mock the unit under test into success.
+8. Review maintainability before finishing: avoid duplicate logic, broad
+   special-case chains, large unrelated diffs, and complexity added to already
+   large functions when a local abstraction is available.
+9. If a broad validation command is blocked by unrelated infrastructure, run a
+   focused validation that covers the touched surface and record the exact
+   unrelated blocker.
+10. Before finishing, report the validation commands, results, remaining
+   blockers, and why the final diff is still minimal.
+{fusion_section}
+
+Problem statement:
+
+{task["prompt"]}
+"""
+
+
+def patch_prediction_path(pred_dir: Path, prefix: str, instance_id: str) -> Path:
+    instance_dir = pred_dir / instance_id
+    return instance_dir / f"{prefix}.{safe_name(instance_id)}.pred"
+
+
+def write_patch_prediction(pred_dir: Path, prefix: str, instance_id: str, patch: str) -> Path:
+    instance_dir = pred_dir / instance_id
+    instance_dir.mkdir(parents=True, exist_ok=True)
+    path = patch_prediction_path(pred_dir, prefix, instance_id)
+    payload = {"instance_id": instance_id, "model_patch": patch}
+    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    return path
+
+
+def generate_codex_patch_for_task(
+    task: dict[str, Any],
+    raw_row: dict[str, Any],
+    args: argparse.Namespace,
+    output_dir: Path,
+    pred_dir: Path,
+    logs_dir: Path,
+) -> dict[str, Any]:
+    try:
+        instance_id = task["instance_id"]
+        image = sweagent_image_name(raw_row, args.dockerhub_username)
+        worktree = output_dir / safe_name(instance_id)
+        container_suffix = f"-{safe_name(args.container_name_suffix)}" if args.container_name_suffix else ""
+        container_name = f"fairy-codex-{safe_name(instance_id)[:48]}{container_suffix}"
+        pred_path = patch_prediction_path(pred_dir, args.prefix, instance_id)
+        if args.skip_existing and pred_path.exists():
+            return {
+                "instance_id": instance_id,
+                "image": image,
+                "repo_path": args.repo_path,
+                "worktree": str(worktree),
+                "container_name": container_name,
+                "model": args.model,
+                "reasoning_effort": args.reasoning_effort,
+                "sandbox": args.sandbox,
+                "skipped": "existing_prediction",
+                "pred_path": str(pred_path),
+            }
+        repo_path = args.repo_path or (
+            "/app" if args.dry_run else discover_image_repo_path(image, args.docker_platform)
+        )
+        record = {
+            "instance_id": instance_id,
+            "image": image,
+            "repo_path": repo_path,
+            "worktree": str(worktree),
+            "container_name": container_name,
+            "model": args.model,
+            "reasoning_effort": args.reasoning_effort,
+            "sandbox": args.sandbox,
+        }
+        if not args.dry_run:
+            if (worktree / ".git").exists():
+                reset = run_capture(["git", "reset", "--hard", "HEAD"], cwd=worktree)
+                clean = run_capture(["git", "clean", "-fd"], cwd=worktree)
+                if reset.returncode != 0 or clean.returncode != 0:
+                    raise SystemExit(
+                        f"could not reset existing worktree for {instance_id}:\n"
+                        f"{reset.stderr.strip()}\n{clean.stderr.strip()}"
+                    )
+            else:
+                copy_repo_from_image(image, repo_path, worktree, args.docker_platform)
+                init_patch_worktree(worktree)
+        fusion_dir = args.run_dir / "fairy-fusion" / safe_name(instance_id)
+        fusion_records: list[dict[str, Any]] = []
+        fusion_hint: str | None = None
+        if args.fairy_fusion:
+            if args.dry_run:
+                fusion_records.append({"phase": "preflight", "mode": "dry_run"})
+                fusion_hint = "Fairy Fusion preflight is enabled; run reviewers before patch generation."
+            else:
+                preflight = run_swe_fusion_review(
+                    args=args,
+                    task=task,
+                    raw_row=raw_row,
+                    phase="preflight",
+                    container_name=container_name,
+                    repo_path=repo_path,
+                    fusion_dir=fusion_dir,
+                )
+                fusion_records.append(preflight)
+                fusion_hint = Path(preflight["hint_path"]).read_text(encoding="utf-8")
+
+        prompt = codex_prompt(task, container_name, repo_path, fusion_hint)
+
+        def codex_command(rendered_prompt: str) -> list[str]:
+            return [
+                args.codex_bin,
+                "--ask-for-approval",
+                "never",
+                "exec",
+                "--ephemeral",
+                "--sandbox",
+                args.sandbox,
+                "-m",
+                args.model,
+                "-c",
+                f'model_reasoning_effort="{args.reasoning_effort}"',
+                "--cd",
+                str(worktree),
+                rendered_prompt,
+            ]
+
+        record["command"] = codex_command(prompt)
+        record["fairy_fusion"] = args.fairy_fusion
+        record["fusion_auto"] = args.fusion_auto
+        record["fusion_execute"] = args.fusion_execute
+        record["fusion_records"] = fusion_records
+        if args.dry_run:
+            return record
+
+        def codex_env() -> dict[str, str]:
+            env = os.environ.copy()
+            if args.api_key_env in env:
+                env.setdefault("OPENAI_API_KEY", env[args.api_key_env])
+                env.setdefault("CODEX_API_KEY", env[args.api_key_env])
+            if "OPENAI_API_KEY" in env:
+                env.setdefault("CODEX_API_KEY", env["OPENAI_API_KEY"])
+            if "CODEX_API_KEY" in env:
+                env.setdefault("OPENAI_API_KEY", env["CODEX_API_KEY"])
+            return env
+
+        subprocess.run(
+            ["docker", "rm", "-f", container_name],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        run = subprocess.run(
+            [
+                "docker",
+                "run",
+                "-d",
+                "--platform",
+                args.docker_platform,
+                "--network",
+                "none",
+                "--name",
+                container_name,
+                "--entrypoint",
+                "sleep",
+                "-v",
+                f"{worktree}:{repo_path}",
+                image,
+                "infinity",
+            ],
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        if run.returncode != 0:
+            raise SystemExit(f"docker run failed for {instance_id}:\n{run.stderr.strip()}")
+        logs_dir.mkdir(parents=True, exist_ok=True)
+
+        def run_codex_attempt(label: str, rendered_prompt: str) -> dict[str, Any]:
+            stdout_path = logs_dir / f"{safe_name(instance_id)}.{label}.stdout.txt"
+            stderr_path = logs_dir / f"{safe_name(instance_id)}.{label}.stderr.txt"
+            command = codex_command(rendered_prompt)
+            with stdout_path.open("w", encoding="utf-8") as stdout, stderr_path.open(
+                "w", encoding="utf-8"
+            ) as stderr:
+                result = subprocess.run(command, check=False, stdout=stdout, stderr=stderr, env=codex_env())
+            diff = run_capture(["git", "diff", "--binary", "HEAD"], cwd=worktree)
+            if diff.returncode != 0:
+                raise SystemExit(f"git diff failed for {instance_id}:\n{diff.stderr.strip()}")
+            stdout_text = stdout_path.read_text(encoding="utf-8", errors="replace")
+            stderr_text = stderr_path.read_text(encoding="utf-8", errors="replace")
+            return {
+                "label": label,
+                "returncode": result.returncode,
+                "stdout_path": str(stdout_path),
+                "stderr_path": str(stderr_path),
+                "stdout_text": stdout_text,
+                "stderr_text": stderr_text,
+                "diff": diff.stdout,
+                "command": command,
+                "patch_bytes": len(diff.stdout.encode("utf-8")),
+            }
+
+        try:
+            attempts: list[dict[str, Any]] = []
+            current = run_codex_attempt("attempt1", prompt)
+            attempts.append(current)
+            auto_trigger_reasons = repeated_failure_reasons(
+                result_returncode=current["returncode"],
+                stdout_text=current["stdout_text"],
+                stderr_text=current["stderr_text"],
+                diff_text=current["diff"],
+                repeat_threshold=args.fusion_stuck_repeats,
+            )
+            retry_count = 0
+            while args.fusion_auto and auto_trigger_reasons and args.fusion_retry_on_stuck:
+                if args.fusion_max_retries > 0 and retry_count >= args.fusion_max_retries:
+                    break
+                retry_count += 1
+                attempt_number = len(attempts) + 1
+                stuck_review = run_swe_fusion_review(
+                    args=args,
+                    task=task,
+                    raw_row=raw_row,
+                    phase=f"stuck-retry-{attempt_number}",
+                    container_name=container_name,
+                    repo_path=repo_path,
+                    fusion_dir=fusion_dir,
+                    trigger_reasons=auto_trigger_reasons,
+                    stdout_text=current["stdout_text"],
+                    stderr_text=current["stderr_text"],
+                    diff_text=current["diff"],
+                    attempt_history=swe_fusion_attempt_history(attempts, fusion_records),
+                    stuck_cycle_count=retry_count,
+                )
+                fusion_records.append(stuck_review)
+                retry_hint = Path(stuck_review["hint_path"]).read_text(encoding="utf-8")
+                combined_hint = "\n\n".join(part for part in [fusion_hint, retry_hint] if part)
+                reset = run_capture(["git", "reset", "--hard", "HEAD"], cwd=worktree)
+                clean = run_capture(["git", "clean", "-fd"], cwd=worktree)
+                if reset.returncode != 0 or clean.returncode != 0:
+                    raise SystemExit(
+                        f"could not reset worktree for fusion retry {instance_id}:\n"
+                        f"{reset.stderr.strip()}\n{clean.stderr.strip()}"
+                    )
+                current = run_codex_attempt(
+                    f"attempt{attempt_number}-fusion-retry",
+                    codex_prompt(task, container_name, repo_path, combined_hint),
+                )
+                attempts.append(current)
+                auto_trigger_reasons = repeated_failure_reasons(
+                    result_returncode=current["returncode"],
+                    stdout_text=current["stdout_text"],
+                    stderr_text=current["stderr_text"],
+                    diff_text=current["diff"],
+                    repeat_threshold=args.fusion_stuck_repeats,
+                )
+            pred_path = write_patch_prediction(pred_dir, args.prefix, instance_id, current["diff"])
+            record.update(
+                {
+                    "returncode": current["returncode"],
+                    "stdout_path": current["stdout_path"],
+                    "stderr_path": current["stderr_path"],
+                    "pred_path": str(pred_path),
+                    "patch_bytes": current["patch_bytes"],
+                    "attempts": [
+                        {
+                            "label": attempt["label"],
+                            "returncode": attempt["returncode"],
+                            "stdout_path": attempt["stdout_path"],
+                            "stderr_path": attempt["stderr_path"],
+                            "patch_bytes": attempt["patch_bytes"],
+                        }
+                        for attempt in attempts
+                    ],
+                    "fusion_records": fusion_records,
+                    "fusion_auto_trigger_reasons": auto_trigger_reasons,
+                    "fusion_retry_count": retry_count,
+                    "fusion_max_retries": args.fusion_max_retries,
+                }
+            )
+            return record
+        finally:
+            if not args.keep_containers:
+                subprocess.run(
+                    ["docker", "rm", "-f", container_name],
+                    check=False,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+    except SystemExit as exc:
+        raise RuntimeError(str(exc)) from exc
+
+
+def generate_codex_patches(args: argparse.Namespace) -> int:
+    manifest = load_manifest(args.prepared_manifest)
+    tasks = read_jsonl(Path(manifest["agent_tasks_path"]).resolve())
+    raw_rows = {row["instance_id"]: row for row in read_jsonl(Path(manifest["raw_eval_path"]).resolve())}
+    output_dir = (args.output_dir or (args.run_dir / "codex-worktrees")).resolve()
+    pred_dir = (args.pred_dir or (args.run_dir / "predictions")).resolve()
+    logs_dir = args.run_dir / "codex-logs"
+    records: list[dict[str, Any]] = []
+    errors: list[dict[str, Any]] = []
+    if args.fusion_stuck_repeats < 1:
+        raise SystemExit("--fusion-stuck-repeats must be positive")
+    if args.fusion_max_retries < 0:
+        raise SystemExit("--fusion-max-retries must be zero or positive")
+    if args.api_key_env not in os.environ and not args.dry_run:
+        raise SystemExit(f"{args.api_key_env} is required for codex-patches")
+    if shutil.which(args.codex_bin) is None and not args.dry_run:
+        raise SystemExit(f"codex binary not found on PATH: {args.codex_bin}")
+
+    indexed_tasks: list[tuple[int, dict[str, Any], dict[str, Any]]] = []
+    for index, task in enumerate(tasks):
+        instance_id = task["instance_id"]
+        raw_row = raw_rows.get(instance_id)
+        if not raw_row:
+            raise SystemExit(f"raw row missing for instance: {instance_id}")
+        indexed_tasks.append((index, task, raw_row))
+
+    def collect_result(index: int, task: dict[str, Any], raw_row: dict[str, Any]) -> None:
+        try:
+            record = generate_codex_patch_for_task(
+                task=task,
+                raw_row=raw_row,
+                args=args,
+                output_dir=output_dir,
+                pred_dir=pred_dir,
+                logs_dir=logs_dir,
+            )
+            record["_index"] = index
+            records.append(record)
+            if record.get("returncode", 0) != 0 and not args.keep_going:
+                raise SystemExit(f"codex returned {record['returncode']} for {record['instance_id']}")
+        except Exception as exc:
+            error = {
+                "_index": index,
+                "instance_id": task.get("instance_id"),
+                "error": str(exc),
+                "error_type": type(exc).__name__,
+            }
+            errors.append(error)
+            if not args.keep_going:
+                raise SystemExit(f"codex patch generation failed for {task.get('instance_id')}: {exc}") from exc
+
+    worker_count = max(1, args.num_workers)
+    if worker_count == 1:
+        for index, task, raw_row in indexed_tasks:
+            collect_result(index, task, raw_row)
+    else:
+        with ThreadPoolExecutor(max_workers=worker_count) as executor:
+            futures = {
+                executor.submit(collect_result, index, task, raw_row): task["instance_id"]
+                for index, task, raw_row in indexed_tasks
+            }
+            for future in as_completed(futures):
+                future.result()
+
+    records.sort(key=lambda record: record.pop("_index", 0))
+    errors.sort(key=lambda record: record.pop("_index", 0))
+
+    manifest_record = {
+        "benchmark": "SWE-Bench Pro",
+        "action": "codex_patches",
+        "prepared_manifest": str(args.prepared_manifest),
+        "pred_dir": str(pred_dir),
+        "prefix": args.prefix,
+        "count": len(records),
+        "error_count": len(errors),
+        "num_workers": worker_count,
+        "skip_existing": args.skip_existing,
+        "dry_run": args.dry_run,
+        "records": records,
+        "errors": errors,
+        "notes": "Codex CLI is used as the patch-generation agent. Evaluation still runs through the official SWE-Bench Pro scorer.",
+    }
+    write_json(args.run_dir / "codex-patches-manifest.json", manifest_record)
+    print(json.dumps(manifest_record, indent=2, ensure_ascii=False))
+    return 0
 
 
 def write_sweagent_instances(args: argparse.Namespace) -> int:
@@ -176,8 +1252,19 @@ def write_sweagent_config(args: argparse.Namespace) -> int:
           1. Build a compact evidence map: relevant files, invariants, and uncertainty.
           2. Reproduce or localize the issue with the cheapest command or script available.
           3. Patch the smallest stable surface consistent with local conventions.
-          4. Validate the changed behavior and at least one relevant edge case when feasible.
-          5. Review the final diff for accidental broad changes, test edits, formatting churn, and missing imports.
+          4. Preserve contracts before extending behavior: map call sites, exported symbols, constructors, return shapes, test doubles, and adjacent tests for touched surfaces.
+          5. Validate the changed behavior and at least one relevant edge case when feasible: empty/default, legacy path, boundary size, duplicate/order, mapping/migration, and error path.
+          6. Treat tests as an oracle, not a target to repaint. Do not change tests or fixtures unless explicitly required; if you must, show red-green or external-behavior evidence.
+          7. Review the final diff for accidental broad changes, test edits, dependency/lockfile churn, generated or vendored artifacts, formatting churn, missing imports, missing adjacent symbols, signature drift, duplicated logic, and large special-case chains.
+
+          Validation gate:
+          - Run at least one focused validation command after editing, using the existing repository test runner when available.
+          - If validation logs show missing arguments, undefined symbols, missing modules, constructor/type errors, or equality invariant failures, treat that as a contract break to fix before submitting.
+          - If a visible adjacent test fails, do not mark it as expected unless the PR description explicitly deprecates that old behavior. Prefer a narrower compatibility-preserving fix.
+          - If you wrote or changed tests, ensure they assert externally visible behavior and would fail against the broken implementation. Avoid tautological assertions and mocks that force the unit under test to succeed.
+          - If the patch touches dependency manifests, lockfiles, generated files, vendored code, or many unrelated files, justify why that surface is required and prefer a smaller source-only fix.
+          - If a broad test command fails because of unrelated infrastructure, run a narrower validation on the touched surface and record the exact blocker.
+          - Final submission must include a concise validation ledger: commands run, pass/fail result, unrelated blockers, and why the diff remains minimal.
 
           Your thinking should be thorough, but every action should remain scoped to solving this issue.
         next_step_template: |-
@@ -208,9 +1295,12 @@ def write_sweagent_config(args: argparse.Namespace) -> int:
               Review your patch before final submission.
 
               1. If you changed source after reproducing or validating, rerun the most relevant validation command when feasible.
-              2. Remove temporary reproduction scripts unless they are intentionally part of the fix.
-              3. Revert unintended test edits or broad formatting churn.
-              4. Confirm the patch is minimal, internally consistent, and addresses the stated requirements.
+              2. Check contract preservation: existing callers, exports/imports, constructors, return shapes, test doubles, and adjacent symbols still resolve.
+              3. Check at least one applicable edge case for each touched surface: empty/default, legacy path, boundary, duplicate/order, mapping/migration, or error path.
+              4. Reject weak test oracles: no tautological assertions, no tests that simply mirror current buggy output, and no mocks that force the unit under test to pass.
+              5. Remove temporary reproduction scripts unless they are intentionally part of the fix.
+              6. Revert unintended test edits, dependency/lockfile churn, generated/vendor artifact changes, or broad formatting churn.
+              7. Confirm the patch is minimal, internally consistent, maintainable across the next likely change, and addresses the stated requirements.
 
               Current diff:
 
@@ -569,12 +1659,62 @@ def build_parser() -> argparse.ArgumentParser:
     compat_parser.add_argument("--swerex-docker-path", type=Path)
     compat_parser.set_defaults(func=patch_sweagent_compat)
 
+    codex_parser = subparsers.add_parser("codex-patches")
+    add_dry_run_flag(codex_parser)
+    codex_parser.add_argument("--prepared-manifest", type=Path, required=True)
+    codex_parser.add_argument("--output-dir", type=Path)
+    codex_parser.add_argument("--pred-dir", type=Path)
+    codex_parser.add_argument("--prefix", default="gpt-5.5-fairy-tale-codex")
+    codex_parser.add_argument("--model", default="gpt-5.5")
+    codex_parser.add_argument("--reasoning-effort", default="xhigh")
+    codex_parser.add_argument("--sandbox", default="danger-full-access")
+    codex_parser.add_argument("--codex-bin", default="codex")
+    codex_parser.add_argument("--api-key-env", default="CODEX_API_KEY")
+    codex_parser.add_argument("--dockerhub-username", default="jefzda")
+    codex_parser.add_argument("--docker-platform", default="linux/amd64")
+    codex_parser.add_argument("--repo-path")
+    codex_parser.add_argument("--num-workers", type=int, default=1)
+    codex_parser.add_argument("--fairy-fusion", action="store_true")
+    codex_parser.add_argument(
+        "--fusion-auto",
+        action="store_true",
+        help="Detect stuck or repeated failure signatures after a Codex attempt and trigger Fairy Fusion.",
+    )
+    codex_parser.add_argument(
+        "--fusion-retry-on-stuck",
+        action="store_true",
+        help="After an automatic stuck-trigger review, reset the worktree and retry with history-aware fusion hints until locally clear or the max-retry cap is reached.",
+    )
+    codex_parser.add_argument("--fusion-execute", action="store_true")
+    codex_parser.add_argument("--fusion-reviewers", type=int, default=4)
+    codex_parser.add_argument("--fusion-workers", type=int, default=4)
+    codex_parser.add_argument("--fusion-model", default="gpt-5.5")
+    codex_parser.add_argument("--fusion-judge-model")
+    codex_parser.add_argument("--fusion-effort", default="medium")
+    codex_parser.add_argument("--fusion-timeout", type=int, default=0)
+    codex_parser.add_argument("--fusion-stuck-repeats", type=int, default=3)
+    codex_parser.add_argument(
+        "--fusion-max-retries",
+        type=int,
+        default=0,
+        help="Maximum automatic fusion retries per task. 0 means no internal cap; stop externally or when local clear conditions are met.",
+    )
+    codex_parser.add_argument(
+        "--skip-existing",
+        action="store_true",
+        help="Skip instances that already have a prediction file for this prefix.",
+    )
+    codex_parser.add_argument("--keep-containers", action="store_true")
+    codex_parser.add_argument("--keep-going", action="store_true")
+    codex_parser.add_argument("--container-name-suffix", default="")
+    codex_parser.set_defaults(func=generate_codex_patches, need_harness=False, need_python=False)
+
     gather_parser = subparsers.add_parser("gather")
     add_dry_run_flag(gather_parser)
     gather_parser.add_argument("--pred-dir", type=Path, required=True)
     gather_parser.add_argument("--prefix", required=True)
     gather_parser.add_argument("--output", type=Path)
-    gather_parser.set_defaults(func=gather)
+    gather_parser.set_defaults(func=gather, need_harness=True, need_python=True)
 
     eval_parser = subparsers.add_parser("eval")
     add_dry_run_flag(eval_parser)
@@ -589,7 +1729,7 @@ def build_parser() -> argparse.ArgumentParser:
     eval_parser.add_argument("--allow-network", action="store_false", dest="block_network")
     eval_parser.add_argument("--redo", action="store_true")
     eval_parser.add_argument("--docker-platform")
-    eval_parser.set_defaults(func=eval_patches)
+    eval_parser.set_defaults(func=eval_patches, need_harness=True, need_python=True)
     return parser
 
 
@@ -601,8 +1741,10 @@ def main(argv: list[str] | None = None) -> int:
     args.run_dir = absolute_path(args.run_dir)
     if hasattr(args, "prepared_manifest"):
         args.prepared_manifest = args.prepared_manifest.resolve()
-    require_path(args.harness_dir, "SWE-Bench Pro harness")
-    require_path(args.python, "SWE-Bench Pro python")
+    if getattr(args, "need_harness", True):
+        require_path(args.harness_dir, "SWE-Bench Pro harness")
+    if getattr(args, "need_python", True):
+        require_path(args.python, "SWE-Bench Pro python")
     return args.func(args)
 
 

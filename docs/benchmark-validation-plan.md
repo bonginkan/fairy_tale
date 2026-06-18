@@ -67,6 +67,21 @@ the score. Prefer a 95% confidence interval for proportions; when space is
 tight, include the half-width as `+/-N pp`. Do not mix official known data and
 local measured data in the same score cell.
 
+Methodology alignment notes:
+
+- HLE's official public evaluation is closed-ended: all public questions,
+  temperature 0 when configurable, final answer plus confidence, automatic
+  extraction/judging, and large enough output budget. Treat any Fairy Tale
+  tool/skill-assisted HLE run as a separate local condition, not the official
+  no-extra-tool public row.
+- ExploitBench compares model agents through the upstream CLI/MCP container
+  ladder and caps episodes by turns. Keep the defensive-use boundary intact and
+  record AutoNudge/Codex/provider-routing differences as separate conditions.
+- SWE-Bench Pro local runs should use an agent harness that can inspect, edit,
+  and validate inside the benchmark container. If using Codex CLI, install the
+  Fairy Tale plugin and record model, effort, sandbox, container image, and
+  generated patch artifacts before official scoring.
+
 Minimum recorded fields:
 
 - domain,
@@ -285,9 +300,9 @@ Agentic coding readiness notes:
   fail/pass scorer fields, selected test files, setup commands, and dockerfile
   fields.
 - `scripts/swebench_pro_run.py` records SWE-agent instance/config generation,
-  compatibility patches, plan, patch-gather, and official-eval manifests. Use
-  the SWE-agent helpers before running patch generation, then gather/evaluate
-  after the coding agent writes predictions.
+  Codex CLI patch generation, compatibility patches, plan, patch-gather, and
+  official-eval manifests. Use either SWE-agent or Codex CLI as the coding
+  agent, then gather/evaluate after predictions are written.
 - SWE-Bench Pro public Docker images are amd64. Apple Silicon can run them only
   through emulation, which is materially slower; use an x86_64 Linux machine or
   a temporary cloud VM for practical runs.
@@ -305,7 +320,8 @@ scripts/swebench_pro_run.py sweagent-instances --prepared-manifest tmp/swe-bench
 scripts/swebench_pro_run.py sweagent-config --instances-path data/fairy-smoke.yaml --instances-slice :1 --output tmp/swe-bench-pro-os/SWE-agent/config/fairy_tale_swebench_pro.yaml
 scripts/swebench_pro_run.py --python tmp/swe-agent-venv/bin/python sweagent-compat
 scripts/swebench_pro_run.py plan --prepared-manifest tmp/swe-bench-pro-runs/prepared-smoke/manifest.json
-scripts/swebench_pro_run.py gather --pred-dir tmp/swe-bench-pro-runs/predictions --prefix gpt-5.5-fairy-tale --dry-run
+scripts/swebench_pro_run.py codex-patches --prepared-manifest tmp/swe-bench-pro-runs/prepared-smoke/manifest.json --dry-run
+scripts/swebench_pro_run.py gather --pred-dir tmp/swe-bench-pro-runs/predictions --prefix gpt-5.5-fairy-tale-codex --dry-run
 scripts/swebench_pro_run.py eval --prepared-manifest tmp/swe-bench-pro-runs/prepared-smoke/manifest.json --patch-path tmp/swe-bench-pro-runs/current/patches.json --use-local-docker --dry-run
 ```
 
