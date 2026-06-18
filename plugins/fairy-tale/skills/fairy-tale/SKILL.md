@@ -78,6 +78,10 @@ python3 scripts/fairy_tale_residency_check.py
      List inferred goals, latent constraints, destructive assumptions, and
      validation probes. Ask only for missing information that cannot be safely
      inferred or tested.
+   - For "genius method", historical-methodology, Silicon Valley operator,
+     or creativity/process-uplift requests: use the Accessible Genius Method
+     router in `references/genius-methods.md`. Extract durable primitives, not
+     personality cults, anecdotes, unsafe speed, or founder mythology.
    - For legal, HLE-style, bio/health, finance/document, or other benchmark
      work: use the Domain Router before applying any agentic-coding harness.
    - For workflow improvement: inspect existing commands, skills, agents,
@@ -200,6 +204,29 @@ python3 scripts/fairy_tale_residency_check.py
 - Build a claim table before writing conclusions.
 - Include uncertainty and reproducibility notes.
 - Convert findings into a reusable procedure or artifact.
+
+### Accessible Genius Method Router
+
+- Use when the task benefits from durable methods distilled from historical
+  geniuses, polymaths, scientists, artists, strategists, or modern Silicon
+  Valley operators.
+- Select only methods that remain useful under modern constraints:
+  reproducible evidence, clear contracts, safe speed, customer/user grounding,
+  real-world validation, principled simplification, or validated creative form.
+- Reject methods whose value depends on personal charisma, coercion,
+  survivorship bias, secrecy, unbounded work, regulatory disregard, or
+  non-reproducible anecdotes.
+- Pick one to three method cards from `references/genius-methods.md`, state why
+  they fit, and produce the method's concrete artifact before executing.
+- For Silicon Valley methods, apply the built-in limiters: no "move fast and
+  break things" without stable infrastructure, no blitzscaling without a
+  winner-take-most speed thesis, no founder-mode escalation without explicit
+  accountability and abuse guards.
+- For investing, Wall Street, or financial-engineering methods, keep outputs
+  educational/process-oriented unless a regulated advisory role and mandate are
+  explicit. Do not produce personalized buy/sell recommendations, performance
+  guarantees, nonpublic-information use, or leverage/derivatives guidance
+  without explicit risk constraints.
 
 ### Benchmark Delta Harness
 
