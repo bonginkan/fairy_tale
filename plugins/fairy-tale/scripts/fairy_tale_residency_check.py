@@ -40,6 +40,29 @@ SKILL_MARKERS = {
     ),
 }
 
+SKILL_REFERENCE_MARKERS = {
+    Path("fairy-tale/references/genius-methods.md"): (
+        "Accessible Genius Methods",
+        "Margin-of-Safety Thesis Gate",
+        "Financial Engineering Replication Gate",
+    ),
+    Path("fairy-tale/references/process.md"): (
+        "Accessible genius method record",
+    ),
+    Path("fairy-tale/references/sources.md"): (
+        "Historical and Silicon Valley method sources",
+        "Investing and financial engineering method sources",
+    ),
+}
+
+IGNORED_TREE_PARTS = {
+    "__pycache__",
+}
+
+IGNORED_TREE_FILES = {
+    ".DS_Store",
+}
+
 REPO_SKILL_ROOTS = (
     Path("skills"),
     Path("plugins/fairy-tale/skills"),
@@ -178,8 +201,58 @@ def read_text(path: Path) -> str | None:
         return None
 
 
+def read_bytes(path: Path) -> bytes | None:
+    try:
+        return path.read_bytes()
+    except FileNotFoundError:
+        return None
+
+
 def add(checks: list[Check], status: str, name: str, detail: str) -> None:
     checks.append(Check(status, name, detail))
+
+
+def tree_files(root: Path) -> list[Path] | None:
+    if not root.exists():
+        return None
+    files: list[Path] = []
+    for path in root.rglob("*"):
+        rel_path = path.relative_to(root)
+        if any(part in IGNORED_TREE_PARTS for part in rel_path.parts):
+            continue
+        if path.name in IGNORED_TREE_FILES:
+            continue
+        if path.is_file():
+            files.append(rel_path)
+    return sorted(files)
+
+
+def compare_tree(canonical: Path, copy: Path) -> str | None:
+    canonical_files = tree_files(canonical)
+    copy_files = tree_files(copy)
+    if canonical_files is None or copy_files is None:
+        return "cannot compare because one tree is missing"
+
+    canonical_set = set(canonical_files)
+    copy_set = set(copy_files)
+    missing = sorted(canonical_set - copy_set)
+    extra = sorted(copy_set - canonical_set)
+    if missing or extra:
+        details = []
+        if missing:
+            details.append("missing: " + ", ".join(str(path) for path in missing[:5]))
+        if extra:
+            details.append("extra: " + ", ".join(str(path) for path in extra[:5]))
+        return "; ".join(details)
+
+    drifted = [
+        rel_path
+        for rel_path in canonical_files
+        if read_bytes(canonical / rel_path) != read_bytes(copy / rel_path)
+    ]
+    if drifted:
+        return "drifted files: " + ", ".join(str(path) for path in drifted[:5])
+    return None
 
 
 def check_skill_file(checks: list[Check], root: Path, skill: str) -> None:
@@ -199,17 +272,14 @@ def check_skill_file(checks: list[Check], root: Path, skill: str) -> None:
 
 
 def check_copy_parity(checks: list[Check], copy_root: Path, skill: str) -> None:
-    canonical = ROOT / "skills" / skill / "SKILL.md"
-    copy = ROOT / copy_root / skill / "SKILL.md"
-    canonical_text = read_text(canonical)
-    copy_text = read_text(copy)
+    canonical = ROOT / "skills" / skill
+    copy = ROOT / copy_root / skill
     label = f"{copy_root}/{skill} parity"
-    if canonical_text is None or copy_text is None:
-        add(checks, "FAIL", label, "cannot compare because one copy is missing")
-    elif canonical_text == copy_text:
-        add(checks, "OK", label, "matches canonical skill")
+    mismatch = compare_tree(canonical, copy)
+    if mismatch is None:
+        add(checks, "OK", label, "matches canonical skill tree")
     else:
-        add(checks, "FAIL", label, "drifted from canonical skills source")
+        add(checks, "FAIL", label, mismatch)
 
 
 def check_manifest(checks: list[Check], path: Path, label: str) -> None:
@@ -269,7 +339,6 @@ def check_installed_root(checks: list[Check], root: Path, strict: bool) -> None:
     for skill in REQUIRED_SKILLS:
         path = root / skill / "SKILL.md"
         text = read_text(path)
-        canonical_text = read_text(ROOT / "skills" / skill / "SKILL.md")
         label = f"installed {root}/{skill}"
         if text is None:
             add(checks, status_if_missing, label, "not installed")
@@ -277,11 +346,13 @@ def check_installed_root(checks: list[Check], root: Path, strict: bool) -> None:
         missing = [marker for marker in SKILL_MARKERS[skill] if marker not in text]
         if missing:
             add(checks, "FAIL", label, f"installed copy is stale: {', '.join(missing)}")
-        elif canonical_text is not None and text != canonical_text:
-            status = "FAIL" if strict else "WARN"
-            add(checks, status, label, "installed copy differs from canonical skill")
         else:
-            add(checks, "OK", label, "installed copy has required markers")
+            mismatch = compare_tree(ROOT / "skills" / skill, root / skill)
+            if mismatch is None:
+                add(checks, "OK", label, "installed copy matches canonical skill tree")
+                continue
+            status = "FAIL" if strict else "WARN"
+            add(checks, status, label, mismatch)
 
 
 def collect_checks(args: argparse.Namespace) -> list[Check]:
@@ -290,6 +361,13 @@ def collect_checks(args: argparse.Namespace) -> list[Check]:
     for root in REPO_SKILL_ROOTS:
         for skill in REQUIRED_SKILLS:
             check_skill_file(checks, root, skill)
+        for path, markers in SKILL_REFERENCE_MARKERS.items():
+            check_contains(
+                checks,
+                root / path,
+                markers,
+                f"{root}/{path}",
+            )
 
     for root in CANONICAL_COMPARE_ROOTS:
         for skill in REQUIRED_SKILLS:

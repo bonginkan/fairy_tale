@@ -4,6 +4,10 @@ These cards distill durable methods from historical and modern high-output
 thinkers into accessible agent skills. Use them as process primitives, not as
 claims that a model can imitate a person.
 
+These cards are methodology scaffolds, not evaluated performance claims. Claim
+workflow uplift only after a controlled eval, validation artifact, or documented
+before/after comparison.
+
 ## Selection Rule
 
 Admit a method only when it survives modern limiters:

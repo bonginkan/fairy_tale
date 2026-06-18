@@ -9,6 +9,8 @@ import json
 import tarfile
 from pathlib import Path
 
+import fairy_tale_residency_check
+
 
 ROOT = Path(__file__).resolve().parents[1]
 SKILL_DIRS = [
@@ -44,7 +46,17 @@ def add_file(tar: tarfile.TarFile, source: Path, arcname: Path) -> None:
         tar.addfile(info)
 
 
+def validate_residency() -> None:
+    args = argparse.Namespace(check_installed=False, strict_installed=False, json=False, inject=False)
+    checks = fairy_tale_residency_check.collect_checks(args)
+    failures = [check for check in checks if check.failed]
+    if failures:
+        detail = "; ".join(f"{check.name}: {check.detail}" for check in failures[:5])
+        raise SystemExit(f"residency check failed before packaging: {detail}")
+
+
 def build(output: Path) -> Path:
+    validate_residency()
     package_version = version()
     root_name = Path(f"fairy-tale-skills-{package_version}")
     output = output or (ROOT / "dist" / f"{root_name}.tar.gz")

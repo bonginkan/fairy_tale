@@ -201,6 +201,8 @@
 
 ## Historical and Silicon Valley method sources
 
+Checked: 2026-06-18 (UTC).
+
 - Stanford Encyclopedia of Philosophy, scientific method:
   https://plato.stanford.edu/entries/scientific-method/
 - Stanford Encyclopedia of Philosophy, abduction:
@@ -267,6 +269,8 @@
   https://www.wsj.com/articles/SB10001424053111903480904576512250915629460
 
 ## Investing and financial engineering method sources
+
+Checked: 2026-06-18 (UTC).
 
 - Berkshire Hathaway shareholder letters:
   https://www.berkshirehathaway.com/letters/letters.html
