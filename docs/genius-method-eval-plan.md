@@ -82,6 +82,9 @@ Secondary outcomes:
   completion tokens when available.
 - `elapsed_seconds`.
 - `budgeted_correct`: verified pass within the pre-registered token/time budget.
+- `cost_estimate`: numeric run cost estimate recorded by the runner when
+  available. The promotion gate treats missing cost estimates as not passing
+  the cost gate.
 
 Mechanism trace, not a primary outcome:
 
@@ -139,11 +142,24 @@ Confirmation can create a `candidate` result only if:
 - negative-family non-inferiority holds within the chosen margin;
 - the routing probe is separately acceptable for deployment scenarios where the
   card is not forced;
-- quality-per-token and elapsed time are reported.
+- quality-per-token, elapsed time, cost estimate, and budgeted-correct are
+  reported.
 
 `keep` requires held-out reproduction. `default` promotion is not allowed from
 this pilot; if later justified, the core skill may only receive a one-line
 pointer to a reference, not the full card logic.
+
+Default promotion-contract thresholds are:
+
+- primary positive treatment-minus-placebo delta >= +0.05 and bootstrap CI low
+  >= 0.0;
+- positive budgeted-correct treatment-minus-placebo delta >= 0.0;
+- negative-family treatment-minus-control quality delta >= -0.03;
+- routing negative abstention >= 0.80 and positive selection >= 0.80;
+- treatment mean cost estimate <= 1.20x placebo mean cost estimate.
+
+These thresholds are applied by `promotion-check`. Smoke-stage summaries are
+always blocked from promotion even when their exploratory checks look good.
 
 ## Harness Contract
 
@@ -155,9 +171,11 @@ Use `scripts/genius_method_eval.py` to:
 4. summarize answer JSONL joined to separate ground-truth verdict JSONL with
    paired deltas and exact discordance counts.
 5. estimate the confirmation-run paired n from the smoke summary with the
-   `power` command.
+   `power` command,
+6. apply the pre-registered promotion contract with `promotion-check`.
 
 The harness does not call model APIs. Model execution and ground-truth scoring
 must be recorded as separate artifacts so the eval remains auditable. Answer
-rows may contain `claimed_success`, token usage, elapsed time, and method trace;
-verdict rows contain `verified_pass`, `quality_score`, and validator metadata.
+rows may contain `claimed_success`, token usage, `cost_estimate`, elapsed time,
+and method trace; verdict rows contain `verified_pass`, `quality_score`, and
+validator metadata. Answer rows must not contain ground-truth fields.
