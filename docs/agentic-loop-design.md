@@ -311,6 +311,25 @@ Phase 2: controlled loop runner.
 - Keep hidden validators outside the workspace.
 - Save raw command outputs and trace summaries.
 
+Implemented entry points:
+
+```bash
+python3 scripts/agentic_loop_runner.py run \
+  --tasks fixtures/agentic-loop/tasks.jsonl \
+  --output tmp/agentic-loop-run \
+  --solver-command python3 my_solver.py
+
+python3 scripts/agentic_loop_runner.py run-hidden-validators \
+  --run-dir tmp/agentic-loop-run \
+  --judge-manifest tmp/agentic-loop-run/judge_manifest.jsonl \
+  --output tmp/agentic-loop-run/verdicts.jsonl
+```
+
+The runner writes hidden validators only to `judge_manifest.jsonl`. They are
+not copied into solver workspaces and are not included in solver requests.
+Solver requests are logged under `requests/` for audit. Allowed actions are
+executed by the controller, not by free-form solver shell commands.
+
 Phase 3: smoke.
 
 - Run small paired smoke on calibrated headroom tasks.
