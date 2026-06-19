@@ -34,6 +34,13 @@ scorer-only fields. Solver telemetry is a proxy parsed from Codex CLI stderr:
 - `budget_parity.passed=true`
 - Promotion gate: `candidate_eligible=false`, `recommendation=review_only`
 
+Post-run hardening note: the raw trace was generated before token usage source
+propagation was added to the runner. Under the current scorer, this legacy raw
+trace additionally fails `token_usage_source_complete` and
+`token_usage_split_measured_complete`. That is intentional fail-closed behavior:
+Codex CLI reports total tokens, so prompt/completion split is a proxy unless a
+future connector provides measured split fields.
+
 ## Results
 
 ### Positive Headroom Task
@@ -81,6 +88,8 @@ The promotion gate correctly rejected the run:
 - `agentic_beats_placebo_loop=false`, observed `-1.0`, threshold `>=0.05`
 - `agentic_beats_control=false`, observed `0.0`, threshold `>=0.05`
 - `external_observation_recovery_present=false`, observed `0`
+- Current scorer also rejects this legacy trace on token usage provenance:
+  missing token usage source and unmeasured prompt/completion split.
 
 This should stay `review_only`.
 

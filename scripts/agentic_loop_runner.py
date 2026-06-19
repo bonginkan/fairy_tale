@@ -498,6 +498,10 @@ def run_one(
     total_completion_tokens: int | None = 0
     total_elapsed_seconds: float | None = 0.0
     total_cost_estimate: float | None = 0.0
+    telemetry_observed = False
+    telemetry_missing = False
+    token_usage_sources: set[str] = set()
+    token_usage_split_measured: bool | None = None
 
     for index in range(1, max_iterations + 1):
         request = solver_request(task, blind_id, arm, workspace, iterations, max_iterations - index + 1)
@@ -510,25 +514,54 @@ def run_one(
             solver_error = str(exc)
             if fail_fast:
                 raise
+            telemetry_missing = True
+            total_prompt_tokens = None
+            total_completion_tokens = None
+            total_elapsed_seconds = None
+            total_cost_estimate = None
+            token_usage_split_measured = None
             final = {"claimed_success": False, "answer": solver_error, "stop_reason": "solver_error"}
             break
 
         telemetry = response.get("_solver_telemetry") if isinstance(response.get("_solver_telemetry"), dict) else None
         if telemetry is None:
+            telemetry_missing = True
             total_prompt_tokens = None
             total_completion_tokens = None
             total_elapsed_seconds = None
             total_cost_estimate = None
+            token_usage_split_measured = None
         else:
+            telemetry_observed = True
             tokens_used = optional_int(telemetry.get("tokens_used"))
             prompt_tokens = optional_int(telemetry.get("prompt_tokens"))
             completion_tokens = optional_int(telemetry.get("completion_tokens"))
             elapsed_seconds = optional_float(telemetry.get("elapsed_seconds"))
             cost_estimate = optional_float(telemetry.get("cost_estimate"))
+            source = telemetry.get("token_usage_source")
+            token_source = source if isinstance(source, str) and source.strip() else None
+            split_measured = prompt_tokens is not None and completion_tokens is not None
             if prompt_tokens is None and tokens_used is not None:
                 prompt_tokens = tokens_used
+                token_source = token_source or "total_tokens_as_prompt_proxy"
+                split_measured = False
             if completion_tokens is None and tokens_used is not None:
                 completion_tokens = 0
+                token_source = token_source or "total_tokens_as_prompt_proxy"
+                split_measured = False
+            if token_source is None and split_measured:
+                token_source = "solver_reported_prompt_completion_tokens"
+            if token_source is None or prompt_tokens is None or completion_tokens is None or elapsed_seconds is None or cost_estimate is None:
+                telemetry_missing = True
+            else:
+                token_usage_sources.add(token_source)
+                if "total_tokens_as_prompt_proxy" in token_source:
+                    split_measured = False
+                token_usage_split_measured = (
+                    split_measured
+                    if token_usage_split_measured is None
+                    else token_usage_split_measured and split_measured
+                )
             total_prompt_tokens = (
                 None if total_prompt_tokens is None or prompt_tokens is None else total_prompt_tokens + prompt_tokens
             )
@@ -569,6 +602,17 @@ def run_one(
             break
     if final is None:
         final = {"claimed_success": False, "answer": "iteration budget exhausted", "stop_reason": "budget_exhausted"}
+    if telemetry_missing or not telemetry_observed:
+        total_prompt_tokens = None
+        total_completion_tokens = None
+        total_elapsed_seconds = None
+        total_cost_estimate = None
+        token_usage_source = None
+        token_usage_split_measured = None
+    elif len(token_usage_sources) == 1:
+        token_usage_source = next(iter(token_usage_sources))
+    else:
+        token_usage_source = "mixed:" + ",".join(sorted(token_usage_sources))
     return {
         "schema_version": SCHEMA_VERSION,
         "blind_id": blind_id,
@@ -576,6 +620,8 @@ def run_one(
         "completion_tokens": total_completion_tokens,
         "elapsed_seconds": total_elapsed_seconds,
         "cost_estimate": total_cost_estimate,
+        "token_usage_source": token_usage_source,
+        "token_usage_split_measured": token_usage_split_measured,
         "iterations": iterations,
         "final": final,
         "solver_error": solver_error,
