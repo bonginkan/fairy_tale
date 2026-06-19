@@ -118,6 +118,20 @@ def as_float(value: Any, default: float = 0.0) -> float:
         return default
 
 
+def optional_int(value: Any) -> int | None:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def optional_float(value: Any) -> float | None:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def bounded_text(value: str, max_chars: int = 4000) -> str:
     return value if len(value) <= max_chars else value[:max_chars] + "\n...[truncated]"
 
@@ -480,10 +494,10 @@ def run_one(
     iterations: list[dict[str, Any]] = []
     final: dict[str, Any] | None = None
     solver_error: str | None = None
-    total_prompt_tokens = 0
-    total_completion_tokens = 0
-    total_elapsed_seconds = 0.0
-    total_cost_estimate = 0.0
+    total_prompt_tokens: int | None = 0
+    total_completion_tokens: int | None = 0
+    total_elapsed_seconds: float | None = 0.0
+    total_cost_estimate: float | None = 0.0
 
     for index in range(1, max_iterations + 1):
         request = solver_request(task, blind_id, arm, workspace, iterations, max_iterations - index + 1)
@@ -499,11 +513,40 @@ def run_one(
             final = {"claimed_success": False, "answer": solver_error, "stop_reason": "solver_error"}
             break
 
-        telemetry = response.get("_solver_telemetry") if isinstance(response.get("_solver_telemetry"), dict) else {}
-        tokens_used = as_int(telemetry.get("tokens_used"), 0)
-        total_prompt_tokens += tokens_used
-        total_elapsed_seconds += as_float(telemetry.get("elapsed_seconds"), 0.0)
-        total_cost_estimate += as_float(telemetry.get("cost_estimate"), 0.0)
+        telemetry = response.get("_solver_telemetry") if isinstance(response.get("_solver_telemetry"), dict) else None
+        if telemetry is None:
+            total_prompt_tokens = None
+            total_completion_tokens = None
+            total_elapsed_seconds = None
+            total_cost_estimate = None
+        else:
+            tokens_used = optional_int(telemetry.get("tokens_used"))
+            prompt_tokens = optional_int(telemetry.get("prompt_tokens"))
+            completion_tokens = optional_int(telemetry.get("completion_tokens"))
+            elapsed_seconds = optional_float(telemetry.get("elapsed_seconds"))
+            cost_estimate = optional_float(telemetry.get("cost_estimate"))
+            if prompt_tokens is None and tokens_used is not None:
+                prompt_tokens = tokens_used
+            if completion_tokens is None and tokens_used is not None:
+                completion_tokens = 0
+            total_prompt_tokens = (
+                None if total_prompt_tokens is None or prompt_tokens is None else total_prompt_tokens + prompt_tokens
+            )
+            total_completion_tokens = (
+                None
+                if total_completion_tokens is None or completion_tokens is None
+                else total_completion_tokens + completion_tokens
+            )
+            total_elapsed_seconds = (
+                None
+                if total_elapsed_seconds is None or elapsed_seconds is None
+                else total_elapsed_seconds + elapsed_seconds
+            )
+            total_cost_estimate = (
+                None
+                if total_cost_estimate is None or cost_estimate is None
+                else total_cost_estimate + cost_estimate
+            )
         if iterations and "post_state" not in iterations[-1]:
             iterations[-1]["post_state"] = response.get("state", response.get("action", {}))
         action = response.get("action") if isinstance(response.get("action"), dict) else {}

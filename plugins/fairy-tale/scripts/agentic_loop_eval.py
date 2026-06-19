@@ -264,9 +264,11 @@ def normalize_trace(row: dict[str, Any], verdict: dict[str, Any], key: dict[str,
     iterations = trace.get("iterations") if isinstance(trace.get("iterations"), list) else []
     usage = row.get("usage") if isinstance(row.get("usage"), dict) else {}
     final = trace_final(trace, row)
-    prompt_tokens = int(as_float(row.get("prompt_tokens", usage.get("prompt_tokens")), 0.0))
-    completion_tokens = int(as_float(row.get("completion_tokens", usage.get("completion_tokens")), 0.0))
-    elapsed_seconds = as_float(row.get("elapsed_seconds", usage.get("elapsed_seconds")), 0.0)
+    prompt_tokens_raw = first_numeric(row.get("prompt_tokens"), usage.get("prompt_tokens"))
+    completion_tokens_raw = first_numeric(row.get("completion_tokens"), usage.get("completion_tokens"))
+    prompt_tokens = int(prompt_tokens_raw) if prompt_tokens_raw is not None else None
+    completion_tokens = int(completion_tokens_raw) if completion_tokens_raw is not None else None
+    elapsed_seconds = first_numeric(row.get("elapsed_seconds"), usage.get("elapsed_seconds"))
     cost_estimate = first_numeric(
         row.get("cost_estimate"),
         row.get("cost_estimate_usd"),
@@ -277,12 +279,18 @@ def normalize_trace(row: dict[str, Any], verdict: dict[str, Any], key: dict[str,
     )
     budgets = key.get("budgets") if isinstance(key.get("budgets"), dict) else {}
     budget_complete = has_required_budget(budgets)
+    usage_complete = (
+        prompt_tokens is not None
+        and completion_tokens is not None
+        and elapsed_seconds is not None
+        and cost_estimate is not None
+    )
     within_budget = budget_complete and (
         len(iterations) <= int(as_float(budgets.get("max_iterations"), 0.0))
-        and within_optional_budget(prompt_tokens, budgets.get("max_prompt_tokens"))
-        and within_optional_budget(completion_tokens, budgets.get("max_completion_tokens"))
-        and within_optional_budget(elapsed_seconds, budgets.get("max_elapsed_seconds"))
-        and cost_estimate is not None
+        and usage_complete
+        and within_optional_budget(float(prompt_tokens), budgets.get("max_prompt_tokens"))
+        and within_optional_budget(float(completion_tokens), budgets.get("max_completion_tokens"))
+        and within_optional_budget(float(elapsed_seconds), budgets.get("max_elapsed_seconds"))
         and within_optional_budget(cost_estimate, budgets.get("max_cost_estimate"))
     )
     effects = derive_observation_effects(iterations)
@@ -292,7 +300,7 @@ def normalize_trace(row: dict[str, Any], verdict: dict[str, Any], key: dict[str,
     )
     verified_pass = as_bool(verdict.get("verified_pass"))
     claimed_success = as_bool(final.get("claimed_success", row.get("claimed_success")))
-    total_tokens = prompt_tokens + completion_tokens
+    total_tokens = prompt_tokens + completion_tokens if usage_complete else None
     quality_score = as_float(verdict.get("quality_score"), 1.0 if verified_pass else 0.0)
     return {
         **key,
@@ -300,6 +308,7 @@ def normalize_trace(row: dict[str, Any], verdict: dict[str, Any], key: dict[str,
         "verified_pass": verified_pass,
         "false_success": claimed_success and not verified_pass,
         "budget_complete": budget_complete,
+        "usage_complete": usage_complete,
         "budgeted_verified_pass": verified_pass and within_budget,
         "prompt_tokens": prompt_tokens,
         "completion_tokens": completion_tokens,
@@ -307,8 +316,9 @@ def normalize_trace(row: dict[str, Any], verdict: dict[str, Any], key: dict[str,
         "elapsed_seconds": elapsed_seconds,
         "cost_estimate": cost_estimate,
         "cost_estimate_present": cost_estimate is not None,
+        "usage_fields_present": usage_complete,
         "quality_score": quality_score,
-        "quality_per_token": quality_score / total_tokens if total_tokens > 0 else None,
+        "quality_per_token": quality_score / total_tokens if total_tokens is not None and total_tokens > 0 else None,
         "iterations_used": len(iterations),
         "stop_reason": str(final.get("stop_reason", "")),
         "repeated_failure_stop": final.get("stop_reason") == "repeated_failure",
@@ -378,6 +388,7 @@ def grouped_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "mean_quality_score": mean(group, "quality_score"),
             "mean_quality_per_token": mean(group, "quality_per_token"),
             "budget_missing_count": sum(1 for row in group if not row.get("budget_complete")),
+            "usage_missing_count": sum(1 for row in group if not row.get("usage_complete")),
             "cost_estimate_missing_count": sum(1 for row in group if not row.get("cost_estimate_present")),
         }
     return summary
@@ -583,6 +594,7 @@ def score(args: argparse.Namespace) -> int:
         "non_headroom_positive": non_headroom,
         "budget_parity": budget_parity(rows),
         "cost_estimates_complete": missing_total({"grouped": grouped}, "cost_estimate_missing_count") == 0,
+        "usage_fields_complete": missing_total({"grouped": grouped}, "usage_missing_count") == 0,
         "budget_fields_complete": missing_total({"grouped": grouped}, "budget_missing_count") == 0,
         "scored_rows": rows if args.include_rows else None,
         "interpretation_guard": (
@@ -838,8 +850,10 @@ def promotion_check(args: argparse.Namespace) -> int:
         )
 
     budget_missing = missing_total({"grouped": grouped}, "budget_missing_count")
+    usage_missing = missing_total({"grouped": grouped}, "usage_missing_count")
     cost_missing = missing_total({"grouped": grouped}, "cost_estimate_missing_count")
     checks.append(check_payload("budget_fields_complete", budget_missing == 0, budget_missing, "0 missing budget rows"))
+    checks.append(check_payload("usage_fields_complete", usage_missing == 0, usage_missing, "0 missing usage rows"))
     checks.append(check_payload("cost_estimates_complete", cost_missing == 0, cost_missing, "0 missing cost rows"))
     parity = summary.get("budget_parity") if isinstance(summary.get("budget_parity"), dict) else {}
     checks.append(
