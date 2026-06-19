@@ -438,6 +438,7 @@ def solver_request(
         "prompt": task["prompt"],
         "workspace_path": str(workspace),
         "visible_files": list_visible_files(workspace),
+        "visible_file_contents": visible_file_contents(workspace),
         "public_tests": [
             {
                 "id": test_id,
