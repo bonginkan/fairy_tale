@@ -171,6 +171,21 @@ The primary comparisons are:
 - `placebo_loop` versus `control` to report how much recovery comes from extra
   retries and tool exposure alone.
 
+Optional diagnostic baseline:
+
+- `non_loop_control`: a one-shot visible-context baseline that receives the
+  task prompt and visible file contents but no action-observation loop, public
+  probe affordance, previous-iteration state, or controller feedback.
+
+When present, `non_loop_control` must be run on the same task set as the four
+controlled arms. It defines a separate raw/deployment-baseline headroom subset:
+positive tasks where `non_loop_control` fails or makes a false-success claim.
+Use that subset only for diagnostic contrasts such as `control` versus
+`non_loop_control` and `agentic_loop` versus `non_loop_control`. Do not mix
+those contrasts with the equal-controller `agentic_loop` versus
+`placebo_loop` contrast, and do not feed the optional baseline into the current
+promotion gate.
+
 ### Current Runner Control Caveat
 
 The Phase 2/3 controlled runner sends every arm through the same
@@ -180,10 +195,11 @@ deployment Codex baseline. If `control` recovers a task, that task has no
 headroom for measuring `agentic_loop` improvement in this runner, even when
 `agentic_loop` beats `placebo_loop` or `static_ledger`.
 
-Do not use this runner to claim deployment-baseline improvement until a separate
-non-loop baseline path is added or explicitly pre-registered. The current
-runner is still useful for comparing structured loop guidance against generic
-retry under equal controller exposure.
+Do not use this runner to claim deployment-baseline improvement until a
+non-loop baseline comparison is explicitly pre-registered, run on the same task
+set, preserved with trace/verdict/summary artifacts, and evaluated on its own
+raw-headroom subset. The current runner is still useful for comparing
+structured loop guidance against generic retry under equal controller exposure.
 
 ## Headroom First
 

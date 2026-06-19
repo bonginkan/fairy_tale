@@ -22,6 +22,7 @@ from typing import Any
 
 SCHEMA_VERSION = "agentic_loop_runner.v1"
 ARMS = ("control", "static_ledger", "placebo_loop", "agentic_loop")
+OPTIONAL_BASELINE_ARMS = ("non_loop_control",)
 DEFAULT_ALLOWED_ACTIONS = (
     "inspect_file",
     "search",
@@ -46,12 +47,19 @@ AGENTIC_LOOP_GUIDANCE = (
     "update the target from each external observation, and do not claim success "
     "while any observed requirement remains unresolved."
 )
+NON_LOOP_CONTROL_GUIDANCE = (
+    "One-shot visible-context baseline. Use only the visible task prompt and "
+    "provided visible file contents. Do not request probes, searches, or "
+    "iterative observations; make at most one edit/final/abstain/block action."
+)
 ARM_GUIDANCE = {
     "control": CONTROL_GUIDANCE,
     "static_ledger": STATIC_LEDGER_GUIDANCE,
     "placebo_loop": PLACEBO_LOOP_GUIDANCE,
     "agentic_loop": AGENTIC_LOOP_GUIDANCE,
+    "non_loop_control": NON_LOOP_CONTROL_GUIDANCE,
 }
+NON_LOOP_ACTIONS = ("edit", "write_answer", "abstain", "blocked")
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -212,6 +220,21 @@ def list_visible_files(workspace: Path) -> list[str]:
         if path.is_file():
             files.append(str(path.relative_to(root)))
     return files
+
+
+def visible_file_contents(workspace: Path, max_chars: int = 4000) -> dict[str, str]:
+    contents: dict[str, str] = {}
+    root = workspace.resolve()
+    for path in sorted(root.rglob("*")):
+        if path.is_file():
+            relative = str(path.relative_to(root))
+            if relative == "TASK.md":
+                continue
+            try:
+                contents[relative] = bounded_text(path.read_text(encoding="utf-8"), max_chars)
+            except UnicodeDecodeError:
+                contents[relative] = "[binary or non-UTF-8 file omitted]"
+    return contents
 
 
 def public_tests_by_id(task: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -379,6 +402,34 @@ def solver_request(
     iterations: list[dict[str, Any]],
     remaining_iterations: int,
 ) -> dict[str, Any]:
+    if arm == "non_loop_control":
+        allowed = [
+            action
+            for action in task["budgets"].get("allowed_actions", list(DEFAULT_ALLOWED_ACTIONS))
+            if action in NON_LOOP_ACTIONS
+        ]
+        return {
+            "schema_version": SCHEMA_VERSION,
+            "blind_id": blind_id,
+            "arm_guidance": ARM_GUIDANCE[arm],
+            "prompt": task["prompt"],
+            "workspace_path": str(workspace),
+            "visible_files": list_visible_files(workspace),
+            "visible_file_contents": visible_file_contents(workspace),
+            "public_tests": [],
+            "allowed_actions": allowed,
+            "remaining_iterations": 1,
+            "previous_iterations": [],
+            "response_contract": {
+                "state": "object or string describing current answer/action state",
+                "hypothesis": "string",
+                "probe_plan": "string",
+                "action": {
+                    "type": "edit|write_answer|abstain|blocked",
+                    "input": "object",
+                },
+            },
+        }
     return {
         "schema_version": SCHEMA_VERSION,
         "blind_id": blind_id,
@@ -490,8 +541,15 @@ def run_one(
 ) -> dict[str, Any]:
     write_workspace(task, workspace)
     max_iterations = as_int(task["budgets"].get("max_iterations"), 1)
+    if arm == "non_loop_control":
+        max_iterations = 1
     timeout = as_float(task["budgets"].get("max_elapsed_seconds"), 60.0)
-    allowed_actions = set(task["budgets"].get("allowed_actions", list(DEFAULT_ALLOWED_ACTIONS)))
+    if arm == "non_loop_control":
+        allowed_actions = {
+            action for action in task["budgets"].get("allowed_actions", list(DEFAULT_ALLOWED_ACTIONS)) if action in NON_LOOP_ACTIONS
+        }
+    else:
+        allowed_actions = set(task["budgets"].get("allowed_actions", list(DEFAULT_ALLOWED_ACTIONS)))
     iterations: list[dict[str, Any]] = []
     final: dict[str, Any] | None = None
     solver_error: str | None = None
@@ -601,6 +659,14 @@ def run_one(
             final = action_final or {"claimed_success": False, "answer": "", "stop_reason": "blocked"}
             iterations[-1]["post_state"] = {"final": final}
             break
+        if arm == "non_loop_control":
+            final = {
+                "claimed_success": False,
+                "answer": "non-loop baseline action executed without controller feedback",
+                "stop_reason": "non_loop_action_limit",
+            }
+            iterations[-1]["post_state"] = {"final": final}
+            break
     if final is None:
         final = {"claimed_success": False, "answer": "iteration budget exhausted", "stop_reason": "budget_exhausted"}
     if telemetry_missing or not telemetry_observed:
@@ -639,8 +705,9 @@ def run_tasks(args: argparse.Namespace) -> int:
     key_rows: list[dict[str, Any]] = []
     judge_rows: list[dict[str, Any]] = []
 
+    arms = ARMS + (OPTIONAL_BASELINE_ARMS if args.include_non_loop_baseline else ())
     for task in tasks:
-        for arm in ARMS:
+        for arm in arms:
             blind_id = stable_id(args.seed, task["task_id"], arm)
             workspace = output / "workspaces" / blind_id
             key_rows.append(
@@ -690,7 +757,7 @@ def run_tasks(args: argparse.Namespace) -> int:
             "schema_version": SCHEMA_VERSION,
             "tasks": str(args.tasks),
             "seed": args.seed,
-            "arms": list(ARMS),
+            "arms": list(arms),
             "hidden_validator_isolation": "hidden validator specs are written only to judge_manifest.jsonl, not workspaces or solver requests",
         },
     )
@@ -799,6 +866,11 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--solver-command", nargs=argparse.REMAINDER)
     run_parser.add_argument("--demo-solver", action="store_true")
     run_parser.add_argument("--fail-fast", action="store_true")
+    run_parser.add_argument(
+        "--include-non-loop-baseline",
+        action="store_true",
+        help="also run the diagnostic one-shot visible-context baseline arm",
+    )
     run_parser.set_defaults(func=run_tasks)
 
     hidden_parser = subparsers.add_parser("run-hidden-validators", help="run trusted hidden validators after solving")
