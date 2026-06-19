@@ -1,0 +1,12 @@
+{
+  "arms": [
+    "non_loop_control",
+    "control",
+    "placebo_loop",
+    "agentic_loop"
+  ],
+  "hidden_validator_isolation": "hidden validator specs are written only to judge_manifest.jsonl, not workspaces or solver requests",
+  "schema_version": "agentic_loop_runner.v1",
+  "seed": 20260619,
+  "tasks": "fixtures/agentic-loop/smoke.jsonl"
+}
