@@ -143,6 +143,7 @@ def sanitized_request(request: dict[str, Any]) -> dict[str, Any]:
         "arm_guidance": request.get("arm_guidance"),
         "prompt": request.get("prompt"),
         "visible_files": request.get("visible_files", []),
+        "visible_file_contents": request.get("visible_file_contents", {}),
         "public_tests": request.get("public_tests", []),
         "allowed_actions": allowed_actions,
         "remaining_iterations": request.get("remaining_iterations"),
