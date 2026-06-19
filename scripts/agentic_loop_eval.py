@@ -277,6 +277,16 @@ def normalize_trace(row: dict[str, Any], verdict: dict[str, Any], key: dict[str,
         usage.get("cost_estimate_usd"),
         usage.get("cost_usd"),
     )
+    token_usage_source_raw = row.get("token_usage_source", usage.get("token_usage_source"))
+    token_usage_source = (
+        token_usage_source_raw.strip()
+        if isinstance(token_usage_source_raw, str) and token_usage_source_raw.strip()
+        else None
+    )
+    split_raw = row.get("token_usage_split_measured", usage.get("token_usage_split_measured"))
+    token_usage_split_measured = as_bool(split_raw)
+    if token_usage_source and "total_tokens_as_prompt_proxy" in token_usage_source:
+        token_usage_split_measured = False
     budgets = key.get("budgets") if isinstance(key.get("budgets"), dict) else {}
     budget_complete = has_required_budget(budgets)
     usage_complete = (
@@ -288,6 +298,8 @@ def normalize_trace(row: dict[str, Any], verdict: dict[str, Any], key: dict[str,
     within_budget = budget_complete and (
         len(iterations) <= int(as_float(budgets.get("max_iterations"), 0.0))
         and usage_complete
+        and token_usage_source is not None
+        and token_usage_split_measured
         and within_optional_budget(float(prompt_tokens), budgets.get("max_prompt_tokens"))
         and within_optional_budget(float(completion_tokens), budgets.get("max_completion_tokens"))
         and within_optional_budget(float(elapsed_seconds), budgets.get("max_elapsed_seconds"))
@@ -317,6 +329,8 @@ def normalize_trace(row: dict[str, Any], verdict: dict[str, Any], key: dict[str,
         "cost_estimate": cost_estimate,
         "cost_estimate_present": cost_estimate is not None,
         "usage_fields_present": usage_complete,
+        "token_usage_source": token_usage_source,
+        "token_usage_split_measured": token_usage_split_measured,
         "quality_score": quality_score,
         "quality_per_token": quality_score / total_tokens if total_tokens is not None and total_tokens > 0 else None,
         "iterations_used": len(iterations),
@@ -389,6 +403,8 @@ def grouped_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "mean_quality_per_token": mean(group, "quality_per_token"),
             "budget_missing_count": sum(1 for row in group if not row.get("budget_complete")),
             "usage_missing_count": sum(1 for row in group if not row.get("usage_complete")),
+            "token_usage_source_missing_count": sum(1 for row in group if not row.get("token_usage_source")),
+            "token_split_unmeasured_count": sum(1 for row in group if not row.get("token_usage_split_measured")),
             "cost_estimate_missing_count": sum(1 for row in group if not row.get("cost_estimate_present")),
         }
     return summary
@@ -595,6 +611,8 @@ def score(args: argparse.Namespace) -> int:
         "budget_parity": budget_parity(rows),
         "cost_estimates_complete": missing_total({"grouped": grouped}, "cost_estimate_missing_count") == 0,
         "usage_fields_complete": missing_total({"grouped": grouped}, "usage_missing_count") == 0,
+        "token_usage_source_complete": missing_total({"grouped": grouped}, "token_usage_source_missing_count") == 0,
+        "token_usage_split_measured_complete": missing_total({"grouped": grouped}, "token_split_unmeasured_count") == 0,
         "budget_fields_complete": missing_total({"grouped": grouped}, "budget_missing_count") == 0,
         "scored_rows": rows if args.include_rows else None,
         "interpretation_guard": (
@@ -851,9 +869,27 @@ def promotion_check(args: argparse.Namespace) -> int:
 
     budget_missing = missing_total({"grouped": grouped}, "budget_missing_count")
     usage_missing = missing_total({"grouped": grouped}, "usage_missing_count")
+    token_source_missing = missing_total({"grouped": grouped}, "token_usage_source_missing_count")
+    token_split_unmeasured = missing_total({"grouped": grouped}, "token_split_unmeasured_count")
     cost_missing = missing_total({"grouped": grouped}, "cost_estimate_missing_count")
     checks.append(check_payload("budget_fields_complete", budget_missing == 0, budget_missing, "0 missing budget rows"))
     checks.append(check_payload("usage_fields_complete", usage_missing == 0, usage_missing, "0 missing usage rows"))
+    checks.append(
+        check_payload(
+            "token_usage_source_complete",
+            token_source_missing == 0,
+            token_source_missing,
+            "0 missing token usage source rows",
+        )
+    )
+    checks.append(
+        check_payload(
+            "token_usage_split_measured_complete",
+            token_split_unmeasured == 0,
+            token_split_unmeasured,
+            "0 token-split proxy rows",
+        )
+    )
     checks.append(check_payload("cost_estimates_complete", cost_missing == 0, cost_missing, "0 missing cost rows"))
     parity = summary.get("budget_parity") if isinstance(summary.get("budget_parity"), dict) else {}
     checks.append(
