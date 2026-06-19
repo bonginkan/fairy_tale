@@ -189,11 +189,13 @@ promotion gate.
 ### Current Runner Control Caveat
 
 The Phase 2/3 controlled runner sends every arm through the same
-controller-mediated request/action/observation channel. Its `control` arm is
-therefore a controller-exposed Fairy Tale baseline, not a raw one-shot or full
-deployment Codex baseline. If `control` recovers a task, that task has no
-headroom for measuring `agentic_loop` improvement in this runner, even when
-`agentic_loop` beats `placebo_loop` or `static_ledger`.
+controller-mediated request/action/observation channel. The controlled arms
+receive the visible task prompt, visible file names, and bounded visible file
+contents, plus public-probe descriptions. Their `control` arm is therefore a
+controller-exposed Fairy Tale baseline, not a raw one-shot or full deployment
+Codex baseline. If `control` recovers a task, that task has no headroom for
+measuring `agentic_loop` improvement in this runner, even when `agentic_loop`
+beats `placebo_loop` or `static_ledger`.
 
 Do not use this runner to claim deployment-baseline improvement until a
 non-loop baseline comparison is explicitly pre-registered, run on the same task
