@@ -1,0 +1,203 @@
+{
+  "candidate_eligible": false,
+  "checks": [
+    {
+      "name": "stage_allows_promotion",
+      "note": "smoke and demo runs are planning evidence only",
+      "observed": "smoke",
+      "passed": false,
+      "threshold": "confirmatory|heldout"
+    },
+    {
+      "name": "headroom_nonzero",
+      "note": "",
+      "observed": 0,
+      "passed": false,
+      "threshold": "> 0"
+    },
+    {
+      "name": "headroom_minimum_n",
+      "note": "confirmatory promotion must be powered on the control-failed headroom subset",
+      "observed": 0,
+      "passed": false,
+      "threshold": ">= 8"
+    },
+    {
+      "name": "agentic_beats_placebo_loop",
+      "note": "",
+      "observed": null,
+      "passed": false,
+      "threshold": ">= 0.05"
+    },
+    {
+      "name": "agentic_vs_placebo_ci_low_nonnegative",
+      "note": "",
+      "observed": null,
+      "passed": false,
+      "threshold": ">= 0.0"
+    },
+    {
+      "name": "agentic_beats_control",
+      "note": "",
+      "observed": null,
+      "passed": false,
+      "threshold": ">= 0.05"
+    },
+    {
+      "name": "external_observation_recovery_present",
+      "note": "requires scorer-derived pre/post state diff after allowlisted external observation",
+      "observed": 0,
+      "passed": false,
+      "threshold": ">= 1"
+    },
+    {
+      "name": "negative_verified_pass_rate_noninferior_vs_control",
+      "note": "",
+      "observed": 0.0,
+      "passed": true,
+      "threshold": ">= -0.03"
+    },
+    {
+      "name": "non_headroom_positive_verified_pass_rate_noninferior_vs_control",
+      "note": "",
+      "observed": {
+        "baseline": null,
+        "value": null
+      },
+      "passed": false,
+      "threshold": ">= -0.03"
+    },
+    {
+      "name": "negative_budgeted_verified_pass_rate_noninferior_vs_control",
+      "note": "",
+      "observed": 0.0,
+      "passed": true,
+      "threshold": ">= -0.03"
+    },
+    {
+      "name": "non_headroom_positive_budgeted_verified_pass_rate_noninferior_vs_control",
+      "note": "",
+      "observed": {
+        "baseline": null,
+        "value": null
+      },
+      "passed": false,
+      "threshold": ">= -0.03"
+    },
+    {
+      "name": "negative_false_success_not_increased_vs_control",
+      "note": "",
+      "observed": 0.0,
+      "passed": true,
+      "threshold": "<= 0.0"
+    },
+    {
+      "name": "non_headroom_positive_false_success_not_increased_vs_control",
+      "note": "",
+      "observed": {
+        "baseline": null,
+        "value": null
+      },
+      "passed": false,
+      "threshold": "<= 0.0"
+    },
+    {
+      "name": "negative_verified_pass_rate_noninferior_vs_placebo_loop",
+      "note": "",
+      "observed": 0.0,
+      "passed": true,
+      "threshold": ">= -0.03"
+    },
+    {
+      "name": "non_headroom_positive_verified_pass_rate_noninferior_vs_placebo_loop",
+      "note": "",
+      "observed": {
+        "baseline": null,
+        "value": null
+      },
+      "passed": false,
+      "threshold": ">= -0.03"
+    },
+    {
+      "name": "negative_budgeted_verified_pass_rate_noninferior_vs_placebo_loop",
+      "note": "",
+      "observed": 0.0,
+      "passed": true,
+      "threshold": ">= -0.03"
+    },
+    {
+      "name": "non_headroom_positive_budgeted_verified_pass_rate_noninferior_vs_placebo_loop",
+      "note": "",
+      "observed": {
+        "baseline": null,
+        "value": null
+      },
+      "passed": false,
+      "threshold": ">= -0.03"
+    },
+    {
+      "name": "negative_false_success_not_increased_vs_placebo_loop",
+      "note": "",
+      "observed": 0.0,
+      "passed": true,
+      "threshold": "<= 0.0"
+    },
+    {
+      "name": "non_headroom_positive_false_success_not_increased_vs_placebo_loop",
+      "note": "",
+      "observed": {
+        "baseline": null,
+        "value": null
+      },
+      "passed": false,
+      "threshold": "<= 0.0"
+    },
+    {
+      "name": "budget_fields_complete",
+      "note": "",
+      "observed": 0,
+      "passed": true,
+      "threshold": "0 missing budget rows"
+    },
+    {
+      "name": "usage_fields_complete",
+      "note": "",
+      "observed": 0,
+      "passed": true,
+      "threshold": "0 missing usage rows"
+    },
+    {
+      "name": "token_usage_source_complete",
+      "note": "",
+      "observed": 0,
+      "passed": true,
+      "threshold": "0 missing token usage source rows"
+    },
+    {
+      "name": "token_usage_split_measured_complete",
+      "note": "",
+      "observed": 6,
+      "passed": false,
+      "threshold": "0 token-split proxy rows"
+    },
+    {
+      "name": "cost_estimates_complete",
+      "note": "",
+      "observed": 0,
+      "passed": true,
+      "threshold": "0 missing cost rows"
+    },
+    {
+      "name": "placebo_agentic_loop_budget_parity",
+      "note": "",
+      "observed": [],
+      "passed": true,
+      "threshold": "no placebo_loop/agentic_loop budget mismatches"
+    }
+  ],
+  "default_promotion_allowed": false,
+  "interpretation_guard": "This gate only supports candidate/review status for measured agentic-loop behavior. It never authorizes default promotion.",
+  "recommendation": "review_only",
+  "schema_version": "agentic_loop_eval.v1",
+  "stage": "smoke"
+}

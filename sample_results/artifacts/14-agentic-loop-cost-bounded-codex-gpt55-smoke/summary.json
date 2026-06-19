@@ -1,0 +1,881 @@
+{
+  "arms": [
+    "control",
+    "static_ledger",
+    "placebo_loop",
+    "agentic_loop"
+  ],
+  "budget_fields_complete": true,
+  "budget_parity": {
+    "issues": [],
+    "passed": true
+  },
+  "cost_estimates_complete": true,
+  "grouped": {
+    "negative:agentic_loop": {
+      "budget_missing_count": 0,
+      "budgeted_verified_pass_rate": 0.0,
+      "changed_strategy_after_observation_rate": 1.0,
+      "cost_estimate_missing_count": 0,
+      "false_success_claim_rate": 0.0,
+      "mean_cost_estimate": 0.013353,
+      "mean_elapsed_seconds": 74.53860878944397,
+      "mean_iterations_used": 2.0,
+      "mean_quality_per_token": 7.488953793155097e-05,
+      "mean_quality_score": 1.0,
+      "mean_total_tokens": 13353.0,
+      "n": 1,
+      "repeated_failure_stop_rate": 0.0,
+      "token_split_unmeasured_count": 1,
+      "token_usage_source_missing_count": 0,
+      "usage_missing_count": 0,
+      "verified_pass_rate": 1.0
+    },
+    "negative:control": {
+      "budget_missing_count": 0,
+      "budgeted_verified_pass_rate": 0.0,
+      "changed_strategy_after_observation_rate": 1.0,
+      "cost_estimate_missing_count": 0,
+      "false_success_claim_rate": 0.0,
+      "mean_cost_estimate": 0.013127,
+      "mean_elapsed_seconds": 54.51886010169983,
+      "mean_iterations_used": 2.0,
+      "mean_quality_per_token": 7.617886798202179e-05,
+      "mean_quality_score": 1.0,
+      "mean_total_tokens": 13127.0,
+      "n": 1,
+      "repeated_failure_stop_rate": 0.0,
+      "token_split_unmeasured_count": 1,
+      "token_usage_source_missing_count": 0,
+      "usage_missing_count": 0,
+      "verified_pass_rate": 1.0
+    },
+    "negative:non_loop_control": {
+      "budget_missing_count": 0,
+      "budgeted_verified_pass_rate": 0.0,
+      "changed_strategy_after_observation_rate": 0.0,
+      "cost_estimate_missing_count": 0,
+      "false_success_claim_rate": 0.0,
+      "mean_cost_estimate": 0.020264,
+      "mean_elapsed_seconds": 29.5907621383667,
+      "mean_iterations_used": 1.0,
+      "mean_quality_per_token": 4.9348598499802604e-05,
+      "mean_quality_score": 1.0,
+      "mean_total_tokens": 20264.0,
+      "n": 1,
+      "repeated_failure_stop_rate": 0.0,
+      "token_split_unmeasured_count": 1,
+      "token_usage_source_missing_count": 0,
+      "usage_missing_count": 0,
+      "verified_pass_rate": 1.0
+    },
+    "negative:placebo_loop": {
+      "budget_missing_count": 0,
+      "budgeted_verified_pass_rate": 0.0,
+      "changed_strategy_after_observation_rate": 1.0,
+      "cost_estimate_missing_count": 0,
+      "false_success_claim_rate": 0.0,
+      "mean_cost_estimate": 0.042786,
+      "mean_elapsed_seconds": 66.86692595481873,
+      "mean_iterations_used": 2.0,
+      "mean_quality_per_token": 2.3372131070911045e-05,
+      "mean_quality_score": 1.0,
+      "mean_total_tokens": 42786.0,
+      "n": 1,
+      "repeated_failure_stop_rate": 0.0,
+      "token_split_unmeasured_count": 1,
+      "token_usage_source_missing_count": 0,
+      "usage_missing_count": 0,
+      "verified_pass_rate": 1.0
+    },
+    "positive:agentic_loop": {
+      "budget_missing_count": 0,
+      "budgeted_verified_pass_rate": 0.0,
+      "changed_strategy_after_observation_rate": 1.0,
+      "cost_estimate_missing_count": 0,
+      "false_success_claim_rate": 0.0,
+      "mean_cost_estimate": 0.035032,
+      "mean_elapsed_seconds": 75.39407157897949,
+      "mean_iterations_used": 3.0,
+      "mean_quality_per_token": 0.0,
+      "mean_quality_score": 0.0,
+      "mean_total_tokens": 35032.0,
+      "n": 1,
+      "repeated_failure_stop_rate": 0.0,
+      "token_split_unmeasured_count": 1,
+      "token_usage_source_missing_count": 0,
+      "usage_missing_count": 0,
+      "verified_pass_rate": 0.0
+    },
+    "positive:control": {
+      "budget_missing_count": 0,
+      "budgeted_verified_pass_rate": 0.0,
+      "changed_strategy_after_observation_rate": 1.0,
+      "cost_estimate_missing_count": 0,
+      "false_success_claim_rate": 0.0,
+      "mean_cost_estimate": 0.02041,
+      "mean_elapsed_seconds": 77.47151398658752,
+      "mean_iterations_used": 3.0,
+      "mean_quality_per_token": 0.0,
+      "mean_quality_score": 0.0,
+      "mean_total_tokens": 20410.0,
+      "n": 1,
+      "repeated_failure_stop_rate": 0.0,
+      "token_split_unmeasured_count": 1,
+      "token_usage_source_missing_count": 0,
+      "usage_missing_count": 0,
+      "verified_pass_rate": 0.0
+    },
+    "positive:non_loop_control": {
+      "budget_missing_count": 0,
+      "budgeted_verified_pass_rate": 0.0,
+      "changed_strategy_after_observation_rate": 1.0,
+      "cost_estimate_missing_count": 0,
+      "false_success_claim_rate": 0.0,
+      "mean_cost_estimate": 0.021322,
+      "mean_elapsed_seconds": 23.751622915267944,
+      "mean_iterations_used": 1.0,
+      "mean_quality_per_token": 4.689991558015196e-05,
+      "mean_quality_score": 1.0,
+      "mean_total_tokens": 21322.0,
+      "n": 1,
+      "repeated_failure_stop_rate": 0.0,
+      "token_split_unmeasured_count": 1,
+      "token_usage_source_missing_count": 0,
+      "usage_missing_count": 0,
+      "verified_pass_rate": 1.0
+    },
+    "positive:placebo_loop": {
+      "budget_missing_count": 0,
+      "budgeted_verified_pass_rate": 0.0,
+      "changed_strategy_after_observation_rate": 1.0,
+      "cost_estimate_missing_count": 0,
+      "false_success_claim_rate": 0.0,
+      "mean_cost_estimate": 0.050196000000000005,
+      "mean_elapsed_seconds": 85.42530727386475,
+      "mean_iterations_used": 3.0,
+      "mean_quality_per_token": 0.0,
+      "mean_quality_score": 0.0,
+      "mean_total_tokens": 50196.0,
+      "n": 1,
+      "repeated_failure_stop_rate": 0.0,
+      "token_split_unmeasured_count": 1,
+      "token_usage_source_missing_count": 0,
+      "usage_missing_count": 0,
+      "verified_pass_rate": 0.0
+    }
+  },
+  "headroom": {
+    "by_arm": {
+      "agentic_loop": {
+        "budgeted_verified_pass_rate": 0.0,
+        "decisive_external_observation_recovery_count": 0,
+        "false_success_claim_rate": 0.0,
+        "headroom_recovery_rate": 0.0,
+        "n": 1
+      },
+      "control": {
+        "budgeted_verified_pass_rate": 0.0,
+        "decisive_external_observation_recovery_count": 0,
+        "false_success_claim_rate": 0.0,
+        "headroom_recovery_rate": 0.0,
+        "n": 1
+      },
+      "placebo_loop": {
+        "budgeted_verified_pass_rate": 0.0,
+        "decisive_external_observation_recovery_count": 0,
+        "false_success_claim_rate": 0.0,
+        "headroom_recovery_rate": 0.0,
+        "n": 1
+      },
+      "static_ledger": {
+        "budgeted_verified_pass_rate": null,
+        "decisive_external_observation_recovery_count": 0,
+        "false_success_claim_rate": null,
+        "headroom_recovery_rate": null,
+        "n": 0
+      }
+    },
+    "contrasts": {
+      "agentic_loop_vs_control": {
+        "arm_a": "agentic_loop",
+        "arm_b": "control",
+        "bootstrap_ci": null,
+        "discordant": {
+          "agentic_loop_wins": 0,
+          "control_wins": 0
+        },
+        "mcnemar_p": null,
+        "mean_delta": null,
+        "metric": "verified_pass",
+        "n_paired_tasks": 0
+      },
+      "agentic_loop_vs_placebo_loop": {
+        "arm_a": "agentic_loop",
+        "arm_b": "placebo_loop",
+        "bootstrap_ci": null,
+        "discordant": {
+          "agentic_loop_wins": 0,
+          "placebo_loop_wins": 0
+        },
+        "mcnemar_p": null,
+        "mean_delta": null,
+        "metric": "verified_pass",
+        "n_paired_tasks": 0
+      },
+      "agentic_loop_vs_static_ledger": {
+        "arm_a": "agentic_loop",
+        "arm_b": "static_ledger",
+        "bootstrap_ci": null,
+        "discordant": {
+          "agentic_loop_wins": 0,
+          "static_ledger_wins": 0
+        },
+        "mcnemar_p": null,
+        "mean_delta": null,
+        "metric": "verified_pass",
+        "n_paired_tasks": 0
+      },
+      "placebo_loop_vs_control": {
+        "arm_a": "placebo_loop",
+        "arm_b": "control",
+        "bootstrap_ci": null,
+        "discordant": {
+          "control_wins": 0,
+          "placebo_loop_wins": 0
+        },
+        "mcnemar_p": null,
+        "mean_delta": null,
+        "metric": "verified_pass",
+        "n_paired_tasks": 0
+      }
+    },
+    "n_complete_paired_headroom_tasks": 0,
+    "n_headroom_tasks": 1,
+    "task_ids": [
+      "agentic-loop-smoke-public-probe-001"
+    ]
+  },
+  "interpretation_guard": "Primary evidence is headroom recovery on control-failed positive tasks. Mechanism fields are scorer-derived from external observations and pre/post state diffs.",
+  "n_results": 8,
+  "non_headroom_positive": {
+    "by_arm": {
+      "agentic_loop": {
+        "budgeted_verified_pass_rate": null,
+        "false_success_claim_rate": null,
+        "mean_cost_estimate": null,
+        "mean_iterations_used": null,
+        "n": 0,
+        "verified_pass_rate": null
+      },
+      "control": {
+        "budgeted_verified_pass_rate": null,
+        "false_success_claim_rate": null,
+        "mean_cost_estimate": null,
+        "mean_iterations_used": null,
+        "n": 0,
+        "verified_pass_rate": null
+      },
+      "placebo_loop": {
+        "budgeted_verified_pass_rate": null,
+        "false_success_claim_rate": null,
+        "mean_cost_estimate": null,
+        "mean_iterations_used": null,
+        "n": 0,
+        "verified_pass_rate": null
+      },
+      "static_ledger": {
+        "budgeted_verified_pass_rate": null,
+        "false_success_claim_rate": null,
+        "mean_cost_estimate": null,
+        "mean_iterations_used": null,
+        "n": 0,
+        "verified_pass_rate": null
+      }
+    },
+    "n_non_headroom_positive_tasks": 0,
+    "task_ids": []
+  },
+  "non_loop_baseline": {
+    "baseline_arm": "non_loop_control",
+    "contrasts_on_raw_headroom": {
+      "agentic_loop_vs_control": {
+        "arm_a": "agentic_loop",
+        "arm_b": "control",
+        "bootstrap_ci": null,
+        "discordant": {
+          "agentic_loop_wins": 0,
+          "control_wins": 0
+        },
+        "mcnemar_p": null,
+        "mean_delta": null,
+        "metric": "verified_pass",
+        "n_paired_tasks": 0
+      },
+      "agentic_loop_vs_non_loop_control": {
+        "arm_a": "agentic_loop",
+        "arm_b": "non_loop_control",
+        "bootstrap_ci": null,
+        "discordant": {
+          "agentic_loop_wins": 0,
+          "non_loop_control_wins": 0
+        },
+        "mcnemar_p": null,
+        "mean_delta": null,
+        "metric": "verified_pass",
+        "n_paired_tasks": 0
+      },
+      "agentic_loop_vs_placebo_loop": {
+        "arm_a": "agentic_loop",
+        "arm_b": "placebo_loop",
+        "bootstrap_ci": null,
+        "discordant": {
+          "agentic_loop_wins": 0,
+          "placebo_loop_wins": 0
+        },
+        "mcnemar_p": null,
+        "mean_delta": null,
+        "metric": "verified_pass",
+        "n_paired_tasks": 0
+      },
+      "control_vs_non_loop_control": {
+        "arm_a": "control",
+        "arm_b": "non_loop_control",
+        "bootstrap_ci": null,
+        "discordant": {
+          "control_wins": 0,
+          "non_loop_control_wins": 0
+        },
+        "mcnemar_p": null,
+        "mean_delta": null,
+        "metric": "verified_pass",
+        "n_paired_tasks": 0
+      }
+    },
+    "interpretation_guard": "Diagnostic only. This optional non-loop baseline is not part of the existing promotion gate; use it to separate raw/deployment-baseline headroom from equal-controller headroom.",
+    "n_positive_tasks_with_non_loop_baseline": 1,
+    "n_raw_baseline_headroom_tasks": 0,
+    "present": true,
+    "raw_headroom_task_ids": []
+  },
+  "optional_baseline_arms": [
+    "non_loop_control"
+  ],
+  "schema_version": "agentic_loop_eval.v1",
+  "scored_rows": [
+    {
+      "arm": "non_loop_control",
+      "blind_id": "alr-3edcddba0e405058",
+      "budget_complete": true,
+      "budgeted_verified_pass": false,
+      "budgets": {
+        "allowed_actions": [
+          "inspect_file",
+          "search",
+          "run_public_test",
+          "edit",
+          "write_answer",
+          "abstain",
+          "blocked"
+        ],
+        "max_completion_tokens": 2000,
+        "max_cost_estimate": 0.05,
+        "max_elapsed_seconds": 60,
+        "max_iterations": 3,
+        "max_prompt_tokens": 5000
+      },
+      "changed_strategy_after_observation": true,
+      "claimed_success": false,
+      "completion_tokens": 0,
+      "cost_estimate": 0.021322,
+      "cost_estimate_present": true,
+      "elapsed_seconds": 23.751622915267944,
+      "false_success": false,
+      "family": "agentic_coding",
+      "has_external_state_diff": true,
+      "iterations_used": 1,
+      "polarity": "positive",
+      "prompt_tokens": 21322,
+      "quality_per_token": 4.689991558015196e-05,
+      "quality_score": 1.0,
+      "repeated_failure_stop": false,
+      "scored_observation_effects": [
+        {
+          "decisive_for_recovery": true,
+          "external_observation": true,
+          "iteration_index": 1,
+          "observation_source": "diff",
+          "state_diff_changed_answer_or_action": true
+        }
+      ],
+      "stop_reason": "non_loop_action_limit",
+      "task_id": "agentic-loop-smoke-public-probe-001",
+      "token_usage_source": "codex_cli_total_tokens_as_prompt_proxy",
+      "token_usage_split_measured": false,
+      "total_tokens": 21322,
+      "usage_complete": true,
+      "usage_fields_present": true,
+      "validator": "agentic_loop_hidden_validator_v1",
+      "verified_pass": true,
+      "workspace_path": "workspaces/alr-3edcddba0e405058"
+    },
+    {
+      "arm": "control",
+      "blind_id": "alr-f800031ae9cb22cb",
+      "budget_complete": true,
+      "budgeted_verified_pass": false,
+      "budgets": {
+        "allowed_actions": [
+          "inspect_file",
+          "search",
+          "run_public_test",
+          "edit",
+          "write_answer",
+          "abstain",
+          "blocked"
+        ],
+        "max_completion_tokens": 2000,
+        "max_cost_estimate": 0.05,
+        "max_elapsed_seconds": 60,
+        "max_iterations": 3,
+        "max_prompt_tokens": 5000
+      },
+      "changed_strategy_after_observation": true,
+      "claimed_success": false,
+      "completion_tokens": 0,
+      "cost_estimate": 0.02041,
+      "cost_estimate_present": true,
+      "elapsed_seconds": 77.47151398658752,
+      "false_success": false,
+      "family": "agentic_coding",
+      "has_external_state_diff": true,
+      "iterations_used": 3,
+      "polarity": "positive",
+      "prompt_tokens": 20410,
+      "quality_per_token": 0.0,
+      "quality_score": 0.0,
+      "repeated_failure_stop": false,
+      "scored_observation_effects": [
+        {
+          "decisive_for_recovery": false,
+          "external_observation": true,
+          "iteration_index": 1,
+          "observation_source": "test_failure",
+          "state_diff_changed_answer_or_action": true
+        },
+        {
+          "decisive_for_recovery": false,
+          "external_observation": true,
+          "iteration_index": 2,
+          "observation_source": "file",
+          "state_diff_changed_answer_or_action": true
+        },
+        {
+          "decisive_for_recovery": false,
+          "external_observation": true,
+          "iteration_index": 3,
+          "observation_source": "diff",
+          "state_diff_changed_answer_or_action": true
+        }
+      ],
+      "stop_reason": "budget_exhausted",
+      "task_id": "agentic-loop-smoke-public-probe-001",
+      "token_usage_source": "codex_cli_total_tokens_as_prompt_proxy",
+      "token_usage_split_measured": false,
+      "total_tokens": 20410,
+      "usage_complete": true,
+      "usage_fields_present": true,
+      "validator": "agentic_loop_hidden_validator_v1",
+      "verified_pass": false,
+      "workspace_path": "workspaces/alr-f800031ae9cb22cb"
+    },
+    {
+      "arm": "placebo_loop",
+      "blind_id": "alr-c8327d7cc57a8a4d",
+      "budget_complete": true,
+      "budgeted_verified_pass": false,
+      "budgets": {
+        "allowed_actions": [
+          "inspect_file",
+          "search",
+          "run_public_test",
+          "edit",
+          "write_answer",
+          "abstain",
+          "blocked"
+        ],
+        "max_completion_tokens": 2000,
+        "max_cost_estimate": 0.05,
+        "max_elapsed_seconds": 60,
+        "max_iterations": 3,
+        "max_prompt_tokens": 5000
+      },
+      "changed_strategy_after_observation": true,
+      "claimed_success": false,
+      "completion_tokens": 0,
+      "cost_estimate": 0.050196000000000005,
+      "cost_estimate_present": true,
+      "elapsed_seconds": 85.42530727386475,
+      "false_success": false,
+      "family": "agentic_coding",
+      "has_external_state_diff": true,
+      "iterations_used": 3,
+      "polarity": "positive",
+      "prompt_tokens": 50196,
+      "quality_per_token": 0.0,
+      "quality_score": 0.0,
+      "repeated_failure_stop": false,
+      "scored_observation_effects": [
+        {
+          "decisive_for_recovery": false,
+          "external_observation": true,
+          "iteration_index": 1,
+          "observation_source": "test_failure",
+          "state_diff_changed_answer_or_action": true
+        },
+        {
+          "decisive_for_recovery": false,
+          "external_observation": true,
+          "iteration_index": 2,
+          "observation_source": "file",
+          "state_diff_changed_answer_or_action": true
+        },
+        {
+          "decisive_for_recovery": false,
+          "external_observation": true,
+          "iteration_index": 3,
+          "observation_source": "diff",
+          "state_diff_changed_answer_or_action": true
+        }
+      ],
+      "stop_reason": "budget_exhausted",
+      "task_id": "agentic-loop-smoke-public-probe-001",
+      "token_usage_source": "codex_cli_total_tokens_as_prompt_proxy",
+      "token_usage_split_measured": false,
+      "total_tokens": 50196,
+      "usage_complete": true,
+      "usage_fields_present": true,
+      "validator": "agentic_loop_hidden_validator_v1",
+      "verified_pass": false,
+      "workspace_path": "workspaces/alr-c8327d7cc57a8a4d"
+    },
+    {
+      "arm": "agentic_loop",
+      "blind_id": "alr-f1476cbc9d5d5a10",
+      "budget_complete": true,
+      "budgeted_verified_pass": false,
+      "budgets": {
+        "allowed_actions": [
+          "inspect_file",
+          "search",
+          "run_public_test",
+          "edit",
+          "write_answer",
+          "abstain",
+          "blocked"
+        ],
+        "max_completion_tokens": 2000,
+        "max_cost_estimate": 0.05,
+        "max_elapsed_seconds": 60,
+        "max_iterations": 3,
+        "max_prompt_tokens": 5000
+      },
+      "changed_strategy_after_observation": true,
+      "claimed_success": false,
+      "completion_tokens": 0,
+      "cost_estimate": 0.035032,
+      "cost_estimate_present": true,
+      "elapsed_seconds": 75.39407157897949,
+      "false_success": false,
+      "family": "agentic_coding",
+      "has_external_state_diff": true,
+      "iterations_used": 3,
+      "polarity": "positive",
+      "prompt_tokens": 35032,
+      "quality_per_token": 0.0,
+      "quality_score": 0.0,
+      "repeated_failure_stop": false,
+      "scored_observation_effects": [
+        {
+          "decisive_for_recovery": false,
+          "external_observation": true,
+          "iteration_index": 1,
+          "observation_source": "test_failure",
+          "state_diff_changed_answer_or_action": true
+        },
+        {
+          "decisive_for_recovery": false,
+          "external_observation": true,
+          "iteration_index": 2,
+          "observation_source": "file",
+          "state_diff_changed_answer_or_action": true
+        },
+        {
+          "decisive_for_recovery": false,
+          "external_observation": true,
+          "iteration_index": 3,
+          "observation_source": "diff",
+          "state_diff_changed_answer_or_action": true
+        }
+      ],
+      "stop_reason": "budget_exhausted",
+      "task_id": "agentic-loop-smoke-public-probe-001",
+      "token_usage_source": "codex_cli_total_tokens_as_prompt_proxy",
+      "token_usage_split_measured": false,
+      "total_tokens": 35032,
+      "usage_complete": true,
+      "usage_fields_present": true,
+      "validator": "agentic_loop_hidden_validator_v1",
+      "verified_pass": false,
+      "workspace_path": "workspaces/alr-f1476cbc9d5d5a10"
+    },
+    {
+      "arm": "non_loop_control",
+      "blind_id": "alr-55c2fe06f7a1fa93",
+      "budget_complete": true,
+      "budgeted_verified_pass": false,
+      "budgets": {
+        "allowed_actions": [
+          "inspect_file",
+          "search",
+          "run_public_test",
+          "edit",
+          "write_answer",
+          "abstain",
+          "blocked"
+        ],
+        "max_completion_tokens": 2000,
+        "max_cost_estimate": 0.05,
+        "max_elapsed_seconds": 60,
+        "max_iterations": 2,
+        "max_prompt_tokens": 5000
+      },
+      "changed_strategy_after_observation": false,
+      "claimed_success": true,
+      "completion_tokens": 0,
+      "cost_estimate": 0.020264,
+      "cost_estimate_present": true,
+      "elapsed_seconds": 29.5907621383667,
+      "false_success": false,
+      "family": "agentic_coding",
+      "has_external_state_diff": false,
+      "iterations_used": 1,
+      "polarity": "negative",
+      "prompt_tokens": 20264,
+      "quality_per_token": 4.9348598499802604e-05,
+      "quality_score": 1.0,
+      "repeated_failure_stop": false,
+      "scored_observation_effects": [
+        {
+          "decisive_for_recovery": false,
+          "external_observation": false,
+          "iteration_index": 1,
+          "observation_source": "none",
+          "state_diff_changed_answer_or_action": true
+        }
+      ],
+      "stop_reason": "verified",
+      "task_id": "agentic-loop-smoke-negative-format-001",
+      "token_usage_source": "codex_cli_total_tokens_as_prompt_proxy",
+      "token_usage_split_measured": false,
+      "total_tokens": 20264,
+      "usage_complete": true,
+      "usage_fields_present": true,
+      "validator": "agentic_loop_hidden_validator_v1",
+      "verified_pass": true,
+      "workspace_path": "workspaces/alr-55c2fe06f7a1fa93"
+    },
+    {
+      "arm": "control",
+      "blind_id": "alr-99bb83ea52ce0075",
+      "budget_complete": true,
+      "budgeted_verified_pass": false,
+      "budgets": {
+        "allowed_actions": [
+          "inspect_file",
+          "search",
+          "run_public_test",
+          "edit",
+          "write_answer",
+          "abstain",
+          "blocked"
+        ],
+        "max_completion_tokens": 2000,
+        "max_cost_estimate": 0.05,
+        "max_elapsed_seconds": 60,
+        "max_iterations": 2,
+        "max_prompt_tokens": 5000
+      },
+      "changed_strategy_after_observation": true,
+      "claimed_success": false,
+      "completion_tokens": 0,
+      "cost_estimate": 0.013127,
+      "cost_estimate_present": true,
+      "elapsed_seconds": 54.51886010169983,
+      "false_success": false,
+      "family": "agentic_coding",
+      "has_external_state_diff": true,
+      "iterations_used": 2,
+      "polarity": "negative",
+      "prompt_tokens": 13127,
+      "quality_per_token": 7.617886798202179e-05,
+      "quality_score": 1.0,
+      "repeated_failure_stop": false,
+      "scored_observation_effects": [
+        {
+          "decisive_for_recovery": false,
+          "external_observation": true,
+          "iteration_index": 1,
+          "observation_source": "file",
+          "state_diff_changed_answer_or_action": true
+        },
+        {
+          "decisive_for_recovery": false,
+          "external_observation": false,
+          "iteration_index": 2,
+          "observation_source": "none",
+          "state_diff_changed_answer_or_action": true
+        }
+      ],
+      "stop_reason": "abstained",
+      "task_id": "agentic-loop-smoke-negative-format-001",
+      "token_usage_source": "codex_cli_total_tokens_as_prompt_proxy",
+      "token_usage_split_measured": false,
+      "total_tokens": 13127,
+      "usage_complete": true,
+      "usage_fields_present": true,
+      "validator": "agentic_loop_hidden_validator_v1",
+      "verified_pass": true,
+      "workspace_path": "workspaces/alr-99bb83ea52ce0075"
+    },
+    {
+      "arm": "placebo_loop",
+      "blind_id": "alr-b5aeb4f3b5d55bf3",
+      "budget_complete": true,
+      "budgeted_verified_pass": false,
+      "budgets": {
+        "allowed_actions": [
+          "inspect_file",
+          "search",
+          "run_public_test",
+          "edit",
+          "write_answer",
+          "abstain",
+          "blocked"
+        ],
+        "max_completion_tokens": 2000,
+        "max_cost_estimate": 0.05,
+        "max_elapsed_seconds": 60,
+        "max_iterations": 2,
+        "max_prompt_tokens": 5000
+      },
+      "changed_strategy_after_observation": true,
+      "claimed_success": true,
+      "completion_tokens": 0,
+      "cost_estimate": 0.042786,
+      "cost_estimate_present": true,
+      "elapsed_seconds": 66.86692595481873,
+      "false_success": false,
+      "family": "agentic_coding",
+      "has_external_state_diff": true,
+      "iterations_used": 2,
+      "polarity": "negative",
+      "prompt_tokens": 42786,
+      "quality_per_token": 2.3372131070911045e-05,
+      "quality_score": 1.0,
+      "repeated_failure_stop": false,
+      "scored_observation_effects": [
+        {
+          "decisive_for_recovery": false,
+          "external_observation": true,
+          "iteration_index": 1,
+          "observation_source": "file",
+          "state_diff_changed_answer_or_action": true
+        },
+        {
+          "decisive_for_recovery": false,
+          "external_observation": false,
+          "iteration_index": 2,
+          "observation_source": "none",
+          "state_diff_changed_answer_or_action": true
+        }
+      ],
+      "stop_reason": "verified",
+      "task_id": "agentic-loop-smoke-negative-format-001",
+      "token_usage_source": "codex_cli_total_tokens_as_prompt_proxy",
+      "token_usage_split_measured": false,
+      "total_tokens": 42786,
+      "usage_complete": true,
+      "usage_fields_present": true,
+      "validator": "agentic_loop_hidden_validator_v1",
+      "verified_pass": true,
+      "workspace_path": "workspaces/alr-b5aeb4f3b5d55bf3"
+    },
+    {
+      "arm": "agentic_loop",
+      "blind_id": "alr-2b2d5c56baf3963c",
+      "budget_complete": true,
+      "budgeted_verified_pass": false,
+      "budgets": {
+        "allowed_actions": [
+          "inspect_file",
+          "search",
+          "run_public_test",
+          "edit",
+          "write_answer",
+          "abstain",
+          "blocked"
+        ],
+        "max_completion_tokens": 2000,
+        "max_cost_estimate": 0.05,
+        "max_elapsed_seconds": 60,
+        "max_iterations": 2,
+        "max_prompt_tokens": 5000
+      },
+      "changed_strategy_after_observation": true,
+      "claimed_success": true,
+      "completion_tokens": 0,
+      "cost_estimate": 0.013353,
+      "cost_estimate_present": true,
+      "elapsed_seconds": 74.53860878944397,
+      "false_success": false,
+      "family": "agentic_coding",
+      "has_external_state_diff": true,
+      "iterations_used": 2,
+      "polarity": "negative",
+      "prompt_tokens": 13353,
+      "quality_per_token": 7.488953793155097e-05,
+      "quality_score": 1.0,
+      "repeated_failure_stop": false,
+      "scored_observation_effects": [
+        {
+          "decisive_for_recovery": false,
+          "external_observation": true,
+          "iteration_index": 1,
+          "observation_source": "file",
+          "state_diff_changed_answer_or_action": true
+        },
+        {
+          "decisive_for_recovery": false,
+          "external_observation": false,
+          "iteration_index": 2,
+          "observation_source": "none",
+          "state_diff_changed_answer_or_action": true
+        }
+      ],
+      "stop_reason": "verified",
+      "task_id": "agentic-loop-smoke-negative-format-001",
+      "token_usage_source": "codex_cli_total_tokens_as_prompt_proxy",
+      "token_usage_split_measured": false,
+      "total_tokens": 13353,
+      "usage_complete": true,
+      "usage_fields_present": true,
+      "validator": "agentic_loop_hidden_validator_v1",
+      "verified_pass": true,
+      "workspace_path": "workspaces/alr-2b2d5c56baf3963c"
+    }
+  ],
+  "token_usage_source_complete": true,
+  "token_usage_split_measured_complete": false,
+  "usage_fields_complete": true
+}

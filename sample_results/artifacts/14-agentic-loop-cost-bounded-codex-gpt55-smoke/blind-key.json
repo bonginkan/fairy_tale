@@ -1,0 +1,196 @@
+{
+  "rows": [
+    {
+      "arm": "non_loop_control",
+      "blind_id": "alr-3edcddba0e405058",
+      "budgets": {
+        "allowed_actions": [
+          "inspect_file",
+          "search",
+          "run_public_test",
+          "edit",
+          "write_answer",
+          "abstain",
+          "blocked"
+        ],
+        "max_completion_tokens": 2000,
+        "max_cost_estimate": 0.05,
+        "max_elapsed_seconds": 60,
+        "max_iterations": 3,
+        "max_prompt_tokens": 5000
+      },
+      "family": "agentic_coding",
+      "polarity": "positive",
+      "task_id": "agentic-loop-smoke-public-probe-001",
+      "workspace_path": "workspaces/alr-3edcddba0e405058"
+    },
+    {
+      "arm": "control",
+      "blind_id": "alr-f800031ae9cb22cb",
+      "budgets": {
+        "allowed_actions": [
+          "inspect_file",
+          "search",
+          "run_public_test",
+          "edit",
+          "write_answer",
+          "abstain",
+          "blocked"
+        ],
+        "max_completion_tokens": 2000,
+        "max_cost_estimate": 0.05,
+        "max_elapsed_seconds": 60,
+        "max_iterations": 3,
+        "max_prompt_tokens": 5000
+      },
+      "family": "agentic_coding",
+      "polarity": "positive",
+      "task_id": "agentic-loop-smoke-public-probe-001",
+      "workspace_path": "workspaces/alr-f800031ae9cb22cb"
+    },
+    {
+      "arm": "placebo_loop",
+      "blind_id": "alr-c8327d7cc57a8a4d",
+      "budgets": {
+        "allowed_actions": [
+          "inspect_file",
+          "search",
+          "run_public_test",
+          "edit",
+          "write_answer",
+          "abstain",
+          "blocked"
+        ],
+        "max_completion_tokens": 2000,
+        "max_cost_estimate": 0.05,
+        "max_elapsed_seconds": 60,
+        "max_iterations": 3,
+        "max_prompt_tokens": 5000
+      },
+      "family": "agentic_coding",
+      "polarity": "positive",
+      "task_id": "agentic-loop-smoke-public-probe-001",
+      "workspace_path": "workspaces/alr-c8327d7cc57a8a4d"
+    },
+    {
+      "arm": "agentic_loop",
+      "blind_id": "alr-f1476cbc9d5d5a10",
+      "budgets": {
+        "allowed_actions": [
+          "inspect_file",
+          "search",
+          "run_public_test",
+          "edit",
+          "write_answer",
+          "abstain",
+          "blocked"
+        ],
+        "max_completion_tokens": 2000,
+        "max_cost_estimate": 0.05,
+        "max_elapsed_seconds": 60,
+        "max_iterations": 3,
+        "max_prompt_tokens": 5000
+      },
+      "family": "agentic_coding",
+      "polarity": "positive",
+      "task_id": "agentic-loop-smoke-public-probe-001",
+      "workspace_path": "workspaces/alr-f1476cbc9d5d5a10"
+    },
+    {
+      "arm": "non_loop_control",
+      "blind_id": "alr-55c2fe06f7a1fa93",
+      "budgets": {
+        "allowed_actions": [
+          "inspect_file",
+          "search",
+          "run_public_test",
+          "edit",
+          "write_answer",
+          "abstain",
+          "blocked"
+        ],
+        "max_completion_tokens": 2000,
+        "max_cost_estimate": 0.05,
+        "max_elapsed_seconds": 60,
+        "max_iterations": 2,
+        "max_prompt_tokens": 5000
+      },
+      "family": "agentic_coding",
+      "polarity": "negative",
+      "task_id": "agentic-loop-smoke-negative-format-001",
+      "workspace_path": "workspaces/alr-55c2fe06f7a1fa93"
+    },
+    {
+      "arm": "control",
+      "blind_id": "alr-99bb83ea52ce0075",
+      "budgets": {
+        "allowed_actions": [
+          "inspect_file",
+          "search",
+          "run_public_test",
+          "edit",
+          "write_answer",
+          "abstain",
+          "blocked"
+        ],
+        "max_completion_tokens": 2000,
+        "max_cost_estimate": 0.05,
+        "max_elapsed_seconds": 60,
+        "max_iterations": 2,
+        "max_prompt_tokens": 5000
+      },
+      "family": "agentic_coding",
+      "polarity": "negative",
+      "task_id": "agentic-loop-smoke-negative-format-001",
+      "workspace_path": "workspaces/alr-99bb83ea52ce0075"
+    },
+    {
+      "arm": "placebo_loop",
+      "blind_id": "alr-b5aeb4f3b5d55bf3",
+      "budgets": {
+        "allowed_actions": [
+          "inspect_file",
+          "search",
+          "run_public_test",
+          "edit",
+          "write_answer",
+          "abstain",
+          "blocked"
+        ],
+        "max_completion_tokens": 2000,
+        "max_cost_estimate": 0.05,
+        "max_elapsed_seconds": 60,
+        "max_iterations": 2,
+        "max_prompt_tokens": 5000
+      },
+      "family": "agentic_coding",
+      "polarity": "negative",
+      "task_id": "agentic-loop-smoke-negative-format-001",
+      "workspace_path": "workspaces/alr-b5aeb4f3b5d55bf3"
+    },
+    {
+      "arm": "agentic_loop",
+      "blind_id": "alr-2b2d5c56baf3963c",
+      "budgets": {
+        "allowed_actions": [
+          "inspect_file",
+          "search",
+          "run_public_test",
+          "edit",
+          "write_answer",
+          "abstain",
+          "blocked"
+        ],
+        "max_completion_tokens": 2000,
+        "max_cost_estimate": 0.05,
+        "max_elapsed_seconds": 60,
+        "max_iterations": 2,
+        "max_prompt_tokens": 5000
+      },
+      "family": "agentic_coding",
+      "polarity": "negative",
+      "task_id": "agentic-loop-smoke-negative-format-001",
+      "workspace_path": "workspaces/alr-2b2d5c56baf3963c"
+    }
+  ]
+}
