@@ -29,6 +29,7 @@ scorer-only fields. Solver telemetry is a proxy parsed from Codex CLI stderr:
   `traces.jsonl`, `blind_key.json`, or `run_manifest.json`.
 - Hidden validator specs remain in `judge_manifest.jsonl` only.
 - `budget_fields_complete=true`
+- `usage_fields_complete=true`
 - `cost_estimates_complete=true`
 - `budget_parity.passed=true`
 - Promotion gate: `candidate_eligible=false`, `recommendation=review_only`

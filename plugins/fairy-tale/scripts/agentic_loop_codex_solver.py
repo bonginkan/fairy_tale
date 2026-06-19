@@ -318,6 +318,9 @@ def call_codex(args: argparse.Namespace, request: dict[str, Any]) -> dict[str, A
         response["_solver_telemetry"] = {
             "elapsed_seconds": elapsed,
             "tokens_used": tokens_used,
+            "prompt_tokens": tokens_used,
+            "completion_tokens": 0 if tokens_used is not None else None,
+            "token_usage_source": "codex_cli_total_tokens_as_prompt_proxy",
             "cost_estimate": (tokens_used / 1_000_000) if tokens_used is not None else None,
         }
         return response
