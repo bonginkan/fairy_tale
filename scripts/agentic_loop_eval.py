@@ -20,6 +20,8 @@ from typing import Any
 
 SCHEMA_VERSION = "agentic_loop_eval.v1"
 ARMS = ("control", "static_ledger", "placebo_loop", "agentic_loop")
+OPTIONAL_BASELINE_ARMS = ("non_loop_control",)
+KNOWN_ARMS = ARMS + OPTIONAL_BASELINE_ARMS
 POLARITIES = {"positive", "negative"}
 REQUIRED_BUDGET_FIELDS = (
     "max_iterations",
@@ -144,8 +146,8 @@ def load_key(path: Path) -> dict[str, dict[str, Any]]:
         blind_id = require_text(row, "blind_id", f"key[{index}]")
         task_id = require_text(row, "task_id", f"key[{index}]")
         arm = require_text(row, "arm", f"key[{index}]")
-        if arm not in ARMS:
-            raise SystemExit(f"key[{index}].arm must be one of {ARMS}")
+        if arm not in KNOWN_ARMS:
+            raise SystemExit(f"key[{index}].arm must be one of {KNOWN_ARMS}")
         polarity = require_text(row, "polarity", f"key[{index}]")
         if polarity not in POLARITIES:
             raise SystemExit(f"key[{index}].polarity must be one of {sorted(POLARITIES)}")
@@ -564,18 +566,68 @@ def budget_parity(rows: list[dict[str, Any]]) -> dict[str, Any]:
     return {"passed": not issues, "issues": issues}
 
 
-def missing_total(summary: dict[str, Any], field: str, prefix: str | None = None) -> int | None:
+def missing_total(
+    summary: dict[str, Any],
+    field: str,
+    prefix: str | None = None,
+    allowed_arms: set[str] | None = None,
+) -> int | None:
     grouped = summary.get("grouped") if isinstance(summary.get("grouped"), dict) else {}
     total = 0
     matched = False
     for group_key, group in grouped.items():
         if prefix is not None and not str(group_key).startswith(prefix):
             continue
+        if allowed_arms is not None:
+            _, _, arm = str(group_key).partition(":")
+            if arm not in allowed_arms:
+                continue
         if not isinstance(group, dict) or not isinstance(group.get(field), int):
             return None
         total += group[field]
         matched = True
     return total if matched else None
+
+
+def non_loop_baseline_summary(rows: list[dict[str, Any]], seed: int) -> dict[str, Any]:
+    baseline_arm = "non_loop_control"
+    positive_tasks = tasks_by_arm(rows, "positive")
+    paired = {
+        task_id: arms
+        for task_id, arms in positive_tasks.items()
+        if all(arm in arms for arm in (baseline_arm, "control", "placebo_loop", "agentic_loop"))
+    }
+    raw_headroom_ids = {
+        task_id
+        for task_id, arms in paired.items()
+        if (not arms[baseline_arm].get("verified_pass")) or arms[baseline_arm].get("false_success")
+    }
+    raw_headroom_tasks = {task_id: arms for task_id, arms in paired.items() if task_id in raw_headroom_ids}
+    contrasts: dict[str, Any] = {}
+    for index, (arm_a, arm_b) in enumerate(
+        (
+            ("control", baseline_arm),
+            ("agentic_loop", baseline_arm),
+            ("agentic_loop", "control"),
+            ("agentic_loop", "placebo_loop"),
+        )
+    ):
+        contrasts[f"{arm_a}_vs_{arm_b}"] = paired_contrast(
+            raw_headroom_tasks, "verified_pass", arm_a, arm_b, seed + 100 + index
+        )
+    return {
+        "present": bool(paired),
+        "baseline_arm": baseline_arm,
+        "n_positive_tasks_with_non_loop_baseline": len(paired),
+        "raw_headroom_task_ids": sorted(raw_headroom_ids),
+        "n_raw_baseline_headroom_tasks": len(raw_headroom_ids),
+        "contrasts_on_raw_headroom": contrasts,
+        "interpretation_guard": (
+            "Diagnostic only. This optional non-loop baseline is not part of the existing "
+            "promotion gate; use it to separate raw/deployment-baseline headroom from "
+            "equal-controller headroom."
+        ),
+    }
 
 
 def score(args: argparse.Namespace) -> int:
@@ -605,9 +657,11 @@ def score(args: argparse.Namespace) -> int:
         "schema_version": SCHEMA_VERSION,
         "n_results": len(rows),
         "arms": list(ARMS),
+        "optional_baseline_arms": list(OPTIONAL_BASELINE_ARMS),
         "grouped": grouped,
         "headroom": headroom,
         "non_headroom_positive": non_headroom,
+        "non_loop_baseline": non_loop_baseline_summary(rows, args.seed),
         "budget_parity": budget_parity(rows),
         "cost_estimates_complete": missing_total({"grouped": grouped}, "cost_estimate_missing_count") == 0,
         "usage_fields_complete": missing_total({"grouped": grouped}, "usage_missing_count") == 0,
@@ -867,11 +921,16 @@ def promotion_check(args: argparse.Namespace) -> int:
             )
         )
 
-    budget_missing = missing_total({"grouped": grouped}, "budget_missing_count")
-    usage_missing = missing_total({"grouped": grouped}, "usage_missing_count")
-    token_source_missing = missing_total({"grouped": grouped}, "token_usage_source_missing_count")
-    token_split_unmeasured = missing_total({"grouped": grouped}, "token_split_unmeasured_count")
-    cost_missing = missing_total({"grouped": grouped}, "cost_estimate_missing_count")
+    core_arms = set(ARMS)
+    budget_missing = missing_total({"grouped": grouped}, "budget_missing_count", allowed_arms=core_arms)
+    usage_missing = missing_total({"grouped": grouped}, "usage_missing_count", allowed_arms=core_arms)
+    token_source_missing = missing_total(
+        {"grouped": grouped}, "token_usage_source_missing_count", allowed_arms=core_arms
+    )
+    token_split_unmeasured = missing_total(
+        {"grouped": grouped}, "token_split_unmeasured_count", allowed_arms=core_arms
+    )
+    cost_missing = missing_total({"grouped": grouped}, "cost_estimate_missing_count", allowed_arms=core_arms)
     checks.append(check_payload("budget_fields_complete", budget_missing == 0, budget_missing, "0 missing budget rows"))
     checks.append(check_payload("usage_fields_complete", usage_missing == 0, usage_missing, "0 missing usage rows"))
     checks.append(
