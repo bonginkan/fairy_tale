@@ -171,6 +171,20 @@ The primary comparisons are:
 - `placebo_loop` versus `control` to report how much recovery comes from extra
   retries and tool exposure alone.
 
+### Current Runner Control Caveat
+
+The Phase 2/3 controlled runner sends every arm through the same
+controller-mediated request/action/observation channel. Its `control` arm is
+therefore a controller-exposed Fairy Tale baseline, not a raw one-shot or full
+deployment Codex baseline. If `control` recovers a task, that task has no
+headroom for measuring `agentic_loop` improvement in this runner, even when
+`agentic_loop` beats `placebo_loop` or `static_ledger`.
+
+Do not use this runner to claim deployment-baseline improvement until a separate
+non-loop baseline path is added or explicitly pre-registered. The current
+runner is still useful for comparing structured loop guidance against generic
+retry under equal controller exposure.
+
 ## Headroom First
 
 Do not average away ceiling tasks. A positive task contributes to recovery

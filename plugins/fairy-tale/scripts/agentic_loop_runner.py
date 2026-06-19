@@ -42,8 +42,9 @@ PLACEBO_LOOP_GUIDANCE = (
 )
 AGENTIC_LOOP_GUIDANCE = (
     "Use the observe-act-validate loop. Choose one minimal allowed action per "
-    "iteration, update strategy from external observations, and do not claim "
-    "success without validation."
+    "iteration, treat public-test stdout/stderr and file observations as state, "
+    "update the target from each external observation, and do not claim success "
+    "while any observed requirement remains unresolved."
 )
 ARM_GUIDANCE = {
     "control": CONTROL_GUIDANCE,
