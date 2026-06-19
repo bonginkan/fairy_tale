@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -42,6 +43,7 @@ FORBIDDEN_REQUEST_FIELDS = {
 }
 FORBIDDEN_RESPONSE_FIELDS = set(SCORER_ONLY_FIELDS)
 DEFAULT_WORK_ROOT = Path("/tmp/fairy-agentic-loop-codex-solver")
+TOKEN_USAGE_RE = re.compile(r"tokens used\s*([0-9][0-9,]*)", re.IGNORECASE)
 
 
 def read_request() -> dict[str, Any]:
@@ -87,7 +89,7 @@ def action_schema(allowed_actions: list[str]) -> dict[str, Any]:
         "properties": {
             "state": {
                 "description": "Current answer/action state before the controller executes the action.",
-                "type": ["object", "string"],
+                "type": "string",
             },
             "hypothesis": {"type": "string"},
             "probe_plan": {"type": "string"},
@@ -96,7 +98,28 @@ def action_schema(allowed_actions: list[str]) -> dict[str, Any]:
                 "additionalProperties": False,
                 "properties": {
                     "type": {"type": "string", "enum": allowed_actions},
-                    "input": {"type": "object"},
+                    "input": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {
+                            "path": {"type": "string"},
+                            "pattern": {"type": "string"},
+                            "test_id": {"type": "string"},
+                            "content": {"type": "string"},
+                            "answer": {"type": "string"},
+                            "claimed_success": {"type": "boolean"},
+                            "reason": {"type": "string"},
+                        },
+                        "required": [
+                            "path",
+                            "pattern",
+                            "test_id",
+                            "content",
+                            "answer",
+                            "claimed_success",
+                            "reason",
+                        ],
+                    },
                 },
                 "required": ["type", "input"],
             },
@@ -140,9 +163,10 @@ quality_score, changed_belief, state_diff_changed_answer_or_action, or
 decisive_for_recovery.
 
 Choose one allowed action that is justified by the visible request and previous
-controller observations. If no safe action can advance the task, use blocked or
-abstain. A success claim should only be made after the visible observations
-support it.
+controller observations. The action.input object must include all schema keys;
+fill unused string fields with "" and unused claimed_success with false. If no
+safe action can advance the task, use blocked or abstain. A success claim should
+only be made after the visible observations support it.
 
 Sanitized controller request:
 ```json
@@ -171,6 +195,27 @@ def parse_last_message(path: Path) -> dict[str, Any]:
     return payload
 
 
+def parse_tokens_used(stderr_text: str) -> int | None:
+    matches = TOKEN_USAGE_RE.findall(stderr_text)
+    if not matches:
+        return None
+    return int(matches[-1].replace(",", ""))
+
+
+def complete_input(**values: Any) -> dict[str, Any]:
+    payload = {
+        "path": "",
+        "pattern": "",
+        "test_id": "",
+        "content": "",
+        "answer": "",
+        "claimed_success": False,
+        "reason": "",
+    }
+    payload.update(values)
+    return payload
+
+
 def dry_run_response(request: dict[str, Any]) -> dict[str, Any]:
     """Return a deterministic action for wrapper smoke tests without paid API."""
 
@@ -188,13 +233,13 @@ def dry_run_response(request: dict[str, Any]) -> dict[str, Any]:
                 "state": {"answer": "need controller observation before final answer"},
                 "hypothesis": "A public probe may expose a false-success trap.",
                 "probe_plan": "Ask the controller to run the first public test.",
-                "action": {"type": "run_public_test", "input": {"test_id": test_id}},
+                "action": {"type": "run_public_test", "input": complete_input(test_id=test_id)},
             }
     return {
         "state": {"answer": "insufficient controller observations"},
         "hypothesis": "No further safe action is available in dry-run mode.",
         "probe_plan": "Stop without claiming success.",
-        "action": {"type": "blocked", "input": {"reason": "dry-run solver stopped"}},
+        "action": {"type": "blocked", "input": complete_input(reason="dry-run solver stopped")},
     }
 
 
@@ -230,6 +275,7 @@ def call_codex(args: argparse.Namespace, request: dict[str, Any]) -> dict[str, A
             'approval_policy="never"',
             "--cd",
             str(run_dir),
+            "--skip-git-repo-check",
             "--output-schema",
             str(schema_path),
             "-o",
@@ -266,7 +312,15 @@ def call_codex(args: argparse.Namespace, request: dict[str, Any]) -> dict[str, A
                     (args.log_dir / f"{stamp}.{suffix}").write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
         if result.returncode != 0:
             raise RuntimeError(f"codex exited {result.returncode}; see {stderr_path}")
-        return parse_last_message(output_path)
+        response = parse_last_message(output_path)
+        elapsed = time.time() - started
+        tokens_used = parse_tokens_used(stderr_path.read_text(encoding="utf-8"))
+        response["_solver_telemetry"] = {
+            "elapsed_seconds": elapsed,
+            "tokens_used": tokens_used,
+            "cost_estimate": (tokens_used / 1_000_000) if tokens_used is not None else None,
+        }
+        return response
 
 
 def build_parser() -> argparse.ArgumentParser:
