@@ -383,6 +383,23 @@ hidden-validator or scorer-only fields if they appear in the request or model
 output. The public `fixtures/agentic-loop/smoke.jsonl` file is a smoke and
 connection fixture only; it is not confirmatory or held-out promotion evidence.
 
+Cost-bounded raw-baseline smoke should start from the small public smoke
+fixture and an explicit arm subset:
+
+```bash
+python3 scripts/agentic_loop_runner.py run \
+  --tasks fixtures/agentic-loop/smoke.jsonl \
+  --output tmp/agentic-loop-smoke \
+  --arms non_loop_control,control,placebo_loop,agentic_loop \
+  --solver-command python3 /absolute/path/to/scripts/agentic_loop_codex_solver.py \
+    --model gpt-5.5 --reasoning-effort xhigh
+```
+
+This omits `static_ledger` to cap paid calls and is a smoke-only connection
+run. Preserve the run summary, trace, verdict, and promotion-check artifacts if
+the result will be discussed later; otherwise treat the run as local planning
+data only.
+
 Phase 4: confirmation.
 
 - Use fresh held-out tasks and fixed validators.

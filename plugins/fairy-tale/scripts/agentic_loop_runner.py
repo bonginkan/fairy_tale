@@ -60,6 +60,7 @@ ARM_GUIDANCE = {
     "non_loop_control": NON_LOOP_CONTROL_GUIDANCE,
 }
 NON_LOOP_ACTIONS = ("edit", "write_answer", "abstain", "blocked")
+KNOWN_ARMS = ARMS + OPTIONAL_BASELINE_ARMS
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -695,6 +696,22 @@ def run_one(
     }
 
 
+def selected_arms(args: argparse.Namespace) -> tuple[str, ...]:
+    if args.arms:
+        arms: list[str] = []
+        for raw in args.arms.split(","):
+            arm = raw.strip()
+            if not arm:
+                raise SystemExit("--arms must be a comma-separated list without empty entries")
+            if arm not in KNOWN_ARMS:
+                raise SystemExit(f"unknown arm in --arms: {arm}; expected one of {', '.join(KNOWN_ARMS)}")
+            if arm in arms:
+                raise SystemExit(f"duplicate arm in --arms: {arm}")
+            arms.append(arm)
+        return tuple(arms)
+    return ARMS + (OPTIONAL_BASELINE_ARMS if args.include_non_loop_baseline else ())
+
+
 def run_tasks(args: argparse.Namespace) -> int:
     tasks = validate_tasks(read_jsonl(args.tasks))
     if not args.demo_solver and not args.solver_command:
@@ -705,7 +722,7 @@ def run_tasks(args: argparse.Namespace) -> int:
     key_rows: list[dict[str, Any]] = []
     judge_rows: list[dict[str, Any]] = []
 
-    arms = ARMS + (OPTIONAL_BASELINE_ARMS if args.include_non_loop_baseline else ())
+    arms = selected_arms(args)
     for task in tasks:
         for arm in arms:
             blind_id = stable_id(args.seed, task["task_id"], arm)
@@ -866,6 +883,15 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--solver-command", nargs=argparse.REMAINDER)
     run_parser.add_argument("--demo-solver", action="store_true")
     run_parser.add_argument("--fail-fast", action="store_true")
+    run_parser.add_argument(
+        "--arms",
+        help=(
+            "comma-separated arm subset to run, e.g. "
+            "non_loop_control,control,placebo_loop,agentic_loop. "
+            "Defaults to the four core arms, plus non_loop_control when "
+            "--include-non-loop-baseline is set."
+        ),
+    )
     run_parser.add_argument(
         "--include-non-loop-baseline",
         action="store_true",
