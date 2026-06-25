@@ -59,6 +59,7 @@ issue tracker:
 project channel:
 run thread pattern:
 owner mention policy:
+do-not-disturb policy:
 implementer:
 reviewers:
 source adapters:
@@ -78,6 +79,10 @@ The profile must bind the loop to a repo or artifact scope and a project
 channel/thread. If no channel exists, the loop starts in planning mode and asks
 the Computer Use/settings owner to create or link one.
 
+The profile must also record any human-set Do Not Disturb windows that affect
+agent assignment, non-urgent mentions, escalation timing, or mid-run handoff.
+DND records are operating constraints, not permission grants.
+
 ## Repo and Project Channel Operation
 
 - One loop profile maps one repo/artifact scope to one project channel.
@@ -88,6 +93,16 @@ the Computer Use/settings owner to create or link one.
 - Mention the owner only when starting the run thread and at tri-MISA
   agreement, approval, final sign-off, or major escalation milestones. Do not
   mention the owner for every checkpoint, action, or routine status update.
+- Keep agent Do Not Disturb windows separate from owner visibility. A DND
+  window can suppress direct pings, exclude an agent from implementation-owner
+  assignment, or force safe-boundary handoff without hiding owner-visible
+  ledgers.
+- DND windows must be human-set, timezone-qualified, auditable, and resumable.
+  Missing, stale, ambiguous, or expired DND records are provisional and must
+  not silently override fresh human instructions.
+- DND does not authorize secrets, credential changes, external sends, Drive
+  edits, meeting joins, deploys, or permission changes. Approval gates and hard
+  safety limits still win.
 - Keep GitHub artifacts linked from the thread: issue, branch, PR, commit,
   review comments, checks, and release notes.
 - Use receipts or an equivalent run ledger for state-changing or externally
@@ -100,6 +115,7 @@ objective:
 repo:
 loop profile:
 owner mention: thread start only; later only tri-MISA agreement / approval / major escalation
+do-not-disturb: per-agent windows with timezone, mode, override, and resume policy
 implementer:
 reviewers:
 sources to ingest:
