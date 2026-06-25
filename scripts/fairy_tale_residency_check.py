@@ -27,6 +27,7 @@ SKILL_MARKERS = {
         "Latent Structure Harness",
         "Loop Engineering and Job Automation Harness",
         "cross-channel loop command",
+        "silent-loop auto-resume",
         "Do Not Disturb",
         "Usage-Aware Multi-Agent Load Balancer",
         "Excess / Redundancy / Legacy-Surface",
@@ -56,6 +57,7 @@ SKILL_REFERENCE_MARKERS = {
         "Excess / redundancy / legacy-surface discovery record",
         "Loop engineering operating record",
         "Cross-channel loop command record",
+        "Silent-loop auto-resume watchdog record",
         "Do Not Disturb operating-window record",
         "Usage-aware multi-agent load balancer record",
         "Usage Reading Reference",
@@ -80,6 +82,7 @@ SKILL_REFERENCE_MARKERS = {
     Path("fairy-tale/references/loop-engineering-automation.md"): (
         "Loop Engineering and Job Automation",
         "cross-channel command discipline",
+        "silent-loop auto-resume",
         "Do Not Disturb",
         "External-Channel Ingestion",
         "Fairy Tale Self-Pilot",
@@ -288,12 +291,14 @@ LOOP_ENGINEERING_FILES = {
     Path("docs/loop-engineering-automation.md"): (
         "Loop Engineering and Job Automation",
         "cross-channel command discipline",
+        "silent-loop auto-resume",
         "External-Channel Ingestion",
         "Fairy Tale Self-Pilot",
     ),
     Path("plugins/fairy-tale/docs/loop-engineering-automation.md"): (
         "Loop Engineering and Job Automation",
         "cross-channel command discipline",
+        "silent-loop auto-resume",
         "External-Channel Ingestion",
         "Fairy Tale Self-Pilot",
     ),
@@ -324,6 +329,7 @@ STANDING_INSTRUCTION = (
     "- Validate before claiming completion. Invoke the `fairy-tale` skill for "
     "substantive coding, research, loop engineering, job automation, "
     "cross-channel loop command, "
+    "silent-loop auto-resume, "
     "do-not-disturb operating windows, "
     "usage-aware multi-agent load balancing, usage reading reference, benchmark, legal, "
     "excess/redundancy/legacy-surface review, or defensive-security work."
@@ -333,6 +339,7 @@ STANDING_INSTRUCTION_MARKERS = (
     "loop engineering",
     "job automation",
     "cross-channel loop command",
+    "silent-loop auto-resume",
     "do-not-disturb operating windows",
     "usage-aware multi-agent load balancing",
     "usage reading reference",
