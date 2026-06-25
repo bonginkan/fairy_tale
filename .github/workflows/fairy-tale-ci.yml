@@ -23,3 +23,12 @@ jobs:
         run: python3 scripts/fairy_tale_residency_check.py
       - name: Install smoke test
         run: python3 scripts/install_smoke_test.py
+
+  adapters:
+    name: adapters (manifest validation)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Adapter manifest validation
+        # Rust stable is pre-installed on ubuntu-latest runners.
+        run: cargo run --manifest-path crates/fairy-adapter-runner/Cargo.toml -- validate
