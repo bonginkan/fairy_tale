@@ -26,6 +26,7 @@ SKILL_MARKERS = {
         "Benchmark Delta Harness",
         "Latent Structure Harness",
         "Loop Engineering and Job Automation Harness",
+        "Usage-Aware Multi-Agent Load Balancer",
         "Excess / Redundancy / Legacy-Surface",
         "fairy-tale-benchmark-feedback",
     ),
@@ -52,6 +53,7 @@ SKILL_REFERENCE_MARKERS = {
         "Accessible genius method record",
         "Excess / redundancy / legacy-surface discovery record",
         "Loop engineering operating record",
+        "Usage-aware multi-agent load balancer record",
         "External-channel ingestion record",
         "Job automation delegation record",
     ),
@@ -311,13 +313,15 @@ STANDING_INSTRUCTION = (
     "- Keep security work defensive-only and within authorized targets.\n"
     "- Do not fan out broad parallel agents without an explicit cap.\n"
     "- Validate before claiming completion. Invoke the `fairy-tale` skill for "
-    "substantive coding, research, loop engineering, job automation, benchmark, "
-    "legal, excess/redundancy/legacy-surface review, or defensive-security work."
+    "substantive coding, research, loop engineering, job automation, "
+    "usage-aware multi-agent load balancing, benchmark, legal, "
+    "excess/redundancy/legacy-surface review, or defensive-security work."
 )
 
 STANDING_INSTRUCTION_MARKERS = (
     "loop engineering",
     "job automation",
+    "usage-aware multi-agent load balancing",
     "excess/redundancy/legacy-surface",
 )
 
