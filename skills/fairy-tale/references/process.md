@@ -605,6 +605,78 @@ Required invariants:
 - A loop that repeats the same failure class without a changed probe,
   validation result, or escalation is stopped, not retried indefinitely.
 
+## Usage-aware multi-agent load balancer record
+
+Use this at loop increment boundaries before assigning implementation,
+review, or specialist-tool roles. The goal is continuity and review integrity,
+not provider-account introspection.
+
+```text
+loop / thread:
+increment:
+session owner:
+candidate agents:
+fixed specialist capabilities:
+capacity inputs:
+  - agent:
+    primary_5h_remaining:
+    secondary_weekly_remaining:
+    blocking_status:
+    runtime_install_current:
+    tool_availability:
+    source: primary_check | self_report | session_owner_observation
+eligible implementation agents:
+excluded agents and reason:
+implementation owner:
+reviewers:
+specialist tool owner:
+assignment rule applied:
+tie-breaker:
+approval gates:
+reassignment trigger:
+ledger / receipt:
+owner-visible status:
+```
+
+Assignment policy:
+
+- Assign fixed specialist capabilities first. Computer Use, GUI/app settings,
+  credential setup, secret handling, permission changes, deploys, meeting
+  joins, and external mutations are controlled by capability plus approval
+  gate, not by usage quota alone.
+- Use only coarse operational capacity for role selection:
+  `primary_5h_remaining`, `secondary_weekly_remaining`, current blocking
+  status, runtime install currency, and required tool availability. Do not
+  expose raw tokens, provider billing, secrets, credential material, or
+  provider-internal quota details in the ledger or public thread.
+- Exclude stale-install, quota-blocked, tool-unavailable, or approval-blocked
+  agents from implementation-owner candidates for that increment.
+- Choose the implementation owner from eligible agents with the highest usable
+  capacity for the current increment. If capacity is effectively tied, prefer
+  the agent that did not implement the immediately previous increment.
+- Assign remaining eligible agents as reviewers or monitors. A reviewer must
+  not sign off their own implementation increment.
+- Treat self-reported usage as provisional unless a local guard, provider
+  status surface, or session-owner observation can confirm it. Unknown exact
+  values may still be usable when the agent is not blocked and the task can
+  proceed with a coarse capacity statement.
+- If the implementation owner becomes quota-blocked, stale, or tool-blocked
+  mid-run, stop at the next safe boundary, record the blocker, rerun the load
+  balancer, and reassign before further mutation.
+- Record the decision, inputs, exclusions, reviewer set, and reassign trigger
+  in the run ledger or receipt so later loops can audit why the role split
+  changed.
+
+Non-normative example:
+
+```text
+session owner: CC MISA
+specialist tool owner: CC MISA for Computer Use / GUI settings
+implementation candidates: Codex MISA, MISA 3, CC MISA when not fixed-specialist
+assignment: implementation owner = highest usable capacity; others review
+review guard: implementation owner never signs off its own increment
+```
+
 ## External-channel ingestion record
 
 Use this when the loop periodically reads GitHub, project channels, Discord,
