@@ -244,9 +244,9 @@ python3 scripts/fairy_tale_residency_check.py
   reviewer roles, cross-channel session isolation, auto-resume watchdog policy,
   and rollback/stop conditions.
 - Keep the main agent loop simple and put reliability in the harness:
-  deterministic schedulers/watchers, silent-loop watchdogs, dedupe keys,
-  provenance, receipts, validation checks, rate limits, idempotency, and
-  explicit human checkpoints.
+  deterministic schedulers/watchers, scheduled wake actuators for silent-loop
+  watchdogs, dedupe keys, provenance, receipts, validation checks, rate
+  limits, idempotency, and explicit human checkpoints.
 - For engineering loops, one run should create or reuse a visible project
   thread, mention the owner when the run starts or escalates, and keep
   GitHub/repo artifacts linked to the thread.

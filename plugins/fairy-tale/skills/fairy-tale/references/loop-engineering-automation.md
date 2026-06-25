@@ -98,9 +98,14 @@ issue/PR links, run IDs, or explicit handoff records.
 The profile should also define a silent-loop auto-resume watchdog for active
 loops that can stall after a missed mention or omitted handoff. Record
 `last_loop_activity`, `next_expected_touch`, `auto_resume_after`, retry limit,
-and the bounded auto-resume action. Auto-resume is suppressed when the loop is
+the bounded auto-resume action, and the concrete scheduled wake actuator.
+When the loop enters wait, register `ScheduleWakeup` when available, or a
+narrowly scoped cron/launchd watchdog when that is the approved runtime
+actuator. Without a registered wake, the loop is manually watched or blocked,
+not time-based auto-resumed. Auto-resume is suppressed when the loop is
 DND-paused, intentionally parked, approval-blocked, security-blocked,
-credential-blocked, deploy-blocked, externally blocked, or closed.
+credential-blocked, deploy-blocked, externally blocked, already progressed, or
+closed.
 
 ## Repo and Project Channel Operation
 
@@ -119,12 +124,13 @@ credential-blocked, deploy-blocked, externally blocked, or closed.
   sweep and flag loops whose next expected action has aged beyond the loop's
   threshold. Do not let the loudest thread starve quieter loops.
 - If an active loop passes its `auto_resume_at` with no handoff, reviewer
-  reply, or commander touch, post a bounded checkpoint in that loop's own
-  thread: local scope, stale expected action, expected actor, last artifact or
-  source ref, next safe action, and the next checkpoint. Re-mention only the
-  needed local agent(s) using bot-to-bot addressing. If all eligible agents
-  remain silent after the retry limit, record an explicit loop blocker instead
-  of pinging indefinitely.
+  reply, or commander touch, the scheduled wake re-reads the thread and
+  ledger, then posts a bounded checkpoint in that loop's own thread: local
+  scope, stale expected action, expected actor, last artifact or source ref,
+  next safe action, and the next checkpoint. Re-mention only the needed local
+  agent(s) using bot-to-bot addressing. If all eligible agents remain silent
+  after the retry limit, record an explicit loop blocker instead of pinging
+  indefinitely.
 - Preserve thread-local session isolation. Do not inject another loop's
   unresolved context into the current run thread. If another loop needs action,
   update that loop's own thread, GitHub artifact, or run ledger.
@@ -159,7 +165,7 @@ repo:
 loop profile:
 owner mention: thread start only; later only tri-MISA agreement / approval / major escalation
 do-not-disturb: per-agent windows with timezone, mode, override, and resume policy
-silent-loop auto-resume: last activity, next expected touch, threshold, retry cap
+silent-loop auto-resume: last activity, next expected touch, threshold, wake actuator, retry cap
 implementer:
 reviewers:
 sources to ingest:
