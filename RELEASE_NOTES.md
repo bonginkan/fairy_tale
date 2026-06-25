@@ -1,5 +1,21 @@
 # Release Notes
 
+## 0.2.10
+
+- Added the Spiral Engineering harness so loop revolutions can raise an
+  explicit altitude axis: autonomy, abstraction, scope, delegation, reusable
+  capability, or residual-risk burn-down.
+- Grounded spiral mode in risk-driven iteration and double-loop learning:
+  identify the highest-risk uncertainty, burn it down before expansion,
+  engineer only the risk-cleared target, then evaluate whether governing
+  variables should change before the next revolution.
+- Added safety-floor rules so spiral engineering cannot weaken DND, approval,
+  security, credential, deploy, external-mutation, meeting-join, owner-mention,
+  branch/merge, or secret boundaries.
+- Updated loop-engineering references, source grounding, residency markers,
+  SessionStart injection, release metadata, and plugin manifests so spiral
+  engineering tasks keep the Fairy Tale harness active.
+
 ## 0.2.9
 
 - Added a Silent-Loop Auto-Resume Watchdog for active loops that go quiet
