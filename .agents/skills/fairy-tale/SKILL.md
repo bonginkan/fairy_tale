@@ -1,6 +1,6 @@
 ---
 name: fairy-tale
-description: Provides Fable/Mythos-informed workflow augmentation for budgeted, evidence-driven, validation-gated agent execution across coding, research, documentation, legal/knowledge work, UI/3D, creative writing, emotionally aware conversation, ARC-style puzzle discovery, and defensive security tasks. Use when the user asks for Mythos/Fable-informed workflow uplift, autonomous long-task execution, loop engineering, loop job automation, usage-aware multi-agent load balancing, workflow self-improvement, closure/frame-completeness checks, negative-space or latent-need discovery, excess/redundancy/legacy-surface review, codebase-wide migration, high-signal research synthesis, legal or closed-ended benchmark reasoning, narrative/UI expression, mechanism discovery, or defensive vulnerability-review process design.
+description: Provides Fable/Mythos-informed workflow augmentation for budgeted, evidence-driven, validation-gated agent execution across coding, research, documentation, legal/knowledge work, UI/3D, creative writing, emotionally aware conversation, ARC-style puzzle discovery, and defensive security tasks. Use when the user asks for Mythos/Fable-informed workflow uplift, autonomous long-task execution, loop engineering, loop job automation, usage-aware multi-agent load balancing, usage reading reference, workflow self-improvement, closure/frame-completeness checks, negative-space or latent-need discovery, excess/redundancy/legacy-surface review, codebase-wide migration, high-signal research synthesis, legal or closed-ended benchmark reasoning, narrative/UI expression, mechanism discovery, or defensive vulnerability-review process design.
 ---
 
 # Fairy Tale
@@ -111,10 +111,11 @@ python3 scripts/fairy_tale_residency_check.py
      source adapters, run ledger, permission gates, and stop conditions before
      adding schedulers or autonomous action.
    - For multi-agent role assignment inside a loop: use the
-     `Usage-Aware Multi-Agent Load Balancer` card. Assign fixed specialist
-     capabilities first, then choose the implementation owner from agents with
-     usable coarse capacity and current runtime install; remaining eligible
-     agents review.
+     `Usage-Aware Multi-Agent Load Balancer` card and its Usage Reading
+     Reference. Assign fixed specialist capabilities first, verify coarse
+     capacity from the local source when available, then choose the
+     implementation owner from agents with usable coarse capacity and current
+     runtime install; remaining eligible agents review.
    - For agent, tool, eval, memory, hook, or OSS-release work: apply the
      best-practice gate from `references/best-practices.md`.
    - For defensive security: use only authorized code and produce verification
@@ -255,7 +256,7 @@ python3 scripts/fairy_tale_residency_check.py
   impersonate a human or join a private meeting without explicit authorization.
 - Use `references/loop-engineering-automation.md` for the full operating model and
   `references/process.md` for the loop, ingestion, job automation, meeting
-  proxy, and usage-aware role assignment cards.
+  proxy, usage-aware role assignment, and usage reading reference cards.
 
 ### High-signal research synthesis
 

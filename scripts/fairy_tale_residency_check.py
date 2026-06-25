@@ -54,6 +54,7 @@ SKILL_REFERENCE_MARKERS = {
         "Excess / redundancy / legacy-surface discovery record",
         "Loop engineering operating record",
         "Usage-aware multi-agent load balancer record",
+        "Usage Reading Reference",
         "External-channel ingestion record",
         "Job automation delegation record",
     ),
@@ -314,7 +315,7 @@ STANDING_INSTRUCTION = (
     "- Do not fan out broad parallel agents without an explicit cap.\n"
     "- Validate before claiming completion. Invoke the `fairy-tale` skill for "
     "substantive coding, research, loop engineering, job automation, "
-    "usage-aware multi-agent load balancing, benchmark, legal, "
+    "usage-aware multi-agent load balancing, usage reading reference, benchmark, legal, "
     "excess/redundancy/legacy-surface review, or defensive-security work."
 )
 
@@ -322,6 +323,7 @@ STANDING_INSTRUCTION_MARKERS = (
     "loop engineering",
     "job automation",
     "usage-aware multi-agent load balancing",
+    "usage reading reference",
     "excess/redundancy/legacy-surface",
 )
 
