@@ -83,8 +83,11 @@ the Computer Use/settings owner to create or link one.
 - One loop profile maps one repo/artifact scope to one project channel.
 - One objective run maps to one visible thread. Use the thread for status,
   source refs, reviewer assignments, blockers, and completion evidence.
-- Mention the owner at run start, escalation, external action approval, and
-  final closure when the owner requested visible operation.
+- Keep owner visibility and owner mentions separate. Post normal checkpoints
+  in the project thread without mentioning the owner.
+- Mention the owner only when starting the run thread and at tri-MISA
+  agreement, approval, final sign-off, or major escalation milestones. Do not
+  mention the owner for every checkpoint, action, or routine status update.
 - Keep GitHub artifacts linked from the thread: issue, branch, PR, commit,
   review comments, checks, and release notes.
 - Use receipts or an equivalent run ledger for state-changing or externally
@@ -96,7 +99,7 @@ Suggested thread bootstrap:
 objective:
 repo:
 loop profile:
-owner mention:
+owner mention: thread start only; later only tri-MISA agreement / approval / major escalation
 implementer:
 reviewers:
 sources to ingest:
@@ -326,7 +329,8 @@ Bootstrap:
 loop_id: fairy-tale-loop-pilot
 repo: bonginkan/fairy_tale
 project channel/thread: created or linked by CC MISA
-owner mention: Jun at thread start, escalation, and closure
+owner mention: Jun at thread start; later only tri-MISA agreement, approval,
+               final sign-off, or major escalation milestones
 cadence: manual until scheduler and channel binding are verified
 sources: this Discord thread, GitHub issues/PRs/checks, residency checks,
          skill/plugin install targets, and source updates

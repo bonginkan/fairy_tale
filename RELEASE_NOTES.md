@@ -19,6 +19,9 @@
 - Included the loop engineering operating model in standalone skills packages
   and updated SessionStart residency injection so loop engineering and job
   automation task families activate the Fairy Tale harness at runtime.
+- Tightened owner mention policy so routine loop status stays owner-visible
+  without mentions, while mentions are reserved for thread start,
+  tri-MISA agreement, approval, final sign-off, and major escalation milestones.
 
 ## 0.2.2
 
