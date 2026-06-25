@@ -155,6 +155,21 @@
 - OpenSSF Scorecard:
   https://github.com/ossf/scorecard
 
+## Redundancy, deprecation, and legacy-surface review sources
+
+Checked: 2026-06-25 (UTC).
+
+- Semantic Versioning 2.0.0:
+  https://semver.org/
+- Oracle Java enhanced deprecation:
+  https://docs.oracle.com/en/java/javase/11/core/enhanced-deprecation1.html
+- Software Engineering at Google, Large-Scale Changes:
+  https://abseil.io/resources/swe-book/html/ch22.html
+- Martin Fowler, Refactoring:
+  https://martinfowler.com/books/refactoring.html
+- Martin Fowler refactoring catalog, Remove Dead Code:
+  https://refactoring.com/catalog/removeDeadCode.html
+
 ## Loop engineering and job automation sources
 
 Checked: 2026-06-25 (UTC).

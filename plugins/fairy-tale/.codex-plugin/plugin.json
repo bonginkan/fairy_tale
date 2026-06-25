@@ -1,7 +1,7 @@
 {
   "name": "fairy-tale",
-  "version": "0.2.3+codex.20260625142820",
-  "description": "Fable/Mythos-informed workflow augmentation package for budgeted autonomous agent execution, loop engineering, loop job automation, closure/frame-completeness checks, negative-space and latent-need discovery, latent-structure discovery, benchmark runners, evaluated feedback loops, feedback pruning, legal closure gates, Fairy Fusion review, best-practice gates, spatial work, mechanism discovery, refactoring similarity, and external architecture adapters.",
+  "version": "0.2.4+codex.20260625153600",
+  "description": "Fable/Mythos-informed workflow augmentation package for budgeted autonomous agent execution, loop engineering, loop job automation, closure/frame-completeness checks, negative-space and latent-need discovery, excess/redundancy/legacy-surface review, latent-structure discovery, benchmark runners, evaluated feedback loops, feedback pruning, legal closure gates, Fairy Fusion review, best-practice gates, spatial work, mechanism discovery, refactoring similarity, and external architecture adapters.",
   "author": {
     "name": "bonginkan"
   },
@@ -10,7 +10,7 @@
   "interface": {
     "displayName": "Fairy Tale",
     "shortDescription": "Fable/Mythos-informed workflow augmentation.",
-    "longDescription": "Fairy Tale packages evidence-driven, validation-gated workflow enhancements based on public Fable/Mythos-class reports for coding, research, workflow improvement, loop engineering, loop job automation, closure/frame-completeness checks, negative-space and latent-need discovery, latent-structure discovery, benchmark runner preparation, evaluated feedback loops, feedback pruning, legal closure gates, Fairy Fusion review, best-practice reinforcement, narrative/UI expression, spatial work, ARC-style mechanism discovery, refactoring similarity, external architecture adapters, and defensive security tasks.",
+    "longDescription": "Fairy Tale packages evidence-driven, validation-gated workflow enhancements based on public Fable/Mythos-class reports for coding, research, workflow improvement, loop engineering, loop job automation, closure/frame-completeness checks, negative-space and latent-need discovery, excess/redundancy/legacy-surface review, latent-structure discovery, benchmark runner preparation, evaluated feedback loops, feedback pruning, legal closure gates, Fairy Fusion review, best-practice reinforcement, narrative/UI expression, spatial work, ARC-style mechanism discovery, refactoring similarity, external architecture adapters, and defensive security tasks.",
     "developerName": "bonginkan",
     "category": "Productivity",
     "capabilities": [],
