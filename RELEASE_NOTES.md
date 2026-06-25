@@ -1,5 +1,11 @@
 # Release Notes
 
+## 0.2.4
+
+- Added the Excess / Redundancy / Legacy-Surface Discovery harness as the
+  subtractive pair to Negative-Space Discovery, with false-positive deletion
+  guards, migration/deprecation tiers, and source-grounded review criteria.
+
 ## 0.2.3
 
 - Added the Loop Engineering and Job Automation Harness for persistent

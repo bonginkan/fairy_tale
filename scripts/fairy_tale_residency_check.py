@@ -26,6 +26,7 @@ SKILL_MARKERS = {
         "Benchmark Delta Harness",
         "Latent Structure Harness",
         "Loop Engineering and Job Automation Harness",
+        "Excess / Redundancy / Legacy-Surface",
         "fairy-tale-benchmark-feedback",
     ),
     "fairy-tale-benchmark-feedback": (
@@ -49,6 +50,7 @@ SKILL_REFERENCE_MARKERS = {
     ),
     Path("fairy-tale/references/process.md"): (
         "Accessible genius method record",
+        "Excess / redundancy / legacy-surface discovery record",
         "Loop engineering operating record",
         "External-channel ingestion record",
         "Job automation delegation record",
@@ -76,6 +78,7 @@ SKILL_REFERENCE_MARKERS = {
     Path("fairy-tale/references/sources.md"): (
         "Historical and Silicon Valley method sources",
         "Investing and financial engineering method sources",
+        "Redundancy, deprecation, and legacy-surface review sources",
         "Loop engineering and job automation sources",
     ),
 }
@@ -309,12 +312,13 @@ STANDING_INSTRUCTION = (
     "- Do not fan out broad parallel agents without an explicit cap.\n"
     "- Validate before claiming completion. Invoke the `fairy-tale` skill for "
     "substantive coding, research, loop engineering, job automation, benchmark, "
-    "legal, or defensive-security work."
+    "legal, excess/redundancy/legacy-surface review, or defensive-security work."
 )
 
 STANDING_INSTRUCTION_MARKERS = (
     "loop engineering",
     "job automation",
+    "excess/redundancy/legacy-surface",
 )
 
 

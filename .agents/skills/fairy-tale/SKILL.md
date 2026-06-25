@@ -1,6 +1,6 @@
 ---
 name: fairy-tale
-description: Provides Fable/Mythos-informed workflow augmentation for budgeted, evidence-driven, validation-gated agent execution across coding, research, documentation, legal/knowledge work, UI/3D, creative writing, emotionally aware conversation, ARC-style puzzle discovery, and defensive security tasks. Use when the user asks for Mythos/Fable-informed workflow uplift, autonomous long-task execution, loop engineering, loop job automation, workflow self-improvement, closure/frame-completeness checks, negative-space or latent-need discovery, codebase-wide migration, high-signal research synthesis, legal or closed-ended benchmark reasoning, narrative/UI expression, mechanism discovery, or defensive vulnerability-review process design.
+description: Provides Fable/Mythos-informed workflow augmentation for budgeted, evidence-driven, validation-gated agent execution across coding, research, documentation, legal/knowledge work, UI/3D, creative writing, emotionally aware conversation, ARC-style puzzle discovery, and defensive security tasks. Use when the user asks for Mythos/Fable-informed workflow uplift, autonomous long-task execution, loop engineering, loop job automation, workflow self-improvement, closure/frame-completeness checks, negative-space or latent-need discovery, excess/redundancy/legacy-surface review, codebase-wide migration, high-signal research synthesis, legal or closed-ended benchmark reasoning, narrative/UI expression, mechanism discovery, or defensive vulnerability-review process design.
 ---
 
 # Fairy Tale
@@ -63,7 +63,7 @@ python3 scripts/fairy_tale_residency_check.py
    - Scouts return compact findings with file paths, links, and uncertainties.
    - The main agent performs synthesis only after scout summaries exist.
 
-4. **Audit frame completeness and negative space**
+4. **Audit frame completeness, negative space, and excess**
    - Before synthesis, check whether the visible artifact set is complete:
      observed or stated `N` is not automatically verified exhaustive `N`.
      Run this check especially for partial text, numbered files, image sets,
@@ -76,6 +76,12 @@ python3 scripts/fairy_tale_residency_check.py
      negative-space pass before convergence: identify entailed companions,
      gated journey gaps, and speculative neighbors. Use
      `references/process.md` for the Closure Check and Negative-Space cards.
+   - For review, refactor, skill/policy updates, and legacy cleanup, run the
+     paired excess pass: identify redundant, stale, or legacy surfaces, but
+     classify them into remove-now, deprecate-with-migration,
+     consolidate-later, or keep-intentionally before proposing action. Do not
+     delete from this pass without migration, compatibility, and validation
+     evidence.
 
 5. **Build the evidence map**
    - Track claims as `claim -> source -> confidence -> action`.
@@ -529,12 +535,12 @@ python3 scripts/fairy_tale_residency_check.py
   and user-facing output that the prompt did not spell out but the system
   relies on.
 
-### Closure and Negative-Space Discovery Harness
+### Closure, Negative-Space, and Excess Discovery Harness
 
 - Use this during review, requirements discovery, product/UX work,
   underspecified requests, clipped or partial artifacts, numbered item sets,
-  multi-image/file tasks, and any task where the visible frame may be
-  incomplete or adversarially shaped.
+  multi-image/file tasks, refactor/deprecation review, and any task where the
+  visible frame may be incomplete, bloated, stale, or adversarially shaped.
 - First run a non-suppressible closure check: stated or observed `N` is not
   automatically verified exhaustive `N`. Do not skip the audit because a count
   was stated, numbered, implied, or apparently known.
@@ -553,12 +559,19 @@ python3 scripts/fairy_tale_residency_check.py
 - Recall guards protect Tier A and the closure check: if Tier A exists,
   silence is not valid. Silence becomes a true negative only if later evidence
   does not reveal a missed gap.
+- Run the paired Excess / Redundancy / Legacy-Surface pass when the review asks
+  whether something should be removed, deprecated, consolidated, or left alone.
+  It classifies findings as `remove-now`, `deprecate-with-migration`,
+  `consolidate-later`, or `keep-intentionally`. Treat false-positive deletion
+  as the worst failure mode: compatibility, migration, tests, docs, release
+  notes, and data/search evidence must precede any removal.
 - Track learning signals separately: `accepted_now`, `valuable_but_deferred`,
   `converted_to_issue`, `already_known`, `rejected_scope_creep`,
   `rejected_wrong_user`, `rejected_no_evidence`,
   `later_confirmed_false_negative`, and silence quality.
-- Use the Closure Check, Negative-Space Discovery, contradiction, and
-  problem-construction cards in `references/process.md`.
+- Use the Closure Check, Negative-Space Discovery, Excess / Redundancy /
+  Legacy-Surface Discovery, contradiction, and problem-construction cards in
+  `references/process.md`.
 
 ### Latent Structure Harness: hidden rules and implicit contracts
 
