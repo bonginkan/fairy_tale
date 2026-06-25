@@ -632,6 +632,8 @@ session owner:
 active loop queue:
 focused loop:
 loop priority:
+intake owner:
+intake dedupe key:
 project channel / run thread:
 repo / artifact scope:
 last owner touch:
@@ -643,6 +645,7 @@ thread isolation policy:
 allowed cross-loop refs:
 blocked cross-loop refs:
 pending handoffs:
+duplicate intake repair:
 dnd / quota / tool blockers:
 owner-visible status:
 next sweep at:
@@ -655,6 +658,14 @@ Operating rules:
 - Maintain an active-loop queue for every loop the session owner is holding.
   Each entry must name the loop, thread, scope, next expected action, last
   touch, blocker state, and owner-visible status.
+- Assign exactly one intake owner before creating issues, PRs, run threads, or
+  canonical tracking artifacts for a new loop task. Other agents may propose
+  findings, but they should comment on or hand off to the canonical intake
+  instead of creating parallel trackers.
+- Use an intake dedupe key before any issue or PR creation: root requester,
+  repo/artifact scope, task class, source ref, and current increment. If a
+  duplicate artifact is created, consolidate the useful evidence into the
+  canonical artifact, close the duplicate, and record the repair.
 - Before starting deep work, merging, assigning roles, or posting a major
   update in one loop, run a bounded stale-loop sweep. Flag loops whose
   expected next action has aged beyond the loop's threshold, even if the
