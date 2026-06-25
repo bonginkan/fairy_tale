@@ -230,6 +230,15 @@ Core grounding:
   https://www.sei.cmu.edu/library/spiral-development-experience-principles-and-refinements-spiral-development-workshop-february-9-2000/
 - Argyris/Schon double-loop learning overview:
   https://infed.org/dir/welcome/chris-argyris-theories-of-action-double-loop-learning-and-organizational-learning/
+- DNA double helix grounding for the two-strand / evidence-pairing metaphor:
+  Watson and Crick, Molecular Structure of Nucleic Acids, Nature 1953:
+  https://www.nature.com/articles/171737a0
+- NIH Genome.gov, Deoxyribonucleic Acid (DNA) Fact Sheet:
+  https://www.genome.gov/about-genomics/fact-sheets/Deoxyribonucleic-Acid-Fact-Sheet
+- NIH Genome.gov, 1958: Semiconservative Replication of DNA:
+  https://www.genome.gov/25520258/online-education-kit-1958-semiconservative-replication-of-dna
+- NCBI Bookshelf, Biochemistry, DNA Repair:
+  https://www.ncbi.nlm.nih.gov/books/NBK560563/
 - Deming Institute, PDSA Cycle:
   https://deming.org/explore/pdsa/
 - Marine Corps University Press, Colonel John Boyd's Thoughts on Disruption:

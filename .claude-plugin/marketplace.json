@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "fairy-tale",
-      "description": "Fable/Mythos-informed workflow augmentation for coding, loop engineering, spiral engineering, loop job automation, cross-channel loop command, silent-loop auto-resume, do-not-disturb operating windows, usage-aware multi-agent load balancing, usage reading reference, closure/frame-completeness checks, negative-space and latent-need discovery, excess/redundancy/legacy-surface review, latent-structure discovery, benchmark runners, research, legal feedback loops, feedback pruning, Fairy Fusion review, domain reasoning, creative/UI/spatial work, and defensive security.",
+      "description": "Fable/Mythos-informed workflow augmentation for coding, loop engineering, spiral engineering, double-helix learning loops, loop job automation, cross-channel loop command, silent-loop auto-resume, do-not-disturb operating windows, usage-aware multi-agent load balancing, usage reading reference, closure/frame-completeness checks, negative-space and latent-need discovery, excess/redundancy/legacy-surface review, latent-structure discovery, benchmark runners, research, legal feedback loops, feedback pruning, Fairy Fusion review, domain reasoning, creative/UI/spatial work, and defensive security.",
       "version": "0.2.10",
       "author": {
         "name": "bonginkan"

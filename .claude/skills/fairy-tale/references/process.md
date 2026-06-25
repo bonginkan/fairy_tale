@@ -641,12 +641,31 @@ burn-down. It is grounded in risk-driven spiral development and double-loop
 learning: first reduce the uncertainty that blocks ascent, then decide whether
 the loop's governing variables should change.
 
+Model the revolution as a double-helix learning loop. The execution strand
+carries the deliverable path: objectives, risk spike, implementation,
+validation, and landing. The learning/governance strand carries the process
+path: evidence, double-loop evaluation, governing-variable update, next
+altitude, and stop-or-descend planning. Evidence gates pair the strands; if one
+strand moves without the other, the revolution is either a flat loop or unsafe
+meta drift.
+Keep the strands anti-parallel in function: execution moves forward toward
+delivery, while learning/governance moves backward against the premise to
+refute, revise, and constrain the governing variables. Semi-conservative
+handoff means the validated governance strand becomes the template for the next
+effort while a new delivery strand is synthesized; unvalidated process mutation
+does not replicate.
+
 ```text
 loop / thread:
 revolution id:
 current altitude:
 target altitude:
 altitude axis:
+execution strand:
+learning / governance strand:
+strand-pairing evidence:
+mismatch / repair action:
+validated governance template:
 win condition:
 highest-risk uncertainty:
 risk owner:
@@ -669,6 +688,18 @@ Operating rules:
 - Do not relabel ordinary repeated issue work as spiral engineering. A spiral
   revolution must name what rises: autonomy, abstraction, scope, delegation,
   reusable capability, or residual-risk reduction.
+- Keep the execution strand and learning/governance strand paired. Artifact
+  delivery without double-loop evaluation remains a flat loop; a
+  governing-variable update without execution, risk, validation, review, and
+  receipt evidence is unsafe process drift and must be blocked.
+- Treat unpaired bases as mismatch signals. Unsupported claims, risk burn-down
+  without evidence, missing reviewer sign-off, missing receipt, or safety-floor
+  weakening must be proofread within the revolution or caught by a post-landing
+  mismatch-repair sweep. If repair cannot be completed, descend or replan.
+- Replicate only validated governance templates. When a spiral branches into a
+  new effort, preserve the proven loop profile and synthesize the new delivery
+  strand from it; do not copy speculative autonomy, scheduler, permission, or
+  self-modification changes.
 - Begin with objectives plus altitude. State the target altitude, win
   condition, budget radius, and stop/landing condition before starting the
   risk spike.
