@@ -597,6 +597,11 @@ join mechanism:
 audio/video/input capability:
 calendar integration:
 artifact outputs:
+reference implementation and files:
+service boundaries:
+env var classes, names only:
+secret delivery model:
+data retention / storage:
 human approval gate:
 environment variables:
 terms / policy constraints:
@@ -612,6 +617,11 @@ Hard limits:
   action-item extraction over active participation.
 - When referencing an external meeting-agent repo, first inspect its auth,
   consent, recording, environment-variable, and data-retention model.
+- If `agent-lime` is the reference implementation, record the orchestrator,
+  media-gateway, speech-agent, calendar, Vexa, STT/TTS, storage, webhook,
+  internal-token, and deployment secret/env split before claiming the setup
+  path is actionable. Record variable names and classes only; never copy secret
+  values.
 
 ## Problem-finding cards
 

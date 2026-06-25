@@ -10,6 +10,9 @@
 - Added a source-grounded operating model for Fairy Tale self-pilot, email
   drafting, Google Drive/Docs/Sheets edits, Calendar/Meet workflows, and
   approval/credential boundaries.
+- Added an `agent-lime`-derived non-secret meeting proxy setup checklist for
+  Vexa, Calendar, media gateway, speech agent, STT/TTS, Firestore, webhook,
+  internal-token, and Cloud Run env/secret boundaries.
 - Updated residency checks and plugin discovery metadata so loop engineering
   and job automation updates are detected across repo copies and packaged
   plugin artifacts.

@@ -241,20 +241,54 @@ missing, produce a setup checklist and stop before mutation.
 
 ## Agent-Lime Reference Route
 
-If `agent-lime` is available in the local workspace, inspect it before meeting
-proxy implementation for:
+Use `agent-lime` as the concrete reference implementation for the meeting
+proxy setup contract when the checkout is available. The reference should be
+read for service boundaries and environment-variable classes, never for secret
+values.
 
-- authentication model,
-- calendar/meeting platform integration,
-- consent and recording policy,
-- audio/video/input handling,
-- data-retention rules,
-- environment variables,
-- failure/leave behavior.
+Observed reference surfaces to inspect before implementation:
 
-If it is unavailable, do not speculate about its internals. Keep the Fairy Tale
-meeting-proxy route at the setup-contract level until the repo or equivalent
-source can be inspected.
+- `services/orchestrator/config.py`: orchestrator boundary for Vexa, Google
+  Calendar, OpenAI, Discord webhook, Firestore, STT, and internal-token
+  configuration.
+- `services/media-gateway/config.py`: media gateway boundary for Vexa and
+  transcriber integration.
+- `services/speech-agent/config.py`: speech/TTS boundary for Vexa and STT/TTS
+  operation.
+- `scripts/deploy-changed-services.sh`: Cloud Run deployment pattern, including
+  which settings are plain environment variables and which must be delivered as
+  secrets.
+
+Non-secret setup checklist derived from the reference:
+
+```text
+reference repo path:
+orchestrator service configured:
+media gateway service configured:
+speech agent service configured:
+Vexa endpoint variable names:
+Vexa secret variable names:
+Google Calendar credential variables:
+OpenAI model/API variables:
+Discord webhook variable names:
+Firestore/project variables:
+STT/TTS provider variables:
+internal service token variables:
+Cloud Run env vars:
+Cloud Run secrets:
+calendar watch / event source:
+meeting join/leave mechanism:
+recording/transcription consent gate:
+data retention / storage policy:
+failure and leave behavior:
+```
+
+Meeting proxy setup is not actionable until those classes are mapped. If
+`agent-lime` is unavailable on the current host, record that fact and keep the
+route at setup-contract level; do not invent equivalent internals. If another
+agent has inspected `agent-lime`, cite the review artifact or file paths used
+and treat the result as a checklist to verify when the checkout becomes
+available.
 
 ## Fairy Tale Self-Pilot
 
