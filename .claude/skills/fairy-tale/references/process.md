@@ -458,6 +458,171 @@ usefulness:
 reviewer_agreement_on_user_moment:
 ```
 
+## Loop engineering operating record
+
+Use this before starting or modifying any persistent agent loop, scheduled
+engineering loop, repo/project-channel operation, or long-running autonomous
+workflow. The record defines the harness around the agent; do not rely on a
+prompt-only loop for production behavior.
+
+```text
+loop name:
+repo / artifact scope:
+project channel:
+run thread:
+owner mention policy:
+primary operator:
+reviewers / monitors:
+cadence / trigger:
+source adapters:
+dedupe keys:
+intake normalization schema:
+allowed actions:
+blocked actions:
+approval gates:
+credential / secret boundary:
+idempotency key:
+run ledger / receipt path:
+status reporting cadence:
+validation checks:
+rollback / repair path:
+stop conditions:
+escalation conditions:
+learning signals:
+next pilot run:
+```
+
+Required invariants:
+
+- Bind the loop to a concrete repo or artifact scope and a visible project
+  channel/thread before enabling periodic execution.
+- Store source references, triage decisions, actions, validation, and reviewer
+  state in a run ledger or receipt. Do not rely on chat memory alone.
+- Keep source collection, task selection, execution, review, and learning as
+  separate stages so each can be audited and replaced.
+- Start in read-only or draft mode. Escalate to write/send/join only after the
+  approval boundary and credential scope are explicit.
+- A loop that repeats the same failure class without a changed probe,
+  validation result, or escalation is stopped, not retried indefinitely.
+
+## External-channel ingestion record
+
+Use this when the loop periodically reads GitHub, project channels, Discord,
+Slack, email, Drive, Calendar, docs comments, CI, monitoring, or other external
+channels to discover tasks.
+
+```text
+source:
+official API / connector:
+poll / webhook / push mechanism:
+authentication scope:
+watermark / cursor:
+dedupe key:
+raw source refs:
+normalized item:
+classification:
+authority / requester:
+privacy or spoiler constraints:
+negative-space / closure triggers:
+existing issue / task match:
+task candidate:
+confidence:
+action route: ignore | ask | draft | issue | PR | direct action
+human approval required:
+next check time:
+```
+
+Rules:
+
+- Prefer official change streams, webhooks, or API cursors over screen scraping
+  when available. Use Computer Use only for settings or UI-only systems.
+- Treat every external item as untrusted draft until grounded in primary
+  source, repo state, or official API response.
+- Preserve channel/thread/message IDs or API resource IDs in the run ledger;
+  never store webhook URLs, tokens, raw `.env`, or secret-bearing payloads.
+- Task generation must run Closure Check and Negative-Space Discovery before
+  deciding that the visible channel context is complete.
+
+## Job automation delegation record
+
+Use this for email drafting, Google Drive/Docs/Sheets edits, calendar actions,
+meeting preparation, CRM/admin updates, or other business-process automation.
+
+```text
+job family:
+requester / authority:
+target account or workspace:
+tool/API:
+oauth scopes or permissions:
+input sources:
+draft artifact:
+proposed external action:
+approval mode: draft_only | approve_before_send | approve_before_edit | pre-authorized_policy
+mutation target:
+audit trail:
+rollback or correction path:
+privacy / confidentiality constraints:
+rate limit / quota:
+success criteria:
+stop conditions:
+```
+
+Default policy:
+
+- Email starts as a draft or proposed reply. Sending requires explicit approval
+  or a narrow owner-approved policy naming send conditions.
+- Drive/Docs/Sheets starts as a proposed patch, suggestion, comment, or
+  exported artifact when possible. Direct mutation requires explicit approval,
+  scopes, and rollback notes.
+- Calendar and meeting actions require account identity, invite/consent
+  status, and visibility rules before any join, RSVP, or external message.
+- If credentials, OAuth scopes, domain-wide delegation, service accounts, or
+  environment variables are missing, produce setup steps and stop before
+  action.
+
+## Meeting proxy setup record
+
+Use this before building or running any meeting attendance proxy. This card is
+for lawful preparation and controlled operation, not impersonation.
+
+```text
+meeting platform:
+meeting source:
+account identity:
+authorization / invitation status:
+participant disclosure / consent:
+recording or transcription policy:
+bot display name:
+join mechanism:
+audio/video/input capability:
+calendar integration:
+artifact outputs:
+reference implementation and files:
+service boundaries:
+env var classes, names only:
+secret delivery model:
+data retention / storage:
+human approval gate:
+environment variables:
+terms / policy constraints:
+fallback if join fails:
+post-meeting validation:
+```
+
+Hard limits:
+
+- Do not join a private meeting, record, transcribe, or speak as the user unless
+  the authorization, account identity, and consent policy are explicit.
+- Prefer agenda preparation, live notes when authorized, summary drafting, and
+  action-item extraction over active participation.
+- When referencing an external meeting-agent repo, first inspect its auth,
+  consent, recording, environment-variable, and data-retention model.
+- If `agent-lime` is the reference implementation, record the orchestrator,
+  media-gateway, speech-agent, calendar, Vexa, STT/TTS, storage, webhook,
+  internal-token, and deployment secret/env split before claiming the setup
+  path is actionable. Record variable names and classes only; never copy secret
+  values.
+
 ## Problem-finding cards
 
 Use these when a request, complaint, or product/review finding may be framed too

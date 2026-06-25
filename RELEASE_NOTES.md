@@ -1,5 +1,25 @@
 # Release Notes
 
+## 0.2.3
+
+- Added the Loop Engineering and Job Automation Harness for persistent
+  repo/channel operation, periodic external-channel ingestion, and draft-first
+  business workflow automation.
+- Added process cards for loop operating records, external-channel ingestion,
+  job automation delegation, and meeting proxy setup.
+- Added a source-grounded operating model for Fairy Tale self-pilot, email
+  drafting, Google Drive/Docs/Sheets edits, Calendar/Meet workflows, and
+  approval/credential boundaries.
+- Added an `agent-lime`-derived non-secret meeting proxy setup checklist for
+  Vexa, Calendar, media gateway, speech agent, STT/TTS, Firestore, webhook,
+  internal-token, and Cloud Run env/secret boundaries.
+- Updated residency checks and plugin discovery metadata so loop engineering
+  and job automation updates are detected across repo copies and packaged
+  plugin artifacts.
+- Included the loop engineering operating model in standalone skills packages
+  and updated SessionStart residency injection so loop engineering and job
+  automation task families activate the Fairy Tale harness at runtime.
+
 ## 0.2.2
 
 - Added closure/frame-completeness checks before negative-space discovery so

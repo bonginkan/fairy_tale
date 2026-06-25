@@ -25,6 +25,7 @@ SKILL_MARKERS = {
         "Implementation Validation Gate",
         "Benchmark Delta Harness",
         "Latent Structure Harness",
+        "Loop Engineering and Job Automation Harness",
         "fairy-tale-benchmark-feedback",
     ),
     "fairy-tale-benchmark-feedback": (
@@ -48,10 +49,14 @@ SKILL_REFERENCE_MARKERS = {
     ),
     Path("fairy-tale/references/process.md"): (
         "Accessible genius method record",
+        "Loop engineering operating record",
+        "External-channel ingestion record",
+        "Job automation delegation record",
     ),
     Path("fairy-tale/references/sources.md"): (
         "Historical and Silicon Valley method sources",
         "Investing and financial engineering method sources",
+        "Loop engineering and job automation sources",
     ),
 }
 
@@ -247,6 +252,19 @@ AGENTIC_LOOP_FILES = {
     ),
 }
 
+LOOP_ENGINEERING_FILES = {
+    Path("docs/loop-engineering-automation.md"): (
+        "Loop Engineering and Job Automation",
+        "External-Channel Ingestion",
+        "Fairy Tale Self-Pilot",
+    ),
+    Path("plugins/fairy-tale/docs/loop-engineering-automation.md"): (
+        "Loop Engineering and Job Automation",
+        "External-Channel Ingestion",
+        "Fairy Tale Self-Pilot",
+    ),
+}
+
 STANDING_INSTRUCTION = (
     "[fairy-tale] Residency active: apply Fable/Mythos-informed workflow this "
     "session.\n"
@@ -257,7 +275,13 @@ STANDING_INSTRUCTION = (
     "- Keep security work defensive-only and within authorized targets.\n"
     "- Do not fan out broad parallel agents without an explicit cap.\n"
     "- Validate before claiming completion. Invoke the `fairy-tale` skill for "
-    "substantive coding, research, benchmark, legal, or defensive-security work."
+    "substantive coding, research, loop engineering, job automation, benchmark, "
+    "legal, or defensive-security work."
+)
+
+STANDING_INSTRUCTION_MARKERS = (
+    "loop engineering",
+    "job automation",
 )
 
 
@@ -419,6 +443,28 @@ def check_contains(checks: list[Check], path: Path, markers: Iterable[str], name
         add(checks, "OK", label, "required markers present")
 
 
+def check_standing_instruction(checks: list[Check]) -> None:
+    missing = [
+        marker
+        for marker in STANDING_INSTRUCTION_MARKERS
+        if marker not in STANDING_INSTRUCTION
+    ]
+    if missing:
+        add(
+            checks,
+            "FAIL",
+            "SessionStart standing instruction",
+            "missing markers: " + ", ".join(missing),
+        )
+    else:
+        add(
+            checks,
+            "OK",
+            "SessionStart standing instruction",
+            "loop engineering and job automation markers present",
+        )
+
+
 def check_installed_root(checks: list[Check], root: Path, strict: bool) -> None:
     status_if_missing = "FAIL" if strict else "WARN"
     for skill in REQUIRED_SKILLS:
@@ -481,6 +527,11 @@ def collect_checks(args: argparse.Namespace) -> list[Check]:
 
     for path, markers in AGENTIC_LOOP_FILES.items():
         check_contains(checks, path, markers, f"{path} agentic-loop artifact")
+
+    for path, markers in LOOP_ENGINEERING_FILES.items():
+        check_contains(checks, path, markers, f"{path} loop-engineering artifact")
+
+    check_standing_instruction(checks)
 
     if args.check_installed:
         home = Path.home()

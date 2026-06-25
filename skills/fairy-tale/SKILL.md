@@ -1,6 +1,6 @@
 ---
 name: fairy-tale
-description: Provides Fable/Mythos-informed workflow augmentation for budgeted, evidence-driven, validation-gated agent execution across coding, research, documentation, legal/knowledge work, UI/3D, creative writing, emotionally aware conversation, ARC-style puzzle discovery, and defensive security tasks. Use when the user asks for Mythos/Fable-informed workflow uplift, autonomous long-task execution, workflow self-improvement, closure/frame-completeness checks, negative-space or latent-need discovery, codebase-wide migration, high-signal research synthesis, legal or closed-ended benchmark reasoning, narrative/UI expression, mechanism discovery, or defensive vulnerability-review process design.
+description: Provides Fable/Mythos-informed workflow augmentation for budgeted, evidence-driven, validation-gated agent execution across coding, research, documentation, legal/knowledge work, UI/3D, creative writing, emotionally aware conversation, ARC-style puzzle discovery, and defensive security tasks. Use when the user asks for Mythos/Fable-informed workflow uplift, autonomous long-task execution, loop engineering, loop job automation, workflow self-improvement, closure/frame-completeness checks, negative-space or latent-need discovery, codebase-wide migration, high-signal research synthesis, legal or closed-ended benchmark reasoning, narrative/UI expression, mechanism discovery, or defensive vulnerability-review process design.
 ---
 
 # Fairy Tale
@@ -100,6 +100,10 @@ python3 scripts/fairy_tale_residency_check.py
      work: use the Domain Router before applying any agentic-coding harness.
    - For workflow improvement: inspect existing commands, skills, agents,
      memories, hooks, and sessions before adding new structure.
+   - For loop engineering or job automation: use the Loop Engineering and Job
+     Automation Harness. Bind the loop to a repo, project channel/thread,
+     source adapters, run ledger, permission gates, and stop conditions before
+     adding schedulers or autonomous action.
    - For agent, tool, eval, memory, hook, or OSS-release work: apply the
      best-practice gate from `references/best-practices.md`.
    - For defensive security: use only authorized code and produce verification
@@ -211,6 +215,36 @@ python3 scripts/fairy_tale_residency_check.py
 - For failure-driven skill updates, use the step-level route in
   `docs/feedback-governance.md` and `references/process.md`.
 - Keep skill bodies concise and move long checklists into references.
+
+### Loop Engineering and Job Automation Harness
+
+- Use this when the task asks agents to keep running across turns, periodically
+  ingest external channels, operate a repo/project channel, or automate
+  email, Drive, calendar, meeting, or other job workflows.
+- Treat the loop as an operating system, not an infinite retry: observe sources,
+  normalize intake, triage, plan, act, validate, report, learn, and stop or
+  escalate when a gate fails.
+- Before autonomous operation, create a loop profile with repo, project
+  channel/thread, owner mention policy, cadence, source adapters, allowed
+  actions, approval boundaries, run ledger, secrets policy, reviewer roles, and
+  rollback/stop conditions.
+- Keep the main agent loop simple and put reliability in the harness:
+  deterministic schedulers/watchers, dedupe keys, provenance, receipts,
+  validation checks, rate limits, idempotency, and explicit human checkpoints.
+- For engineering loops, one run should create or reuse a visible project
+  thread, mention the owner when the run starts or escalates, and keep
+  GitHub/repo artifacts linked to the thread.
+- For job automation, default to draft/propose mode. Email sending, Drive
+  mutation, calendar/meeting actions, external posts, and credential or
+  permission changes require an explicit approval gate unless the owner has
+  granted a narrower written policy.
+- For meeting attendance proxy work, first verify platform terms, consent,
+  account identity, recording/transcription policy, and environment variables.
+  Prefer agenda preparation, note capture, and action-item drafting; never
+  impersonate a human or join a private meeting without explicit authorization.
+- Use `docs/loop-engineering-automation.md` for the full operating model and
+  `references/process.md` for the loop, ingestion, job automation, and meeting
+  proxy cards.
 
 ### High-signal research synthesis
 
@@ -586,3 +620,5 @@ Read only when needed:
   HLE-style, and ExploitBench feedback loops.
 - `references/process.md` for checklists and templates.
 - `references/sources.md` for official and public-report sources.
+- `docs/loop-engineering-automation.md` for repo/channel loop operation,
+  external-channel ingestion, and job automation boundaries.
