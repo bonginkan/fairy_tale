@@ -60,6 +60,10 @@ project channel:
 run thread pattern:
 owner mention policy:
 do-not-disturb policy:
+session owner:
+active loop queue:
+thread isolation policy:
+stale-loop sweep cadence:
 implementer:
 reviewers:
 source adapters:
@@ -83,11 +87,29 @@ The profile must also record any human-set Do Not Disturb windows that affect
 agent assignment, non-urgent mentions, escalation timing, or mid-run handoff.
 DND records are operating constraints, not permission grants.
 
+When one session owner coordinates multiple loops, the profile must also bind
+that owner to a cross-channel command discipline: keep an active-loop queue,
+run stale-loop sweeps before deep focus on one thread, and preserve per-thread
+topic purity. Cross-loop context is allowed only as stable source refs,
+issue/PR links, run IDs, or explicit handoff records.
+
 ## Repo and Project Channel Operation
 
 - One loop profile maps one repo/artifact scope to one project channel.
 - One objective run maps to one visible thread. Use the thread for status,
   source refs, reviewer assignments, blockers, and completion evidence.
+- One session owner may coordinate multiple loop profiles, but the owner must
+  keep a bounded active-loop queue with last touch, next expected action,
+  blocker state, and owner-visible status for each loop.
+- Before focusing deeply on one loop, the session owner should run a stale-loop
+  sweep and flag loops whose next expected action has aged beyond the loop's
+  threshold. Do not let the loudest thread starve quieter loops.
+- Preserve thread-local session isolation. Do not inject another loop's
+  unresolved context into the current run thread. If another loop needs action,
+  update that loop's own thread, GitHub artifact, or run ledger.
+- Cross-loop references in a thread should be stable and compact: issue/PR
+  URLs, commit SHAs, run IDs, message IDs, or explicit handoff summaries. Avoid
+  free-form discussion of another thread's live scope inside the wrong thread.
 - Keep owner visibility and owner mentions separate. Post normal checkpoints
   in the project thread without mentioning the owner.
 - Mention the owner only when starting the run thread and at tri-MISA

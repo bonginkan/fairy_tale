@@ -568,6 +568,9 @@ project channel:
 run thread:
 owner mention policy:
 do-not-disturb policy:
+active loop queue:
+thread isolation policy:
+stale-loop sweep cadence:
 primary operator:
 reviewers / monitors:
 cadence / trigger:
@@ -601,6 +604,13 @@ Required invariants:
   starting new mutations, posting non-urgent mentions, or escalating routine
   blockers. DND constrains timing and routing; it never grants additional
   permission.
+- If one session owner coordinates multiple loop threads, keep a bounded
+  active-loop queue and run a stale-loop sweep before deep work on any one
+  loop. Do not let the loudest or most recent thread silently starve other
+  loops that are waiting for assignment, review, close, or escalation.
+- Keep thread-local loop state isolated. Cross-loop references must be stable
+  source refs, issue/PR links, or explicit handoff records; do not import
+  unresolved context from another channel into the current loop thread.
 - Store source references, triage decisions, actions, validation, and reviewer
   state in a run ledger or receipt. Do not rely on chat memory alone.
 - Keep source collection, task selection, execution, review, and learning as
@@ -609,6 +619,66 @@ Required invariants:
   approval boundary and credential scope are explicit.
 - A loop that repeats the same failure class without a changed probe,
   validation result, or escalation is stopped, not retried indefinitely.
+
+## Cross-channel loop command record
+
+Use this when a session owner or commander coordinates more than one loop,
+repo, channel, or run thread. The goal is continuity and thread-local clarity:
+no loop is silently neglected, and no thread receives unrelated unresolved
+state from another loop.
+
+```text
+session owner:
+active loop queue:
+focused loop:
+loop priority:
+project channel / run thread:
+repo / artifact scope:
+last owner touch:
+last agent action:
+next expected action:
+stale threshold:
+blocked / waiting reason:
+thread isolation policy:
+allowed cross-loop refs:
+blocked cross-loop refs:
+pending handoffs:
+dnd / quota / tool blockers:
+owner-visible status:
+next sweep at:
+repair action:
+ledger / receipt:
+```
+
+Operating rules:
+
+- Maintain an active-loop queue for every loop the session owner is holding.
+  Each entry must name the loop, thread, scope, next expected action, last
+  touch, blocker state, and owner-visible status.
+- Before starting deep work, merging, assigning roles, or posting a major
+  update in one loop, run a bounded stale-loop sweep. Flag loops whose
+  expected next action has aged beyond the loop's threshold, even if the
+  current thread is more active.
+- Decide attention by explicit owner priority, blocker severity, wait time,
+  approval gates, DND state, usage capacity, and tool availability. Do not use
+  channel loudness, recent mentions, or the commander's current context as the
+  scheduling policy.
+- Preserve per-thread topic purity. If another loop is relevant, reference it
+  only by stable source ref, issue/PR URL, run id, or a short sanitized handoff
+  summary. Do not ask agents in the current thread to reason over another
+  thread's unresolved state.
+- If another loop needs action, update that loop's own thread, issue, PR, or
+  run ledger. Do not steer unrelated agents by dropping cross-channel context
+  into the wrong session.
+- If the commander detects cross-thread contamination, stop at the next safe
+  boundary, restate the current loop's scope, move the foreign context to the
+  correct ledger or thread, and record the repair.
+- On resume or context compaction, rebuild the active-loop queue before
+  continuing a single loop. A loop is not considered cleanly resumed until
+  other held loops have a current status, next action, or explicit pause.
+- This card does not merge repo targets, weaken approval gates, bypass DND,
+  or authorize secrets, deploys, external sends, meeting joins, credential
+  changes, or permission changes.
 
 ## Do Not Disturb operating-window record
 

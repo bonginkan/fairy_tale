@@ -1,5 +1,14 @@
 # Release Notes
 
+## 0.2.8
+
+- Added Cross-Channel Loop Command guidance for session owners coordinating
+  multiple repo/channel loops, including active-loop queues, stale-loop
+  sweeps, thread-local topic isolation, and explicit handoff/repair rules.
+- Updated loop-engineering references, residency markers, SessionStart
+  injection, and plugin metadata so cross-channel loop command tasks keep the
+  Fairy Tale harness active.
+
 ## 0.2.7
 
 - Added Do Not Disturb operating-window guidance for loop agents, including
