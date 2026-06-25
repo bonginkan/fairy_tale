@@ -53,6 +53,26 @@ SKILL_REFERENCE_MARKERS = {
         "External-channel ingestion record",
         "Job automation delegation record",
     ),
+    Path("fairy-tale/references/feedback-governance.md"): (
+        "Feedback Governance",
+        "promotion",
+        "prune",
+    ),
+    Path("fairy-tale/references/openmythos-external-adapter.md"): (
+        "OpenMythos External Adapter",
+        "adapter",
+        "Upstream",
+    ),
+    Path("fairy-tale/references/similarity-refactoring-adapter.md"): (
+        "Similarity Refactoring Adapter",
+        "similarity",
+        "refactoring",
+    ),
+    Path("fairy-tale/references/loop-engineering-automation.md"): (
+        "Loop Engineering and Job Automation",
+        "External-Channel Ingestion",
+        "Fairy Tale Self-Pilot",
+    ),
     Path("fairy-tale/references/sources.md"): (
         "Historical and Silicon Valley method sources",
         "Investing and financial engineering method sources",
@@ -262,6 +282,19 @@ LOOP_ENGINEERING_FILES = {
         "Loop Engineering and Job Automation",
         "External-Channel Ingestion",
         "Fairy Tale Self-Pilot",
+    ),
+}
+
+INSTALL_SMOKE_FILES = {
+    Path("scripts/install_smoke_test.py"): (
+        "install.sh",
+        "inline_markdown_refs",
+        "loop-engineering-automation.md",
+    ),
+    Path("plugins/fairy-tale/scripts/install_smoke_test.py"): (
+        "install.sh",
+        "inline_markdown_refs",
+        "loop-engineering-automation.md",
     ),
 }
 
@@ -530,6 +563,9 @@ def collect_checks(args: argparse.Namespace) -> list[Check]:
 
     for path, markers in LOOP_ENGINEERING_FILES.items():
         check_contains(checks, path, markers, f"{path} loop-engineering artifact")
+
+    for path, markers in INSTALL_SMOKE_FILES.items():
+        check_contains(checks, path, markers, f"{path} install smoke artifact")
 
     check_standing_instruction(checks)
 
