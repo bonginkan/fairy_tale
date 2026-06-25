@@ -59,11 +59,36 @@ more autonomy, wider scope, higher abstraction, deeper delegation, stronger
 reusable capability, or lower residual risk. A spiral revolution is a bounded
 loop iteration with an explicit altitude target and a risk gate.
 
+Treat the spiral as a double-helix learning loop, not a single strand. One
+strand carries delivery: objectives, risk spike, implementation, validation,
+and landing. The other carries learning governance: evidence, double-loop
+evaluation, governing-variable update, next altitude, and stop-or-descend
+planning. The two strands must be paired by evidence gates such as source refs,
+validation, reviewer sign-off, receipts, budget, and the unchanged safety
+floor. Delivery without learning stays a flat loop; learning-governance
+mutation without delivery evidence is unsafe process drift.
+
+Keep the strands anti-parallel in role even when they are coordinated in time:
+delivery moves forward toward shipping, while learning/governance moves
+backward against the premise by trying to refute, revise, and narrow the
+governing variables. That opposing direction is the check. An unpaired claim,
+unsupported risk-burn-down, or governance mutation without matching evidence is
+a mismatch; proofread it inside the revolution, then run a post-landing
+mismatch-repair sweep before copying the pattern into the next loop.
+Semi-conservative replication is the transfer rule: preserve the validated
+governance template and synthesize only the new delivery strand for the next
+effort. Do not replicate unvalidated process mutations.
+
 ```text
 revolution id:
 current altitude:
 target altitude:
 altitude axis: autonomy | abstraction | scope | delegation | capability | risk burn-down
+execution strand:
+learning / governance strand:
+strand-pairing evidence:
+mismatch / repair action:
+validated governance template:
 win condition:
 highest-risk uncertainty:
 risk spike / prototype:
@@ -83,6 +108,15 @@ Spiral operating rules:
 
 - State the altitude axis before expanding. Do not call ordinary repeated
   issue/PR work a spiral unless the revolution has a declared altitude gain.
+- Keep the execution strand and learning/governance strand paired. Every
+  delivered artifact needs a learning evaluation; every governing-variable
+  update needs delivery evidence, risk evidence, review, and receipt.
+- Treat unpaired bases as errors: unsupported claims, unchecked risk
+  reductions, missing reviewer evidence, missing receipts, or safety-floor
+  weakening block altitude gain until repaired or descended/replanned.
+- Carry forward only the validated governance strand when a spiral seeds a new
+  effort. A new delivery strand may be synthesized from that template, but
+  process mutations do not replicate without validation.
 - Resolve the highest-risk uncertainty first with a bounded spike, prototype,
   source-grounding pass, or validation harness. If the risk is not reduced,
   descend or replan instead of increasing autonomy, scope, or delegation.

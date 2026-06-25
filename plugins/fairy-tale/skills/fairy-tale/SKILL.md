@@ -1,6 +1,6 @@
 ---
 name: fairy-tale
-description: Provides Fable/Mythos-informed workflow augmentation for budgeted, evidence-driven, validation-gated agent execution across coding, research, documentation, legal/knowledge work, UI/3D, creative writing, emotionally aware conversation, ARC-style puzzle discovery, and defensive security tasks. Use when the user asks for Mythos/Fable-informed workflow uplift, autonomous long-task execution, loop engineering, spiral engineering, loop job automation, cross-channel loop command, silent-loop auto-resume, do-not-disturb operating windows, usage-aware multi-agent load balancing, usage reading reference, workflow self-improvement, closure/frame-completeness checks, negative-space or latent-need discovery, excess/redundancy/legacy-surface review, codebase-wide migration, high-signal research synthesis, legal or closed-ended benchmark reasoning, narrative/UI expression, mechanism discovery, or defensive vulnerability-review process design.
+description: Provides Fable/Mythos-informed workflow augmentation for budgeted, evidence-driven, validation-gated agent execution across coding, research, documentation, legal/knowledge work, UI/3D, creative writing, emotionally aware conversation, ARC-style puzzle discovery, and defensive security tasks. Use when the user asks for Mythos/Fable-informed workflow uplift, autonomous long-task execution, loop engineering, spiral engineering, double-helix learning loops, loop job automation, cross-channel loop command, silent-loop auto-resume, do-not-disturb operating windows, usage-aware multi-agent load balancing, usage reading reference, workflow self-improvement, closure/frame-completeness checks, negative-space or latent-need discovery, excess/redundancy/legacy-surface review, codebase-wide migration, high-signal research synthesis, legal or closed-ended benchmark reasoning, narrative/UI expression, mechanism discovery, or defensive vulnerability-review process design.
 ---
 
 # Fairy Tale
@@ -239,10 +239,11 @@ python3 scripts/fairy_tale_residency_check.py
 - Treat the loop as an operating system, not an infinite retry: observe sources,
   normalize intake, triage, plan, act, validate, report, learn, and stop or
   escalate when a gate fails.
-- Treat spiral engineering as risk-driven elevation over the loop: each
-  revolution declares an altitude target, burns down the highest uncertainty
-  before expansion, then runs double-loop evaluation before raising autonomy,
-  scope, abstraction, or delegation.
+- Treat spiral engineering as risk-driven, double-helix elevation over the
+  loop: the execution strand declares an altitude target and burns down the
+  highest uncertainty before expansion, while the learning strand records
+  double-loop evaluation before raising autonomy, scope, abstraction, or
+  delegation.
 - Before autonomous operation, create a loop profile with repo, project
   channel/thread, owner mention policy, do-not-disturb policy, spiral altitude
   policy, cadence, source adapters, allowed actions, approval boundaries, run

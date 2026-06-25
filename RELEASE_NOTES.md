@@ -9,6 +9,13 @@
   identify the highest-risk uncertainty, burn it down before expansion,
   engineer only the risk-cleared target, then evaluate whether governing
   variables should change before the next revolution.
+- Added a double-helix structure for spiral revolutions: an execution strand
+  for delivery and risk burn-down, a learning/governance strand for
+  double-loop updates, and evidence-pairing gates that prevent flat loops or
+  unsupported self-modification.
+- Added anti-parallel proofread / mismatch-repair rules and semi-conservative
+  governance-template handoff so spiral improvements can compound without
+  copying unvalidated process mutations.
 - Added safety-floor rules so spiral engineering cannot weaken DND, approval,
   security, credential, deploy, external-mutation, meeting-join, owner-mention,
   branch/merge, or secret boundaries.
