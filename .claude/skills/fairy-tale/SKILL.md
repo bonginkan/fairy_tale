@@ -1,6 +1,6 @@
 ---
 name: fairy-tale
-description: Provides Fable/Mythos-informed workflow augmentation for budgeted, evidence-driven, validation-gated agent execution across coding, research, documentation, legal/knowledge work, UI/3D, creative writing, emotionally aware conversation, ARC-style puzzle discovery, and defensive security tasks. Use when the user asks for Mythos/Fable-informed workflow uplift, autonomous long-task execution, workflow self-improvement, codebase-wide migration, high-signal research synthesis, legal or closed-ended benchmark reasoning, narrative/UI expression, mechanism discovery, or defensive vulnerability-review process design.
+description: Provides Fable/Mythos-informed workflow augmentation for budgeted, evidence-driven, validation-gated agent execution across coding, research, documentation, legal/knowledge work, UI/3D, creative writing, emotionally aware conversation, ARC-style puzzle discovery, and defensive security tasks. Use when the user asks for Mythos/Fable-informed workflow uplift, autonomous long-task execution, workflow self-improvement, closure/frame-completeness checks, negative-space or latent-need discovery, codebase-wide migration, high-signal research synthesis, legal or closed-ended benchmark reasoning, narrative/UI expression, mechanism discovery, or defensive vulnerability-review process design.
 ---
 
 # Fairy Tale
