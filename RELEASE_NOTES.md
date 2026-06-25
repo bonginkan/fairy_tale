@@ -1,5 +1,12 @@
 # Release Notes
 
+## 0.2.5
+
+- Added the Usage-Aware Multi-Agent Load Balancer harness for assigning
+  session-owner, implementation-owner, reviewer, and specialist-tool roles
+  from coarse operational capacity, runtime install currency, blocking status,
+  and fixed capability gates.
+
 ## 0.2.4
 
 - Added the Excess / Redundancy / Legacy-Surface Discovery harness as the
