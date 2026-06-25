@@ -213,7 +213,7 @@ python3 scripts/fairy_tale_residency_check.py
 - Add the smallest reusable command/skill/memory structure that reduces future
   repeated prompting.
 - For failure-driven skill updates, use the step-level route in
-  `docs/feedback-governance.md` and `references/process.md`.
+  `references/feedback-governance.md` and `references/process.md`.
 - Keep skill bodies concise and move long checklists into references.
 
 ### Loop Engineering and Job Automation Harness
@@ -242,7 +242,7 @@ python3 scripts/fairy_tale_residency_check.py
   account identity, recording/transcription policy, and environment variables.
   Prefer agenda preparation, note capture, and action-item drafting; never
   impersonate a human or join a private meeting without explicit authorization.
-- Use `docs/loop-engineering-automation.md` for the full operating model and
+- Use `references/loop-engineering-automation.md` for the full operating model and
   `references/process.md` for the loop, ingestion, job automation, and meeting
   proxy cards.
 
@@ -594,7 +594,7 @@ python3 scripts/fairy_tale_residency_check.py
 - Treat architectural probes as hypotheses; never claim proprietary equivalence
   without independent evidence.
 - For OpenMythos specifically, use `adapters/openmythos.adapter.json` and
-  `docs/openmythos-external-adapter.md`.
+  `references/openmythos-external-adapter.md`.
 
 ### Refactoring Similarity Harness
 
@@ -606,7 +606,7 @@ python3 scripts/fairy_tale_residency_check.py
   and rollback notes.
 - Refactor one cluster at a time and validate after each slice.
 - For `kongyo2/similarity`, use `adapters/similarity-ts.adapter.json` and
-  `docs/similarity-refactoring-adapter.md`.
+  `references/similarity-refactoring-adapter.md`.
 
 ## Supporting references
 
@@ -620,5 +620,5 @@ Read only when needed:
   HLE-style, and ExploitBench feedback loops.
 - `references/process.md` for checklists and templates.
 - `references/sources.md` for official and public-report sources.
-- `docs/loop-engineering-automation.md` for repo/channel loop operation,
+- `references/loop-engineering-automation.md` for repo/channel loop operation,
   external-channel ingestion, and job automation boundaries.
