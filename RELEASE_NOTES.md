@@ -22,6 +22,9 @@
 - Tightened owner mention policy so routine loop status stays owner-visible
   without mentions, while mentions are reserved for thread start,
   tri-MISA agreement, approval, final sign-off, and major escalation milestones.
+- Added install-smoke coverage and skill-local companion references so
+  `install.sh --agent codex|claude|agents` installs every Markdown reference
+  needed by `skills/fairy-tale/SKILL.md`.
 
 ## 0.2.2
 
