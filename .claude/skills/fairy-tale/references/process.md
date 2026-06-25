@@ -496,6 +496,10 @@ Required invariants:
 
 - Bind the loop to a concrete repo or artifact scope and a visible project
   channel/thread before enabling periodic execution.
+- Keep owner visibility and owner mentions separate. Routine status and
+  checkpoint updates should be posted where the owner can see them without
+  mention. Mention the owner only at thread start and tri-MISA agreement,
+  approval, final sign-off, or major escalation milestones.
 - Store source references, triage decisions, actions, validation, and reviewer
   state in a run ledger or receipt. Do not rely on chat memory alone.
 - Keep source collection, task selection, execution, review, and learning as
