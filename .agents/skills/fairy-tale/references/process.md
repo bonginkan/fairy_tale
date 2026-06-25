@@ -313,6 +313,180 @@ validation artifact:
 remaining unknowns:
 ```
 
+## Closure check record
+
+Use this before answering from a visible set of artifacts, numbered items,
+images, files, clipped logs, quoted excerpts, partial text, or adversarially
+framed evidence. The goal is to prevent the model from treating the presented
+frame as a closed world without evidence.
+
+```text
+visible items:
+stated / observed count:
+count source: user | filename | numbering | metadata | environment | inference
+verified exhaustive count: yes | no | unknown
+incompleteness triggers:
+  - mid-sentence / mid-clause / semantic continuation
+  - missing sequence number / asymmetric pattern / N+1 pressure
+  - clipped log / excerpt / crop / omitted attachment
+  - adversarial or evaluative presenter incentive
+  - metadata outside visible text may carry signal
+inside-frame answer:
+frame-completeness hypothesis:
+materiality:
+Tier A continuation / omitted-context hypothesis:
+what would confirm:
+what would refute:
+surface form: finding | question | no surface
+do not assert missing item exists:
+```
+
+Rules:
+
+- `observed N` and `stated N` are not automatically `verified exhaustive N`.
+- Do not skip the check because a count was stated, numbered, implied, or known.
+  A confident-looking count can itself be part of the presented frame.
+- If text, sequence, or artifact boundaries are materially incomplete, generate
+  a Tier A continuation or omitted-context hypothesis. Surface the hypothesis
+  without claiming the missing artifact exists.
+- Run both the inside-frame answer and the frame-completeness check. Do not let
+  a precise answer inside the visible frame replace boundary inspection.
+
+## Negative-space discovery record
+
+Use this during review, product/UX work, requirements discovery,
+underspecified implementation, and "is this complete?" checkpoints. It is a
+bounded divergence pass before convergence, not permission to expand scope.
+
+```text
+task / artifact:
+trigger:
+do_not_run reason, if any:
+
+Tier A entailed companions:
+  - missing companion:
+    evidence:
+    why entailed, not taste:
+    risk if absent:
+    surface form:
+
+Tier B journey gaps:
+  - candidate:
+    affected user:
+    user moment:
+    near-term consequence:
+    evidence:
+    validation probe:
+    refutation / discard result:
+    surface form:
+
+Tier C speculative neighbors:
+  - private candidate:
+    why private:
+
+ranked surface output 1-3:
+silence decision:
+later learning signal:
+```
+
+Tier policy:
+
+- Tier A = recall-first completeness. Default loud and never silently dropped.
+  `do_not_run`, back-off, discard, scoped-task mode, and silence-as-valid do not
+  suppress Tier A. In incident or explicit-scope work, surface Tier A as a
+  critical companion finding instead of automatically expanding implementation.
+- Tier B = gated discovery. Surface only when there is a named user, moment,
+  evidence, and near-term consequence.
+- Tier C = private log. Mature-product or best-practice analogies are silent by
+  default unless the user asks for broader ideation.
+
+Noise guard:
+
+- Do not run the divergence pass for purely mechanical deterministic tasks,
+  explicit non-goals, fully enumerated requirements, or repeated rejected
+  suggestions, except that Tier A and closure-check findings remain protected.
+- Discard candidates that are vibes-only, intentional absence/MVP/non-goal,
+  duplicate, already covered by issue/TODO/roadmap, require unapproved scope
+  expansion, fail Dialectic Refutation Gate, or are Tier C.
+- Output ranked 1-3 findings/questions or silence. No "also you could" lists.
+  No recursive divergence.
+
+Recall guard:
+
+- If Tier A exists, silence is not valid.
+- Silence is a true negative only if later evidence does not reveal a missed
+  gap.
+- Tighten Tier B gates when `rejected_scope_creep`, `rejected_wrong_user`, or
+  `rejected_no_evidence` rises. Loosen Tier B gates or add a new Tier A pattern
+  when `later_confirmed_false_negative` or post-silence gaps rise.
+
+Common Tier A examples:
+
+```text
+SWE:
+  endpoint -> authz / input validation / error path
+  create or state change -> edit/delete/undo/recovery as applicable
+  schema change -> migration / backfill
+  new behavior -> focused tests/docs when local convention requires
+  user-facing state change -> observability / audit / error path
+
+UX/product:
+  destructive action -> confirmation + undo/recovery + irreversible-result copy
+  async operation -> progress/queued/failure state + retry/idempotency
+  empty surface -> empty state + next action
+  permissioned surface -> disabled/hidden/denied rule + reason copy
+  form/input -> validation + preserve input + actionable error
+  setting/toggle -> current state + apply feedback + side-effect disclosure
+  import/export -> format limits + partial failure + retry/re-download
+  collaboration/audit -> actor + timestamp + visibility/conflict behavior
+```
+
+Precision/taste learning signals:
+
+```text
+accepted_now:
+valuable_but_deferred:
+converted_to_issue:
+already_known:
+rejected_scope_creep:
+rejected_wrong_user:
+rejected_no_evidence:
+later_confirmed_false_negative:
+silence_true_negative:
+novelty:
+usefulness:
+reviewer_agreement_on_user_moment:
+```
+
+## Problem-finding cards
+
+Use these when a request, complaint, or product/review finding may be framed too
+narrowly. They support negative-space discovery, but do not replace evidence
+gates.
+
+```text
+contradiction card:
+  desired benefit:
+  worsening harm:
+  user/system contradiction:
+  ideal final result:
+  available resources already in product/repo:
+  separation move:
+  candidate affordance:
+  kill condition:
+
+problem-construction card:
+  raw request/complaint:
+  hidden job-to-be-done:
+  frame A:
+  frame B:
+  frame C:
+  supporting cues:
+  refuting cues:
+  selected frame:
+  smallest validation probe:
+```
+
 ## Feedback pruning record
 
 Use this before promoting, merging, or keeping accumulated feedback rules.

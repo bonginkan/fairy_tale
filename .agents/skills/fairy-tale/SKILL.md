@@ -63,14 +63,28 @@ python3 scripts/fairy_tale_residency_check.py
    - Scouts return compact findings with file paths, links, and uncertainties.
    - The main agent performs synthesis only after scout summaries exist.
 
-4. **Build the evidence map**
+4. **Audit frame completeness and negative space**
+   - Before synthesis, check whether the visible artifact set is complete:
+     observed or stated `N` is not automatically verified exhaustive `N`.
+     Run this check especially for partial text, numbered files, image sets,
+     clipped logs, excerpts, suspicious ordering, or adversarial framing.
+   - Treat materially plausible continuation, omitted-context, or hidden
+     companion-artifact hypotheses as recall-protected Tier A hypotheses. Do
+     not assert missing artifacts exist; surface the possibility when the
+     visible frame is likely incomplete.
+   - For code, product, UX, review, and requirements work, run a bounded
+     negative-space pass before convergence: identify entailed companions,
+     gated journey gaps, and speculative neighbors. Use
+     `references/process.md` for the Closure Check and Negative-Space cards.
+
+5. **Build the evidence map**
    - Track claims as `claim -> source -> confidence -> action`.
    - Separate official facts, third-party reports, user anecdotes, and local
      observations.
    - For known best-practice claims, record the source type, checked date, and
      reproduction status.
 
-5. **Choose a route**
+6. **Choose a route**
    - For code migration: map ownership, invariants, call sites, tests, and
      rollback plan before editing.
    - For research: prioritize primary sources, then high-signal field reports.
@@ -91,18 +105,18 @@ python3 scripts/fairy_tale_residency_check.py
    - For defensive security: use only authorized code and produce verification
      steps, not exploit instructions.
 
-6. **Execute in checkpoints**
+7. **Execute in checkpoints**
    - Work in small completed slices.
    - After each slice, update the evidence map and remaining risk.
    - Stop if the task exceeds the Glass Slipper Gate.
 
-7. **Validate**
+8. **Validate**
    - Run available checks or perform manual verification.
    - For UI/visual work, inspect actual outputs.
    - For security findings, require reproducible defensive evidence and
      responsible-disclosure framing.
 
-8. **Consolidate**
+9. **Consolidate**
    - Produce durable artifacts: summary, changed files, config update, skill
      improvement, checklist, or issue.
    - Record what should be reused next time.
@@ -480,6 +494,37 @@ python3 scripts/fairy_tale_residency_check.py
   APIs, legacy behavior, mocks/fixtures, edge cases, non-functional constraints,
   and user-facing output that the prompt did not spell out but the system
   relies on.
+
+### Closure and Negative-Space Discovery Harness
+
+- Use this during review, requirements discovery, product/UX work,
+  underspecified requests, clipped or partial artifacts, numbered item sets,
+  multi-image/file tasks, and any task where the visible frame may be
+  incomplete or adversarially shaped.
+- First run a non-suppressible closure check: stated or observed `N` is not
+  automatically verified exhaustive `N`. Do not skip the audit because a count
+  was stated, numbered, implied, or apparently known.
+- Then classify negative space into three tiers:
+  - Tier A, entailed companions: recall-first, default-loud, never silently
+    dropped. Missing continuation for materially incomplete artifacts, required
+    auth/validation/error paths, migrations, recovery, and core UX states live
+    here.
+  - Tier B, journey gaps: balanced precision/recall. Surface only when a
+    concrete user, moment, evidence, and near-term consequence pass the gate.
+  - Tier C, speculative neighbors: precision-first. Keep mature-product or
+    best-practice analogies private unless asked.
+- Noise guards apply to Tier B/C exploration only: bounded one-pass output,
+  ranked 1-3 findings/questions or silence, no "also you could" lists, and no
+  automatic implementation scope expansion.
+- Recall guards protect Tier A and the closure check: if Tier A exists,
+  silence is not valid. Silence becomes a true negative only if later evidence
+  does not reveal a missed gap.
+- Track learning signals separately: `accepted_now`, `valuable_but_deferred`,
+  `converted_to_issue`, `already_known`, `rejected_scope_creep`,
+  `rejected_wrong_user`, `rejected_no_evidence`,
+  `later_confirmed_false_negative`, and silence quality.
+- Use the Closure Check, Negative-Space Discovery, contradiction, and
+  problem-construction cards in `references/process.md`.
 
 ### Latent Structure Harness: hidden rules and implicit contracts
 
