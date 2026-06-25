@@ -25,6 +25,7 @@ SKILL_MARKERS = {
         "Implementation Validation Gate",
         "Benchmark Delta Harness",
         "Latent Structure Harness",
+        "Loop Engineering and Job Automation Harness",
         "fairy-tale-benchmark-feedback",
     ),
     "fairy-tale-benchmark-feedback": (
@@ -48,10 +49,14 @@ SKILL_REFERENCE_MARKERS = {
     ),
     Path("fairy-tale/references/process.md"): (
         "Accessible genius method record",
+        "Loop engineering operating record",
+        "External-channel ingestion record",
+        "Job automation delegation record",
     ),
     Path("fairy-tale/references/sources.md"): (
         "Historical and Silicon Valley method sources",
         "Investing and financial engineering method sources",
+        "Loop engineering and job automation sources",
     ),
 }
 
@@ -244,6 +249,19 @@ AGENTIC_LOOP_FILES = {
         "action-only solver",
         "workspace_path",
         "FORBIDDEN_RESPONSE_FIELDS",
+    ),
+}
+
+LOOP_ENGINEERING_FILES = {
+    Path("docs/loop-engineering-automation.md"): (
+        "Loop Engineering and Job Automation",
+        "External-Channel Ingestion",
+        "Fairy Tale Self-Pilot",
+    ),
+    Path("plugins/fairy-tale/docs/loop-engineering-automation.md"): (
+        "Loop Engineering and Job Automation",
+        "External-Channel Ingestion",
+        "Fairy Tale Self-Pilot",
     ),
 }
 
@@ -481,6 +499,9 @@ def collect_checks(args: argparse.Namespace) -> list[Check]:
 
     for path, markers in AGENTIC_LOOP_FILES.items():
         check_contains(checks, path, markers, f"{path} agentic-loop artifact")
+
+    for path, markers in LOOP_ENGINEERING_FILES.items():
+        check_contains(checks, path, markers, f"{path} loop-engineering artifact")
 
     if args.check_installed:
         home = Path.home()
