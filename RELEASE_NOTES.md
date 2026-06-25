@@ -16,6 +16,9 @@
 - Updated residency checks and plugin discovery metadata so loop engineering
   and job automation updates are detected across repo copies and packaged
   plugin artifacts.
+- Included the loop engineering operating model in standalone skills packages
+  and updated SessionStart residency injection so loop engineering and job
+  automation task families activate the Fairy Tale harness at runtime.
 
 ## 0.2.2
 
