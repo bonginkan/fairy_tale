@@ -1,6 +1,6 @@
 ---
 name: fairy-tale
-description: Provides Fable/Mythos-informed workflow augmentation for budgeted, evidence-driven, validation-gated agent execution across coding, research, documentation, legal/knowledge work, UI/3D, creative writing, emotionally aware conversation, ARC-style puzzle discovery, and defensive security tasks. Use when the user asks for Mythos/Fable-informed workflow uplift, autonomous long-task execution, loop engineering, loop job automation, cross-channel loop command, silent-loop auto-resume, do-not-disturb operating windows, usage-aware multi-agent load balancing, usage reading reference, workflow self-improvement, closure/frame-completeness checks, negative-space or latent-need discovery, excess/redundancy/legacy-surface review, codebase-wide migration, high-signal research synthesis, legal or closed-ended benchmark reasoning, narrative/UI expression, mechanism discovery, or defensive vulnerability-review process design.
+description: Provides Fable/Mythos-informed workflow augmentation for budgeted, evidence-driven, validation-gated agent execution across coding, research, documentation, legal/knowledge work, UI/3D, creative writing, emotionally aware conversation, ARC-style puzzle discovery, and defensive security tasks. Use when the user asks for Mythos/Fable-informed workflow uplift, autonomous long-task execution, loop engineering, spiral engineering, loop job automation, cross-channel loop command, silent-loop auto-resume, do-not-disturb operating windows, usage-aware multi-agent load balancing, usage reading reference, workflow self-improvement, closure/frame-completeness checks, negative-space or latent-need discovery, excess/redundancy/legacy-surface review, codebase-wide migration, high-signal research synthesis, legal or closed-ended benchmark reasoning, narrative/UI expression, mechanism discovery, or defensive vulnerability-review process design.
 ---
 
 # Fairy Tale
@@ -232,17 +232,22 @@ python3 scripts/fairy_tale_residency_check.py
 
 ### Loop Engineering and Job Automation Harness
 
-- Use this when the task asks agents to keep running across turns, periodically
-  ingest external channels, operate a repo/project channel, or automate
-  email, Drive, calendar, meeting, or other job workflows.
+- Use this when the task asks agents to keep running across turns,
+  deliberately raise autonomy or abstraction through spiral engineering,
+  periodically ingest external channels, operate a repo/project channel, or
+  automate email, Drive, calendar, meeting, or other job workflows.
 - Treat the loop as an operating system, not an infinite retry: observe sources,
   normalize intake, triage, plan, act, validate, report, learn, and stop or
   escalate when a gate fails.
+- Treat spiral engineering as risk-driven elevation over the loop: each
+  revolution declares an altitude target, burns down the highest uncertainty
+  before expansion, then runs double-loop evaluation before raising autonomy,
+  scope, abstraction, or delegation.
 - Before autonomous operation, create a loop profile with repo, project
-  channel/thread, owner mention policy, do-not-disturb policy, cadence, source
-  adapters, allowed actions, approval boundaries, run ledger, secrets policy,
-  reviewer roles, cross-channel session isolation, auto-resume watchdog policy,
-  and rollback/stop conditions.
+  channel/thread, owner mention policy, do-not-disturb policy, spiral altitude
+  policy, cadence, source adapters, allowed actions, approval boundaries, run
+  ledger, secrets policy, reviewer roles, cross-channel session isolation,
+  auto-resume watchdog policy, and rollback/stop conditions.
 - Keep the main agent loop simple and put reliability in the harness:
   deterministic schedulers/watchers, scheduled wake actuators for silent-loop
   watchdogs, dedupe keys, provenance, receipts, validation checks, rate
@@ -266,10 +271,10 @@ python3 scripts/fairy_tale_residency_check.py
   Prefer agenda preparation, note capture, and action-item drafting; never
   impersonate a human or join a private meeting without explicit authorization.
 - Use `references/loop-engineering-automation.md` for the full operating model and
-  `references/process.md` for the loop, cross-channel command, silent-loop
-  auto-resume, Do Not Disturb operating-window, ingestion, job automation,
-  meeting proxy, usage-aware role assignment, and usage reading reference
-  cards.
+  `references/process.md` for the loop, spiral engineering, cross-channel
+  command, silent-loop auto-resume, Do Not Disturb operating-window,
+  ingestion, job automation, meeting proxy, usage-aware role assignment, and
+  usage reading reference cards.
 
 ### High-signal research synthesis
 

@@ -217,6 +217,34 @@ Checked: 2026-06-25 (UTC).
 - Google Meet Media API overview:
   https://developers.google.com/workspace/meet/media-api/guides/overview
 
+## Spiral engineering and self-improvement sources
+
+Checked: 2026-06-25 (UTC).
+
+Core grounding:
+
+- Larry Wall, "Diligence, Patience, and Humility" in Open Sources: Voices
+  from the Open Source Revolution:
+  https://www.oreilly.com/openbook/opensources/book/larry.html
+- CMU/SEI, Spiral Development: Experience, Principles, and Refinements:
+  https://www.sei.cmu.edu/library/spiral-development-experience-principles-and-refinements-spiral-development-workshop-february-9-2000/
+- Argyris/Schon double-loop learning overview:
+  https://infed.org/dir/welcome/chris-argyris-theories-of-action-double-loop-learning-and-organizational-learning/
+- Deming Institute, PDSA Cycle:
+  https://deming.org/explore/pdsa/
+- Marine Corps University Press, Colonel John Boyd's Thoughts on Disruption:
+  https://www.usmcu.edu/Outreach/Marine-Corps-University-Press/MCU-Journal/JAMS-vol-14-no-1/Colonel-John-Boyds-Thoughts-on-Disruption/
+
+Recent supporting context, not the safety basis:
+
+- Sakana AI, The Darwin Godel Machine:
+  https://sakana.ai/dgm/
+- Liu and van der Schaar, Truly Self-Improving Agents Require Intrinsic
+  Metacognitive Learning:
+  https://arxiv.org/abs/2506.05109
+- AgentRxiv: Towards Collaborative Autonomous Research:
+  https://arxiv.org/html/2503.18102v1
+
 ## Generalization, ARC-AGI-3, and tacit-knowledge recovery
 
 - ARC-AGI-3 technical report:

@@ -26,6 +26,7 @@ SKILL_MARKERS = {
         "Benchmark Delta Harness",
         "Latent Structure Harness",
         "Loop Engineering and Job Automation Harness",
+        "spiral engineering",
         "cross-channel loop command",
         "silent-loop auto-resume",
         "Do Not Disturb",
@@ -56,6 +57,7 @@ SKILL_REFERENCE_MARKERS = {
         "Accessible genius method record",
         "Excess / redundancy / legacy-surface discovery record",
         "Loop engineering operating record",
+        "Spiral engineering revolution record",
         "Cross-channel loop command record",
         "Silent-loop auto-resume watchdog record",
         "Do Not Disturb operating-window record",
@@ -92,6 +94,7 @@ SKILL_REFERENCE_MARKERS = {
         "Investing and financial engineering method sources",
         "Redundancy, deprecation, and legacy-surface review sources",
         "Loop engineering and job automation sources",
+        "Spiral engineering and self-improvement sources",
     ),
 }
 
@@ -290,6 +293,7 @@ AGENTIC_LOOP_FILES = {
 LOOP_ENGINEERING_FILES = {
     Path("docs/loop-engineering-automation.md"): (
         "Loop Engineering and Job Automation",
+        "Spiral Engineering",
         "cross-channel command discipline",
         "silent-loop auto-resume",
         "External-Channel Ingestion",
@@ -297,6 +301,7 @@ LOOP_ENGINEERING_FILES = {
     ),
     Path("plugins/fairy-tale/docs/loop-engineering-automation.md"): (
         "Loop Engineering and Job Automation",
+        "Spiral Engineering",
         "cross-channel command discipline",
         "silent-loop auto-resume",
         "External-Channel Ingestion",
@@ -327,7 +332,7 @@ STANDING_INSTRUCTION = (
     "- Keep security work defensive-only and within authorized targets.\n"
     "- Do not fan out broad parallel agents without an explicit cap.\n"
     "- Validate before claiming completion. Invoke the `fairy-tale` skill for "
-    "substantive coding, research, loop engineering, job automation, "
+    "substantive coding, research, loop engineering, spiral engineering, job automation, "
     "cross-channel loop command, "
     "silent-loop auto-resume, "
     "do-not-disturb operating windows, "
@@ -337,6 +342,7 @@ STANDING_INSTRUCTION = (
 
 STANDING_INSTRUCTION_MARKERS = (
     "loop engineering",
+    "spiral engineering",
     "job automation",
     "cross-channel loop command",
     "silent-loop auto-resume",

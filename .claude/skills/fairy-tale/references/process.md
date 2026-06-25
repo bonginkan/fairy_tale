@@ -632,6 +632,83 @@ Required invariants:
 - A loop that repeats the same failure class without a changed probe,
   validation result, or escalation is stopped, not retried indefinitely.
 
+## Spiral engineering revolution record
+
+Use this when a loop should climb rather than merely repeat. A spiral
+revolution is a bounded loop iteration that raises an explicit altitude axis:
+autonomy, abstraction, scope, delegation, reusable capability, or risk
+burn-down. It is grounded in risk-driven spiral development and double-loop
+learning: first reduce the uncertainty that blocks ascent, then decide whether
+the loop's governing variables should change.
+
+```text
+loop / thread:
+revolution id:
+current altitude:
+target altitude:
+altitude axis:
+win condition:
+highest-risk uncertainty:
+risk owner:
+risk spike / prototype:
+risk burn-down evidence:
+engineer target:
+validation / review gate:
+budget radius:
+double-loop evaluation:
+governing-variable update:
+next altitude:
+terminal landing condition:
+descend / replan condition:
+safety floor:
+ledger / receipt:
+```
+
+Operating rules:
+
+- Do not relabel ordinary repeated issue work as spiral engineering. A spiral
+  revolution must name what rises: autonomy, abstraction, scope, delegation,
+  reusable capability, or residual-risk reduction.
+- Begin with objectives plus altitude. State the target altitude, win
+  condition, budget radius, and stop/landing condition before starting the
+  risk spike.
+- Identify the highest-risk uncertainty that prevents ascent. Burn it down
+  with a bounded spike, prototype, source-grounding pass, measurement, or
+  validation harness before expanding scope or delegation.
+- If the risk is not reduced, descend or replan. Do not increase autonomy,
+  scope, external mutation, or owner-silence merely because a loop has already
+  consumed budget.
+- Engineer only the target that remains after the risk spike. Keep the normal
+  one-implementer/two-reviewer, validation, CI, runtime-parity, and receipt
+  gates.
+- After landing, run double-loop evaluation. Decide whether the loop profile,
+  owner mention policy, source adapters, validation gate, role assignment,
+  autonomy level, or delegation boundary should change before the next
+  revolution.
+- Treat governing-variable updates as state-changing work. They require
+  evidence, review, receipt, and install/runtime companion when they alter
+  skills, plugin metadata, hooks, schedulers, or agent runtime surfaces.
+- Keep the safety floor invariant. Spiral engineering does not weaken DND,
+  approval, security, credential, deploy, external mutation, meeting-join,
+  owner-escalation, branch/merge, or secret boundaries.
+- Stop when the terminal landing condition is met. If the loop no longer
+  produces compounding learning, risk reduction, or greater safe delegation,
+  close the spiral instead of spinning.
+
+Learning signals:
+
+```text
+accepted_altitude_gain:
+accepted_risk_burn_down:
+accepted_governing_variable_update:
+accepted_terminal_landing:
+descended_due_to_unburned_risk:
+rejected_unsafe_autonomy_gain:
+rejected_scope_expansion_without_risk_evidence:
+later_confirmed_spiral_plateau:
+later_confirmed_bad_governing_update:
+```
+
 ## Cross-channel loop command record
 
 Use this when a session owner or commander coordinates more than one loop,
