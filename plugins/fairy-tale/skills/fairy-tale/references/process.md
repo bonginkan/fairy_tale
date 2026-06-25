@@ -567,6 +567,7 @@ repo / artifact scope:
 project channel:
 run thread:
 owner mention policy:
+do-not-disturb policy:
 primary operator:
 reviewers / monitors:
 cadence / trigger:
@@ -596,6 +597,10 @@ Required invariants:
   checkpoint updates should be posted where the owner can see them without
   mention. Mention the owner only at thread start and tri-MISA agreement,
   approval, final sign-off, or major escalation milestones.
+- Check human-set Do Not Disturb operating windows before assigning roles,
+  starting new mutations, posting non-urgent mentions, or escalating routine
+  blockers. DND constrains timing and routing; it never grants additional
+  permission.
 - Store source references, triage decisions, actions, validation, and reviewer
   state in a run ledger or receipt. Do not rely on chat memory alone.
 - Keep source collection, task selection, execution, review, and learning as
@@ -604,6 +609,73 @@ Required invariants:
   approval boundary and credential scope are explicit.
 - A loop that repeats the same failure class without a changed probe,
   validation result, or escalation is stopped, not retried indefinitely.
+
+## Do Not Disturb operating-window record
+
+Use this when a human sets, clears, or updates quiet hours for an agent inside a
+loop. DND is an operating constraint for assignment, notification, and safe
+handoff; it is not an authorization mechanism and does not weaken security,
+approval, or credential gates.
+
+```text
+agent:
+scope: global | repo | thread | increment
+timezone:
+window_start:
+window_end:
+recurrence:
+effective_from:
+effective_until / expires_at:
+set_by_human:
+source_ref:
+mode: no_new_work | review_only | emergency_only | silent_notifications
+allowed_during_dnd:
+blocked_during_dnd:
+override_authority:
+emergency_threshold:
+handoff_target:
+resume_at:
+resume_policy:
+queued_items:
+ledger / receipt:
+```
+
+Set / clear policy:
+
+- DND must be human-set, timezone-qualified, and auditable. A bot may relay a
+  DND record only when the source human and source ref are preserved.
+- Missing timezone, ambiguous recurrence, expired records, stale records, or
+  conflicting windows are provisional. Ask or stop at the next safe boundary
+  instead of silently overriding a fresh human instruction.
+- Clearing DND requires the same authority class as setting it, or an explicit
+  expiry / resume policy in the original DND record.
+- Public ledgers record only the DND state, window identifier, timezone,
+  source ref, and routing decision. Do not expose private calendars, personal
+  schedule details, raw provider usage, tokens, billing, or secrets.
+
+Operating rules:
+
+- At assignment boundaries, exclude agents inside an active DND window from
+  implementation-owner candidates unless the human record explicitly permits
+  the current mode or an emergency override applies.
+- If an assigned agent enters DND mid-run, stop at the next safe boundary,
+  record state, avoid starting new mutation, and rerun the load balancer for
+  handoff or pause/resume.
+- Suppress owner mentions, direct pings, and non-urgent escalations while the
+  target agent is in DND. Queue routine status or post owner-visible updates
+  without waking the DND agent when channel rules allow.
+- During DND, blockers are handled by self-contained investigation,
+  established patterns, or the smallest reversible safe action. If the blocker
+  needs the DND agent, pause or reassign instead of waking them by default.
+- Hard safety, security, consent, secret, permission, deploy, external-send,
+  and meeting-join limits remain intact. DND never authorizes email sends,
+  Drive edits, meeting joins, production deploys, credential changes, or
+  permission changes.
+- When every eligible agent is DND-blocked, quota-blocked, stale, or
+  tool-unavailable, the loop records the blocker and pauses rather than
+  retrying indefinitely.
+- When the window ends, resume by rechecking runtime install, usage capacity,
+  source freshness, reviewer state, and approval gates before continuing.
 
 ## Usage-aware multi-agent load balancer record
 
@@ -622,6 +694,7 @@ capacity inputs:
     primary_5h_remaining:
     secondary_weekly_remaining:
     blocking_status:
+    dnd_status:
     runtime_install_current:
     tool_availability:
     source: primary_check | self_report | session_owner_observation
@@ -652,6 +725,9 @@ Assignment policy:
   provider-internal quota details in the ledger or public thread.
 - Exclude stale-install, quota-blocked, tool-unavailable, or approval-blocked
   agents from implementation-owner candidates for that increment.
+- Exclude agents inside active Do Not Disturb windows from
+  implementation-owner candidates unless the DND record explicitly allows the
+  current work mode or a human emergency override applies.
 - Choose the implementation owner from eligible agents with the highest usable
   capacity for the current increment. If capacity is effectively tied, prefer
   the agent that did not implement the immediately previous increment.
@@ -662,9 +738,9 @@ Assignment policy:
   values may still be usable when the agent is not blocked and the task can
   proceed with a coarse capacity statement, but unknown must not outrank a
   fresh concrete reading from another eligible agent.
-- If the implementation owner becomes quota-blocked, stale, or tool-blocked
-  mid-run, stop at the next safe boundary, record the blocker, rerun the load
-  balancer, and reassign before further mutation.
+- If the implementation owner becomes quota-blocked, stale, tool-blocked, or
+  DND-blocked mid-run, stop at the next safe boundary, record the blocker,
+  rerun the load balancer, and reassign or pause before further mutation.
 - Record the decision, inputs, exclusions, reviewer set, and reassign trigger
   in the run ledger or receipt so later loops can audit why the role split
   changed.
