@@ -275,7 +275,13 @@ STANDING_INSTRUCTION = (
     "- Keep security work defensive-only and within authorized targets.\n"
     "- Do not fan out broad parallel agents without an explicit cap.\n"
     "- Validate before claiming completion. Invoke the `fairy-tale` skill for "
-    "substantive coding, research, benchmark, legal, or defensive-security work."
+    "substantive coding, research, loop engineering, job automation, benchmark, "
+    "legal, or defensive-security work."
+)
+
+STANDING_INSTRUCTION_MARKERS = (
+    "loop engineering",
+    "job automation",
 )
 
 
@@ -437,6 +443,28 @@ def check_contains(checks: list[Check], path: Path, markers: Iterable[str], name
         add(checks, "OK", label, "required markers present")
 
 
+def check_standing_instruction(checks: list[Check]) -> None:
+    missing = [
+        marker
+        for marker in STANDING_INSTRUCTION_MARKERS
+        if marker not in STANDING_INSTRUCTION
+    ]
+    if missing:
+        add(
+            checks,
+            "FAIL",
+            "SessionStart standing instruction",
+            "missing markers: " + ", ".join(missing),
+        )
+    else:
+        add(
+            checks,
+            "OK",
+            "SessionStart standing instruction",
+            "loop engineering and job automation markers present",
+        )
+
+
 def check_installed_root(checks: list[Check], root: Path, strict: bool) -> None:
     status_if_missing = "FAIL" if strict else "WARN"
     for skill in REQUIRED_SKILLS:
@@ -502,6 +530,8 @@ def collect_checks(args: argparse.Namespace) -> list[Check]:
 
     for path, markers in LOOP_ENGINEERING_FILES.items():
         check_contains(checks, path, markers, f"{path} loop-engineering artifact")
+
+    check_standing_instruction(checks)
 
     if args.check_installed:
         home = Path.home()

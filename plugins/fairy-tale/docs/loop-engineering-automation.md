@@ -259,6 +259,21 @@ Observed reference surfaces to inspect before implementation:
   which settings are plain environment variables and which must be delivered as
   secrets.
 
+Observed execution pattern:
+
+- `docker-compose.yml` wires Postgres, `vexaai/vexa-lite`, `stt-adapter`,
+  `media-gateway`, `speech-agent`, `orchestrator`, and dashboards.
+- `services/orchestrator/google_calendar_client.py` polls Calendar with a
+  lookahead window, extracts Google Meet URLs/native meeting IDs, and records
+  invitee emails.
+- `services/orchestrator/calendar_scheduler.py` wakes on Calendar poll
+  intervals, optionally filters by a trigger invitee email, skips already
+  active bots, and calls Vexa to join the meeting.
+- The default canonical path is transcription and notes first: Vexa provides
+  meeting join/transcript plumbing, the STT adapter or media gateway handles
+  audio-to-text, and `speech-agent` is a separately gated speaking/TTS boundary
+  rather than the default operating mode.
+
 Non-secret setup checklist derived from the reference:
 
 ```text
@@ -269,6 +284,8 @@ speech agent service configured:
 Vexa endpoint variable names:
 Vexa secret variable names:
 Google Calendar credential variables:
+Calendar poll/lookahead variables:
+trigger invitee filter variable:
 OpenAI model/API variables:
 Discord webhook variable names:
 Firestore/project variables:
@@ -278,6 +295,8 @@ Cloud Run env vars:
 Cloud Run secrets:
 calendar watch / event source:
 meeting join/leave mechanism:
+transcription pipeline:
+speaking/TTS gate:
 recording/transcription consent gate:
 data retention / storage policy:
 failure and leave behavior:
