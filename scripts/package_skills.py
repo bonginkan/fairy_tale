@@ -25,6 +25,9 @@ EXTRA_FILES = [
     ROOT / "README_ja.md",
     ROOT / "install.sh",
 ]
+PACKAGE_REFERENCE_FILES = [
+    ROOT / "docs" / "loop-engineering-automation.md",
+]
 
 
 def version() -> str:
@@ -55,6 +58,21 @@ def validate_residency() -> None:
         raise SystemExit(f"residency check failed before packaging: {detail}")
 
 
+def validate_package(output: Path, root_name: Path) -> None:
+    expected = {
+        str(root_name / path.relative_to(ROOT))
+        for path in PACKAGE_REFERENCE_FILES
+        if path.exists()
+    }
+    with tarfile.open(output, "r:gz") as tar:
+        names = set(tar.getnames())
+    missing = sorted(expected - names)
+    if missing:
+        raise SystemExit(
+            "package missing required reference files: " + ", ".join(missing)
+        )
+
+
 def build(output: Path) -> Path:
     validate_residency()
     package_version = version()
@@ -68,10 +86,14 @@ def build(output: Path) -> Path:
                 for source in sorted(EXTRA_FILES):
                     if source.exists():
                         add_file(tar, source, root_name / source.name)
+                for source in sorted(PACKAGE_REFERENCE_FILES):
+                    if source.exists():
+                        add_file(tar, source, root_name / source.relative_to(ROOT))
                 for skill_dir in sorted(SKILL_DIRS):
                     for path in sorted(skill_dir.rglob("*")):
                         if path.is_file():
                             add_file(tar, path, root_name / path.relative_to(ROOT))
+    validate_package(output, root_name)
     return output
 
 
