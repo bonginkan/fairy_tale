@@ -22,6 +22,9 @@
 - Tightened owner mention policy so routine loop status stays owner-visible
   without mentions, while mentions are reserved for thread start,
   tri-MISA agreement, approval, final sign-off, and major escalation milestones.
+- Included SKILL.md companion docs inside the installed `fairy-tale` skill tree
+  and added an install-script smoke check so skill-only installs do not leave
+  dangling `docs/` references.
 
 ## 0.2.2
 

@@ -232,8 +232,9 @@ python3 scripts/fairy_tale_residency_check.py
   deterministic schedulers/watchers, dedupe keys, provenance, receipts,
   validation checks, rate limits, idempotency, and explicit human checkpoints.
 - For engineering loops, one run should create or reuse a visible project
-  thread, mention the owner when the run starts or escalates, and keep
-  GitHub/repo artifacts linked to the thread.
+  thread, mention the owner only at thread start and tri-MISA agreement,
+  approval, final sign-off, or major escalation milestones, and keep GitHub/repo
+  artifacts linked to the thread.
 - For job automation, default to draft/propose mode. Email sending, Drive
   mutation, calendar/meeting actions, external posts, and credential or
   permission changes require an explicit approval gate unless the owner has

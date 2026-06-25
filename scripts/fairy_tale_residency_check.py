@@ -5,7 +5,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
+import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
@@ -265,6 +268,22 @@ LOOP_ENGINEERING_FILES = {
     ),
 }
 
+INSTALL_REFERENCE_PATHS = (
+    Path("fairy-tale/docs/agentic-loop-design.md"),
+    Path("fairy-tale/docs/feedback-governance.md"),
+    Path("fairy-tale/docs/loop-engineering-automation.md"),
+    Path("fairy-tale/docs/openmythos-external-adapter.md"),
+    Path("fairy-tale/docs/similarity-refactoring-adapter.md"),
+    Path("fairy-tale/references/best-practices.md"),
+    Path("fairy-tale/references/capabilities.md"),
+    Path("fairy-tale/references/genius-methods.md"),
+    Path("fairy-tale/references/legal-feedback.md"),
+    Path("fairy-tale/references/process.md"),
+    Path("fairy-tale/references/sources.md"),
+    Path("fairy-tale-benchmark-feedback/SKILL.md"),
+    Path("fairy-tale-legal-feedback/SKILL.md"),
+)
+
 STANDING_INSTRUCTION = (
     "[fairy-tale] Residency active: apply Fable/Mythos-informed workflow this "
     "session.\n"
@@ -465,6 +484,65 @@ def check_standing_instruction(checks: list[Check]) -> None:
         )
 
 
+def check_install_script_smoke(checks: list[Check]) -> None:
+    install_script = ROOT / "install.sh"
+    if not install_script.exists():
+        add(checks, "FAIL", "install.sh skill reference smoke", "missing install.sh")
+        return
+
+    temp_dir = Path(tempfile.mkdtemp(prefix="fairy-install-smoke-"))
+    target = temp_dir / "skills"
+    try:
+        target.mkdir(parents=True, exist_ok=True)
+        result = subprocess.run(
+            [
+                str(install_script),
+                "--source",
+                str(ROOT),
+                "--target",
+                str(target),
+                "--force",
+                "--allow-outside-home",
+            ],
+            cwd=ROOT,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        if result.returncode != 0:
+            detail = (result.stderr or result.stdout).strip().splitlines()
+            add(
+                checks,
+                "FAIL",
+                "install.sh skill reference smoke",
+                "install command failed: " + (detail[-1] if detail else f"exit {result.returncode}"),
+            )
+            return
+
+        missing = [
+            str(path)
+            for path in INSTALL_REFERENCE_PATHS
+            if not (target / path).is_file()
+        ]
+        if missing:
+            add(
+                checks,
+                "FAIL",
+                "install.sh skill reference smoke",
+                "missing installed references: " + ", ".join(missing[:8]),
+            )
+        else:
+            add(
+                checks,
+                "OK",
+                "install.sh skill reference smoke",
+                "installed SKILL.md relative docs/references are resolvable",
+            )
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+
 def check_installed_root(checks: list[Check], root: Path, strict: bool) -> None:
     status_if_missing = "FAIL" if strict else "WARN"
     for skill in REQUIRED_SKILLS:
@@ -532,6 +610,7 @@ def collect_checks(args: argparse.Namespace) -> list[Check]:
         check_contains(checks, path, markers, f"{path} loop-engineering artifact")
 
     check_standing_instruction(checks)
+    check_install_script_smoke(checks)
 
     if args.check_installed:
         home = Path.home()

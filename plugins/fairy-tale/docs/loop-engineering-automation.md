@@ -7,7 +7,7 @@ for persistent repo/channel/job operation.
 
 ## Source-Derived Principles
 
-Checked sources are listed in `skills/fairy-tale/references/sources.md`.
+Checked sources are listed in the Fairy Tale `references/sources.md` file.
 The implementation primitives are:
 
 - Keep the main loop simple and composable. Anthropic's agent guidance favors

@@ -26,7 +26,11 @@ EXTRA_FILES = [
     ROOT / "install.sh",
 ]
 PACKAGE_REFERENCE_FILES = [
+    ROOT / "docs" / "agentic-loop-design.md",
+    ROOT / "docs" / "feedback-governance.md",
     ROOT / "docs" / "loop-engineering-automation.md",
+    ROOT / "docs" / "openmythos-external-adapter.md",
+    ROOT / "docs" / "similarity-refactoring-adapter.md",
 ]
 
 
