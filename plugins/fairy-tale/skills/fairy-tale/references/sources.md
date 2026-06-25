@@ -155,6 +155,53 @@
 - OpenSSF Scorecard:
   https://github.com/ossf/scorecard
 
+## Loop engineering and job automation sources
+
+Checked: 2026-06-25 (UTC).
+
+- Anthropic, Building effective agents:
+  https://www.anthropic.com/engineering/building-effective-agents
+- Anthropic, How we built our multi-agent research system:
+  https://www.anthropic.com/engineering/multi-agent-research-system
+- Anthropic, Demystifying evals for AI agents:
+  https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents
+- Anthropic Claude Code hooks:
+  https://code.claude.com/docs/en/hooks
+- OpenAI Agents guide:
+  https://developers.openai.com/api/docs/guides/agents
+- OpenAI, A practical guide to building agents:
+  https://cdn.openai.com/business-guides-and-resources/a-practical-guide-to-building-agents.pdf
+- OpenAI Agents SDK:
+  https://openai.github.io/openai-agents-python/
+- Google Agent Development Kit, Loop agents:
+  https://adk.dev/agents/workflow-agents/loop-agents/
+- Google Agent Development Kit, A2A:
+  https://adk.dev/a2a/
+- Google Cloud Gemini Enterprise Agent Platform, scale your agents:
+  https://docs.cloud.google.com/gemini-enterprise-agent-platform/scale
+- Google SRE, The Evolution of Automation at Google:
+  https://sre.google/sre-book/automation-at-google/
+- Google SRE, Eliminating Toil:
+  https://sre.google/sre-book/eliminating-toil/
+- Gmail API, drafts:
+  https://developers.google.com/workspace/gmail/api/guides/drafts
+- Gmail API, push notifications:
+  https://developers.google.com/workspace/gmail/api/guides/push
+- Google Drive API, retrieve changes:
+  https://developers.google.com/workspace/drive/api/guides/manage-changes
+- Google Drive API, resource-change notifications:
+  https://developers.google.com/workspace/drive/api/guides/push
+- Google Docs API overview:
+  https://developers.google.com/workspace/docs/api/how-tos/overview
+- Google Sheets API, batch updates:
+  https://developers.google.com/workspace/sheets/api/guides/batchupdate
+- Google Calendar API, push notifications:
+  https://developers.google.com/workspace/calendar/api/guides/push
+- Google Meet REST API overview:
+  https://developers.google.com/workspace/meet/api/guides/overview
+- Google Meet Media API overview:
+  https://developers.google.com/workspace/meet/media-api/guides/overview
+
 ## Generalization, ARC-AGI-3, and tacit-knowledge recovery
 
 - ARC-AGI-3 technical report:
