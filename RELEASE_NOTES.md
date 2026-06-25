@@ -1,5 +1,14 @@
 # Release Notes
 
+## 0.2.6
+
+- Added a Usage Reading Reference to the Usage-Aware Multi-Agent Load Balancer
+  so Codex and Claude Code capacity checks use concrete local rate-limit
+  surfaces when available while keeping raw tokens, billing, secrets, and
+  provider internals out of public ledgers.
+- Updated residency markers and SessionStart injection so usage reading tasks
+  keep the Fairy Tale harness active.
+
 ## 0.2.5
 
 - Added the Usage-Aware Multi-Agent Load Balancer harness for assigning
