@@ -1,6 +1,6 @@
 ---
 name: fairy-tale
-description: Provides Fable/Mythos-informed workflow augmentation for budgeted, evidence-driven, validation-gated agent execution across coding, research, documentation, legal/knowledge work, UI/3D, creative writing, emotionally aware conversation, ARC-style puzzle discovery, and defensive security tasks. Use when the user asks for Mythos/Fable-informed workflow uplift, autonomous long-task execution, loop engineering, loop job automation, usage-aware multi-agent load balancing, usage reading reference, workflow self-improvement, closure/frame-completeness checks, negative-space or latent-need discovery, excess/redundancy/legacy-surface review, codebase-wide migration, high-signal research synthesis, legal or closed-ended benchmark reasoning, narrative/UI expression, mechanism discovery, or defensive vulnerability-review process design.
+description: Provides Fable/Mythos-informed workflow augmentation for budgeted, evidence-driven, validation-gated agent execution across coding, research, documentation, legal/knowledge work, UI/3D, creative writing, emotionally aware conversation, ARC-style puzzle discovery, and defensive security tasks. Use when the user asks for Mythos/Fable-informed workflow uplift, autonomous long-task execution, loop engineering, loop job automation, do-not-disturb operating windows, usage-aware multi-agent load balancing, usage reading reference, workflow self-improvement, closure/frame-completeness checks, negative-space or latent-need discovery, excess/redundancy/legacy-surface review, codebase-wide migration, high-signal research synthesis, legal or closed-ended benchmark reasoning, narrative/UI expression, mechanism discovery, or defensive vulnerability-review process design.
 ---
 
 # Fairy Tale
@@ -108,14 +108,16 @@ python3 scripts/fairy_tale_residency_check.py
      memories, hooks, and sessions before adding new structure.
    - For loop engineering or job automation: use the Loop Engineering and Job
      Automation Harness. Bind the loop to a repo, project channel/thread,
-     source adapters, run ledger, permission gates, and stop conditions before
-     adding schedulers or autonomous action.
+     source adapters, run ledger, permission gates, Do Not Disturb operating
+     windows, and stop conditions before adding schedulers or autonomous
+     action.
    - For multi-agent role assignment inside a loop: use the
      `Usage-Aware Multi-Agent Load Balancer` card and its Usage Reading
-     Reference. Assign fixed specialist capabilities first, verify coarse
-     capacity from the local source when available, then choose the
-     implementation owner from agents with usable coarse capacity and current
-     runtime install; remaining eligible agents review.
+     Reference. Assign fixed specialist capabilities first, check active
+     per-agent Do Not Disturb windows, verify coarse capacity from the local
+     source when available, then choose the implementation owner from agents
+     with usable coarse capacity, current runtime install, and no active DND
+     exclusion; remaining eligible agents review.
    - For agent, tool, eval, memory, hook, or OSS-release work: apply the
      best-practice gate from `references/best-practices.md`.
    - For defensive security: use only authorized code and produce verification
@@ -237,9 +239,9 @@ python3 scripts/fairy_tale_residency_check.py
   normalize intake, triage, plan, act, validate, report, learn, and stop or
   escalate when a gate fails.
 - Before autonomous operation, create a loop profile with repo, project
-  channel/thread, owner mention policy, cadence, source adapters, allowed
-  actions, approval boundaries, run ledger, secrets policy, reviewer roles, and
-  rollback/stop conditions.
+  channel/thread, owner mention policy, do-not-disturb policy, cadence, source
+  adapters, allowed actions, approval boundaries, run ledger, secrets policy,
+  reviewer roles, and rollback/stop conditions.
 - Keep the main agent loop simple and put reliability in the harness:
   deterministic schedulers/watchers, dedupe keys, provenance, receipts,
   validation checks, rate limits, idempotency, and explicit human checkpoints.
@@ -255,8 +257,9 @@ python3 scripts/fairy_tale_residency_check.py
   Prefer agenda preparation, note capture, and action-item drafting; never
   impersonate a human or join a private meeting without explicit authorization.
 - Use `references/loop-engineering-automation.md` for the full operating model and
-  `references/process.md` for the loop, ingestion, job automation, meeting
-  proxy, usage-aware role assignment, and usage reading reference cards.
+  `references/process.md` for the loop, Do Not Disturb operating-window,
+  ingestion, job automation, meeting proxy, usage-aware role assignment, and
+  usage reading reference cards.
 
 ### High-signal research synthesis
 

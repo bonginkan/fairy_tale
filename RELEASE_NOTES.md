@@ -1,5 +1,15 @@
 # Release Notes
 
+## 0.2.7
+
+- Added Do Not Disturb operating-window guidance for loop agents, including
+  human-set per-agent windows, timezone-qualified records, assignment
+  exclusion, non-urgent mention suppression, safe-boundary handoff, and
+  auto-resume checks.
+- Updated loop-engineering, load-balancer, residency, SessionStart injection,
+  and plugin metadata so DND management tasks keep the Fairy Tale harness
+  active.
+
 ## 0.2.6
 
 - Added a Usage Reading Reference to the Usage-Aware Multi-Agent Load Balancer
