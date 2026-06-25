@@ -64,6 +64,7 @@ session owner:
 active loop queue:
 thread isolation policy:
 stale-loop sweep cadence:
+silent-loop auto-resume policy:
 implementer:
 reviewers:
 source adapters:
@@ -94,6 +95,13 @@ stale-loop sweeps before deep focus on one thread, and preserve per-thread
 topic purity. Cross-loop context is allowed only as stable source refs,
 issue/PR links, run IDs, or explicit handoff records.
 
+The profile should also define a silent-loop auto-resume watchdog for active
+loops that can stall after a missed mention or omitted handoff. Record
+`last_loop_activity`, `next_expected_touch`, `auto_resume_after`, retry limit,
+and the bounded auto-resume action. Auto-resume is suppressed when the loop is
+DND-paused, intentionally parked, approval-blocked, security-blocked,
+credential-blocked, deploy-blocked, externally blocked, or closed.
+
 ## Repo and Project Channel Operation
 
 - One loop profile maps one repo/artifact scope to one project channel.
@@ -110,6 +118,13 @@ issue/PR links, run IDs, or explicit handoff records.
 - Before focusing deeply on one loop, the session owner should run a stale-loop
   sweep and flag loops whose next expected action has aged beyond the loop's
   threshold. Do not let the loudest thread starve quieter loops.
+- If an active loop passes its `auto_resume_at` with no handoff, reviewer
+  reply, or commander touch, post a bounded checkpoint in that loop's own
+  thread: local scope, stale expected action, expected actor, last artifact or
+  source ref, next safe action, and the next checkpoint. Re-mention only the
+  needed local agent(s) using bot-to-bot addressing. If all eligible agents
+  remain silent after the retry limit, record an explicit loop blocker instead
+  of pinging indefinitely.
 - Preserve thread-local session isolation. Do not inject another loop's
   unresolved context into the current run thread. If another loop needs action,
   update that loop's own thread, GitHub artifact, or run ledger.
@@ -144,6 +159,7 @@ repo:
 loop profile:
 owner mention: thread start only; later only tri-MISA agreement / approval / major escalation
 do-not-disturb: per-agent windows with timezone, mode, override, and resume policy
+silent-loop auto-resume: last activity, next expected touch, threshold, retry cap
 implementer:
 reviewers:
 sources to ingest:

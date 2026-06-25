@@ -1,5 +1,18 @@
 # Release Notes
 
+## 0.2.9
+
+- Added a Silent-Loop Auto-Resume Watchdog for active loops that go quiet
+  because of missed agent mentions or omitted handoffs, including
+  `last_loop_activity`, `next_expected_touch`, `auto_resume_after`, bounded
+  checkpoint recovery, retry caps/backoff, and explicit loop-blocker fallback.
+- Clarified that auto-resume happens only in the local loop thread and does not
+  bypass DND, parked, approval-blocked, closed, security, credential, deploy,
+  external-mutation, or owner-escalation gates.
+- Updated loop-engineering references, residency markers, SessionStart
+  injection, and plugin metadata so silent-loop auto-resume tasks keep the
+  Fairy Tale harness active.
+
 ## 0.2.8
 
 - Added Cross-Channel Loop Command guidance for session owners coordinating

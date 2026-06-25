@@ -1,6 +1,6 @@
 ---
 name: fairy-tale
-description: Provides Fable/Mythos-informed workflow augmentation for budgeted, evidence-driven, validation-gated agent execution across coding, research, documentation, legal/knowledge work, UI/3D, creative writing, emotionally aware conversation, ARC-style puzzle discovery, and defensive security tasks. Use when the user asks for Mythos/Fable-informed workflow uplift, autonomous long-task execution, loop engineering, loop job automation, cross-channel loop command, do-not-disturb operating windows, usage-aware multi-agent load balancing, usage reading reference, workflow self-improvement, closure/frame-completeness checks, negative-space or latent-need discovery, excess/redundancy/legacy-surface review, codebase-wide migration, high-signal research synthesis, legal or closed-ended benchmark reasoning, narrative/UI expression, mechanism discovery, or defensive vulnerability-review process design.
+description: Provides Fable/Mythos-informed workflow augmentation for budgeted, evidence-driven, validation-gated agent execution across coding, research, documentation, legal/knowledge work, UI/3D, creative writing, emotionally aware conversation, ARC-style puzzle discovery, and defensive security tasks. Use when the user asks for Mythos/Fable-informed workflow uplift, autonomous long-task execution, loop engineering, loop job automation, cross-channel loop command, silent-loop auto-resume, do-not-disturb operating windows, usage-aware multi-agent load balancing, usage reading reference, workflow self-improvement, closure/frame-completeness checks, negative-space or latent-need discovery, excess/redundancy/legacy-surface review, codebase-wide migration, high-signal research synthesis, legal or closed-ended benchmark reasoning, narrative/UI expression, mechanism discovery, or defensive vulnerability-review process design.
 ---
 
 # Fairy Tale
@@ -241,17 +241,22 @@ python3 scripts/fairy_tale_residency_check.py
 - Before autonomous operation, create a loop profile with repo, project
   channel/thread, owner mention policy, do-not-disturb policy, cadence, source
   adapters, allowed actions, approval boundaries, run ledger, secrets policy,
-  reviewer roles, cross-channel session isolation, and rollback/stop
-  conditions.
+  reviewer roles, cross-channel session isolation, auto-resume watchdog policy,
+  and rollback/stop conditions.
 - Keep the main agent loop simple and put reliability in the harness:
-  deterministic schedulers/watchers, dedupe keys, provenance, receipts,
-  validation checks, rate limits, idempotency, and explicit human checkpoints.
+  deterministic schedulers/watchers, silent-loop watchdogs, dedupe keys,
+  provenance, receipts, validation checks, rate limits, idempotency, and
+  explicit human checkpoints.
 - For engineering loops, one run should create or reuse a visible project
   thread, mention the owner when the run starts or escalates, and keep
   GitHub/repo artifacts linked to the thread.
 - For session owners that coordinate multiple loops across channels, keep an
   active-loop queue, run stale-loop sweeps before focusing on one loop, and
-  keep each thread's unresolved context isolated from other loop threads.
+  keep each thread's unresolved context isolated from other loop threads. If an
+  active loop goes silent past its explicit auto-resume threshold, restore
+  motion in that loop's own thread with a bounded checkpoint and the required
+  local agent mention; do not bypass DND, parked, approval-blocked, or closed
+  states.
 - For job automation, default to draft/propose mode. Email sending, Drive
   mutation, calendar/meeting actions, external posts, and credential or
   permission changes require an explicit approval gate unless the owner has
@@ -261,9 +266,10 @@ python3 scripts/fairy_tale_residency_check.py
   Prefer agenda preparation, note capture, and action-item drafting; never
   impersonate a human or join a private meeting without explicit authorization.
 - Use `references/loop-engineering-automation.md` for the full operating model and
-  `references/process.md` for the loop, cross-channel command, Do Not Disturb
-  operating-window, ingestion, job automation, meeting proxy, usage-aware role
-  assignment, and usage reading reference cards.
+  `references/process.md` for the loop, cross-channel command, silent-loop
+  auto-resume, Do Not Disturb operating-window, ingestion, job automation,
+  meeting proxy, usage-aware role assignment, and usage reading reference
+  cards.
 
 ### High-signal research synthesis
 
