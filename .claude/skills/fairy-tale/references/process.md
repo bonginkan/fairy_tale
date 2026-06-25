@@ -571,6 +571,7 @@ do-not-disturb policy:
 active loop queue:
 thread isolation policy:
 stale-loop sweep cadence:
+silent-loop auto-resume policy:
 primary operator:
 reviewers / monitors:
 cadence / trigger:
@@ -608,6 +609,17 @@ Required invariants:
   active-loop queue and run a stale-loop sweep before deep work on any one
   loop. Do not let the loudest or most recent thread silently starve other
   loops that are waiting for assignment, review, close, or escalation.
+- Give active loops an auditable silent-loop watchdog when missed mentions or
+  missing handoffs could stall the run. Track the expected actor, next expected
+  action, last touch, silence threshold, concrete scheduled wake actuator, and
+  auto-resume action. When the loop enters wait, register a `ScheduleWakeup`
+  or equivalent cron/launchd watchdog for `auto_resume_at`; policy text alone
+  is not enough because a fully silent loop has no active agent to evaluate the
+  timer. If the wake fires and the loop is not DND-paused, parked,
+  approval-blocked, or closed, post one bounded local checkpoint in that same
+  thread, re-mention the required local agent(s), and set a new checkpoint or
+  blocker. Do not use auto-resume to weaken DND, approval, security,
+  credential, deploy, external mutation, or owner-escalation gates.
 - Keep thread-local loop state isolated. Cross-loop references must be stable
   source refs, issue/PR links, or explicit handoff records; do not import
   unresolved context from another channel into the current loop thread.
@@ -639,7 +651,14 @@ repo / artifact scope:
 last owner touch:
 last agent action:
 next expected action:
+next expected touch:
 stale threshold:
+auto resume after:
+auto resume at:
+auto resume retries:
+auto resume action:
+scheduled wake actuator:
+scheduled wake source_ref:
 blocked / waiting reason:
 thread isolation policy:
 allowed cross-loop refs:
@@ -670,6 +689,26 @@ Operating rules:
   update in one loop, run a bounded stale-loop sweep. Flag loops whose
   expected next action has aged beyond the loop's threshold, even if the
   current thread is more active.
+- A stale-loop sweep identifies overdue work; a silent-loop watchdog restores
+  motion when the expected actor or mention path went quiet. When the loop
+  enters a wait state, register a concrete scheduled wake for `auto_resume_at`
+  using the runtime's `ScheduleWakeup` mechanism when available, otherwise a
+  narrowly scoped cron/launchd watchdog. Record the actuator id, source ref,
+  and cancellation condition in the loop ledger. If no actuator can be
+  registered, do not claim time-based auto-resume; record a manual-review
+  blocker instead.
+- When the scheduled wake fires, re-read the thread and ledger first. If the
+  expected action already happened, or the loop is DND-paused, parked,
+  approval-blocked, security-blocked, credential-blocked, deploy-blocked,
+  externally blocked, or closed, cancel/no-op and record why. Otherwise post a
+  bounded checkpoint in the loop's own thread: local scope, stale expected
+  action, assigned actor or load-balancer reroute, last artifact/source ref,
+  next safe action, and the next checkpoint time.
+- Limit auto-resume to the loop's retry budget for that silent period. Use
+  backoff or a hard retry cap; if all eligible agents remain silent after the
+  cap, record an explicit loop blocker with evidence instead of spinning.
+- Ambiguous timers, missing source refs, or unclear expected actors fail closed
+  to manual review. Do not infer permission from silence.
 - Decide attention by explicit owner priority, blocker severity, wait time,
   approval gates, DND state, usage capacity, and tool availability. Do not use
   channel loudness, recent mentions, or the commander's current context as the
@@ -690,6 +729,76 @@ Operating rules:
 - This card does not merge repo targets, weaken approval gates, bypass DND,
   or authorize secrets, deploys, external sends, meeting joins, credential
   changes, or permission changes.
+
+## Silent-loop auto-resume watchdog record
+
+Use this when an active loop can stall because the next agent was not
+mentioned, a handoff was omitted, or everyone stopped posting even though the
+loop is not deliberately paused. The watchdog is an auditable time-based
+recovery rule; it is not a scheduler that retries forever.
+
+```text
+loop / thread:
+session owner:
+expected actor:
+next expected action:
+last loop activity:
+last touch source_ref:
+next expected touch:
+silence threshold:
+auto resume after:
+auto resume at:
+auto resume action:
+scheduled wake actuator:
+scheduled wake source_ref:
+scheduled wake registered at:
+retry count:
+retry limit:
+backoff policy:
+dnd / parked / approval / closed state:
+bounded checkpoint:
+re-mention target:
+load-balancer reroute:
+new checkpoint:
+blocker if exhausted:
+ledger / receipt:
+```
+
+Operating rules:
+
+- Record `last_loop_activity`, `next_expected_touch`, and `auto_resume_after`
+  for active loops that depend on a specific next actor or handoff.
+- Before entering wait, register a concrete scheduled wake for `auto_resume_at`
+  using `ScheduleWakeup` when the loop runtime offers it. If not available,
+  use a narrowly scoped cron/launchd watchdog or equivalent host-approved
+  scheduler that can wake without inbound chat. Record the actuator id,
+  source ref, cancellation condition, and owner of the watchdog.
+- If no scheduler/wakeup actuator is available or allowed, fail closed:
+  record the loop as manually watched or blocked, and do not mark the loop as
+  protected by time-based auto-resume.
+- When the scheduled wake fires, first re-read the thread and ledger, then
+  check exclusion states. Do not auto-resume a loop that is inside an active
+  DND window, intentionally parked, approval-blocked, security-blocked,
+  credential-blocked, deploy-blocked, externally blocked, already progressed,
+  or already closed.
+- If the loop is eligible, resume only inside the same thread or canonical
+  ledger. The checkpoint names the local loop scope, stale expected action,
+  expected actor, last artifact/source ref, next safe action, and whether a
+  missed mention is the likely blocker.
+- Use the bot-to-bot addressing format for the local agent(s) needed to move
+  the loop. Do not wake the owner unless the loop's normal owner-escalation
+  policy already allows that escalation.
+- If the expected actor is DND-blocked, quota-blocked, stale-install blocked,
+  or tool-unavailable, do not ping through the blocker. Rerun the load
+  balancer, reassign, or park with a new allowed checkpoint.
+- Keep retries bounded. One auto-resume per silent period is the default unless
+  the loop profile states a stricter retry limit and backoff policy. Repeated
+  silence after the limit becomes a loop blocker, not another ping.
+- Do not import context from another loop while resuming. Cross-loop references
+  stay as stable source refs or explicit handoff records.
+- This card does not weaken DND, approval gates, security boundaries,
+  credential rules, deploy gates, external mutation gates, meeting-join rules,
+  or any owner-mention policy.
 
 ## Do Not Disturb operating-window record
 
