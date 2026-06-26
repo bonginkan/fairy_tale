@@ -208,6 +208,19 @@ def validate_record(record: dict) -> list[str]:
     return errors
 
 
+PRINCIPALS_PATH = ROOT / "spiral-principals.json"
+
+
+def _registered_principals() -> set[str] | None:
+    """Load the trusted-principal registry (id keys). None = unreadable (fail closed)."""
+    try:
+        data = json.loads(PRINCIPALS_PATH.read_text(encoding="utf-8"))
+        principals = data.get("principals", {})
+        return {str(k) for k in principals} if isinstance(principals, dict) else None
+    except (OSError, json.JSONDecodeError, AttributeError):
+        return None
+
+
 def _check_reviews(record: dict, errors: list[str]) -> None:
     # Identity keys on the unforgeable user_id, NOT the display name (aliases /
     # bot-ID-literal-in-name / spacing variants must not fool distinctness or the
@@ -218,6 +231,14 @@ def _check_reviews(record: dict, errors: list[str]) -> None:
         errors.append("implementer: required and non-empty")
     if not isinstance(implementer_id, str) or not _SNOWFLAKE.match(implementer_id):
         errors.append("implementer_id: required, must be a Discord user id (15-21 digits)")
+    # Bind identity to a registered principal: a format-valid but unregistered
+    # snowflake is rejected (fail closed if the registry is unreadable).
+    principals = _registered_principals()
+    if principals is None:
+        errors.append(f"trusted-principal registry unreadable: {PRINCIPALS_PATH.name}")
+        principals = set()
+    if isinstance(implementer_id, str) and _SNOWFLAKE.match(implementer_id) and implementer_id not in principals:
+        errors.append(f"implementer_id '{implementer_id}' is not a registered principal ({PRINCIPALS_PATH.name})")
     reviews = record.get("reviews")
     if not isinstance(reviews, list) or len(reviews) < 2:
         errors.append("reviews: requires >= 2 entries")
@@ -236,6 +257,8 @@ def _check_reviews(record: dict, errors: list[str]) -> None:
             errors.append(f"{label}.reviewer: required and non-empty")
         if not isinstance(reviewer_id, str) or not _SNOWFLAKE.match(reviewer_id):
             errors.append(f"{label}.reviewer_id: required, must be a Discord user id (15-21 digits)")
+        elif reviewer_id not in principals:
+            errors.append(f"{label}.reviewer_id '{reviewer_id}' is not a registered principal ({PRINCIPALS_PATH.name})")
         else:
             reviewer_ids.append(reviewer_id)
         if verdict not in ("block", "no_block"):
@@ -346,6 +369,11 @@ def _selftest() -> int:
         "missing-reviewer-id": {"reviews": [
             {"reviewer": "CC MISA", "verdict": "no_block", "refute_pass": _good_refute},
             _rev(_codex),
+        ]},
+        "fake-snowflake-reviewer": {"reviews": [_rev(_cc), _rev("999999999999999999", name="ghost")]},
+        "all-unregistered-reviewers": {"reviews": [
+            _rev("100000000000000001", name="ghost1"),
+            _rev("100000000000000002", name="ghost2"),
         ]},
     }
     for name, overrides in review_hostile.items():
