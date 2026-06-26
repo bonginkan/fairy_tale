@@ -62,7 +62,7 @@
       }
     },
     "strand_pairing_evidence": {
-      "description": "Base pairs binding the execution and learning strands. Each entry MUST be a concrete, verifiable reference: a URL with host+path, a full 40-hex commit sha, a sha256: digest, a run-/trace- id, or an existing repo path. Bare #N, abbreviated hex, and freeform prose are rejected.",
+      "description": "Base pairs binding the execution and learning strands. Each entry MUST be a concrete, verifiable reference: a URL with host+path (e.g. a commit/PR URL), a sha256: digest, a run-/trace- id, or an existing repo path (no '..' traversal). Bare #N, bare commit shas (use a commit URL), shape-only hex, and freeform prose are rejected.",
       "type": "array",
       "minItems": 1,
       "items": { "type": "string", "minLength": 1 }
