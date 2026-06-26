@@ -24,15 +24,22 @@ MIRRORS = (
     ROOT / "plugins" / "fairy-tale" / "skills" / "fairy-tale",
 )
 
-# Non-.md companion artifacts (schemas / scripts / ledgers) are also mirrored into
-# the plugin package. The skill *.md parity above did NOT cover them, so schema /
-# script / ledger mirror drift slipped through (fairy_tale #7 / #22; seen on
-# PR #46 and #9). A file is treated as a "mirrored companion" iff it exists in
-# BOTH the root and the plugin -- root-only tooling is never force-mirrored.
+# Companion artifacts (adapters / schemas / scripts / docs / resources / ledgers /
+# crates / ...) are also mirrored into the plugin package. The skill *.md parity
+# above did NOT cover them, so mirror drift slipped through (fairy_tale #7 / #22;
+# seen on PR #46 and #9). Discovery is fully dynamic from the plugin side: every
+# file the plugin ships whose root counterpart exists is a "mirrored companion"
+# and must stay byte-identical. No hardcoded dir allow-list -- a newly mirrored
+# class (adapters, docs, resources, crates, ...) is covered automatically. A file
+# present in only one side is NOT a mirror (root-only tooling is never
+# force-mirrored; plugin-only files have no source to drift from).
 PLUGIN_ROOT = ROOT / "plugins" / "fairy-tale"
-COMPANION_DIRS = ("schemas", "scripts", "spiral-revolutions")
-COMPANION_TOP_LEVEL = ("spiral-principals.json",)
 COMPANION_SKIP_PARTS = {"__pycache__"}
+COMPANION_SKIP_FILES = {".DS_Store"}
+# skills/ parity is already owned by check_parity() (the 4-copy *.md tree), so it
+# is excluded here to avoid double-coverage. Verified: the plugin skills/ subtree
+# ships no non-.md files, so nothing is lost by delegating it to check_parity().
+COMPANION_EXCLUDE_TOP = {"skills"}
 
 # Inline-reference form used inside SKILL.md, e.g. `references/process.md`.
 REF_RE = re.compile(r"`(references/[A-Za-z0-9._/\-]+\.md)`")
@@ -76,39 +83,42 @@ def check_inline_refs() -> list[str]:
 
 
 def companion_candidates() -> list[Path]:
-    """Root-relative non-.md companion artifacts that may be mirrored to the plugin."""
+    """Root-relative paths the plugin ships that also exist at the repo root.
+
+    Discovered from the plugin tree so the set of mirrored dirs is never
+    hardcoded: anything under plugins/fairy-tale/ (except the skills/ tree, which
+    check_parity() owns) whose root counterpart exists is a mirrored companion.
+    """
     rels: list[Path] = []
-    for name in COMPANION_DIRS:
-        base = ROOT / name
-        if not base.is_dir():
+    if not PLUGIN_ROOT.is_dir():
+        return rels
+    for p in sorted(PLUGIN_ROOT.rglob("*")):
+        if not p.is_file():
             continue
-        for p in sorted(base.rglob("*")):
-            if not p.is_file() or p.suffix == ".md":
-                continue
-            if COMPANION_SKIP_PARTS & set(p.parts):
-                continue
-            rels.append(p.relative_to(ROOT))
-    for name in COMPANION_TOP_LEVEL:
-        if (ROOT / name).is_file():
-            rels.append(Path(name))
+        rel = p.relative_to(PLUGIN_ROOT)
+        if COMPANION_SKIP_PARTS & set(rel.parts):
+            continue
+        if p.name in COMPANION_SKIP_FILES:
+            continue
+        if rel.parts and rel.parts[0] in COMPANION_EXCLUDE_TOP:
+            continue
+        if (ROOT / rel).is_file():
+            rels.append(rel)
     return rels
 
 
 def check_companion_parity() -> tuple[list[str], int]:
-    """Byte-parity for files present in BOTH root and the plugin package.
+    """Byte-parity for every artifact the plugin mirrors from the repo root.
 
-    Discovery-based: a file is a mirrored companion iff it exists in both places,
-    so root-only tooling is never force-mirrored (no implicit skips -- a real
-    mirror that drifts is caught).
+    A file is a mirrored companion iff it exists in BOTH the root and the plugin,
+    so root-only tooling is never force-mirrored -- but any file the plugin does
+    ship must match its root source exactly, or it fails fast.
     """
     errors: list[str] = []
     checked = 0
     for rel in companion_candidates():
-        plugin_copy = PLUGIN_ROOT / rel
-        if not plugin_copy.is_file():
-            continue
         checked += 1
-        if (ROOT / rel).read_bytes() != plugin_copy.read_bytes():
+        if (ROOT / rel).read_bytes() != (PLUGIN_ROOT / rel).read_bytes():
             errors.append(f"companion mirror drift: {rel} != plugins/fairy-tale/{rel}")
     return errors, checked
 
