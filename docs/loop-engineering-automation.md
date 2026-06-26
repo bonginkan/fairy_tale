@@ -19,6 +19,11 @@ The implementation primitives are:
 - Treat automation as a platform, not a prompt. Google SRE automation practice
   emphasizes consistency, repeatability, metrics, and careful domain scoping;
   a loop that cannot be measured or stopped is not an operational platform.
+- Raise loop altitude only through evidence. Boehm-style spiral development is
+  risk-driven iteration: resolve the highest uncertainty before committing more
+  scope, cost, or autonomy. Argyris/Schon double-loop learning supplies the
+  vertical axis: revise governing variables when evidence shows the loop's
+  assumptions, delegation level, or scope are wrong.
 - Prefer official change streams over screen scraping. Google Workspace APIs
   provide drafts, push notifications, Drive changes, Docs/Sheets edits,
   Calendar watches, and Meet/Media APIs; use these before Computer Use unless a
@@ -47,6 +52,90 @@ This is not an infinite retry loop. Each iteration must have a changed
 observation, changed probe, changed action, or explicit escalation. Repeating
 the same failure class stops the loop.
 
+## Spiral Engineering
+
+Use spiral engineering when a loop should escape flat repetition and climb:
+more autonomy, wider scope, higher abstraction, deeper delegation, stronger
+reusable capability, or lower residual risk. A spiral revolution is a bounded
+loop iteration with an explicit altitude target and a risk gate.
+
+Treat the spiral as a double-helix learning loop, not a single strand. One
+strand carries delivery: objectives, risk spike, implementation, validation,
+and landing. The other carries learning governance: evidence, double-loop
+evaluation, governing-variable update, next altitude, and stop-or-descend
+planning. The two strands must be paired by evidence gates such as source refs,
+validation, reviewer sign-off, receipts, budget, and the unchanged safety
+floor. Delivery without learning stays a flat loop; learning-governance
+mutation without delivery evidence is unsafe process drift.
+
+Keep the strands anti-parallel in role even when they are coordinated in time:
+delivery moves forward toward shipping, while learning/governance moves
+backward against the premise by trying to refute, revise, and narrow the
+governing variables. That opposing direction is the check. An unpaired claim,
+unsupported risk-burn-down, or governance mutation without matching evidence is
+a mismatch; proofread it inside the revolution, then run a post-landing
+mismatch-repair sweep before copying the pattern into the next loop.
+Semi-conservative replication is the transfer rule: preserve the validated
+governance template and synthesize only the new delivery strand for the next
+effort. Do not replicate unvalidated process mutations.
+
+```text
+revolution id:
+current altitude:
+target altitude:
+altitude axis: autonomy | abstraction | scope | delegation | capability | risk burn-down
+execution strand:
+learning / governance strand:
+strand-pairing evidence:
+mismatch / repair action:
+validated governance template:
+win condition:
+highest-risk uncertainty:
+risk spike / prototype:
+risk burn-down evidence:
+engineer target:
+validation / reviews:
+double-loop evaluation:
+governing-variable change:
+next altitude:
+stop / descend condition:
+budget / radius:
+safety floor:
+ledger / receipt:
+```
+
+Spiral operating rules:
+
+- State the altitude axis before expanding. Do not call ordinary repeated
+  issue/PR work a spiral unless the revolution has a declared altitude gain.
+- Keep the execution strand and learning/governance strand paired. Every
+  delivered artifact needs a learning evaluation; every governing-variable
+  update needs delivery evidence, risk evidence, review, and receipt.
+- Treat unpaired bases as errors: unsupported claims, unchecked risk
+  reductions, missing reviewer evidence, missing receipts, or safety-floor
+  weakening block altitude gain until repaired or descended/replanned.
+- Carry forward only the validated governance strand when a spiral seeds a new
+  effort. A new delivery strand may be synthesized from that template, but
+  process mutations do not replicate without validation.
+- Resolve the highest-risk uncertainty first with a bounded spike, prototype,
+  source-grounding pass, or validation harness. If the risk is not reduced,
+  descend or replan instead of increasing autonomy, scope, or delegation.
+- Engineer only the risk-cleared target, then run the normal implementation,
+  review, validation, and runtime-parity gates.
+- Run double-loop evaluation after landing: decide whether the loop profile,
+  autonomy level, owner mention policy, reviewer mix, validation gate,
+  source adapters, or delegation boundary should change for the next
+  revolution.
+- Treat governing-variable updates as state-changing work. They need evidence,
+  review, receipts, and any required runtime/install companion. Do not mutate
+  skills, schedulers, permissions, credentials, or deployment paths silently.
+- Keep the safety floor invariant. DND, approval, security, credential,
+  deploy, external-mutation, meeting-join, owner-escalation, and branch/merge
+  gates outrank altitude gain.
+- Stop when the target altitude or risk-burn-down condition is reached. A
+  spiral that cannot show compounding learning, risk reduction, or increased
+  delegation should land as a normal loop rather than continuing forever.
+
 ## Loop Profile
 
 Every persistent loop needs a profile before scheduling:
@@ -65,6 +154,7 @@ active loop queue:
 thread isolation policy:
 stale-loop sweep cadence:
 silent-loop auto-resume policy:
+spiral altitude policy:
 implementer:
 reviewers:
 source adapters:
@@ -106,6 +196,11 @@ not time-based auto-resumed. Auto-resume is suppressed when the loop is
 DND-paused, intentionally parked, approval-blocked, security-blocked,
 credential-blocked, deploy-blocked, externally blocked, already progressed, or
 closed.
+
+If a loop is operating in spiral mode, the profile must also define the
+allowed altitude axes, the maximum budget radius per revolution, who can
+approve governing-variable changes, the risk-burn-down evidence required
+before raising autonomy or scope, and the terminal landing criteria.
 
 ## Repo and Project Channel Operation
 
@@ -166,6 +261,7 @@ loop profile:
 owner mention: thread start only; later only tri-MISA agreement / approval / major escalation
 do-not-disturb: per-agent windows with timezone, mode, override, and resume policy
 silent-loop auto-resume: last activity, next expected touch, threshold, wake actuator, retry cap
+spiral: altitude axis, risk item, burn-down evidence, double-loop eval, landing condition
 implementer:
 reviewers:
 sources to ingest:
