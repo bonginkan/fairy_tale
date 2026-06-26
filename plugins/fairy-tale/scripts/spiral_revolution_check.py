@@ -198,7 +198,47 @@ def validate_record(record: dict) -> list[str]:
     for path in EVIDENCE_PATHS:
         _check_evidence_array(_get(record, path), ".".join(path), errors)
 
+    # Review calibration (fairy_tale #43): generalize the exercise gate to the
+    # review itself, so a smooth no_block cannot pass without recorded refutation.
+    _check_reviews(record, errors)
+
     return errors
+
+
+def _check_reviews(record: dict, errors: list[str]) -> None:
+    implementer = record.get("implementer")
+    if not isinstance(implementer, str) or not implementer.strip():
+        errors.append("implementer: required and non-empty")
+    reviews = record.get("reviews")
+    if not isinstance(reviews, list) or len(reviews) < 2:
+        errors.append("reviews: requires >= 2 reviewers (1 implementer + 2 reviewers discipline)")
+        return
+    reviewer_names = []
+    for index, review in enumerate(reviews):
+        label = f"reviews[{index}]"
+        if not isinstance(review, dict):
+            errors.append(f"{label}: must be an object")
+            continue
+        reviewer = review.get("reviewer")
+        verdict = review.get("verdict")
+        refute = review.get("refute_pass")
+        if not isinstance(reviewer, str) or not reviewer.strip():
+            errors.append(f"{label}.reviewer: required and non-empty")
+        else:
+            reviewer_names.append(reviewer.strip().lower())
+        if verdict not in ("block", "no_block"):
+            errors.append(f"{label}.verdict: must be 'block' or 'no_block'")
+        # The teeth: a no_block sign-off MUST point to a concrete refutation artifact
+        # (what was actually attacked) -- prose like "reviewed carefully" is rejected.
+        if verdict == "no_block":
+            problem = _entry_problem(refute if isinstance(refute, str) else "")
+            if problem:
+                errors.append(f"{label}.refute_pass: a no_block verdict needs a concrete refutation artifact ({problem})")
+        elif not (isinstance(refute, str) and refute.strip()):
+            errors.append(f"{label}.refute_pass: required and non-empty")
+    # Circular-review guard: the implementer must not also be a reviewer.
+    if isinstance(implementer, str) and implementer.strip().lower() in reviewer_names:
+        errors.append(f"circular review: implementer '{implementer}' must not also be a reviewer")
 
 
 def _good_record() -> dict:
@@ -231,6 +271,13 @@ def _good_record() -> dict:
         "budget_radius": "b",
         "safety_floor": "f",
         "ledger_receipt": ["run-20260626T0011Z-cc-selftest-evidence"],
+        "implementer": "MISA 3",
+        "reviews": [
+            {"reviewer": "CC MISA", "verdict": "no_block",
+             "refute_pass": "https://github.com/bonginkan/fairy_tale/issues/43#issuecomment-4805272898"},
+            {"reviewer": "Codex MISA", "verdict": "no_block",
+             "refute_pass": "https://github.com/bonginkan/fairy_tale/pull/45#issuecomment-4805339475"},
+        ],
     }
 
 
@@ -261,6 +308,36 @@ def _selftest() -> int:
         if validate_record(record) == []:
             failures.append(f"hostile case '{name}' should be rejected but passed: {value!r}")
 
+    # Review-calibration hostile cases (fairy_tale #43): a smooth no_block without a
+    # concrete refutation artifact, too few reviewers, or a self-review must fail.
+    review_hostile = {
+        "no_block-empty-refute": {"reviews": [
+            {"reviewer": "CC MISA", "verdict": "no_block", "refute_pass": ""},
+            {"reviewer": "Codex MISA", "verdict": "no_block",
+             "refute_pass": "https://github.com/bonginkan/fairy_tale/pull/45#issuecomment-4805339475"},
+        ]},
+        "no_block-prose-refute": {"reviews": [
+            {"reviewer": "CC MISA", "verdict": "no_block", "refute_pass": "looked carefully, all good"},
+            {"reviewer": "Codex MISA", "verdict": "no_block",
+             "refute_pass": "https://github.com/bonginkan/fairy_tale/pull/45#issuecomment-4805339475"},
+        ]},
+        "too-few-reviewers": {"reviews": [
+            {"reviewer": "CC MISA", "verdict": "no_block",
+             "refute_pass": "https://github.com/bonginkan/fairy_tale/issues/43#issuecomment-4805272898"},
+        ]},
+        "self-review": {"implementer": "CC MISA", "reviews": [
+            {"reviewer": "CC MISA", "verdict": "no_block",
+             "refute_pass": "https://github.com/bonginkan/fairy_tale/issues/43#issuecomment-4805272898"},
+            {"reviewer": "Codex MISA", "verdict": "no_block",
+             "refute_pass": "https://github.com/bonginkan/fairy_tale/pull/45#issuecomment-4805339475"},
+        ]},
+    }
+    for name, overrides in review_hostile.items():
+        record = _good_record()
+        record.update(overrides)
+        if validate_record(record) == []:
+            failures.append(f"review-calibration case '{name}' should be rejected but passed")
+
     # No-records dir must fail with exit 1 (suppress its report so selftest output stays clean).
     import contextlib
     import io
@@ -278,7 +355,8 @@ def _selftest() -> int:
         return 1
     print(
         "Spiral revolution selftest passed (good->pass; "
-        "empty/placeholder/bare-hex/bare-#N/prose+ref/abbrev-sha/prose+url/shape-sha->reject)."
+        "evidence: empty/placeholder/bare-hex/bare-#N/prose+ref/abbrev-sha/prose+url/shape-sha/path-traversal->reject; "
+        "review-calibration: empty/prose refute_pass, <2 reviewers, self-review->reject)."
     )
     return 0
 
