@@ -29,7 +29,7 @@
     "implementer": { "type": "string", "minLength": 1 },
     "implementer_id": { "type": "string", "pattern": "^[0-9]{15,21}$" },
     "reviews": {
-      "description": "Review-calibration record (fairy_tale #43). Distinct identity keys on the unforgeable user_id, NOT the display name: >=2 DISTINCT reviewer_id; a no_block verdict MUST carry a concrete refute_pass (what was actually attacked); the implementer_id must not appear among reviewer_id (circular-review guard).",
+      "description": "Review-calibration record (fairy_tale #43). Identity keys on the user_id, never the display name. Each implementer_id/reviewer_id must be a REGISTERED principal (spiral-principals.json) -- a format-valid but unregistered snowflake is rejected. Enforced: >=2 DISTINCT reviewer_id; a no_block verdict MUST carry a concrete refute_pass; implementer_id must not appear among reviewer_id (circular-review guard). NOT enforced (remaining #43 gate): that the principal actually reviewed THIS PR (live-author binding needs the Discord/GitHub API).",
       "type": "array",
       "minItems": 2,
       "items": {
