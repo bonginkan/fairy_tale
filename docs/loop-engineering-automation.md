@@ -136,6 +136,75 @@ Spiral operating rules:
   spiral that cannot show compounding learning, risk reduction, or increased
   delegation should land as a normal loop rather than continuing forever.
 
+## Evolutionary Spiral Operators
+
+Spiral engineering gives a replication structure (altitude, two strands,
+evidence pairing, validated-template handoff). Evolution adds the operators that
+make change directional instead of random: how controlled variation enters, how
+variants are selected, and how validated improvements are inherited. Without
+explicit operators, "evolution" collapses into either random self-modification
+or a new name for ordinary iteration. The grounding is biological evolution
+(variation, selection, inheritance, lineage; see `references/sources.md`) and
+Holland's genetic-algorithm framing of bounded variation under a fitness gate.
+
+An evolutionary variant is a **bounded mutation** of one spiral revolution. It is
+recorded in `evolution-variants/<id>.json` against
+`schemas/evolution-variant-ledger.schema.json` and validated for content by
+`scripts/evolution_variant_check.py` (a presence-only or vibes-only record
+fails). The operators:
+
+- **Mutation budget**: every variant declares what may change, what must not,
+  and the maximum blast radius. The checker rejects any variant that lists a
+  safety-floor surface as changeable — the safety floor is never a mutation
+  target.
+- **Variant representation**: parent revolution, mutation operator (process /
+  prompt / harness / validator / role assignment / delegation policy),
+  hypothesis, fitness metric, and a rollback plan.
+- **Evidence-driven selection**: a variant is accepted only with concrete
+  selection evidence, a preserved safety floor, and an improvement over baseline
+  or a risk burn-down. Selection by assertion ("looks good") is rejected.
+- **Validated inheritance**: only an accepted, evidence-backed variant becomes
+  inherited loop capability and enters the next template; unvalidated mutations
+  die locally and are not replicated.
+- **Lineage ledger**: accepted and rejected variants stay traceable to their
+  source issue / revolution / evidence / reviewer decision.
+- **Extinction / quarantine**: harmful, noisy, or unmeasured variants are pruned
+  and red-locked so they cannot silently reappear.
+
+```text
+variant id:
+parent revolution:
+mutation operator: process | prompt | harness | validator | role_assignment | delegation_policy
+hypothesis:
+mutation budget: changeable / immutable / blast radius
+fitness metric:
+selection: outcome (accepted | rejected | quarantined) / baseline comparison / safety-floor preserved / evidence
+inheritance: inherited / template change / rationale
+rollback plan:
+extinction / quarantine:
+lineage:
+safety floor:
+ledger / receipt:
+reviews: >=2 distinct registered reviewers, no_block needs a concrete refute_pass
+```
+
+Evolutionary operating rules:
+
+- Bound the mutation before running it. No variant without a declared mutation
+  budget (changeable, immutable, blast radius). A mutation that would touch the
+  safety floor is not a variant — it is forbidden.
+- Select on evidence, not vibes. Acceptance requires concrete selection evidence
+  and a measurable improvement or risk burn-down over an explicit baseline.
+- Inherit only what is validated. An accepted variant may update the governance
+  template; a rejected or quarantined one stays local and is not carried forward.
+- Keep lineage and extinction explicit so the population is auditable and pruned
+  variants cannot silently return. Each discovered harmful pattern is red-locked
+  in the checker's self-test.
+- The safety floor is invariant under mutation. DND, approval, security,
+  credential, deploy, external-mutation, meeting-join, owner-escalation,
+  branch/merge, secret, and runtime-install gates outrank any variant. Random
+  mutation is never permission to self-modify production process.
+
 ## Loop Profile
 
 Every persistent loop needs a profile before scheduling:

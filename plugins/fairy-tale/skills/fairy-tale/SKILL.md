@@ -1,6 +1,6 @@
 ---
 name: fairy-tale
-description: Provides Fable/Mythos-informed workflow augmentation for budgeted, evidence-driven, validation-gated agent execution across coding, research, documentation, legal/knowledge work, UI/3D, creative writing, emotionally aware conversation, ARC-style puzzle discovery, and defensive security tasks. Use when the user asks for Mythos/Fable-informed workflow uplift, autonomous long-task execution, loop engineering, spiral engineering, double-helix learning loops, loop job automation, cross-channel loop command, silent-loop auto-resume, do-not-disturb operating windows, usage-aware multi-agent load balancing, usage reading reference, workflow self-improvement, closure/frame-completeness checks, negative-space or latent-need discovery, excess/redundancy/legacy-surface review, codebase-wide migration, high-signal research synthesis, legal or closed-ended benchmark reasoning, narrative/UI expression, mechanism discovery, or defensive vulnerability-review process design.
+description: Provides Fable/Mythos-informed workflow augmentation for budgeted, evidence-driven, validation-gated agent execution across coding, research, documentation, legal/knowledge work, UI/3D, creative writing, emotionally aware conversation, ARC-style puzzle discovery, and defensive security tasks. Use when the user asks for Mythos/Fable-informed workflow uplift, autonomous long-task execution, loop engineering, spiral engineering, double-helix learning loops, evolutionary spiral operators, loop job automation, cross-channel loop command, silent-loop auto-resume, do-not-disturb operating windows, usage-aware multi-agent load balancing, usage reading reference, workflow self-improvement, closure/frame-completeness checks, negative-space or latent-need discovery, excess/redundancy/legacy-surface review, codebase-wide migration, high-signal research synthesis, legal or closed-ended benchmark reasoning, narrative/UI expression, mechanism discovery, or defensive vulnerability-review process design.
 ---
 
 # Fairy Tale
@@ -244,6 +244,12 @@ python3 scripts/fairy_tale_residency_check.py
   highest uncertainty before expansion, while the learning strand records
   double-loop evaluation before raising autonomy, scope, abstraction, or
   delegation.
+- Treat evolutionary spiral operators as bounded mutation on top of a spiral:
+  every variant declares a mutation budget (the safety floor is never
+  changeable), is accepted only by evidence-driven selection over a baseline,
+  and is inherited only when validated; record it against the evolution-variant
+  ledger and validate with `scripts/evolution_variant_check.py`. Random mutation
+  is never permission to self-modify production process.
 - Before autonomous operation, create a loop profile with repo, project
   channel/thread, owner mention policy, do-not-disturb policy, spiral altitude
   policy, cadence, source adapters, allowed actions, approval boundaries, run
