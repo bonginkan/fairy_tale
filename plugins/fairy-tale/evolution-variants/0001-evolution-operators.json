@@ -31,11 +31,11 @@
   },
   "inheritance_decision": {
     "inherited": true,
-    "template_change": "The bounded evolutionary operator layer (mutation budget, evidence-driven selection, validated inheritance, lineage, extinction/quarantine) joins the validated governance template carried forward by spiral engineering; the delivery strand is still re-synthesized per effort.",
+    "template_change": "The bounded evolutionary operator layer (scripts/evolution_variant_check.py + schemas/evolution-variant-ledger.schema.json) joins the validated governance template carried forward by spiral engineering; the delivery strand is still re-synthesized per effort.",
     "rationale": "It is validated by an objective red->green gate wired into CI and reviewed with explicit refute-pass by Codex + MISA3, and it strictly preserves the safety floor (the checker rejects any variant that lists a safety-floor surface as changeable)."
   },
   "rollback_plan": "Delete this record, scripts/evolution_variant_check.py, schemas/evolution-variant-ledger.schema.json, and the evolutionary-layer doc sections; remove the CI step and residency markers. The spiral revolution gate and all prior records remain intact and green.",
-  "extinction_quarantine": "Every discovered bypass (safety-floor-in-changeable, credential mutation, empty/unbounded budget, prose/empty selection evidence, !safety_floor_preserved, inherit-without-accept, prose lineage, bare-#N parent) is red-locked in --selftest, so a harmful variant pattern cannot silently reappear; the gate runs in CI on every PR.",
+  "extinction_quarantine": "Every discovered bypass (safety-floor / authority / deploy / runtime surfaces in changeable, prose/empty selection evidence, prose extinction/rollback/template_change, inherit-without-accept, bare-#N parent) is red-locked in scripts/evolution_variant_check.py --selftest, so a harmful variant pattern cannot silently reappear; the gate runs in CI on every PR.",
   "lineage": [
     "https://github.com/bonginkan/fairy_tale/issues/42",
     "https://github.com/bonginkan/fairy_tale/issues/43",
