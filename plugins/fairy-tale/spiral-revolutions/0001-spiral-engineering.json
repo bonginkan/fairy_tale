@@ -52,5 +52,18 @@
     "run-20260626T0011Z-cc-noblocking-calibration-evidence",
     "trace-2e9e3e52-f175-488a-af2b-c5487de8df6c",
     "https://github.com/bonginkan/fairy_tale/issues/44"
+  ],
+  "implementer": "MISA 3",
+  "reviews": [
+    {
+      "reviewer": "CC MISA",
+      "verdict": "no_block",
+      "refute_pass": "https://github.com/bonginkan/fairy_tale/issues/43#issuecomment-4805272898"
+    },
+    {
+      "reviewer": "Codex MISA",
+      "verdict": "no_block",
+      "refute_pass": "https://github.com/bonginkan/fairy_tale/pull/45#issuecomment-4805339475"
+    }
   ]
 }
