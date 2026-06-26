@@ -295,14 +295,22 @@ def _concrete_refutes(record: dict) -> list[str]:
     return out
 
 
+_GITHUB_HOSTS = ("github.com",)
+
+
 def _canon_ref(value: str) -> str:
     """Canonicalize a refute artifact for cross-record identity comparison so a
-    reused artifact cannot be disguised by trivial URL variation. For a URL:
-    lowercase; normalize the scheme to https (http and https reach the same
-    artifact); strip a default port (80/443) but keep a non-default one; drop the
-    query and any trailing slashes; keep only the fragment up to the first '?'/'&'
-    (the comment anchor). Non-URL refs (sha256:, run-/trace- ids, repo paths)
-    collapse to their lowercased, slash-trimmed form.
+    reused artifact cannot be disguised by trivial URL variation -- without
+    over-collapsing genuinely distinct ones. For a URL: lowercase; drop the query
+    and any trailing slashes; keep only the fragment up to the first '?'/'&' (the
+    comment anchor); strip a scheme-default port.
+
+    Scheme is preserved per host, EXCEPT on github.com (and subdomains), where
+    http always redirects to https and so reaches the same artifact -- there the
+    scheme is normalized to https and both default ports (80/443) are stripped.
+    For any other host, http:// and https:// are NOT assumed equal (they may be
+    different servers), so the scheme is kept. Non-URL refs (sha256:, run-/trace-
+    ids, repo paths) collapse to their lowercased, slash-trimmed form.
     """
     s = value.strip().lower()
     parts = urlsplit(s)
@@ -312,10 +320,17 @@ def _canon_ref(value: str) -> str:
             port = parts.port
         except ValueError:
             port = None
-        netloc = host if port in (None, 80, 443) else f"{host}:{port}"
+        scheme = parts.scheme
+        is_github = host in _GITHUB_HOSTS or any(host.endswith("." + h) for h in _GITHUB_HOSTS)
+        if is_github:
+            scheme = "https"
+            drop_ports = (80, 443)
+        else:
+            drop_ports = (443,) if scheme == "https" else (80,) if scheme == "http" else ()
+        netloc = host if (port is None or port in drop_ports) else f"{host}:{port}"
         path = parts.path.rstrip("/")
         fragment = re.split(r"[?&]", parts.fragment, maxsplit=1)[0].rstrip("/")
-        base = f"https://{netloc}{path}"
+        base = f"{scheme}://{netloc}{path}"
         return f"{base}#{fragment}" if fragment else base
     return s.rstrip("/")
 
@@ -529,6 +544,20 @@ def _selftest() -> int:
         failures.append(f"distinct per-record refutations should pass cross-record but got: {clean}")
     if stats.get("records") != 2:
         failures.append(f"cross-record stats.records should be 2, got {stats.get('records')}")
+    # On a NON-GitHub host, http:// and https:// are NOT assumed to be the same
+    # artifact, so they must stay distinct (no over-collapse / false positive).
+    ng_http = "http://example.test/refutation/artifact"
+    ng_https = "https://example.test/refutation/artifact"
+    ng_clean, _ = check_cross_record([("a.json", _xrec(ng_http, _o1)), ("b.json", _xrec(ng_https, _o2))])
+    if ng_clean:
+        failures.append("non-GitHub http vs https should stay distinct but was flagged (false positive)")
+    # ...while a non-GitHub default-port variant of the SAME scheme is still a reuse.
+    ng_port_reuse, _ = check_cross_record([
+        ("a.json", _xrec(ng_https, _o1)),
+        ("b.json", _xrec("https://example.test:443/refutation/artifact", _o2)),
+    ])
+    if not ng_port_reuse:
+        failures.append("non-GitHub https default-port reuse should be flagged but passed")
 
     # No-records dir must fail with exit 1 (suppress its report so selftest output stays clean).
     import contextlib
