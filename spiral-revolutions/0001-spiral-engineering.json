@@ -1,0 +1,56 @@
+{
+  "schema_version": "1.0",
+  "revolution_id": "0001-spiral-engineering",
+  "altitude": {
+    "current": "Flat loop engineering: single-loop increments repeated on one plane.",
+    "target": "Double-helix spiral engineering: risk-driven, evidence-paired altitude gain that terminates.",
+    "axis": "abstraction"
+  },
+  "execution_strand": {
+    "objective": "Land the Spiral Engineering / double-helix harness into the Fairy Tale skill (fairy_tale #40).",
+    "engineer_target": "Spiral Engineering section in loop-engineering-automation.md, process.md card, SKILL trigger keyword, residency markers, sources.md grounding, version 0.2.10, mirror parity.",
+    "validation_reviews": [
+      "https://github.com/bonginkan/fairy_tale/pull/41",
+      "https://github.com/bonginkan/fairy_tale/pull/41#issuecomment-4805223201",
+      "https://github.com/bonginkan/fairy_tale/commit/98341e43fce99a1157fbebec713537b406ef8e81"
+    ]
+  },
+  "learning_governance_strand": {
+    "double_loop_evaluation": "The #41 review went confirmatory: presence/marker/parity/CI were checked, but whether the spiral was actually exercised/enforced was never asked. Same defect class as the #37 silent-loop actuator gap. Surfaced under Jun's no-blocking critical-thinking challenge.",
+    "governing_variable_change": "Add an exercise gate (this ledger + scripts/spiral_revolution_check.py) distinct from residency presence checks; reviews must now include a refute-pass and a presence-vs-exercise question (fairy_tale #43).",
+    "next_altitude": "#43 generalize selection: refute-rate visibility + circular-review guard; #42 evolution operators only AFTER selection is enforced.",
+    "stop_or_descend": "Descend to enforcement (#44) before evolution (#42): do not raise autonomy/scope while selection/proofreading is unproven."
+  },
+  "strand_pairing_evidence": [
+    "https://github.com/bonginkan/fairy_tale/issues/40",
+    "https://github.com/bonginkan/fairy_tale/issues/43",
+    "https://github.com/bonginkan/fairy_tale/issues/44",
+    "https://github.com/bonginkan/fairy_tale/issues/43#issuecomment-4805272898"
+  ],
+  "risk": {
+    "highest_uncertainty": "A spiral spec that is written but unenforced degrades into rubber-stamp drift (mutation without selection).",
+    "spike": "Build scripts/spiral_revolution_check.py and demonstrate red->green: it must FAIL on the presence-only state and PASS only with this exercised, evidence-paired record.",
+    "burn_down_evidence": [
+      "scripts/spiral_revolution_check.py",
+      "spiral-revolutions/0001-spiral-engineering.json",
+      "https://github.com/bonginkan/fairy_tale/pull/45"
+    ]
+  },
+  "mismatch_repair": {
+    "mismatches": [
+      "#41 was signed off no-blocking by CC and Codex with presence-only validation.",
+      "No exercised spiral revolution record was produced (the spec was not dogfooded).",
+      "Evidence-pairing between the delivery and learning strands was not enforced by any check."
+    ],
+    "repair_action": "Add this exercised ledger + the spiral_revolution_check.py exercise gate; retroactively dogfood #41; require a refute-pass in review (#43). Person-independence is unavailable (CC and Codex both rubber-stamped #41), so independence is sourced from the objective red->green test, not the implementer."
+  },
+  "validated_governance_template": "The double-helix spiral spec (loop-engineering-automation.md Spiral Engineering section) is the validated governance template carried forward; the delivery strand is re-synthesized per effort and must not replicate unvalidated process mutations.",
+  "win_condition": "spiral_revolution_check.py FAILs on presence-only and PASSes only with this exercised record (objective red->green), reviewed with an explicit refute-pass by Codex + MISA3.",
+  "budget_radius": "Bounded: one schema, one exercise validator, one dogfooded ledger record; no agent fan-out, no runtime/credential/deploy mutation.",
+  "safety_floor": "Unchanged: DND, approval, security, credential, deploy, external-mutation, owner-mention, meeting, and branch/merge gates outrank altitude gain; no silent self-modification.",
+  "ledger_receipt": [
+    "run-20260626T0011Z-cc-noblocking-calibration-evidence",
+    "trace-2e9e3e52-f175-488a-af2b-c5487de8df6c",
+    "https://github.com/bonginkan/fairy_tale/issues/44"
+  ]
+}
