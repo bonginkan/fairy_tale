@@ -56,6 +56,7 @@ SKILL_REFERENCE_MARKERS = {
     ),
     Path("fairy-tale/references/process.md"): (
         "Accessible genius method record",
+        "Implicit-contract discovery family router",
         "Excess / redundancy / legacy-surface discovery record",
         "Loop engineering operating record",
         "Spiral engineering revolution record",

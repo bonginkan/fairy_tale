@@ -1,5 +1,21 @@
 # Release Notes
 
+## 0.2.11
+
+- Consolidated the overlapping Generalization and Latent Structure harness
+  routes into one implicit-contract discovery harness for hidden rules,
+  executable/checkable world models, tacit intent, false analogies, and
+  latent-structure ledgers.
+- Added an implicit-contract discovery family router to `process.md` so
+  generalization, tacit-intent, latent-structure, closure, negative-space, and
+  excess/redundancy records are selected deliberately instead of duplicating the
+  same reasoning across multiple ledgers.
+- Preserved the Closure / Negative-Space / Excess safety harness as a separate
+  review and consolidation gate, with routing guidance to hand hidden-rule work
+  to the consolidated implicit-contract harness.
+- Updated residency markers so the new router is checked in distributed skill
+  copies.
+
 ## 0.2.10
 
 - Added the Spiral Engineering harness so loop revolutions can raise an
