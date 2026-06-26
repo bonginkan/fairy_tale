@@ -59,6 +59,12 @@ SAFETY_FLOOR_TERMS = (
     "permission", "allowlist", "allow-list", "allow list", "access control",
     "access-control", "rbac", "privilege", "authorization", "authentication",
     "role binding", "rolebinding", "scope grant",
+    # access-control / authority config surfaces (the files that ARE the policy)
+    "access.json", "access json", "access file", "settings.json", "settings file",
+    "channel_guard", "channel guard", "guard config", "guard file", "policy file",
+    # persistence / privilege escalation / scheduling
+    "launchd", "launch agent", "launchagent", "cron", "crontab", "scheduled task",
+    "scheduler", "sudoers", "sudo", "persistent job", "persistence",
     # deploy / production / runtime
     "deploy", "production", "rollout", "runtime-install", "runtime install",
     "runtime promotion", "runtime-promotion", "self-update", "self update",
@@ -307,6 +313,12 @@ def _selftest() -> int:
         "safety-floor-permission-allowlist": lambda r: r["mutation_budget"]["changeable"].append("access permission allowlist"),
         "safety-floor-production-rollout": lambda r: r["mutation_budget"]["changeable"].append("production rollout policy"),
         "safety-floor-runtime-promotion": lambda r: r["mutation_budget"]["changeable"].append("allow runtime promotion without self-update gate"),
+        "safety-floor-access-json": lambda r: r["mutation_budget"]["changeable"].append("access.json policy"),
+        "safety-floor-settings-json": lambda r: r["mutation_budget"]["changeable"].append("settings.json"),
+        "safety-floor-channel-guard": lambda r: r["mutation_budget"]["changeable"].append("channel guard file"),
+        "safety-floor-launchd": lambda r: r["mutation_budget"]["changeable"].append("launchd job"),
+        "safety-floor-cron": lambda r: r["mutation_budget"]["changeable"].append("cron schedule"),
+        "safety-floor-sudoers": lambda r: r["mutation_budget"]["changeable"].append("sudoers"),
         "empty-changeable": lambda r: r["mutation_budget"].__setitem__("changeable", []),
         "no-blast-radius": lambda r: r["mutation_budget"].__setitem__("blast_radius", ""),
         "bad-operator": lambda r: r.__setitem__("mutation_operator", "yolo"),
