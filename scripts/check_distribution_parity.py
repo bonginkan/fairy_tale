@@ -24,6 +24,16 @@ MIRRORS = (
     ROOT / "plugins" / "fairy-tale" / "skills" / "fairy-tale",
 )
 
+# Non-.md companion artifacts (schemas / scripts / ledgers) are also mirrored into
+# the plugin package. The skill *.md parity above did NOT cover them, so schema /
+# script / ledger mirror drift slipped through (fairy_tale #7 / #22; seen on
+# PR #46 and #9). A file is treated as a "mirrored companion" iff it exists in
+# BOTH the root and the plugin -- root-only tooling is never force-mirrored.
+PLUGIN_ROOT = ROOT / "plugins" / "fairy-tale"
+COMPANION_DIRS = ("schemas", "scripts", "spiral-revolutions")
+COMPANION_TOP_LEVEL = ("spiral-principals.json",)
+COMPANION_SKIP_PARTS = {"__pycache__"}
+
 # Inline-reference form used inside SKILL.md, e.g. `references/process.md`.
 REF_RE = re.compile(r"`(references/[A-Za-z0-9._/\-]+\.md)`")
 
@@ -65,8 +75,47 @@ def check_inline_refs() -> list[str]:
     return errors
 
 
+def companion_candidates() -> list[Path]:
+    """Root-relative non-.md companion artifacts that may be mirrored to the plugin."""
+    rels: list[Path] = []
+    for name in COMPANION_DIRS:
+        base = ROOT / name
+        if not base.is_dir():
+            continue
+        for p in sorted(base.rglob("*")):
+            if not p.is_file() or p.suffix == ".md":
+                continue
+            if COMPANION_SKIP_PARTS & set(p.parts):
+                continue
+            rels.append(p.relative_to(ROOT))
+    for name in COMPANION_TOP_LEVEL:
+        if (ROOT / name).is_file():
+            rels.append(Path(name))
+    return rels
+
+
+def check_companion_parity() -> tuple[list[str], int]:
+    """Byte-parity for files present in BOTH root and the plugin package.
+
+    Discovery-based: a file is a mirrored companion iff it exists in both places,
+    so root-only tooling is never force-mirrored (no implicit skips -- a real
+    mirror that drifts is caught).
+    """
+    errors: list[str] = []
+    checked = 0
+    for rel in companion_candidates():
+        plugin_copy = PLUGIN_ROOT / rel
+        if not plugin_copy.is_file():
+            continue
+        checked += 1
+        if (ROOT / rel).read_bytes() != plugin_copy.read_bytes():
+            errors.append(f"companion mirror drift: {rel} != plugins/fairy-tale/{rel}")
+    return errors, checked
+
+
 def main() -> int:
-    errors = check_parity() + check_inline_refs()
+    companion_errors, companions = check_companion_parity()
+    errors = check_parity() + check_inline_refs() + companion_errors
     if errors:
         print("Fairy Tale distribution parity FAILED:")
         for err in errors:
@@ -75,7 +124,8 @@ def main() -> int:
     copies = 1 + len(MIRRORS)
     print(
         f"Fairy Tale distribution parity OK: {copies} skill copies byte-identical "
-        "(*.md) and SKILL.md inline references resolve."
+        f"(*.md), {companions} mirrored companion artifacts byte-identical, and "
+        "SKILL.md inline references resolve."
     )
     return 0
 
