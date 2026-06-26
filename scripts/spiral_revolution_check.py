@@ -10,10 +10,11 @@ false-negative surfaced under Jun's no-blocking critical-thinking challenge
 (fairy_tale #43/#44).
 
 This script exercises the spec: it requires at least one well-formed spiral
-revolution record whose evidence-bearing fields carry CONCRETE references
-(URLs, commit shas, #issue/PR, run-/trace-/sha256 ids). A record with empty,
-missing, or placeholder evidence fails -- so the gate cannot be satisfied by
-presence alone.
+revolution record whose evidence-bearing fields carry CONCRETE, verifiable
+references -- a URL with host+path, a full 40-hex commit sha, a sha256: digest,
+a run-/trace- id, or an existing repo path. Bare #N, abbreviated hex, and
+freeform prose are rejected. A record with empty/missing/placeholder evidence
+fails -- so the gate cannot be satisfied by presence alone.
 
 Usage:
   spiral_revolution_check.py [--records DIR] [--json]
