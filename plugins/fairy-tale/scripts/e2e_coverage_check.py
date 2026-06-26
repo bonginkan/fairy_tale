@@ -13,21 +13,31 @@ The teeth (beyond presence):
   - closure: surfaces are discovered from code/deploy, and EVERY discovered
     surface must appear in coverage[] (a discovered surface absent from the ledger
     is a closure violation). Coverage may not reference a surface that was never
-    discovered (no phantom coverage). This is the Negative-Space Closure Check
-    applied to e2e scope -- "shown N" is never silently "only N".
+    discovered (no phantom coverage). The closure-diff (missing_from_provided) must
+    list discovered surface ids -- not prose or a ghost id. This is the
+    Negative-Space Closure Check applied to e2e scope -- "shown N" is never silently
+    "only N".
   - presence-vs-exercise: a mutation/auth/stateful surface needs exercise.verified
-    true with concrete evidence; render/reachability alone (presence) does not pass
-    it. A read_only surface may pass on presence.
+    true AND a `kind` that names a real exercise (create/read-back/round-trip/
+    continuity/mutate/delete/probe/replay); a render/presence/screenshot-only kind
+    is rejected even when verified is true. A read_only surface may pass on presence.
   - boundary-companion battery: every mutation/auth/stateful surface must carry the
     full entailed companion set (auth_reject, authz_rbac, idor_impersonation,
-    visibility_scope, idempotency, allowlist_boundary), each a concrete ref or a
-    justified N/A. A missing/prose companion fails.
-  - RED -> tracked: each red finding needs a concrete repro AND a concrete tracker
-    link; you cannot report completion over an untracked failure.
+    visibility_scope, idempotency, allowlist_boundary). The class's CORE companions
+    can never be N/A (mutation: auth_reject/authz_rbac/idempotency; auth:
+    auth_reject/authz_rbac; stateful: auth_reject/idempotency); the rest may be N/A
+    only with a substantive reason. A missing/prose/vague-N/A companion fails -- the
+    battery cannot be opted out via prose.
+  - RED -> tracked: each red finding needs a concrete repro AND a tracker URL
+    (issue/PR), not a path/route; you cannot report completion over an untracked
+    failure.
   - residue zero: residue.count must be 0 with concrete evidence.
-  - real backend: no_mock.asserted must be true with concrete read-back evidence.
+  - real backend: no_mock.asserted must be true, with >=1 evidence entry showing an
+    actual store/state read-back (file:line or a read-back keyword) -- a bare
+    tracker URL does not prove a real backend.
   - secret hygiene: NO raw secret/token/credential blob may appear anywhere in the
-    ledger (the reachability story may describe HOW, never leak the value).
+    ledger (the reachability story may describe HOW, never leak the value). A hex
+    token is exempt only as the digest immediately following `sha256:`.
   - review calibration: the SAME #43 contract as the spiral/evolution ledgers
     (>= 2 distinct registered reviewers; a no_block needs a concrete refute_pass;
     no self-review), reused -- not reimplemented -- from spiral_revolution_check.
@@ -69,6 +79,45 @@ REQUIRED_TOP = (
 
 # A run that mocks the system under test, or pollutes it, is not a completion.
 REAL_TIERS = {"deployed", "ephemeral", "local-real"}
+
+# An exercised surface's `kind` must name a real exercise, not a render. A
+# verified:true with kind="render-only" is presence wearing an exercise label.
+EXERCISE_KIND_SIGNALS = (
+    "create", "read-back", "readback", "read back", "round-trip", "roundtrip",
+    "round trip", "continuity", "mutate", "delete", "probe", "replay",
+    "write-verify", "write verify",
+)
+NON_EXERCISE_KINDS = {
+    "render-only", "render", "renderonly", "presence", "presence-only",
+    "presenceonly", "view-only", "viewonly", "smoke", "none", "n/a", "na",
+    "screenshot", "screenshot-only",
+}
+
+# Per surface_class, the companions that MUST be concretely evidenced (never N/A):
+# a mutation endpoint always has auth, RBAC and replay semantics; an authed page
+# always has auth + RBAC; a stateful flow always has auth + replay. The remaining
+# companions may be N/A *with a substantive reason* -- but the battery can never be
+# entirely opted out via prose.
+REQUIRED_CONCRETE_COMPANIONS = {
+    "mutation": ("auth_reject", "authz_rbac", "idempotency"),
+    "auth": ("auth_reject", "authz_rbac"),
+    "stateful": ("auth_reject", "idempotency"),
+}
+# N/A reasons that are not reasons. An N/A companion must explain WHY structurally.
+VAGUE_NA_REASONS = {
+    "not applicable", "n/a", "na", "none", "does not apply", "doesn't apply",
+    "not relevant", "no", "-", "--", "skip", "skipped", "tbd",
+}
+_MIN_NA_REASON_LEN = 15
+
+# A read-back / store-effect signal: no_mock must show a real effect was observed,
+# not merely cite a tracker URL.
+READBACK_SIGNAL = re.compile(
+    r"(?i)read.?back|re-?query|requer|persist|stored|store.?effect|state.?effect|"
+    r"round.?trip|firestore|datastore|\bdb\b|db row|record|row count|appended"
+)
+# A tracker URL (issue/PR/ticket). issue_ref must be one of these, not a path/route.
+_TRACKER_URL = re.compile(r"https?://\S+", re.IGNORECASE)
 
 # Secret-shaped blobs that must never be pasted into a ledger. The reachability
 # story describes HOW a session was obtained; it never carries the value. These
@@ -146,9 +195,14 @@ def _check_no_secret_leak(record: dict, errors: list[str]) -> None:
         for pattern in _SECRET_PATTERNS:
             for hit in pattern.finditer(text):
                 token = hit.group(0)
-                # allow a sha256:-prefixed digest embedded in prose
-                if "sha256:" in text.lower() and re.fullmatch(r"[0-9a-fA-F]{40,}", token):
-                    continue
+                # Exempt a hex token ONLY when it is the digest of an *immediately*
+                # preceding `sha256:` -- not merely because `sha256:` appears
+                # somewhere else in the same string (which let a bare hex secret
+                # ride alongside an unrelated sha digest).
+                if re.fullmatch(r"[0-9a-fA-F]{40,}", token):
+                    prefix = text[:hit.start()]
+                    if prefix.rstrip().lower().endswith("sha256:"):
+                        continue
                 errors.append(
                     f"possible secret/token leaked into ledger ({pattern.pattern[:24]}...): "
                     f"redact -- the reachability story describes HOW, never the value"
@@ -174,7 +228,18 @@ def _check_no_mock(record: dict, errors: list[str]) -> None:
         return
     if no_mock.get("asserted") is not True:
         errors.append("no_mock.asserted: must be true (a run that mocks the system under test is not a completion)")
-    _check_evidence_array(no_mock.get("evidence"), "no_mock.evidence", errors)
+    evidence = no_mock.get("evidence")
+    _check_evidence_array(evidence, "no_mock.evidence", errors)
+    # A tracker URL alone does not prove a real backend. Require >=1 entry that
+    # actually shows a store/state read-back (file:line provenance or a read-back
+    # keyword), not merely a PR/issue link.
+    if isinstance(evidence, list) and not any(
+        isinstance(e, str) and (_PROVENANCE.search(e) or READBACK_SIGNAL.search(e)) for e in evidence
+    ):
+        errors.append(
+            "no_mock.evidence: needs >=1 entry showing a real store/state read-back "
+            "(file:line, or read-back/re-query/persisted/stored/record/round-trip), not just a tracker URL"
+        )
 
 
 def _discovered_ids(record: dict) -> set[str]:
@@ -209,20 +274,50 @@ def _check_surface_inventory(record: dict, errors: list[str]) -> None:
     closure = inv.get("closure")
     if not isinstance(closure, dict) or not isinstance(closure.get("missing_from_provided"), list):
         errors.append("surface_inventory.closure.missing_from_provided: required array (the closure-diff audit must be recorded, even if empty)")
+    else:
+        discovered = _discovered_ids(record)
+        for entry in closure["missing_from_provided"]:
+            if not _nonempty_str(entry):
+                errors.append("surface_inventory.closure.missing_from_provided: entries must be non-empty surface ids")
+            elif discovered and entry not in discovered:
+                errors.append(
+                    f"surface_inventory.closure.missing_from_provided: {entry!r} is not a discovered "
+                    f"surface id -- list discovered surfaces (each then covered), not prose/ghost ids"
+                )
 
 
-def _check_companions(surface_id: str, companions, errors: list[str]) -> None:
+def _check_companions(surface_id: str, klass: str, companions, errors: list[str]) -> None:
     if not isinstance(companions, dict):
         errors.append(f"coverage[{surface_id}].boundary_companions: required object for mutation/auth/stateful surfaces")
         return
+    must_be_concrete = REQUIRED_CONCRETE_COMPANIONS.get(klass, ())
     for key in REQUIRED_COMPANIONS:
         if key not in companions:
             errors.append(f"coverage[{surface_id}].boundary_companions.{key}: required (entailed boundary battery incomplete)")
             continue
         value = companions[key]
-        if isinstance(value, dict) and value.get("na") is True:
-            if not _nonempty_str(value.get("reason")):
+        is_na = isinstance(value, dict) and value.get("na") is True
+        # Core companions for this surface class can never be opted out via N/A:
+        # a mutation always has auth/RBAC/replay, an authed page always has
+        # auth/RBAC, a stateful flow always has auth/replay.
+        if key in must_be_concrete:
+            if is_na:
+                errors.append(
+                    f"coverage[{surface_id}].boundary_companions.{key}: a {klass} surface must "
+                    f"concretely evidence this companion (N/A is not allowed for it)"
+                )
+            elif not _cites_concrete(value):
+                errors.append(f"coverage[{surface_id}].boundary_companions.{key}: must cite concrete evidence")
+            continue
+        if is_na:
+            reason = value.get("reason")
+            if not _nonempty_str(reason):
                 errors.append(f"coverage[{surface_id}].boundary_companions.{key}: N/A needs a non-empty reason")
+            elif reason.strip().rstrip(".").lower() in VAGUE_NA_REASONS or len(reason.strip()) < _MIN_NA_REASON_LEN:
+                errors.append(
+                    f"coverage[{surface_id}].boundary_companions.{key}: N/A reason is vague/too short "
+                    f"-- explain the structural reason it does not apply"
+                )
             continue
         if not _cites_concrete(value):
             errors.append(f"coverage[{surface_id}].boundary_companions.{key}: must cite concrete evidence, or be {{na:true, reason:...}}")
@@ -265,11 +360,20 @@ def _check_coverage(record: dict, errors: list[str]) -> None:
                     f"(create->read-back->delete / round-trip / continuity), not only present/rendered"
                 )
             if exercise.get("verified"):
-                if not _nonempty_str(exercise.get("kind")):
+                kind = exercise.get("kind")
+                if not _nonempty_str(kind):
                     errors.append(f"coverage[{label}].exercise.kind: required and non-empty")
+                elif klass in EXERCISED_CLASSES:
+                    normalized = kind.strip().lower()
+                    if normalized in NON_EXERCISE_KINDS or not any(sig in normalized for sig in EXERCISE_KIND_SIGNALS):
+                        errors.append(
+                            f"coverage[{label}].exercise.kind {kind!r}: a {klass} surface must be GENUINELY "
+                            f"exercised (create/read-back/round-trip/continuity/mutate/delete/probe/replay) -- "
+                            f"a render/presence/screenshot-only kind is not exercise"
+                        )
                 _check_evidence_array(exercise.get("evidence"), f"coverage[{label}].exercise.evidence", errors)
         if klass in EXERCISED_CLASSES:
-            _check_companions(label, entry.get("boundary_companions"), errors)
+            _check_companions(label, klass, entry.get("boundary_companions"), errors)
     # Closure: every discovered surface must be covered.
     for missing in sorted(discovered - covered):
         errors.append(f"closure violation: discovered surface {missing!r} is not in coverage[] (scope not closed)")
@@ -290,8 +394,12 @@ def _check_red_findings(record: dict, errors: list[str]) -> None:
                 errors.append(f"red_findings[{rid}].{key}: required and non-empty")
         if not _cites_concrete(red.get("repro")):
             errors.append(f"red_findings[{rid}].repro: must cite a concrete reproduction (request/steps/observed)")
-        if not _cites_concrete(red.get("issue_ref")):
-            errors.append(f"red_findings[{rid}].issue_ref: a RED cannot be reported without a concrete tracker link (issue/PR URL)")
+        issue = red.get("issue_ref")
+        if not (_nonempty_str(issue) and _TRACKER_URL.search(issue)):
+            errors.append(
+                f"red_findings[{rid}].issue_ref: must be a tracker URL (issue/PR/ticket link), "
+                f"not a file path or route -- an untracked RED cannot be reported as handled"
+            )
 
 
 def _check_residue(record: dict, errors: list[str]) -> None:
@@ -355,7 +463,10 @@ def _good_record() -> dict:
         "environment": {"tier": "deployed", "base_ref": "https://example-service-dev.a.run.app/api/widget"},
         "no_mock": {
             "asserted": True,
-            "evidence": ["https://github.com/bonginkan/fairy_tale/pull/52"],
+            "evidence": [
+                "real store read-back: created row re-queried and persisted (app/api/widget/route.ts:30)",
+                "https://github.com/bonginkan/fairy_tale/pull/52",
+            ],
         },
         "surface_inventory": {
             "discovered": [
@@ -474,6 +585,30 @@ def _selftest() -> int:
         "prose-evidence-refs": lambda r: r.__setitem__("evidence_refs", ["it worked"]),
         # bad surface class
         "bad-surface-class": lambda r: r["coverage"][0].__setitem__("surface_class", "vibes"),
+        # --- review-round-1 blockers (Codex + MISA3 on PR #52) ---
+        # 1. verified:true but kind says render-only (presence wearing an exercise label)
+        "mutation-verified-render-only-kind": lambda r: r["coverage"][0]["exercise"].__setitem__("kind", "render-only"),
+        "mutation-verified-screenshot-kind": lambda r: r["coverage"][0]["exercise"].__setitem__("kind", "screenshot"),
+        # 2. whole battery opted out via N/A, or a core companion N/A, or vague reason
+        "all-companions-na": lambda r: r["coverage"][0].__setitem__("boundary_companions", {
+            k: {"na": True, "reason": "structurally not applicable to this surface at all"} for k in REQUIRED_COMPANIONS}),
+        "core-companion-na": lambda r: r["coverage"][0]["boundary_companions"].__setitem__("auth_reject", {"na": True, "reason": "this endpoint does not check auth at all here"}),
+        "core-companion-idempotency-na": lambda r: r["coverage"][0]["boundary_companions"].__setitem__("idempotency", {"na": True, "reason": "we did not bother testing replay this time"}),
+        "vague-na-reason": lambda r: r["coverage"][0]["boundary_companions"].__setitem__("allowlist_boundary", {"na": True, "reason": "n/a"}),
+        "short-na-reason": lambda r: r["coverage"][0]["boundary_companions"].__setitem__("allowlist_boundary", {"na": True, "reason": "no"}),
+        # 3. no_mock backed only by a tracker URL (no read-back signal)
+        "no-mock-url-only": lambda r: r["no_mock"].__setitem__("evidence", ["https://github.com/bonginkan/fairy_tale/pull/52"]),
+        # 4. secret hex riding alongside an unrelated sha256: digest in the same string
+        "secret-hex-with-sha256-elsewhere": lambda r: r["safety"].__setitem__(
+            "secret_handling", "integration secret 0123456789abcdef0123456789abcdef01234567 (receipt sha256:deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef)"),
+        # 5. missing_from_provided carries prose / a ghost id (not a discovered surface id)
+        "missing-from-provided-prose": lambda r: r["surface_inventory"]["closure"].__setitem__(
+            "missing_from_provided", ["lots of panels were not in the sheet"]),
+        "missing-from-provided-ghost": lambda r: r["surface_inventory"]["closure"].__setitem__(
+            "missing_from_provided", ["panel:does-not-exist"]),
+        # 7. RED issue_ref is a file path / route, not a tracker URL
+        "red-issue-ref-path": lambda r: r["red_findings"][0].__setitem__("issue_ref", "app/api/widget/route.ts:30"),
+        "red-issue-ref-route": lambda r: r["red_findings"][0].__setitem__("issue_ref", "POST /api/widget"),
     }
     for name, mutator in hostile.items():
         if validate_record(mutated(mutator)) == []:
@@ -507,7 +642,10 @@ def _selftest() -> int:
         "mutation, missing/prose/unjustified-NA companion, RED without issue/repro, nonzero/prose "
         "residue, mock asserted/tier/no-evidence, prose base_ref, empty discovered, missing closure "
         "audit, prose source_ref, safety-floor relaxed, leaked hex/Bearer/JWT/key=value secret, prose "
-        "evidence, bad surface class, duplicate/self reviewer)."
+        "evidence, bad surface class, duplicate/self reviewer; PR#52 review round: render-only/"
+        "screenshot exercise kind, all-NA/core-NA/vague-NA companion, no_mock url-only without "
+        "read-back, secret hex beside an unrelated sha256:, missing_from_provided prose/ghost id, "
+        "RED issue_ref as path/route)."
     )
     return 0
 
