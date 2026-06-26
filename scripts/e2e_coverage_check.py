@@ -19,8 +19,11 @@ The teeth (beyond presence):
     "only N".
   - presence-vs-exercise: a mutation/auth/stateful surface needs exercise.verified
     true AND a `kind` that names a real exercise (create/read-back/round-trip/
-    continuity/mutate/delete/probe/replay); a render/presence/screenshot-only kind
-    is rejected even when verified is true. A read_only surface may pass on presence.
+    continuity/mutate/delete/probe/replay) AND exercise.evidence that shows a real
+    outcome (HTTP status / -> result / read-back / create-delete / continuity); a
+    render/presence/screenshot-only kind, OR a valid-sounding kind backed only by a
+    screenshot, is rejected even when verified is true. A read_only surface may pass
+    on presence.
   - boundary-companion battery: every mutation/auth/stateful surface must carry the
     full entailed companion set (auth_reject, authz_rbac, idor_impersonation,
     visibility_scope, idempotency, allowlist_boundary). The class's CORE companions
@@ -92,6 +95,16 @@ NON_EXERCISE_KINDS = {
     "presenceonly", "view-only", "viewonly", "smoke", "none", "n/a", "na",
     "screenshot", "screenshot-only",
 }
+# A genuine exercise leaves a trace in the EVIDENCE, not just a label on `kind`.
+# A mutation/auth/stateful surface's exercise.evidence must show a real outcome --
+# an HTTP result / an arrow result / a read-back / a create-delete / continuity --
+# so `kind="probe"` backed only by `screenshot.png` (presence wearing an exercise
+# label) is rejected.
+EXERCISE_EVIDENCE_SIGNAL = re.compile(
+    r"(?i)\b[1-5]\d{2}\b|->|=>|\bredirect\b|read.?back|re-?query|requer|persist|"
+    r"\bstored\b|store.?effect|state.?effect|round.?trip|continu|append|"
+    r"\bcreated\b|\bdeleted?\b|\binserted\b|\bupdated\b|duplicate|\blisted\b|\b201\b"
+)
 
 # Per surface_class, the companions that MUST be concretely evidenced (never N/A):
 # a mutation endpoint always has auth, RBAC and replay semantics; an authed page
@@ -372,6 +385,17 @@ def _check_coverage(record: dict, errors: list[str]) -> None:
                             f"a render/presence/screenshot-only kind is not exercise"
                         )
                 _check_evidence_array(exercise.get("evidence"), f"coverage[{label}].exercise.evidence", errors)
+                # The kind label is not enough: the EVIDENCE must show a real outcome
+                # for an exercised surface, so `kind="probe"` backed only by a
+                # screenshot (presence wearing an exercise label) is rejected.
+                if klass in EXERCISED_CLASSES:
+                    ev = exercise.get("evidence")
+                    if not (isinstance(ev, list) and any(isinstance(e, str) and EXERCISE_EVIDENCE_SIGNAL.search(e) for e in ev)):
+                        errors.append(
+                            f"coverage[{label}].exercise.evidence: a {klass} surface needs >=1 entry showing a "
+                            f"real exercise outcome (HTTP status / -> result / read-back / create-delete / "
+                            f"continuity), not a screenshot/label alone"
+                        )
         if klass in EXERCISED_CLASSES:
             _check_companions(label, klass, entry.get("boundary_companions"), errors)
     # Closure: every discovered surface must be covered.
@@ -484,7 +508,7 @@ def _good_record() -> dict:
                 "surface_class": "mutation",
                 "presence": {"verified": True, "evidence": ["app/api/widget/route.ts:30"]},
                 "exercise": {"verified": True, "kind": "create-readback-delete",
-                             "evidence": ["https://github.com/bonginkan/fairy_tale/pull/52"]},
+                             "evidence": ["create -> 201 -> read-back -> delete round-trip (https://github.com/bonginkan/fairy_tale/pull/52)"]},
                 "boundary_companions": {
                     "auth_reject": "https://github.com/bonginkan/fairy_tale/pull/52",
                     "authz_rbac": "https://github.com/bonginkan/fairy_tale/pull/52",
@@ -589,6 +613,9 @@ def _selftest() -> int:
         # 1. verified:true but kind says render-only (presence wearing an exercise label)
         "mutation-verified-render-only-kind": lambda r: r["coverage"][0]["exercise"].__setitem__("kind", "render-only"),
         "mutation-verified-screenshot-kind": lambda r: r["coverage"][0]["exercise"].__setitem__("kind", "screenshot"),
+        # valid-sounding kind label but evidence is a screenshot only (no real outcome)
+        "mutation-kind-probe-screenshot-only-evidence": lambda r: r["coverage"][0]["exercise"].update(
+            {"kind": "probe", "evidence": ["openab-consultation-panel.png"]}),
         # 2. whole battery opted out via N/A, or a core companion N/A, or vague reason
         "all-companions-na": lambda r: r["coverage"][0].__setitem__("boundary_companions", {
             k: {"na": True, "reason": "structurally not applicable to this surface at all"} for k in REQUIRED_COMPANIONS}),
@@ -645,7 +672,7 @@ def _selftest() -> int:
         "evidence, bad surface class, duplicate/self reviewer; PR#52 review round: render-only/"
         "screenshot exercise kind, all-NA/core-NA/vague-NA companion, no_mock url-only without "
         "read-back, secret hex beside an unrelated sha256:, missing_from_provided prose/ghost id, "
-        "RED issue_ref as path/route)."
+        "RED issue_ref as path/route, valid kind label backed only by screenshot evidence)."
     )
     return 0
 
