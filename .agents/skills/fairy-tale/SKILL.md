@@ -531,20 +531,31 @@ python3 scripts/fairy_tale_residency_check.py
 - Once the grammar is stable, compile it into search, planning, choreography, or
   verification code.
 
-### Generalization Harness: executable world models and tacit intent
+### Generalization and Latent Structure Harness: hidden rules, executable models, and tacit intent
 
-- Use this for unfamiliar tools, hidden-rule tasks, ambiguous implementation
-  requests, and repeated benchmark misses where the model is seeing local facts
-  but failing to form a transferable rule.
-- Build an executable or checkable model of the task before spending expensive
-  actions: state, transitions, invariants, public interfaces, old behavior,
-  constraints, and success conditions.
-- Verify the model against observed transitions, existing tests, logs, examples,
-  screenshots, or user statements. Refactor the model toward fewer rules only
-  after it predicts the evidence.
-- Keep confirmed knowledge, refuted hypotheses, no-op observations, and open
-  assumptions in separate sections. Do not let lucky successes harden into
-  rules until the success reason has been tested.
+This consolidates the former Generalization Harness and Latent Structure
+Harness routes. Use it when the visible request is likely incomplete or local
+facts are present but the transferable rule is still unclear: unfamiliar tools,
+hidden-rule tasks, black-box environments, ambiguous specs, implicit repository
+or product contracts, false analogies, unstated user intent, and repeated
+benchmark misses.
+
+- Start with the smallest checkable world model before expensive or externally
+  visible action: state, transitions, invariants, public interfaces, old
+  behavior, constraints, success conditions, and expected failure modes.
+- Verify that model against observed transitions, existing tests, logs,
+  examples, screenshots, user statements, negative evidence, or controlled
+  probes. Refactor the model toward fewer rules only after it predicts the
+  evidence.
+- Keep this harness domain-neutral. It may support SWE-style coding, ARC-style
+  mechanism discovery, legal, research, UI, spatial, and security work, but it
+  must not encode benchmark answers, hidden tests, task ids, or
+  rubric-specific shortcuts.
+- Keep confirmed knowledge, refuted hypotheses, no-op observations, inferred
+  invariants, risky assumptions, open assumptions, probes, validators, and
+  validation results, actions, and promotion decisions in separate sections. Do
+  not let lucky successes harden into rules until the success reason has been
+  tested.
 - Detect false analogies: if an unfamiliar task is being mapped to a known game,
   framework, legal form, or coding pattern, require at least two independent
   observations before acting on that analogy.
@@ -559,6 +570,16 @@ python3 scripts/fairy_tale_residency_check.py
   APIs, legacy behavior, mocks/fixtures, edge cases, non-functional constraints,
   and user-facing output that the prompt did not spell out but the system
   relies on.
+- Create or update a latent-structure ledger before acting when the task is
+  medium/high risk or has a latent-structure trigger:
+  `python3 scripts/latent_structure_harness.py init --task "<objective>" --task-family generic --trigger implicit_contract --output latent-structure-ledger.json`.
+- Run the pre-action gate before expensive or externally visible action:
+  `python3 scripts/latent_structure_harness.py validate --ledger latent-structure-ledger.json --stage pre-act`.
+- Run the final gate before claiming completion or reusing the inferred rule:
+  `python3 scripts/latent_structure_harness.py validate --ledger latent-structure-ledger.json --stage final`.
+- If the gate fails, either gather more evidence, narrow the invariant scope,
+  downgrade the promotion decision, or ask the user when the unresolved
+  assumption is irreversible, safety-relevant, externally visible, or cost-heavy.
 
 ### Closure, Negative-Space, and Excess Discovery Harness
 
@@ -597,30 +618,6 @@ python3 scripts/fairy_tale_residency_check.py
 - Use the Closure Check, Negative-Space Discovery, Excess / Redundancy /
   Legacy-Surface Discovery, contradiction, and problem-construction cards in
   `references/process.md`.
-
-### Latent Structure Harness: hidden rules and implicit contracts
-
-- Use this harness when the visible prompt is likely incomplete: hidden rules,
-  implicit repository or product contracts, black-box environments, ambiguous
-  specs, benchmark misses, false analogies, or generalization gaps.
-- Keep it domain-neutral. The harness may support SWE-style coding, ARC-style
-  mechanism discovery, legal, research, UI, spatial, and security work, but it
-  must not encode benchmark answers, hidden tests, task ids, or rubric-specific
-  shortcuts.
-- Create or update a latent-structure ledger before acting when the task is
-  medium/high risk or has a latent-structure trigger:
-  `python3 scripts/latent_structure_harness.py init --task "<objective>" --task-family generic --trigger implicit_contract --output latent-structure-ledger.json`.
-- Separate observations, negative evidence, hypotheses, inferred invariants,
-  risky assumptions, probes, validators, actions, validation results, and the
-  promotion decision. Do not promote a local pattern into a general rule until
-  it predicts the evidence and survives a probe or validator.
-- Run the pre-action gate before expensive or externally visible action:
-  `python3 scripts/latent_structure_harness.py validate --ledger latent-structure-ledger.json --stage pre-act`.
-- Run the final gate before claiming completion or reusing the inferred rule:
-  `python3 scripts/latent_structure_harness.py validate --ledger latent-structure-ledger.json --stage final`.
-- If the gate fails, either gather more evidence, narrow the invariant scope,
-  downgrade the promotion decision, or ask the user when the unresolved
-  assumption is irreversible, safety-relevant, externally visible, or cost-heavy.
 
 ### External Reconstruction Adapter Harness
 
