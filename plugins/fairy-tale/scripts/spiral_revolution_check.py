@@ -30,6 +30,7 @@ import json
 import re
 import sys
 from pathlib import Path
+from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_RECORDS_DIR = ROOT / "spiral-revolutions"
@@ -279,6 +280,124 @@ def _check_reviews(record: dict, errors: list[str]) -> None:
         errors.append(f"circular review: implementer_id '{implementer_id}' must not also appear as a reviewer_id")
 
 
+def _concrete_refutes(record: dict) -> list[str]:
+    """The concrete refute_pass artifacts cited by a record's reviews."""
+    out: list[str] = []
+    reviews = record.get("reviews")
+    if not isinstance(reviews, list):
+        return out
+    for review in reviews:
+        if not isinstance(review, dict):
+            continue
+        refute = review.get("refute_pass")
+        if isinstance(refute, str) and refute.strip() and _entry_problem(refute) is None:
+            out.append(refute.strip())
+    return out
+
+
+_GITHUB_HOSTS = ("github.com",)
+
+
+def _canon_ref(value: str) -> str:
+    """Canonicalize a refute artifact for cross-record identity comparison so a
+    reused artifact cannot be disguised by trivial URL variation -- without
+    over-collapsing genuinely distinct ones. For a URL: lowercase; drop the query
+    and any trailing slashes; keep only the fragment up to the first '?'/'&' (the
+    comment anchor); strip a scheme-default port.
+
+    Scheme is preserved per host, EXCEPT on github.com (and subdomains), where
+    http always redirects to https and so reaches the same artifact -- there the
+    scheme is normalized to https and both default ports (80/443) are stripped.
+    For any other host, http:// and https:// are NOT assumed equal (they may be
+    different servers), so the scheme is kept. Non-URL refs (sha256:, run-/trace-
+    ids, repo paths) collapse to their lowercased, slash-trimmed form.
+    """
+    s = value.strip().lower()
+    parts = urlsplit(s)
+    if parts.scheme and parts.netloc:
+        host = parts.hostname or parts.netloc
+        try:
+            port = parts.port
+        except ValueError:
+            port = None
+        scheme = parts.scheme
+        is_github = host in _GITHUB_HOSTS or any(host.endswith("." + h) for h in _GITHUB_HOSTS)
+        if is_github:
+            scheme = "https"
+            drop_ports = (80, 443)
+        else:
+            drop_ports = (443,) if scheme == "https" else (80,) if scheme == "http" else ()
+        netloc = host if (port is None or port in drop_ports) else f"{host}:{port}"
+        path = parts.path.rstrip("/")
+        fragment = re.split(r"[?&]", parts.fragment, maxsplit=1)[0].rstrip("/")
+        base = f"{scheme}://{netloc}{path}"
+        return f"{base}#{fragment}" if fragment else base
+    return s.rstrip("/")
+
+
+def check_cross_record(records: list[tuple[str, dict]]) -> tuple[list[str], dict]:
+    """Cross-record review calibration (fairy_tale #43 follow-up).
+
+    Per-record validation already requires every no_block sign-off to cite a
+    concrete refutation artifact. That cannot see a rubber-stamp tell that spans
+    records: pasting a *prior* turn's refute_pass forward. A given refutation
+    artifact belongs to the turn that produced it -- it must not be reused as the
+    evidence for a later revolution.
+
+    ``records`` is a list of (ident, record) where ident is UNIQUE per record
+    (the record's file name) -- NOT its revolution_id, so two records that share
+    a revolution_id cannot launder a reuse through the collision. revolution_id
+    uniqueness is enforced separately. refute artifacts are compared by their
+    canonical form so URL casing / trailing-slash / appended-query variants of
+    the same artifact still collide.
+
+    Returns (errors, stats). Binding a refute_pass to its live author is out of
+    scope by architecture: all three sibling agents commit/comment under one
+    GitHub identity, so authorship cannot be distinguished at the GitHub layer;
+    distinctness lives in the Discord user_id recorded per review.
+    """
+    errors: list[str] = []
+    seen: dict[str, str] = {}  # canonical refute artifact -> ident that first used it
+    rid_owner: dict[str, str] = {}  # revolution_id -> ident (uniqueness)
+    no_block_reviews = 0
+    refute_artifacts: set[str] = set()
+    for ident, record in records:
+        if not isinstance(record, dict):
+            continue
+        rid = record.get("revolution_id")
+        if isinstance(rid, str) and rid.strip():
+            if rid in rid_owner and rid_owner[rid] != ident:
+                errors.append(
+                    f"duplicate revolution_id '{rid}' across records "
+                    f"('{rid_owner[rid]}' and '{ident}'): ids must be unique"
+                )
+            else:
+                rid_owner.setdefault(rid, ident)
+        reviews = record.get("reviews")
+        if isinstance(reviews, list):
+            for review in reviews:
+                if isinstance(review, dict) and review.get("verdict") == "no_block":
+                    no_block_reviews += 1
+        for refute in _concrete_refutes(record):
+            canon = _canon_ref(refute)
+            refute_artifacts.add(canon)
+            if canon in seen:
+                if seen[canon] != ident:
+                    errors.append(
+                        f"refute_pass reused across records: {refute} (canonical "
+                        f"'{canon}') appears in both '{seen[canon]}' and '{ident}' "
+                        f"(each turn needs its own refutation, not a pasted-forward one)"
+                    )
+            else:
+                seen[canon] = ident
+    stats = {
+        "records": len(records),
+        "no_block_reviews": no_block_reviews,
+        "distinct_refute_artifacts": len(refute_artifacts),
+    }
+    return errors, stats
+
+
 def _good_record() -> dict:
     return {
         "schema_version": "1.0",
@@ -382,6 +501,64 @@ def _selftest() -> int:
         if validate_record(record) == []:
             failures.append(f"review-calibration case '{name}' should be rejected but passed")
 
+    # Cross-record calibration: a refute_pass reused across records must be flagged
+    # even when disguised, while distinct per-turn refutations must pass. Each
+    # synthetic record sets a distinct second refute so only the FIRST can collide.
+    _u1 = "https://github.com/bonginkan/fairy_tale/pull/48#issuecomment-4806074692"
+    _u2 = "https://github.com/bonginkan/fairy_tale/pull/48#issuecomment-4806074854"
+
+    def _xrec(ident_refute, other_refute):
+        r = _good_record()
+        r["revolution_id"] = f"rid-{ident_refute[-6:]}-{other_refute[-3:]}"
+        r["reviews"] = [
+            {"reviewer": "A", "reviewer_id": _cc, "verdict": "no_block", "refute_pass": ident_refute},
+            {"reviewer": "B", "reviewer_id": _codex, "verdict": "no_block", "refute_pass": other_refute},
+        ]
+        return r
+
+    _o1 = "https://github.com/x/y/pull/1#issuecomment-11"
+    _o2 = "https://github.com/x/y/pull/2#issuecomment-22"
+    # Disguised reuse of _u1 across two records -- each variant must still be flagged.
+    cross_reuse = {
+        "exact": _u1,
+        "case-variant": _u1.replace("github.com", "GitHub.com").replace("/pull/", "/PULL/"),
+        "query-after-fragment": _u1 + "?x=1",
+        "query-before-fragment": _u1.replace("#", "?z=1#"),
+        "trailing-slash": _u1 + "/",
+        "http-scheme": _u1.replace("https://", "http://"),
+        "default-port": _u1.replace("github.com", "github.com:443"),
+    }
+    for name, variant in cross_reuse.items():
+        errs, _ = check_cross_record([("a.json", _xrec(_u1, _o1)), ("b.json", _xrec(variant, _o2))])
+        if not errs:
+            failures.append(f"cross-record reuse '{name}' should be flagged but passed")
+    # Duplicate revolution_id must be flagged (and must not launder a reuse).
+    dup_a, dup_b = _xrec(_u1, _o1), _xrec(_u2, _o2)
+    dup_a["revolution_id"] = dup_b["revolution_id"] = "same-id"
+    errs, _ = check_cross_record([("a.json", dup_a), ("b.json", dup_b)])
+    if not any("duplicate revolution_id" in e for e in errs):
+        failures.append("duplicate revolution_id should be flagged but passed")
+    # Distinct per-record refutations (distinct ids + distinct artifacts) must pass.
+    clean, stats = check_cross_record([("a.json", _xrec(_u1, _o1)), ("b.json", _xrec(_u2, _o2))])
+    if clean:
+        failures.append(f"distinct per-record refutations should pass cross-record but got: {clean}")
+    if stats.get("records") != 2:
+        failures.append(f"cross-record stats.records should be 2, got {stats.get('records')}")
+    # On a NON-GitHub host, http:// and https:// are NOT assumed to be the same
+    # artifact, so they must stay distinct (no over-collapse / false positive).
+    ng_http = "http://example.test/refutation/artifact"
+    ng_https = "https://example.test/refutation/artifact"
+    ng_clean, _ = check_cross_record([("a.json", _xrec(ng_http, _o1)), ("b.json", _xrec(ng_https, _o2))])
+    if ng_clean:
+        failures.append("non-GitHub http vs https should stay distinct but was flagged (false positive)")
+    # ...while a non-GitHub default-port variant of the SAME scheme is still a reuse.
+    ng_port_reuse, _ = check_cross_record([
+        ("a.json", _xrec(ng_https, _o1)),
+        ("b.json", _xrec("https://example.test:443/refutation/artifact", _o2)),
+    ])
+    if not ng_port_reuse:
+        failures.append("non-GitHub https default-port reuse should be flagged but passed")
+
     # No-records dir must fail with exit 1 (suppress its report so selftest output stays clean).
     import contextlib
     import io
@@ -400,7 +577,8 @@ def _selftest() -> int:
     print(
         "Spiral revolution selftest passed (good->pass; "
         "evidence: empty/placeholder/bare-hex/bare-#N/prose+ref/abbrev-sha/prose+url/shape-sha/path-traversal->reject; "
-        "review-calibration: empty/prose refute_pass, <2 reviewers, self-review->reject)."
+        "review-calibration: empty/prose refute_pass, <2 reviewers, self-review->reject; "
+        "cross-record: reused refute_pass->reject, distinct->pass)."
     )
     return 0
 
@@ -426,6 +604,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     all_ok = True
+    loaded: list[tuple[str, dict]] = []
     for path in files:
         entry: dict[str, object] = {"file": str(path.relative_to(records_dir.parent) if records_dir.parent in path.parents else path)}
         try:
@@ -441,6 +620,16 @@ def main(argv: list[str] | None = None) -> int:
         if errors:
             all_ok = False
         report["records"].append(entry)  # type: ignore[union-attr]
+        if isinstance(record, dict):
+            # ident must be UNIQUE per record (file name) so a duplicate
+            # revolution_id cannot launder a cross-record refute reuse.
+            loaded.append((path.name, record))
+
+    cross_errors, stats = check_cross_record(loaded)
+    if cross_errors:
+        all_ok = False
+    report["cross_record_errors"] = cross_errors
+    report["calibration_stats"] = stats
 
     report["passed"] = all_ok
     _emit(report, args.json)
@@ -462,6 +651,15 @@ def _emit(report: dict, as_json: bool) -> None:
                 print(f"  - {err}")
         else:
             print(f"OK   {entry.get('file')} ({entry.get('revolution_id')})")
+    for err in report.get("cross_record_errors") or []:
+        print(f"  - cross-record: {err}")
+    stats = report.get("calibration_stats")
+    if isinstance(stats, dict):
+        print(
+            f"calibration: {stats.get('records')} record(s), "
+            f"{stats.get('no_block_reviews')} no_block review(s), "
+            f"{stats.get('distinct_refute_artifacts')} distinct refutation artifact(s)."
+        )
     print("Spiral revolution check passed." if report.get("passed") else "Spiral revolution check failed.")
 
 
