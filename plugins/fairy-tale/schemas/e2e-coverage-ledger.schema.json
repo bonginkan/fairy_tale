@@ -1,0 +1,161 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bonginkan/fairy_tale/schemas/e2e-coverage-ledger.schema.json",
+  "title": "E2E Coverage Ledger",
+  "description": "One record per end-to-end completion run against a real deployed system. Sits on the helix arc (Loop -> Spiral -> Double-Helix -> Evolution) as the layer that proves an e2e was *completed*, not merely declared. The teeth (enforced by scripts/e2e_coverage_check.py, not by presence): the covered surfaces are discovered from code/deploy and every discovered surface must be in the ledger (closure); presence is separated from exercise so render-only cannot pass a mutation/auth/stateful surface; every such surface carries a boundary-companion battery; RED findings carry a concrete repro + tracker link; residue is zero; no-mock/real-backend is asserted with read-back evidence; and no raw secret/token may appear anywhere in the ledger.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_version", "run_id", "target", "environment", "no_mock",
+    "surface_inventory", "coverage", "red_findings", "residue",
+    "evidence_refs", "safety", "implementer", "implementer_id", "reviews"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "run_id": { "type": "string", "minLength": 1, "description": "Stable identifier for this e2e run." },
+    "target": { "type": "string", "minLength": 1, "description": "System under test (domain-agnostic; e.g. an app/service name)." },
+    "environment": {
+      "type": "object",
+      "required": ["tier", "base_ref"],
+      "properties": {
+        "tier": { "type": "string", "enum": ["deployed", "ephemeral", "local-real"], "description": "Must be a real backend tier; a mock/stub tier is not a completion environment." },
+        "base_ref": { "type": "string", "minLength": 1, "description": "Concrete reference to the environment exercised (deploy URL / revision)." }
+      }
+    },
+    "no_mock": {
+      "type": "object",
+      "required": ["asserted", "evidence"],
+      "properties": {
+        "asserted": { "const": true, "description": "Real backend, no mocks. A run that mocks the system under test is not a completion." },
+        "evidence": { "type": "array", "minItems": 1, "items": { "type": "string" }, "description": "Concrete read-back evidence that real store/state effects were observed." }
+      }
+    },
+    "surface_inventory": {
+      "type": "object",
+      "required": ["discovered", "closure"],
+      "properties": {
+        "discovered": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Surfaces discovered from code/deploy (routes/panels/endpoints/actions) -- NOT just the provided test list.",
+          "items": {
+            "type": "object",
+            "required": ["id", "kind", "source_ref"],
+            "properties": {
+              "id": { "type": "string", "minLength": 1 },
+              "kind": { "type": "string", "enum": ["route", "panel", "endpoint", "action", "flow", "job"] },
+              "source_ref": { "type": "string", "minLength": 1, "description": "Concrete provenance: file:line / route path / deploy ref." }
+            }
+          }
+        },
+        "closure": {
+          "type": "object",
+          "required": ["missing_from_provided"],
+          "properties": {
+            "provided_list_ref": { "type": "string", "description": "Concrete reference to the provided test inventory, if any." },
+            "missing_from_provided": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Discovered surface ids absent from the provided list (the Negative-Space closure finding). May be empty, but the field is mandatory so the audit is recorded."
+            }
+          }
+        }
+      }
+    },
+    "coverage": {
+      "type": "array",
+      "minItems": 1,
+      "description": "One entry per discovered surface. Every discovered surface MUST appear here (closure).",
+      "items": {
+        "type": "object",
+        "required": ["surface_id", "surface_class", "presence", "exercise"],
+        "properties": {
+          "surface_id": { "type": "string", "minLength": 1, "description": "Must match a surface_inventory.discovered[].id." },
+          "surface_class": { "type": "string", "enum": ["read_only", "mutation", "auth", "stateful"] },
+          "presence": {
+            "type": "object",
+            "required": ["verified", "evidence"],
+            "properties": {
+              "verified": { "type": "boolean" },
+              "evidence": { "type": "array", "items": { "type": "string" } }
+            }
+          },
+          "exercise": {
+            "type": "object",
+            "required": ["verified", "kind", "evidence"],
+            "properties": {
+              "verified": { "type": "boolean", "description": "For mutation/auth/stateful surfaces this MUST be true: render/presence alone does not exercise the surface." },
+              "kind": { "type": "string", "minLength": 1, "description": "e.g. create-readback-delete, round-trip, stateful-continuity, boundary-probe." },
+              "evidence": { "type": "array", "items": { "type": "string" } }
+            }
+          },
+          "boundary_companions": {
+            "type": "object",
+            "description": "Required for mutation/auth/stateful surfaces. Each companion is either a concrete evidence ref (string) or { na: true, reason: <why-not-applicable> }.",
+            "properties": {
+              "auth_reject": {},
+              "authz_rbac": {},
+              "idor_impersonation": {},
+              "visibility_scope": {},
+              "idempotency": {},
+              "allowlist_boundary": {}
+            }
+          }
+        }
+      }
+    },
+    "red_findings": {
+      "type": "array",
+      "description": "Real failures found. A RED cannot be closed without a concrete repro and a tracker link; the run cannot be reported complete with an unresolved RED lacking an issue.",
+      "items": {
+        "type": "object",
+        "required": ["id", "summary", "repro", "issue_ref"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "summary": { "type": "string", "minLength": 1 },
+          "repro": { "type": "string", "minLength": 1, "description": "Concrete reproduction (request/steps/observed)." },
+          "issue_ref": { "type": "string", "minLength": 1, "description": "Concrete tracker link (issue/PR URL)." }
+        }
+      }
+    },
+    "residue": {
+      "type": "object",
+      "required": ["count", "evidence"],
+      "properties": {
+        "count": { "type": "integer", "const": 0, "description": "Test data left behind. Must be zero; an e2e that pollutes the environment is not complete." },
+        "evidence": { "type": "string", "minLength": 1, "description": "Concrete residue-zero verification." }
+      }
+    },
+    "evidence_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" },
+      "description": "Concrete artifacts (screenshots / API read-backs / logs) backing the run."
+    },
+    "safety": {
+      "type": "object",
+      "required": ["secret_handling", "safety_floor_preserved"],
+      "properties": {
+        "secret_handling": { "type": "string", "minLength": 1, "description": "How credentials/sessions were obtained and protected (raw-byte handling, no-leak). MUST NOT contain a raw secret value." },
+        "safety_floor_preserved": { "const": true, "description": "Reachability/session-mint never relaxes the safety floor (auth/authz still enforced; no secret leaked)." }
+      }
+    },
+    "implementer": { "type": "string", "minLength": 1 },
+    "implementer_id": { "type": "string", "pattern": "^[0-9]{15,21}$" },
+    "reviews": {
+      "type": "array",
+      "minItems": 2,
+      "description": "Same #43 review contract as the spiral/evolution ledgers: >= 2 distinct registered reviewers; a no_block needs a concrete refute_pass; no self-review.",
+      "items": {
+        "type": "object",
+        "required": ["reviewer", "reviewer_id", "verdict"],
+        "properties": {
+          "reviewer": { "type": "string", "minLength": 1 },
+          "reviewer_id": { "type": "string", "pattern": "^[0-9]{15,21}$" },
+          "verdict": { "type": "string", "enum": ["block", "no_block"] },
+          "refute_pass": { "type": "string" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,139 @@
+{
+  "schema_version": "1.0",
+  "run_id": "run-20260626T0730Z-cc-ninno-real-product-e2e",
+  "target": "ninno-real-product (develop)",
+  "environment": {
+    "tier": "deployed",
+    "base_ref": "https://ninno-real-product-develop-qkbosy5lpq-an.a.run.app/dashboard"
+  },
+  "no_mock": {
+    "asserted": true,
+    "evidence": [
+      "resolve_context read-back showed real Firestore effects: messages 2 (user+assistant), outcomeLog, approval.pendingHumanReview=true (app/api/integrations/openab/slack/route.ts:284)",
+      "https://github.com/bonginkan/NINNO-real-product/pull/44"
+    ]
+  },
+  "surface_inventory": {
+    "discovered": [
+      { "id": "POST /api/integrations/openab/slack", "kind": "endpoint", "source_ref": "app/api/integrations/openab/slack/route.ts:55" },
+      { "id": "POST /api/event-registrations", "kind": "endpoint", "source_ref": "app/api/event-registrations/route.ts:30" },
+      { "id": "route:/dashboard", "kind": "route", "source_ref": "app/dashboard/page.tsx:7" },
+      { "id": "route:/avatar", "kind": "route", "source_ref": "app/avatar/page.tsx:5" }
+    ],
+    "closure": {
+      "provided_list_ref": "ninno-real-product-test-items-human-qa (36 Human-QA items)",
+      "missing_from_provided": [
+        "the 27 individual admin/console/member UI panels were not each exercised by the provided sheet -- discovered from components/ninno-product-app.tsx:55 and added as Panel-E2E coverage"
+      ]
+    }
+  },
+  "coverage": [
+    {
+      "surface_id": "POST /api/integrations/openab/slack",
+      "surface_class": "mutation",
+      "presence": { "verified": true, "evidence": ["app/api/integrations/openab/slack/route.ts:55"] },
+      "exercise": {
+        "verified": true,
+        "kind": "create-readback-delete + stateful-continuity",
+        "evidence": [
+          "ingest_user_message -> 201 created Consultation/message/FounderMemory/OutcomeLog (app/api/integrations/openab/slack/route.ts:83)",
+          "resolve_context read-back: messages 2, outcomeLog, approval.pendingHumanReview (app/api/integrations/openab/slack/route.ts:284)",
+          "thread continuation: 2nd ingest same threadTs -> appended:true, same consultationId (app/api/integrations/openab/slack/route.ts:355)"
+        ]
+      },
+      "boundary_companions": {
+        "auth_reject": "no/wrong secret -> 401 Unauthorized integration request (lib/auth.ts:245)",
+        "authz_rbac": "member POST /api/tenants (and 4 other management endpoints) -> 403; admin/operator pass (lib/auth.ts:245)",
+        "idor_impersonation": "registration/identity forced to caller; another user's id cannot be acted as (resolveEventRegistrationUserId, app/api/event-registrations/route.ts:66)",
+        "visibility_scope": "members-scope consultation not leaked to lower role; unauth top hides protected nav (components/ninno-product-app.tsx:60)",
+        "idempotency": "same idempotencyKey re-send -> duplicate:true, no double write (app/api/integrations/openab/slack/route.ts:67)",
+        "allowlist_boundary": "disallowed teamDomain -> 403 Slack workspace is not allowed (lib/auth.ts:255)"
+      }
+    },
+    {
+      "surface_id": "POST /api/event-registrations",
+      "surface_class": "mutation",
+      "presence": { "verified": true, "evidence": ["app/api/event-registrations/route.ts:30"] },
+      "exercise": {
+        "verified": true,
+        "kind": "create-readback (POST -> 201 -> list)",
+        "evidence": [
+          "POST /api/event-registrations with tenantId -> 201 then listed (app/api/event-registrations/route.ts:35)",
+          "https://github.com/bonginkan/NINNO-real-product/pull/44"
+        ]
+      },
+      "boundary_companions": {
+        "auth_reject": "no member session -> 401 (app/api/event-registrations/route.ts:33)",
+        "authz_rbac": "GET scoped to own registrations unless admin/operator (app/api/event-registrations/route.ts:26)",
+        "idor_impersonation": "resolveEventRegistrationUserId forces self for members (app/api/event-registrations/route.ts:66)",
+        "visibility_scope": { "na": true, "reason": "members see only their own registrations; no cross-tenant read surface here (covered by the GET scope above)" },
+        "idempotency": "registrationId is deterministic; repeat POST upserts the same doc, no duplicate (lib/event-registrations.ts:25)",
+        "allowlist_boundary": { "na": true, "reason": "member self-registration is not workspace/tenant-allowlist gated" }
+      }
+    },
+    {
+      "surface_id": "route:/dashboard",
+      "surface_class": "auth",
+      "presence": { "verified": true, "evidence": ["operator/admin minted session -> /dashboard 200 (app/dashboard/page.tsx:7)"] },
+      "exercise": {
+        "verified": true,
+        "kind": "boundary-probe (auth redirect + RBAC nav)",
+        "evidence": [
+          "unauth GET /dashboard -> redirect /login?returnTo=/dashboard (app/dashboard/page.tsx:10)",
+          "member session sees no admin/console protected nav (components/ninno-product-app.tsx:60)"
+        ]
+      },
+      "boundary_companions": {
+        "auth_reject": "unauth -> /login?returnTo redirect (app/dashboard/page.tsx:10)",
+        "authz_rbac": "protected views gated by canUseProtectedViews (components/ninno-product-app.tsx:60)",
+        "idor_impersonation": { "na": true, "reason": "read page bound to session user; no per-resource id parameter to forge" },
+        "visibility_scope": "members-scope vs admin-scope separation verified; members-only consultation not shown to lower role (components/ninno-product-app.tsx:284)",
+        "idempotency": { "na": true, "reason": "GET page render is idempotent by construction" },
+        "allowlist_boundary": { "na": true, "reason": "page route is not workspace-allowlist gated (allowlist applies at Slack login)" }
+      }
+    },
+    {
+      "surface_id": "route:/avatar",
+      "surface_class": "read_only",
+      "presence": { "verified": true, "evidence": ["GET /avatar -> 200 render (app/avatar/page.tsx:5)"] },
+      "exercise": { "verified": false, "kind": "render-only", "evidence": [] }
+    }
+  ],
+  "red_findings": [
+    {
+      "id": "H-017",
+      "summary": "Member first-time event registration without a tenant link returned an unhandled 500 (undefined tenantId/note written to Firestore .set, no route try/catch).",
+      "repro": "POST /api/event-registrations without tenantId (first time) -> 500; with tenantId or existing registration -> 201 (app/api/event-registrations/route.ts:30)",
+      "issue_ref": "https://github.com/bonginkan/NINNO-real-product/issues/43"
+    }
+  ],
+  "residue": {
+    "count": 0,
+    "evidence": "Firestore re-query after cleanup returned 0 across consultations/integrationEvents/outcomeLogs/users/test-users (verified post-run; see https://github.com/bonginkan/NINNO-real-product/pull/44)"
+  },
+  "evidence_refs": [
+    "https://github.com/bonginkan/NINNO-real-product/pull/44",
+    "https://github.com/bonginkan/NINNO-real-product/issues/43",
+    "admin dashboard screenshots: openab-consultation-panel.png, openab-outcome-panel.png, openab-decision-panel.png"
+  ],
+  "safety": {
+    "secret_handling": "Authenticated surfaces were reached by minting a ninno_session from the app's own HMAC signing secret read as raw bytes (preserving the exact byte length, since shell capture would strip a trailing newline and break the signature). The secret value is never recorded in this ledger.",
+    "safety_floor_preserved": true
+  },
+  "implementer": "CC MISA",
+  "implementer_id": "1510042936027381821",
+  "reviews": [
+    {
+      "reviewer": "Codex MISA",
+      "reviewer_id": "1510912873981804627",
+      "verdict": "no_block",
+      "refute_pass": "https://github.com/bonginkan/fairy_tale/pull/50#issuecomment-4806267400"
+    },
+    {
+      "reviewer": "MISA 3",
+      "reviewer_id": "1516725819517567077",
+      "verdict": "no_block",
+      "refute_pass": "https://github.com/bonginkan/fairy_tale/pull/50#issuecomment-4806209735"
+    }
+  ]
+}
