@@ -195,144 +195,155 @@ HOOK_FILES = {
     ),
 }
 
-LATENT_STRUCTURE_FILES = {
-    Path("schemas/latent-structure-ledger.schema.json"): (
-        "Fairy Tale Latent Structure Ledger",
-        "negative_evidence",
-        "promotion_decision",
-    ),
-    Path("adapters/latent-structure-harness.adapter.json"): (
-        "latent-structure-harness",
-        "domain-neutral",
-        "bench",
-    ),
-    Path("docs/latent-structure-harness.md"): (
-        "Latent Structure Harness",
-        "domain-neutral",
-        "pre-act",
-    ),
-    Path("plugins/fairy-tale/schemas/latent-structure-ledger.schema.json"): (
-        "Fairy Tale Latent Structure Ledger",
-        "negative_evidence",
-        "promotion_decision",
-    ),
-    Path("plugins/fairy-tale/scripts/latent_structure_harness.py"): (
-        "Generic latent-structure ledger",
-        "pre-act",
-        "promotion_decision",
-    ),
-    Path("plugins/fairy-tale/adapters/latent-structure-harness.adapter.json"): (
-        "latent-structure-harness",
-        "domain-neutral",
-        "bench",
-    ),
-    Path("plugins/fairy-tale/docs/latent-structure-harness.md"): (
-        "Latent Structure Harness",
-        "domain-neutral",
-        "pre-act",
-    ),
-}
+# Single source of truth for root/plugin artifact marker tables (fairy_tale #22).
+# Several harness artifacts are shipped both at the repo root and inside the
+# plugin package; the plugin mirror path is mechanical (plugins/fairy-tale/<rel>)
+# and carries the same markers. Defining both copies by hand drifted (a new
+# harness meant editing the root entry, the plugin entry, and re-mirroring). The
+# helper below derives the plugin entry from the canonical root entry so each
+# mirrored artifact's path and markers are written exactly once.
+PLUGIN_PREFIX = Path("plugins/fairy-tale")
 
-GENIUS_METHOD_EVAL_FILES = {
-    Path("docs/genius-method-eval-plan.md"): (
-        "Empirical Experiment Ledger",
-        "control",
-        "placebo",
-        "treatment",
-    ),
-    Path("fixtures/genius-method-eval/empirical-smoke.jsonl"): (
-        "empirical-positive-validator-claim-001",
-        "empirical-negative-formatting-001",
-    ),
-    Path("plugins/fairy-tale/scripts/genius_method_eval.py"): (
-        "Accessible Genius Method",
-        "placebo",
-        "paired",
-    ),
-}
 
-AGENTIC_LOOP_FILES = {
-    Path("docs/agentic-loop-design.md"): (
-        "Agentic Loop Design Plan",
-        "headroom_recovery_rate",
-        "scored_observation_effects",
-    ),
-    Path("scripts/agentic_loop_eval.py"): (
-        "Agentic Loop",
-        "scored_observation_effects",
-        "placebo_loop",
-    ),
-    Path("scripts/agentic_loop_runner.py"): (
-        "controlled Agentic Loop",
-        "hidden_validators",
-        "allowed_actions",
-    ),
-    Path("scripts/agentic_loop_codex_solver.py"): (
-        "action-only solver",
-        "workspace_path",
-        "FORBIDDEN_RESPONSE_FIELDS",
-    ),
-    Path("fixtures/agentic-loop/smoke.jsonl"): (
-        "agentic-loop-smoke-public-probe-001",
-        "agentic-loop-smoke-negative-format-001",
-    ),
-    Path("plugins/fairy-tale/docs/agentic-loop-design.md"): (
-        "Agentic Loop Design Plan",
-        "headroom_recovery_rate",
-        "scored_observation_effects",
-    ),
-    Path("plugins/fairy-tale/scripts/agentic_loop_eval.py"): (
-        "Agentic Loop",
-        "scored_observation_effects",
-        "placebo_loop",
-    ),
-    Path("plugins/fairy-tale/scripts/agentic_loop_runner.py"): (
-        "controlled Agentic Loop",
-        "hidden_validators",
-        "allowed_actions",
-    ),
-    Path("plugins/fairy-tale/scripts/agentic_loop_codex_solver.py"): (
-        "action-only solver",
-        "workspace_path",
-        "FORBIDDEN_RESPONSE_FIELDS",
-    ),
-}
+def plugin_mirror_path(rel: Path) -> Path:
+    """Plugin-packaged mirror path for a canonical root artifact."""
+    return PLUGIN_PREFIX / rel
 
-LOOP_ENGINEERING_FILES = {
-    Path("docs/loop-engineering-automation.md"): (
-        "Loop Engineering and Job Automation",
-        "Spiral Engineering",
-        "double-helix",
-        "mismatch-repair",
-        "cross-channel command discipline",
-        "silent-loop auto-resume",
-        "External-Channel Ingestion",
-        "Fairy Tale Self-Pilot",
-    ),
-    Path("plugins/fairy-tale/docs/loop-engineering-automation.md"): (
-        "Loop Engineering and Job Automation",
-        "Spiral Engineering",
-        "double-helix",
-        "mismatch-repair",
-        "cross-channel command discipline",
-        "silent-loop auto-resume",
-        "External-Channel Ingestion",
-        "Fairy Tale Self-Pilot",
-    ),
-}
 
-INSTALL_SMOKE_FILES = {
-    Path("scripts/install_smoke_test.py"): (
-        "install.sh",
-        "inline_markdown_refs",
-        "loop-engineering-automation.md",
+def with_plugin_mirrors(
+    canonical: dict[Path, tuple[str, ...]],
+    mirror: Iterable[Path],
+    extra: dict[Path, tuple[str, ...]] | None = None,
+) -> dict[Path, tuple[str, ...]]:
+    """Expand a canonical root marker table with its plugin-packaged mirrors.
+
+    ``mirror`` lists which canonical keys the plugin also ships -- each gets a
+    derived ``plugins/fairy-tale/<rel>`` entry reusing the canonical markers.
+    ``extra`` adds plugin-mirrored artifacts whose canonical markers are defined
+    in another table (e.g. a runner script), passed by reference so the markers
+    stay single-sourced. Mirrors are listed explicitly (not filesystem-derived)
+    so a missing plugin copy still fails closed via the normal marker check.
+    """
+    combined = dict(canonical)
+    for rel in mirror:
+        combined[plugin_mirror_path(rel)] = canonical[rel]
+    for rel, markers in (extra or {}).items():
+        combined[plugin_mirror_path(rel)] = markers
+    return combined
+
+
+LATENT_STRUCTURE_FILES = with_plugin_mirrors(
+    {
+        Path("schemas/latent-structure-ledger.schema.json"): (
+            "Fairy Tale Latent Structure Ledger",
+            "negative_evidence",
+            "promotion_decision",
+        ),
+        Path("adapters/latent-structure-harness.adapter.json"): (
+            "latent-structure-harness",
+            "domain-neutral",
+            "bench",
+        ),
+        Path("docs/latent-structure-harness.md"): (
+            "Latent Structure Harness",
+            "domain-neutral",
+            "pre-act",
+        ),
+    },
+    mirror=(
+        Path("schemas/latent-structure-ledger.schema.json"),
+        Path("adapters/latent-structure-harness.adapter.json"),
+        Path("docs/latent-structure-harness.md"),
     ),
-    Path("plugins/fairy-tale/scripts/install_smoke_test.py"): (
-        "install.sh",
-        "inline_markdown_refs",
-        "loop-engineering-automation.md",
+    extra={
+        Path("scripts/latent_structure_harness.py"): RUNNER_MARKERS[
+            Path("scripts/latent_structure_harness.py")
+        ],
+    },
+)
+
+GENIUS_METHOD_EVAL_FILES = with_plugin_mirrors(
+    {
+        Path("docs/genius-method-eval-plan.md"): (
+            "Empirical Experiment Ledger",
+            "control",
+            "placebo",
+            "treatment",
+        ),
+        Path("fixtures/genius-method-eval/empirical-smoke.jsonl"): (
+            "empirical-positive-validator-claim-001",
+            "empirical-negative-formatting-001",
+        ),
+    },
+    mirror=(),
+    extra={
+        Path("scripts/genius_method_eval.py"): RUNNER_MARKERS[
+            Path("scripts/genius_method_eval.py")
+        ],
+    },
+)
+
+AGENTIC_LOOP_FILES = with_plugin_mirrors(
+    {
+        Path("docs/agentic-loop-design.md"): (
+            "Agentic Loop Design Plan",
+            "headroom_recovery_rate",
+            "scored_observation_effects",
+        ),
+        Path("scripts/agentic_loop_eval.py"): (
+            "Agentic Loop",
+            "scored_observation_effects",
+            "placebo_loop",
+        ),
+        Path("scripts/agentic_loop_runner.py"): (
+            "controlled Agentic Loop",
+            "hidden_validators",
+            "allowed_actions",
+        ),
+        Path("scripts/agentic_loop_codex_solver.py"): (
+            "action-only solver",
+            "workspace_path",
+            "FORBIDDEN_RESPONSE_FIELDS",
+        ),
+        Path("fixtures/agentic-loop/smoke.jsonl"): (
+            "agentic-loop-smoke-public-probe-001",
+            "agentic-loop-smoke-negative-format-001",
+        ),
+    },
+    mirror=(
+        Path("docs/agentic-loop-design.md"),
+        Path("scripts/agentic_loop_eval.py"),
+        Path("scripts/agentic_loop_runner.py"),
+        Path("scripts/agentic_loop_codex_solver.py"),
     ),
-}
+)
+
+LOOP_ENGINEERING_FILES = with_plugin_mirrors(
+    {
+        Path("docs/loop-engineering-automation.md"): (
+            "Loop Engineering and Job Automation",
+            "Spiral Engineering",
+            "double-helix",
+            "mismatch-repair",
+            "cross-channel command discipline",
+            "silent-loop auto-resume",
+            "External-Channel Ingestion",
+            "Fairy Tale Self-Pilot",
+        ),
+    },
+    mirror=(Path("docs/loop-engineering-automation.md"),),
+)
+
+INSTALL_SMOKE_FILES = with_plugin_mirrors(
+    {
+        Path("scripts/install_smoke_test.py"): (
+            "install.sh",
+            "inline_markdown_refs",
+            "loop-engineering-automation.md",
+        ),
+    },
+    mirror=(Path("scripts/install_smoke_test.py"),),
+)
 
 STANDING_INSTRUCTION = (
     "[fairy-tale] Residency active: apply Fable/Mythos-informed workflow this "
