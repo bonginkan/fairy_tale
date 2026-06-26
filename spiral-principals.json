@@ -1,0 +1,10 @@
+{
+  "description": "Trusted principal registry for spiral review-calibration (fairy_tale #43). implementer_id and reviewer_id must be a key here -- a format-valid but unregistered snowflake is rejected. Binds identity to a known principal; it does NOT prove the principal actually reviewed a specific PR (live-author binding is the remaining #43 gate). Keyed on the unforgeable Discord user_id; display names are advisory.",
+  "principals": {
+    "1510042936027381821": "CC MISA",
+    "1510912873981804627": "Codex MISA",
+    "1516725819517567077": "MISA 3",
+    "1517895542213181480": "Kabosu",
+    "473730953735438336": "Jun (owner)"
+  }
+}

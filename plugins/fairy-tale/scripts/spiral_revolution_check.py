@@ -51,6 +51,9 @@ _RUNTRACE = r"\b(?:run|trace)-[0-9A-Za-z][0-9A-Za-z._-]{7,}\b"
 CONCRETE_REF = re.compile("|".join((_URL, _SHA256, _RUNTRACE)), re.IGNORECASE)
 REPO_PATH_RE = re.compile(r"(?:[\w.\-]+/)+[\w.\-]+\.(?:py|json|md|ts|tsx|js|mjs|cjs|yml|yaml|sh|toml|txt)")
 
+# Discord user-id (snowflake): the unforgeable identity key for review calibration.
+_SNOWFLAKE = re.compile(r"^[0-9]{15,21}$")
+
 # Short label words allowed to prefix a ref (e.g. "see <url>") without the entry
 # counting as freeform prose.
 _LABEL_WORDS = re.compile(r"(?i)\b(?:commit|merge|pr|issue|sha|ref|run|trace|id|see|at|in|on|the|comment)\b")
@@ -198,7 +201,82 @@ def validate_record(record: dict) -> list[str]:
     for path in EVIDENCE_PATHS:
         _check_evidence_array(_get(record, path), ".".join(path), errors)
 
+    # Review calibration (fairy_tale #43): generalize the exercise gate to the
+    # review itself, so a smooth no_block cannot pass without recorded refutation.
+    _check_reviews(record, errors)
+
     return errors
+
+
+PRINCIPALS_PATH = ROOT / "spiral-principals.json"
+
+
+def _registered_principals() -> set[str] | None:
+    """Load the trusted-principal registry (id keys). None = unreadable (fail closed)."""
+    try:
+        data = json.loads(PRINCIPALS_PATH.read_text(encoding="utf-8"))
+        principals = data.get("principals", {})
+        return {str(k) for k in principals} if isinstance(principals, dict) else None
+    except (OSError, json.JSONDecodeError, AttributeError):
+        return None
+
+
+def _check_reviews(record: dict, errors: list[str]) -> None:
+    # Identity keys on the unforgeable user_id, NOT the display name (aliases /
+    # bot-ID-literal-in-name / spacing variants must not fool distinctness or the
+    # circular-review guard). This mirrors the trust model's "judge by user_id" rule.
+    implementer = record.get("implementer")
+    implementer_id = record.get("implementer_id")
+    if not isinstance(implementer, str) or not implementer.strip():
+        errors.append("implementer: required and non-empty")
+    if not isinstance(implementer_id, str) or not _SNOWFLAKE.match(implementer_id):
+        errors.append("implementer_id: required, must be a Discord user id (15-21 digits)")
+    # Bind identity to a registered principal: a format-valid but unregistered
+    # snowflake is rejected (fail closed if the registry is unreadable).
+    principals = _registered_principals()
+    if principals is None:
+        errors.append(f"trusted-principal registry unreadable: {PRINCIPALS_PATH.name}")
+        principals = set()
+    if isinstance(implementer_id, str) and _SNOWFLAKE.match(implementer_id) and implementer_id not in principals:
+        errors.append(f"implementer_id '{implementer_id}' is not a registered principal ({PRINCIPALS_PATH.name})")
+    reviews = record.get("reviews")
+    if not isinstance(reviews, list) or len(reviews) < 2:
+        errors.append("reviews: requires >= 2 entries")
+        return
+    reviewer_ids: list[str] = []
+    for index, review in enumerate(reviews):
+        label = f"reviews[{index}]"
+        if not isinstance(review, dict):
+            errors.append(f"{label}: must be an object")
+            continue
+        reviewer = review.get("reviewer")
+        reviewer_id = review.get("reviewer_id")
+        verdict = review.get("verdict")
+        refute = review.get("refute_pass")
+        if not isinstance(reviewer, str) or not reviewer.strip():
+            errors.append(f"{label}.reviewer: required and non-empty")
+        if not isinstance(reviewer_id, str) or not _SNOWFLAKE.match(reviewer_id):
+            errors.append(f"{label}.reviewer_id: required, must be a Discord user id (15-21 digits)")
+        elif reviewer_id not in principals:
+            errors.append(f"{label}.reviewer_id '{reviewer_id}' is not a registered principal ({PRINCIPALS_PATH.name})")
+        else:
+            reviewer_ids.append(reviewer_id)
+        if verdict not in ("block", "no_block"):
+            errors.append(f"{label}.verdict: must be 'block' or 'no_block'")
+        # The teeth: a no_block sign-off MUST point to a concrete refutation artifact
+        # (what was actually attacked) -- prose like "reviewed carefully" is rejected.
+        if verdict == "no_block":
+            problem = _entry_problem(refute if isinstance(refute, str) else "")
+            if problem:
+                errors.append(f"{label}.refute_pass: a no_block verdict needs a concrete refutation artifact ({problem})")
+        elif not (isinstance(refute, str) and refute.strip()):
+            errors.append(f"{label}.refute_pass: required and non-empty")
+    # >= 2 DISTINCT reviewers (by id, so duplicate entries do not count).
+    if len(set(reviewer_ids)) < 2:
+        errors.append("reviews: requires >= 2 DISTINCT reviewer_id (duplicate reviewers do not count)")
+    # Circular-review guard, by id: the implementer must not also be a reviewer.
+    if isinstance(implementer_id, str) and implementer_id in reviewer_ids:
+        errors.append(f"circular review: implementer_id '{implementer_id}' must not also appear as a reviewer_id")
 
 
 def _good_record() -> dict:
@@ -231,6 +309,14 @@ def _good_record() -> dict:
         "budget_radius": "b",
         "safety_floor": "f",
         "ledger_receipt": ["run-20260626T0011Z-cc-selftest-evidence"],
+        "implementer": "MISA 3",
+        "implementer_id": "1516725819517567077",
+        "reviews": [
+            {"reviewer": "CC MISA", "reviewer_id": "1510042936027381821", "verdict": "no_block",
+             "refute_pass": "https://github.com/bonginkan/fairy_tale/issues/43#issuecomment-4805272898"},
+            {"reviewer": "Codex MISA", "reviewer_id": "1510912873981804627", "verdict": "no_block",
+             "refute_pass": "https://github.com/bonginkan/fairy_tale/pull/45#issuecomment-4805339475"},
+        ],
     }
 
 
@@ -261,6 +347,41 @@ def _selftest() -> int:
         if validate_record(record) == []:
             failures.append(f"hostile case '{name}' should be rejected but passed: {value!r}")
 
+    # Review-calibration hostile cases (fairy_tale #43), keyed on user_id so that
+    # display-name aliases cannot fool distinctness or the circular-review guard
+    # (Codex/MISA3 round-1 bypasses: duplicate reviewer, alias self-review).
+    _cc, _codex, _m3 = "1510042936027381821", "1510912873981804627", "1516725819517567077"
+    _good_refute = "https://github.com/bonginkan/fairy_tale/pull/45#issuecomment-4805339475"
+
+    def _rev(rid, refute=_good_refute, name="reviewer"):
+        return {"reviewer": name, "reviewer_id": rid, "verdict": "no_block", "refute_pass": refute}
+
+    review_hostile = {
+        "no_block-empty-refute": {"reviews": [_rev(_cc, refute=""), _rev(_codex)]},
+        "no_block-prose-refute": {"reviews": [_rev(_cc, refute="looked carefully, all good"), _rev(_codex)]},
+        "too-few-reviewers": {"reviews": [_rev(_cc)]},
+        "duplicate-reviewer-id": {"reviews": [_rev(_cc), _rev(_cc)]},
+        "self-review-by-id": {"implementer_id": _cc, "reviews": [_rev(_cc), _rev(_codex)]},
+        "alias-self-review-name": {
+            "implementer": "MISA 3", "implementer_id": _m3,
+            "reviews": [_rev(_m3, name="MISA3"), _rev(_codex)],
+        },
+        "missing-reviewer-id": {"reviews": [
+            {"reviewer": "CC MISA", "verdict": "no_block", "refute_pass": _good_refute},
+            _rev(_codex),
+        ]},
+        "fake-snowflake-reviewer": {"reviews": [_rev(_cc), _rev("999999999999999999", name="ghost")]},
+        "all-unregistered-reviewers": {"reviews": [
+            _rev("100000000000000001", name="ghost1"),
+            _rev("100000000000000002", name="ghost2"),
+        ]},
+    }
+    for name, overrides in review_hostile.items():
+        record = _good_record()
+        record.update(overrides)
+        if validate_record(record) == []:
+            failures.append(f"review-calibration case '{name}' should be rejected but passed")
+
     # No-records dir must fail with exit 1 (suppress its report so selftest output stays clean).
     import contextlib
     import io
@@ -278,7 +399,8 @@ def _selftest() -> int:
         return 1
     print(
         "Spiral revolution selftest passed (good->pass; "
-        "empty/placeholder/bare-hex/bare-#N/prose+ref/abbrev-sha/prose+url/shape-sha->reject)."
+        "evidence: empty/placeholder/bare-hex/bare-#N/prose+ref/abbrev-sha/prose+url/shape-sha/path-traversal->reject; "
+        "review-calibration: empty/prose refute_pass, <2 reviewers, self-review->reject)."
     )
     return 0
 
