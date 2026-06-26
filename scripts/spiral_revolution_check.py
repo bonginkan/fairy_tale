@@ -108,13 +108,19 @@ def _entry_problem(entry) -> str | None:
         matched = True
     for match in REPO_PATH_RE.finditer(entry):
         token = match.group(0)
-        if (ROOT / token).exists():
-            residue = residue.replace(token, " ", 1)
-            matched = True
-        else:
+        if ".." in token.split("/"):
+            return f"repo path must not traverse with '..': {token}"
+        try:
+            resolved = (ROOT / token).resolve()
+            resolved.relative_to(ROOT.resolve())
+        except ValueError:
+            return f"repo path escapes the repo root: {token}"
+        if not resolved.exists():
             return f"repo path does not exist: {token}"
+        residue = residue.replace(token, " ", 1)
+        matched = True
     if not matched:
-        return "not a concrete ref (need URL / 40-hex sha / sha256: / run-trace id / existing repo path)"
+        return "not a concrete ref (need URL / sha256: / run-trace id / commit URL / existing repo path)"
     # Reject prose smuggled in alongside a ref: strip label words + non-alphanumerics
     # and require the leftover to be short.
     residue = _LABEL_WORDS.sub(" ", residue)
@@ -247,6 +253,7 @@ def _selftest() -> int:
         "prose+url": ["trust me https://github.com/bonginkan/fairy_tale/pull/45"],
         "shape-sha-zero": ["0" * 40],
         "shape-sha-a": ["a" * 40],
+        "path-traversal": ["scripts/../../../../../../tmp/spiral_revolution_check.py"],
     }
     for name, value in hostile.items():
         record = _good_record()
