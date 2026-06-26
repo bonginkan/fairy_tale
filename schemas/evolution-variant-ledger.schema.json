@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/bonginkan/fairy_tale/schemas/evolution-variant-ledger.schema.json",
+  "title": "Fairy Tale Evolution Variant Ledger",
+  "description": "Exercised record of one bounded evolutionary variant on top of a spiral revolution (fairy_tale #42). A variant is a controlled mutation of process/prompt/harness/validator/role/delegation that declares its blast radius, is selected only on concrete evidence, and is inherited only when validated. The companion checker (scripts/evolution_variant_check.py) validates content -- a presence-only or placeholder record fails, a mutation that lists any safety-floor item as changeable fails, and an inherited variant without an accepted, evidence-backed selection fails.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "variant_id",
+    "parent_revolution",
+    "mutation_operator",
+    "hypothesis",
+    "mutation_budget",
+    "fitness_metric",
+    "selection",
+    "inheritance_decision",
+    "rollback_plan",
+    "extinction_quarantine",
+    "lineage",
+    "safety_floor",
+    "ledger_receipt",
+    "implementer",
+    "implementer_id",
+    "reviews"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "pattern": "^1\\.0$" },
+    "variant_id": { "type": "string", "minLength": 1 },
+    "parent_revolution": {
+      "description": "Lineage to the spiral revolution this variant mutates. A concrete reference (revolution id present in spiral-revolutions/, a PR/commit URL, or a run-/trace- id).",
+      "type": "string",
+      "minLength": 1
+    },
+    "mutation_operator": {
+      "description": "What kind of bounded variation this is.",
+      "type": "string",
+      "enum": ["process", "prompt", "harness", "validator", "role_assignment", "delegation_policy"]
+    },
+    "hypothesis": { "type": "string", "minLength": 1 },
+    "mutation_budget": {
+      "description": "The blast radius of the variant. `changeable` lists what MAY change; `immutable` lists what MUST NOT; `blast_radius` bounds the maximum reach. The checker rejects any record whose `changeable` names a safety-floor surface (the safety floor is never a mutation target).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["changeable", "immutable", "blast_radius"],
+      "properties": {
+        "changeable": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "immutable": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "blast_radius": { "type": "string", "minLength": 1 }
+      }
+    },
+    "fitness_metric": {
+      "description": "The objective criterion deciding accept/reject -- an improvement over baseline or a risk burn-down, measurable, not vibes.",
+      "type": "string",
+      "minLength": 1
+    },
+    "selection": {
+      "description": "The selection gate outcome. A variant is accepted only with concrete evidence, preserved safety floor, and improvement over baseline / risk burn-down.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outcome", "baseline_comparison", "safety_floor_preserved", "evidence"],
+      "properties": {
+        "outcome": { "type": "string", "enum": ["accepted", "rejected", "quarantined"] },
+        "baseline_comparison": { "type": "string", "minLength": 1 },
+        "safety_floor_preserved": { "type": "boolean" },
+        "evidence": {
+          "description": "Concrete, verifiable selection evidence: each entry a URL with host+path, a sha256: digest, a run-/trace- id, or an existing repo path (no '..'). Bare #N, bare shas, shape-only hex, and prose are rejected.",
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "inheritance_decision": {
+      "description": "Whether this validated variant becomes inherited loop capability. Only an accepted, evidence-backed variant may be inherited; unvalidated mutations die locally.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["inherited", "template_change", "rationale"],
+      "properties": {
+        "inherited": { "type": "boolean" },
+        "template_change": { "type": "string", "minLength": 1 },
+        "rationale": { "type": "string", "minLength": 1 }
+      }
+    },
+    "rollback_plan": { "type": "string", "minLength": 1 },
+    "extinction_quarantine": {
+      "description": "How a harmful/noisy/unmeasured variant is excised and blocked from silent reappearance (e.g. a red-locked control, a quarantine marker).",
+      "type": "string",
+      "minLength": 1
+    },
+    "lineage": {
+      "description": "Traceability of this variant: each entry a concrete reference (issue/PR/commit URL, run-/trace- id, or existing repo path) to the source issue / revolution / evidence / reviewer decision.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "safety_floor": { "type": "string", "minLength": 1 },
+    "ledger_receipt": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "implementer": { "type": "string", "minLength": 1 },
+    "implementer_id": { "type": "string", "pattern": "^[0-9]{15,21}$" },
+    "reviews": {
+      "description": "Review-calibration record (fairy_tale #43), identical contract to the spiral ledger: >=2 DISTINCT registered reviewer_id, a no_block verdict needs a concrete refute_pass, implementer_id must not appear as a reviewer_id. Validated by the shared review-calibration helper.",
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["reviewer", "reviewer_id", "verdict", "refute_pass"],
+        "properties": {
+          "reviewer": { "type": "string", "minLength": 1 },
+          "reviewer_id": { "type": "string", "pattern": "^[0-9]{15,21}$" },
+          "verdict": { "type": "string", "enum": ["block", "no_block"] },
+          "refute_pass": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}
