@@ -108,6 +108,12 @@ SKILL_REFERENCE_MARKERS = {
         "DNA double helix grounding",
         "Semiconservative Replication",
     ),
+    Path("fairy-tale/references/general-e2e-completion.md"): (
+        "General E2E Completion",
+        "Closure-check the test inventory",
+        "Boundary-companion battery",
+        "Residue zero",
+    ),
 }
 
 IGNORED_TREE_PARTS = {
