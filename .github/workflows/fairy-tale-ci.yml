@@ -27,6 +27,10 @@ jobs:
         run: python3 scripts/spiral_revolution_check.py --selftest
       - name: Spiral revolution exercise gate (records)
         run: python3 scripts/spiral_revolution_check.py
+      - name: Evolution variant exercise gate (self-controls)
+        run: python3 scripts/evolution_variant_check.py --selftest
+      - name: Evolution variant exercise gate (records)
+        run: python3 scripts/evolution_variant_check.py
 
   adapters:
     name: adapters (manifest validation)

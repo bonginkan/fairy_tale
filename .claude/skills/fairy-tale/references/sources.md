@@ -254,6 +254,30 @@ Recent supporting context, not the safety basis:
 - AgentRxiv: Towards Collaborative Autonomous Research:
   https://arxiv.org/html/2503.18102v1
 
+## Evolutionary operators (mutation, selection, inheritance) sources
+
+Checked: 2026-06-26 (UTC). Grounding for the bounded evolutionary layer on top of
+spiral engineering: variation enters, selection chooses, validated change is
+inherited, and harmful variants go extinct.
+
+Core grounding:
+
+- UC Berkeley, Understanding Evolution — Evolution 101 (mutation, variation,
+  natural selection, inheritance, time):
+  https://evolution.berkeley.edu/evolution-101/
+- UC Berkeley, Understanding Evolution — Mutations as the source of variation:
+  https://evolution.berkeley.edu/evolution-101/mechanisms-the-processes-of-evolution/mutations/
+- UC Berkeley, Understanding Evolution — Natural selection as the fitness filter:
+  https://evolution.berkeley.edu/evolution-101/mechanisms-the-processes-of-evolution/natural-selection/
+- John H. Holland, Adaptation in Natural and Artificial Systems (MIT Press) —
+  genetic algorithms / artificial adaptive systems, bounded variation under a
+  fitness gate:
+  https://mitpress.mit.edu/9780262082136/adaptation-in-natural-and-artificial-systems/
+
+The safety basis stays the unchanged floor and the objective selection gate, not
+the speed or novelty of mutation; random mutation is not permission to
+self-modify production process.
+
 ## Generalization, ARC-AGI-3, and tacit-knowledge recovery
 
 - ARC-AGI-3 technical report:
