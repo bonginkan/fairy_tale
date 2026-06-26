@@ -18,12 +18,17 @@
       { "id": "POST /api/integrations/openab/slack", "kind": "endpoint", "source_ref": "app/api/integrations/openab/slack/route.ts:55" },
       { "id": "POST /api/event-registrations", "kind": "endpoint", "source_ref": "app/api/event-registrations/route.ts:30" },
       { "id": "route:/dashboard", "kind": "route", "source_ref": "app/dashboard/page.tsx:7" },
-      { "id": "route:/avatar", "kind": "route", "source_ref": "app/avatar/page.tsx:5" }
+      { "id": "route:/avatar", "kind": "route", "source_ref": "app/avatar/page.tsx:5" },
+      { "id": "panel:decision-queue", "kind": "panel", "source_ref": "components/ninno-product-app.tsx:343" },
+      { "id": "panel:outcome-log", "kind": "panel", "source_ref": "components/ninno-product-app.tsx:579" },
+      { "id": "panel:consultation-trends", "kind": "panel", "source_ref": "components/ninno-product-app.tsx:280" }
     ],
     "closure": {
       "provided_list_ref": "ninno-real-product-test-items-human-qa (36 Human-QA items)",
       "missing_from_provided": [
-        "the 27 individual admin/console/member UI panels were not each exercised by the provided sheet -- discovered from components/ninno-product-app.tsx:55 and added as Panel-E2E coverage"
+        "panel:decision-queue",
+        "panel:outcome-log",
+        "panel:consultation-trends"
       ]
     }
   },
@@ -97,6 +102,24 @@
       "surface_class": "read_only",
       "presence": { "verified": true, "evidence": ["GET /avatar -> 200 render (app/avatar/page.tsx:5)"] },
       "exercise": { "verified": false, "kind": "render-only", "evidence": [] }
+    },
+    {
+      "surface_id": "panel:decision-queue",
+      "surface_class": "read_only",
+      "presence": { "verified": true, "evidence": ["admin dashboard Decision Queue panel showed the OpenAB human-review task (openab-decision-panel.png; components/ninno-product-app.tsx:343)"] },
+      "exercise": { "verified": false, "kind": "display-of-registered-data", "evidence": [] }
+    },
+    {
+      "surface_id": "panel:outcome-log",
+      "surface_class": "read_only",
+      "presence": { "verified": true, "evidence": ["admin dashboard 成果ログ panel showed the ingest/draft/delivery outcomes registered by the OpenAB run (openab-outcome-panel.png; components/ninno-product-app.tsx:579)"] },
+      "exercise": { "verified": false, "kind": "display-of-registered-data", "evidence": [] }
+    },
+    {
+      "surface_id": "panel:consultation-trends",
+      "surface_class": "read_only",
+      "presence": { "verified": true, "evidence": ["admin dashboard 相談傾向 panel showed the registered E2E consultation (openab-consultation-panel.png; components/ninno-product-app.tsx:280)"] },
+      "exercise": { "verified": false, "kind": "display-of-registered-data", "evidence": [] }
     }
   ],
   "red_findings": [

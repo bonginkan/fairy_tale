@@ -27,7 +27,7 @@
       "required": ["asserted", "evidence"],
       "properties": {
         "asserted": { "const": true, "description": "Real backend, no mocks. A run that mocks the system under test is not a completion." },
-        "evidence": { "type": "array", "minItems": 1, "items": { "type": "string" }, "description": "Concrete read-back evidence that real store/state effects were observed." }
+        "evidence": { "type": "array", "minItems": 1, "items": { "type": "string" }, "description": "Concrete evidence that real store/state effects were observed. At least one entry must show an actual read-back (file:line, or a read-back/re-query/persisted/stored/record/round-trip keyword) -- a bare tracker URL does not prove a real backend." }
       }
     },
     "surface_inventory": {
@@ -56,7 +56,7 @@
             "missing_from_provided": {
               "type": "array",
               "items": { "type": "string" },
-              "description": "Discovered surface ids absent from the provided list (the Negative-Space closure finding). May be empty, but the field is mandatory so the audit is recorded."
+              "description": "Discovered surface ids absent from the provided list (the Negative-Space closure finding). Each entry MUST be an id present in surface_inventory.discovered (not prose or a ghost id) -- so a 'missing' surface is a real, then-covered surface. May be empty, but the field is mandatory so the audit is recorded."
             }
           }
         }
@@ -85,13 +85,13 @@
             "required": ["verified", "kind", "evidence"],
             "properties": {
               "verified": { "type": "boolean", "description": "For mutation/auth/stateful surfaces this MUST be true: render/presence alone does not exercise the surface." },
-              "kind": { "type": "string", "minLength": 1, "description": "e.g. create-readback-delete, round-trip, stateful-continuity, boundary-probe." },
+              "kind": { "type": "string", "minLength": 1, "description": "What was actually exercised. For mutation/auth/stateful surfaces it must name a real exercise (create-readback-delete, round-trip, stateful-continuity, boundary-probe, mutate-verify, replay); a render/presence/screenshot-only kind is rejected even when verified is true." },
               "evidence": { "type": "array", "items": { "type": "string" } }
             }
           },
           "boundary_companions": {
             "type": "object",
-            "description": "Required for mutation/auth/stateful surfaces. Each companion is either a concrete evidence ref (string) or { na: true, reason: <why-not-applicable> }.",
+            "description": "Required for mutation/auth/stateful surfaces. Each companion is either a concrete evidence ref (string) or { na: true, reason: <substantive why-not-applicable> }. The class's CORE companions can never be N/A (mutation: auth_reject/authz_rbac/idempotency; auth: auth_reject/authz_rbac; stateful: auth_reject/idempotency); other N/As need a non-vague reason. The battery cannot be opted out via prose.",
             "properties": {
               "auth_reject": {},
               "authz_rbac": {},
@@ -114,7 +114,7 @@
           "id": { "type": "string", "minLength": 1 },
           "summary": { "type": "string", "minLength": 1 },
           "repro": { "type": "string", "minLength": 1, "description": "Concrete reproduction (request/steps/observed)." },
-          "issue_ref": { "type": "string", "minLength": 1, "description": "Concrete tracker link (issue/PR URL)." }
+          "issue_ref": { "type": "string", "minLength": 1, "description": "Tracker URL (issue/PR/ticket link) -- must be a URL, not a file path or route. An untracked RED cannot be reported as handled." }
         }
       }
     },
