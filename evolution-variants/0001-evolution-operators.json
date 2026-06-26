@@ -1,0 +1,66 @@
+{
+  "schema_version": "1.0",
+  "variant_id": "0001-evolution-operators",
+  "parent_revolution": "0002-mirror-drift-and-ci-enforcement",
+  "mutation_operator": "validator",
+  "hypothesis": "Adding an explicit, machine-checked evolutionary layer (bounded mutation budget + evidence-driven selection + validated inheritance) on top of the spiral gate turns 'mutation and evolution' from a slogan into a gate, so controlled variation cannot become random self-modification or a rename for ordinary iteration.",
+  "mutation_budget": {
+    "changeable": [
+      "the evolution-variant ledger schema and its checker",
+      "the SKILL routing keywords and the loop-engineering / process / sources references",
+      "the residency markers and CI wiring for the new gate"
+    ],
+    "immutable": [
+      "the spiral safety floor (DND, approval, security, credential, deploy, external-mutation, meeting-join, owner-escalation, branch/merge, secret, runtime-install gates)",
+      "the residency fail-closed posture and the #43 review-calibration contract",
+      "the existing spiral revolution gate and its records"
+    ],
+    "blast_radius": "One schema + one checker (reusing the spiral gate's verified primitives) + one dogfooded record + the 4-copy skill-tree docs and mirrors; no runtime/credential/deploy/process-authority mutation."
+  },
+  "fitness_metric": "Red->green objective gate: evolution_variant_check.py FAILs on an unbounded or unmeasured mutation (safety-floor surface listed as changeable, prose/empty selection evidence, inherit-without-accept) and PASSes only on a bounded, evidence-backed, accepted variant; selftest red-locks each bypass.",
+  "selection": {
+    "outcome": "accepted",
+    "baseline_comparison": "Baseline: the spiral gate enforced altitude + evidence pairing + per-/cross-record review calibration, but had no notion of bounded mutation, selection fitness, or validated inheritance. This variant adds those as enforcement, reusing (not cloning) the spiral gate's concrete-reference and review-calibration primitives.",
+    "safety_floor_preserved": true,
+    "evidence": [
+      "https://github.com/bonginkan/fairy_tale/pull/50",
+      "https://github.com/bonginkan/fairy_tale/commit/1f8d39937a9736b5940355109ef301572ba08f43",
+      "schemas/evolution-variant-ledger.schema.json",
+      "scripts/evolution_variant_check.py"
+    ]
+  },
+  "inheritance_decision": {
+    "inherited": true,
+    "template_change": "The bounded evolutionary operator layer (scripts/evolution_variant_check.py + schemas/evolution-variant-ledger.schema.json) joins the validated governance template carried forward by spiral engineering; the delivery strand is still re-synthesized per effort.",
+    "rationale": "It is validated by an objective red->green gate wired into CI and reviewed with explicit refute-pass by Codex + MISA3, and it strictly preserves the safety floor (the checker rejects any variant that lists a safety-floor surface as changeable)."
+  },
+  "rollback_plan": "Delete this record, scripts/evolution_variant_check.py, schemas/evolution-variant-ledger.schema.json, and the evolutionary-layer doc sections; remove the CI step and residency markers. The spiral revolution gate and all prior records remain intact and green.",
+  "extinction_quarantine": "Every discovered bypass (safety-floor / authority / deploy / runtime surfaces in changeable, prose/empty selection evidence, prose extinction/rollback/template_change, inherit-without-accept, bare-#N parent) is red-locked in scripts/evolution_variant_check.py --selftest, so a harmful variant pattern cannot silently reappear; the gate runs in CI on every PR.",
+  "lineage": [
+    "https://github.com/bonginkan/fairy_tale/issues/42",
+    "https://github.com/bonginkan/fairy_tale/issues/43",
+    "https://github.com/bonginkan/fairy_tale/pull/50"
+  ],
+  "safety_floor": "Unchanged: DND, approval, security, credential, deploy, external-mutation, meeting-join, owner-escalation, branch/merge, secret, and runtime-install gates outrank any mutation. Random mutation is not permission to self-modify production process; no silent self-modification.",
+  "ledger_receipt": [
+    "run-20260626T0434Z-cc-42-evolution-operators",
+    "trace-2e9e3e52-22c0-4d1d-bfa3-d2467db38010",
+    "https://github.com/bonginkan/fairy_tale/issues/42"
+  ],
+  "implementer": "CC MISA",
+  "implementer_id": "1510042936027381821",
+  "reviews": [
+    {
+      "reviewer": "Codex MISA",
+      "reviewer_id": "1510912873981804627",
+      "verdict": "no_block",
+      "refute_pass": "https://github.com/bonginkan/fairy_tale/pull/50#issuecomment-4806267400"
+    },
+    {
+      "reviewer": "MISA 3",
+      "reviewer_id": "1516725819517567077",
+      "verdict": "no_block",
+      "refute_pass": "https://github.com/bonginkan/fairy_tale/pull/50#issuecomment-4806209735"
+    }
+  ]
+}
