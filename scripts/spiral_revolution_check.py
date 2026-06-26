@@ -30,6 +30,7 @@ import json
 import re
 import sys
 from pathlib import Path
+from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_RECORDS_DIR = ROOT / "spiral-revolutions"
@@ -294,6 +295,24 @@ def _concrete_refutes(record: dict) -> list[str]:
     return out
 
 
+def _canon_ref(value: str) -> str:
+    """Canonicalize a refute artifact for cross-record identity comparison so a
+    reused artifact cannot be disguised by URL casing, a trailing slash, or a
+    query/junk appended after the fragment. For a URL: lowercase scheme+host,
+    drop the query, strip trailing slashes, and keep only the fragment up to the
+    first '?'/'&' (the comment anchor). Non-URL refs (sha256:, run-/trace- ids,
+    repo paths) collapse to their lowercased, slash-trimmed form.
+    """
+    s = value.strip().lower()
+    parts = urlsplit(s)
+    if parts.scheme and parts.netloc:
+        path = parts.path.rstrip("/")
+        fragment = re.split(r"[?&]", parts.fragment, maxsplit=1)[0].rstrip("/")
+        base = f"{parts.scheme}://{parts.netloc}{path}"
+        return f"{base}#{fragment}" if fragment else base
+    return s.rstrip("/")
+
+
 def check_cross_record(records: list[tuple[str, dict]]) -> tuple[list[str], dict]:
     """Cross-record review calibration (fairy_tale #43 follow-up).
 
@@ -301,38 +320,54 @@ def check_cross_record(records: list[tuple[str, dict]]) -> tuple[list[str], dict
     concrete refutation artifact. That cannot see a rubber-stamp tell that spans
     records: pasting a *prior* turn's refute_pass forward. A given refutation
     artifact belongs to the turn that produced it -- it must not be reused as the
-    evidence for a later revolution. This also surfaces refute-rate stats so a
-    degrading selection trend across the helix is visible, not buried.
+    evidence for a later revolution.
 
-    Returns (errors, stats). Identity binding of a refute_pass to its live author
-    is intentionally out of scope here: all three MISA bots commit/comment under
-    one GitHub identity (MyTH-zyxeon), so authorship cannot be distinguished at
-    the GitHub layer; distinctness lives in the Discord user_id recorded per review.
+    ``records`` is a list of (ident, record) where ident is UNIQUE per record
+    (the record's file name) -- NOT its revolution_id, so two records that share
+    a revolution_id cannot launder a reuse through the collision. revolution_id
+    uniqueness is enforced separately. refute artifacts are compared by their
+    canonical form so URL casing / trailing-slash / appended-query variants of
+    the same artifact still collide.
+
+    Returns (errors, stats). Binding a refute_pass to its live author is out of
+    scope by architecture: all three sibling agents commit/comment under one
+    GitHub identity, so authorship cannot be distinguished at the GitHub layer;
+    distinctness lives in the Discord user_id recorded per review.
     """
     errors: list[str] = []
-    seen: dict[str, str] = {}  # refute_pass artifact -> first record id that used it
+    seen: dict[str, str] = {}  # canonical refute artifact -> ident that first used it
+    rid_owner: dict[str, str] = {}  # revolution_id -> ident (uniqueness)
     no_block_reviews = 0
     refute_artifacts: set[str] = set()
     for ident, record in records:
         if not isinstance(record, dict):
             continue
-        rid = record.get("revolution_id") or ident
+        rid = record.get("revolution_id")
+        if isinstance(rid, str) and rid.strip():
+            if rid in rid_owner and rid_owner[rid] != ident:
+                errors.append(
+                    f"duplicate revolution_id '{rid}' across records "
+                    f"('{rid_owner[rid]}' and '{ident}'): ids must be unique"
+                )
+            else:
+                rid_owner.setdefault(rid, ident)
         reviews = record.get("reviews")
         if isinstance(reviews, list):
             for review in reviews:
                 if isinstance(review, dict) and review.get("verdict") == "no_block":
                     no_block_reviews += 1
         for refute in _concrete_refutes(record):
-            refute_artifacts.add(refute)
-            if refute in seen:
-                if seen[refute] != rid:
+            canon = _canon_ref(refute)
+            refute_artifacts.add(canon)
+            if canon in seen:
+                if seen[canon] != ident:
                     errors.append(
-                        f"refute_pass reused across records: {refute} appears in "
-                        f"both '{seen[refute]}' and '{rid}' (each turn needs its "
-                        f"own refutation, not a pasted-forward one)"
+                        f"refute_pass reused across records: {refute} (canonical "
+                        f"'{canon}') appears in both '{seen[canon]}' and '{ident}' "
+                        f"(each turn needs its own refutation, not a pasted-forward one)"
                     )
             else:
-                seen[refute] = rid
+                seen[canon] = ident
     stats = {
         "records": len(records),
         "no_block_reviews": no_block_reviews,
@@ -444,25 +479,42 @@ def _selftest() -> int:
         if validate_record(record) == []:
             failures.append(f"review-calibration case '{name}' should be rejected but passed")
 
-    # Cross-record calibration: a refute_pass reused across records must be flagged,
-    # while distinct per-turn refutations must pass.
-    def _rec(rid):
+    # Cross-record calibration: a refute_pass reused across records must be flagged
+    # even when disguised, while distinct per-turn refutations must pass. Each
+    # synthetic record sets a distinct second refute so only the FIRST can collide.
+    _u1 = "https://github.com/bonginkan/fairy_tale/pull/48#issuecomment-4806074692"
+    _u2 = "https://github.com/bonginkan/fairy_tale/pull/48#issuecomment-4806074854"
+
+    def _xrec(ident_refute, other_refute):
         r = _good_record()
-        r["revolution_id"] = rid
+        r["revolution_id"] = f"rid-{ident_refute[-6:]}-{other_refute[-3:]}"
+        r["reviews"] = [
+            {"reviewer": "A", "reviewer_id": _cc, "verdict": "no_block", "refute_pass": ident_refute},
+            {"reviewer": "B", "reviewer_id": _codex, "verdict": "no_block", "refute_pass": other_refute},
+        ]
         return r
 
-    reused_a, reused_b = _rec("x1"), _rec("x2")  # both keep _good_record's refute URLs
-    reused, _ = check_cross_record([("x1", reused_a), ("x2", reused_b)])
-    if not reused:
-        failures.append("cross-record reused refute_pass should be flagged but passed")
-    distinct = _rec("x2")
-    distinct["reviews"] = [
-        {"reviewer": "CC MISA", "reviewer_id": _cc, "verdict": "no_block",
-         "refute_pass": "https://github.com/bonginkan/fairy_tale/pull/48#issuecomment-4806074692"},
-        {"reviewer": "MISA 3", "reviewer_id": _m3, "verdict": "no_block",
-         "refute_pass": "https://github.com/bonginkan/fairy_tale/pull/48#issuecomment-4806074854"},
-    ]
-    clean, stats = check_cross_record([("x1", _rec("x1")), ("x2", distinct)])
+    _o1 = "https://github.com/x/y/pull/1#issuecomment-11"
+    _o2 = "https://github.com/x/y/pull/2#issuecomment-22"
+    # Disguised reuse of _u1 across two records -- each variant must still be flagged.
+    cross_reuse = {
+        "exact": _u1,
+        "case-variant": _u1.replace("github.com", "GitHub.com").replace("/pull/", "/PULL/"),
+        "query-after-fragment": _u1 + "?x=1",
+        "trailing-slash": _u1 + "/",
+    }
+    for name, variant in cross_reuse.items():
+        errs, _ = check_cross_record([("a.json", _xrec(_u1, _o1)), ("b.json", _xrec(variant, _o2))])
+        if not errs:
+            failures.append(f"cross-record reuse '{name}' should be flagged but passed")
+    # Duplicate revolution_id must be flagged (and must not launder a reuse).
+    dup_a, dup_b = _xrec(_u1, _o1), _xrec(_u2, _o2)
+    dup_a["revolution_id"] = dup_b["revolution_id"] = "same-id"
+    errs, _ = check_cross_record([("a.json", dup_a), ("b.json", dup_b)])
+    if not any("duplicate revolution_id" in e for e in errs):
+        failures.append("duplicate revolution_id should be flagged but passed")
+    # Distinct per-record refutations (distinct ids + distinct artifacts) must pass.
+    clean, stats = check_cross_record([("a.json", _xrec(_u1, _o1)), ("b.json", _xrec(_u2, _o2))])
     if clean:
         failures.append(f"distinct per-record refutations should pass cross-record but got: {clean}")
     if stats.get("records") != 2:
@@ -530,7 +582,9 @@ def main(argv: list[str] | None = None) -> int:
             all_ok = False
         report["records"].append(entry)  # type: ignore[union-attr]
         if isinstance(record, dict):
-            loaded.append((record.get("revolution_id") or path.name, record))
+            # ident must be UNIQUE per record (file name) so a duplicate
+            # revolution_id cannot launder a cross-record refute reuse.
+            loaded.append((path.name, record))
 
     cross_errors, stats = check_cross_record(loaded)
     if cross_errors:
