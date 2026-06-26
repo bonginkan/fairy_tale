@@ -32,18 +32,31 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_RECORDS_DIR = ROOT / "spiral-revolutions"
 
-# A concrete reference: URL, commit sha, #issue/PR, run-/trace- id, or sha256 digest.
-CONCRETE_REF = re.compile(
-    r"(https?://\S+)"
-    r"|(\b[0-9a-f]{7,40}\b)"
-    r"|(#\d+)"
-    r"|(\b(?:run|trace)-[0-9A-Za-z._-]+)"
-    r"|(\bsha256:[0-9a-f]{16,})",
-    re.IGNORECASE,
-)
+# A concrete, *verifiable* reference. Each evidence entry must BE one of these
+# (hostile-review hardened, fairy_tale #44 / PR #45): a bare short hex token
+# (`deadbee`), a bare `#44`, or freeform prose ("trust me, reviewed") are NOT
+# concrete refs and are rejected. Accepted forms:
+#   - URL with host+path:        https://github.com/owner/repo/pull/41
+#   - full 40-hex commit sha:    98341e43fce99a1157fbebec713537b406ef8e81
+#   - sha256 digest (>=32 hex):  sha256:9e5e7b60...
+#   - run-/trace- id (length):   run-20260626T0011Z-cc-...
+#   - an existing repo file path: scripts/spiral_revolution_check.py
+_URL = r"https?://[^\s/]+\.[^\s/]+/\S+"
+_FULL_SHA = r"\b[0-9a-f]{40}\b"
+_SHA256 = r"\bsha256:[0-9a-f]{32,}\b"
+_RUNTRACE = r"\b(?:run|trace)-[0-9A-Za-z][0-9A-Za-z._-]{7,}\b"
+CONCRETE_REF = re.compile("|".join((_URL, _FULL_SHA, _SHA256, _RUNTRACE)), re.IGNORECASE)
+REPO_PATH_RE = re.compile(r"(?:[\w.\-]+/)+[\w.\-]+\.(?:py|json|md|ts|tsx|js|mjs|cjs|yml|yaml|sh|toml|txt)")
 
-# Tokens that look like evidence but are not. An evidence entry equal to one of
-# these (ignoring case/punctuation) is rejected so placeholders cannot pass.
+# Short label words allowed to accompany a ref (e.g. "merge commit <sha>") without
+# the entry counting as freeform prose.
+_LABEL_WORDS = re.compile(r"(?i)\b(?:commit|merge|pr|issue|sha|ref|run|trace|id|see|at|in|on|the|comment)\b")
+
+# Residue (entry minus refs/labels/punctuation) longer than this means the entry
+# is prose with a ref smuggled in, not a clean reference.
+_MAX_RESIDUE = 12
+
+# Tokens that look like evidence but are not.
 PLACEHOLDERS = {
     "", "todo", "tbd", "n/a", "na", "none", "null", "-", "--", "...",
     "placeholder", "xxx", "fixme", "pending", "wip", "?",
@@ -79,19 +92,43 @@ def _get(record: dict, path: tuple[str, ...]):
     return node
 
 
-def _is_placeholder(value: str) -> bool:
-    return value.strip().strip(".").lower() in PLACEHOLDERS
+def _entry_problem(entry) -> str | None:
+    """Return why `entry` is not a clean, verifiable concrete ref, else None."""
+    if not isinstance(entry, str) or not entry.strip():
+        return "empty/non-string"
+    if entry.strip().strip(".").lower() in PLACEHOLDERS:
+        return "placeholder"
+    residue = entry
+    matched = False
+    for match in CONCRETE_REF.finditer(entry):
+        residue = residue.replace(match.group(0), " ", 1)
+        matched = True
+    for match in REPO_PATH_RE.finditer(entry):
+        token = match.group(0)
+        if (ROOT / token).exists():
+            residue = residue.replace(token, " ", 1)
+            matched = True
+        else:
+            return f"repo path does not exist: {token}"
+    if not matched:
+        return "not a concrete ref (need URL / 40-hex sha / sha256: / run-trace id / existing repo path)"
+    # Reject prose smuggled in alongside a ref: strip label words + non-alphanumerics
+    # and require the leftover to be short.
+    residue = _LABEL_WORDS.sub(" ", residue)
+    residue = re.sub(r"[^0-9A-Za-z]", "", residue)
+    if len(residue) > _MAX_RESIDUE:
+        return "freeform prose mixed with ref (keep evidence entries ref-only)"
+    return None
 
 
 def _check_evidence_array(value, label: str, errors: list[str]) -> None:
     if not isinstance(value, list) or not value:
         errors.append(f"{label}: must be a non-empty array (unpaired evidence)")
         return
-    placeholders = [v for v in value if not isinstance(v, str) or _is_placeholder(v)]
-    if placeholders:
-        errors.append(f"{label}: contains placeholder/empty evidence {placeholders!r}")
-    if not any(isinstance(v, str) and CONCRETE_REF.search(v) for v in value):
-        errors.append(f"{label}: no concrete reference (URL/sha/#id/run-/trace-/sha256) found")
+    for index, entry in enumerate(value):
+        problem = _entry_problem(entry)
+        if problem:
+            errors.append(f"{label}[{index}]: {problem}: {entry!r}")
 
 
 def validate_record(record: dict) -> list[str]:
@@ -155,11 +192,88 @@ def validate_record(record: dict) -> list[str]:
     return errors
 
 
+def _good_record() -> dict:
+    return {
+        "schema_version": "1.0",
+        "revolution_id": "selftest",
+        "altitude": {"current": "flat loop", "target": "spiral", "axis": "abstraction"},
+        "execution_strand": {
+            "objective": "o",
+            "engineer_target": "t",
+            "validation_reviews": ["https://github.com/bonginkan/fairy_tale/pull/45"],
+        },
+        "learning_governance_strand": {
+            "double_loop_evaluation": "e",
+            "governing_variable_change": "g",
+            "next_altitude": "n",
+            "stop_or_descend": "s",
+        },
+        "strand_pairing_evidence": ["https://github.com/bonginkan/fairy_tale/issues/44"],
+        "risk": {
+            "highest_uncertainty": "u",
+            "spike": "s",
+            "burn_down_evidence": ["98341e43fce99a1157fbebec713537b406ef8e81"],
+        },
+        "mismatch_repair": {"mismatches": ["m"], "repair_action": "r"},
+        "validated_governance_template": "tpl",
+        "win_condition": "w",
+        "budget_radius": "b",
+        "safety_floor": "f",
+        "ledger_receipt": ["run-20260626T0011Z-cc-selftest-evidence"],
+    }
+
+
+def _selftest() -> int:
+    """Lock the red->green and hostile-bypass controls (fairy_tale #44 / PR #45)."""
+    failures: list[str] = []
+
+    good = _good_record()
+    if validate_record(good) != []:
+        failures.append(f"good record should pass but got: {validate_record(good)}")
+
+    # Each hostile evidence value must be rejected (it slipped through pre-fix).
+    hostile = {
+        "empty": [],
+        "placeholder": ["TODO"],
+        "bare-7hex": ["deadbee"],
+        "bare-issue": ["#1"],
+        "prose+ref": ["trust me, reviewed carefully", "#44"],
+        "abbrev-sha": ["98341e4"],
+    }
+    for name, value in hostile.items():
+        record = _good_record()
+        record["strand_pairing_evidence"] = value
+        if validate_record(record) == []:
+            failures.append(f"hostile case '{name}' should be rejected but passed: {value!r}")
+
+    # No-records dir must fail with exit 1 (suppress its report so selftest output stays clean).
+    import contextlib
+    import io
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        with contextlib.redirect_stdout(io.StringIO()):
+            empty_rc = main(["--records", tmp])
+        if empty_rc == 0:
+            failures.append("empty records dir should exit 1 but exited 0")
+
+    if failures:
+        for line in failures:
+            print(f"SELFTEST FAIL: {line}")
+        print("Spiral revolution selftest failed.")
+        return 1
+    print("Spiral revolution selftest passed (good->pass; empty/placeholder/bare-hex/bare-#N/prose+ref/abbrev-sha->reject).")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Exercise check for spiral revolution records")
     parser.add_argument("--records", default=str(DEFAULT_RECORDS_DIR), help="records directory")
     parser.add_argument("--json", action="store_true", help="emit JSON report")
+    parser.add_argument("--selftest", action="store_true", help="run built-in red/green/hostile controls")
     args = parser.parse_args(argv)
+
+    if args.selftest:
+        return _selftest()
 
     records_dir = Path(args.records)
     files = sorted(records_dir.glob("*.json")) if records_dir.is_dir() else []

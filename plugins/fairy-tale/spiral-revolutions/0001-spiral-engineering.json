@@ -31,9 +31,9 @@
     "highest_uncertainty": "A spiral spec that is written but unenforced degrades into rubber-stamp drift (mutation without selection).",
     "spike": "Build scripts/spiral_revolution_check.py and demonstrate red->green: it must FAIL on the presence-only state and PASS only with this exercised, evidence-paired record.",
     "burn_down_evidence": [
-      "scripts/spiral_revolution_check.py exits 1 on an empty spiral-revolutions/ dir (presence-only)",
-      "scripts/spiral_revolution_check.py exits 0 on spiral-revolutions/0001-spiral-engineering.json",
-      "https://github.com/bonginkan/fairy_tale/pull/41"
+      "scripts/spiral_revolution_check.py",
+      "spiral-revolutions/0001-spiral-engineering.json",
+      "https://github.com/bonginkan/fairy_tale/pull/45"
     ]
   },
   "mismatch_repair": {
