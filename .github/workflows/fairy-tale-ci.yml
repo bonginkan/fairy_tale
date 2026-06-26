@@ -23,6 +23,10 @@ jobs:
         run: python3 scripts/fairy_tale_residency_check.py
       - name: Install smoke test
         run: python3 scripts/install_smoke_test.py
+      - name: Spiral revolution exercise gate (self-controls)
+        run: python3 scripts/spiral_revolution_check.py --selftest
+      - name: Spiral revolution exercise gate (records)
+        run: python3 scripts/spiral_revolution_check.py
 
   adapters:
     name: adapters (manifest validation)

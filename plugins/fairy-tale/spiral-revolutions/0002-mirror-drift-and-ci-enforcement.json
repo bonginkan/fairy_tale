@@ -1,0 +1,74 @@
+{
+  "schema_version": "1.0",
+  "revolution_id": "0002-mirror-drift-and-ci-enforcement",
+  "altitude": {
+    "current": "Spiral spec exercised once (0001), but mirror parity and review calibration were partly unenforced: companion artifacts had no parity gate and the spiral exercise gate was never wired into CI.",
+    "target": "Mirror-drift and review-calibration enforced mechanically in CI across the helix, with selection (genuine refutation vs rubber-stamp) made visible across records.",
+    "axis": "risk_burn_down"
+  },
+  "execution_strand": {
+    "objective": "Close the mirror-drift class (fairy_tale #7 / #22), wire the spiral exercise gate into CI, and make per-turn selection auditable across records; dogfood this turn as the second revolution record.",
+    "engineer_target": "check_distribution_parity.py dynamic companion parity (#48), residency marker single-source-of-truth (#49, closes #22), spiral_revolution_check.py cross-record refute_pass reuse guard + refute-rate visibility + CI wiring, and this 0002 record.",
+    "validation_reviews": [
+      "https://github.com/bonginkan/fairy_tale/pull/48",
+      "https://github.com/bonginkan/fairy_tale/commit/b87e6e03483ed43d7c47a9bf8157fdc3bf84298c",
+      "https://github.com/bonginkan/fairy_tale/pull/49",
+      "https://github.com/bonginkan/fairy_tale/commit/6d611640ff66da149c981bc2104afc615ad385be"
+    ]
+  },
+  "learning_governance_strand": {
+    "double_loop_evaluation": "Under Jun's no-blocking critical-thinking challenge, this turn's reviews did NOT rubber-stamp. The #48 first cut hardcoded COMPANION_DIRS=(schemas,scripts,spiral-revolutions); hostile review reproduced a real false negative (a one-byte drift in a plugin adapter/docs/resources/crates copy passed the gate). That refutation blocked merge until a hardcoded allow-list was replaced by plugin-tree dynamic discovery, which then surfaced a genuine pre-existing drift (a plugin Cargo.toml missing its license line). This is empirical evidence that selection is exercised, not confirmatory.",
+    "governing_variable_change": "Stop trusting that the spiral/calibration gates run: the exercise gate (spiral_revolution_check.py) was never wired into fairy-tale-ci.yml, so calibration enforcement was toothless. Wire it into the solidity job, and add a cross-record refute_pass reuse guard so a pasted-forward refutation cannot fake selection.",
+    "next_altitude": "#42 evolution operators only after cross-record selection has accumulated multiple records and live-author binding is resolved or explicitly scoped out as architecturally blocked.",
+    "stop_or_descend": "Descend to CI enforcement before evolution: an unwired gate is presence, not exercise. Do not raise autonomy/scope while the selection gate does not run in CI."
+  },
+  "strand_pairing_evidence": [
+    "https://github.com/bonginkan/fairy_tale/issues/7",
+    "https://github.com/bonginkan/fairy_tale/issues/22",
+    "https://github.com/bonginkan/fairy_tale/issues/43",
+    "https://github.com/bonginkan/fairy_tale/pull/48#issuecomment-4806074692"
+  ],
+  "risk": {
+    "highest_uncertainty": "A calibration gate that is not run in CI (or whose refutations can be reused across turns) silently degrades to rubber-stamp; nobody notices because presence checks stay green.",
+    "spike": "Wire spiral_revolution_check.py into fairy-tale-ci.yml and demonstrate red->green: a refute_pass reused across records FAILS the gate; this exercised 0002 record with its own distinct refutations PASSES.",
+    "burn_down_evidence": [
+      "scripts/spiral_revolution_check.py",
+      "spiral-revolutions/0002-mirror-drift-and-ci-enforcement.json",
+      "https://github.com/bonginkan/fairy_tale/commit/b87e6e03483ed43d7c47a9bf8157fdc3bf84298c",
+      "https://github.com/bonginkan/fairy_tale/commit/6d611640ff66da149c981bc2104afc615ad385be"
+    ]
+  },
+  "mismatch_repair": {
+    "mismatches": [
+      "#7 mirror-companion parity first cut hardcoded COMPANION_DIRS, a false negative on adapters/docs/resources/crates that hostile review reproduced.",
+      "The spiral exercise gate (spiral_revolution_check.py) was never wired into CI, so review-calibration enforcement did not actually run.",
+      "No cross-record check existed, so a refute_pass artifact could be reused across turns and still pass per-record validation."
+    ],
+    "repair_action": "Replaced the hardcoded dir list with plugin-tree dynamic discovery (#48), which also caught a real pre-existing Cargo.toml drift; consolidated the residency marker tables to a single source of truth (#49, closes #22); wired the spiral exercise gate into CI; added a cross-record refute_pass reuse guard plus refute-rate visibility; and dogfooded this 0002 record with this turn's own distinct refutations. Live-author binding (proving a refute_pass was authored by the recorded reviewer_id) remains architecturally blocked: all three sibling agents commit and comment under one GitHub identity, so authorship cannot be distinguished at the GitHub layer; identity distinctness lives in the Discord user_id recorded per review, and is tracked separately."
+  },
+  "validated_governance_template": "The double-helix spiral spec plus per-record review calibration (concrete refute_pass, >=2 distinct registered reviewers, circular-review guard) plus cross-record refute_pass uniqueness is the carried-forward governance template; the delivery strand is re-synthesized per turn and must not replicate unvalidated process mutations.",
+  "win_condition": "spiral_revolution_check.py runs in CI; a cross-record reused refute_pass FAILS; this exercised 0002 record with distinct per-turn refutations PASSES; reviewed with an explicit concrete refute_pass by Codex + MISA3.",
+  "budget_radius": "Bounded: one CI wiring, one cross-record check plus its selftest control, one dogfooded record; no agent fan-out, no runtime/credential/deploy mutation.",
+  "safety_floor": "Unchanged: DND, approval, security, credential, deploy, external-mutation, owner-mention, meeting, and branch/merge gates outrank altitude gain; no silent self-modification.",
+  "ledger_receipt": [
+    "run-20260626T0344Z-cc-43-cross-record-calibration",
+    "trace-7c1f2a9e-4d3b-4e6a-9b21-0f5c8e2a1d44",
+    "https://github.com/bonginkan/fairy_tale/issues/43"
+  ],
+  "implementer": "CC MISA",
+  "implementer_id": "1510042936027381821",
+  "reviews": [
+    {
+      "reviewer": "Codex MISA",
+      "reviewer_id": "1510912873981804627",
+      "verdict": "no_block",
+      "refute_pass": "https://github.com/bonginkan/fairy_tale/pull/48#issuecomment-4806074692"
+    },
+    {
+      "reviewer": "MISA 3",
+      "reviewer_id": "1516725819517567077",
+      "verdict": "no_block",
+      "refute_pass": "https://github.com/bonginkan/fairy_tale/pull/48#issuecomment-4806074854"
+    }
+  ]
+}

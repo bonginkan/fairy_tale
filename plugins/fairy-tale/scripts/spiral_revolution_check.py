@@ -279,6 +279,68 @@ def _check_reviews(record: dict, errors: list[str]) -> None:
         errors.append(f"circular review: implementer_id '{implementer_id}' must not also appear as a reviewer_id")
 
 
+def _concrete_refutes(record: dict) -> list[str]:
+    """The concrete refute_pass artifacts cited by a record's reviews."""
+    out: list[str] = []
+    reviews = record.get("reviews")
+    if not isinstance(reviews, list):
+        return out
+    for review in reviews:
+        if not isinstance(review, dict):
+            continue
+        refute = review.get("refute_pass")
+        if isinstance(refute, str) and refute.strip() and _entry_problem(refute) is None:
+            out.append(refute.strip())
+    return out
+
+
+def check_cross_record(records: list[tuple[str, dict]]) -> tuple[list[str], dict]:
+    """Cross-record review calibration (fairy_tale #43 follow-up).
+
+    Per-record validation already requires every no_block sign-off to cite a
+    concrete refutation artifact. That cannot see a rubber-stamp tell that spans
+    records: pasting a *prior* turn's refute_pass forward. A given refutation
+    artifact belongs to the turn that produced it -- it must not be reused as the
+    evidence for a later revolution. This also surfaces refute-rate stats so a
+    degrading selection trend across the helix is visible, not buried.
+
+    Returns (errors, stats). Identity binding of a refute_pass to its live author
+    is intentionally out of scope here: all three MISA bots commit/comment under
+    one GitHub identity (MyTH-zyxeon), so authorship cannot be distinguished at
+    the GitHub layer; distinctness lives in the Discord user_id recorded per review.
+    """
+    errors: list[str] = []
+    seen: dict[str, str] = {}  # refute_pass artifact -> first record id that used it
+    no_block_reviews = 0
+    refute_artifacts: set[str] = set()
+    for ident, record in records:
+        if not isinstance(record, dict):
+            continue
+        rid = record.get("revolution_id") or ident
+        reviews = record.get("reviews")
+        if isinstance(reviews, list):
+            for review in reviews:
+                if isinstance(review, dict) and review.get("verdict") == "no_block":
+                    no_block_reviews += 1
+        for refute in _concrete_refutes(record):
+            refute_artifacts.add(refute)
+            if refute in seen:
+                if seen[refute] != rid:
+                    errors.append(
+                        f"refute_pass reused across records: {refute} appears in "
+                        f"both '{seen[refute]}' and '{rid}' (each turn needs its "
+                        f"own refutation, not a pasted-forward one)"
+                    )
+            else:
+                seen[refute] = rid
+    stats = {
+        "records": len(records),
+        "no_block_reviews": no_block_reviews,
+        "distinct_refute_artifacts": len(refute_artifacts),
+    }
+    return errors, stats
+
+
 def _good_record() -> dict:
     return {
         "schema_version": "1.0",
@@ -382,6 +444,30 @@ def _selftest() -> int:
         if validate_record(record) == []:
             failures.append(f"review-calibration case '{name}' should be rejected but passed")
 
+    # Cross-record calibration: a refute_pass reused across records must be flagged,
+    # while distinct per-turn refutations must pass.
+    def _rec(rid):
+        r = _good_record()
+        r["revolution_id"] = rid
+        return r
+
+    reused_a, reused_b = _rec("x1"), _rec("x2")  # both keep _good_record's refute URLs
+    reused, _ = check_cross_record([("x1", reused_a), ("x2", reused_b)])
+    if not reused:
+        failures.append("cross-record reused refute_pass should be flagged but passed")
+    distinct = _rec("x2")
+    distinct["reviews"] = [
+        {"reviewer": "CC MISA", "reviewer_id": _cc, "verdict": "no_block",
+         "refute_pass": "https://github.com/bonginkan/fairy_tale/pull/48#issuecomment-4806074692"},
+        {"reviewer": "MISA 3", "reviewer_id": _m3, "verdict": "no_block",
+         "refute_pass": "https://github.com/bonginkan/fairy_tale/pull/48#issuecomment-4806074854"},
+    ]
+    clean, stats = check_cross_record([("x1", _rec("x1")), ("x2", distinct)])
+    if clean:
+        failures.append(f"distinct per-record refutations should pass cross-record but got: {clean}")
+    if stats.get("records") != 2:
+        failures.append(f"cross-record stats.records should be 2, got {stats.get('records')}")
+
     # No-records dir must fail with exit 1 (suppress its report so selftest output stays clean).
     import contextlib
     import io
@@ -400,7 +486,8 @@ def _selftest() -> int:
     print(
         "Spiral revolution selftest passed (good->pass; "
         "evidence: empty/placeholder/bare-hex/bare-#N/prose+ref/abbrev-sha/prose+url/shape-sha/path-traversal->reject; "
-        "review-calibration: empty/prose refute_pass, <2 reviewers, self-review->reject)."
+        "review-calibration: empty/prose refute_pass, <2 reviewers, self-review->reject; "
+        "cross-record: reused refute_pass->reject, distinct->pass)."
     )
     return 0
 
@@ -426,6 +513,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     all_ok = True
+    loaded: list[tuple[str, dict]] = []
     for path in files:
         entry: dict[str, object] = {"file": str(path.relative_to(records_dir.parent) if records_dir.parent in path.parents else path)}
         try:
@@ -441,6 +529,14 @@ def main(argv: list[str] | None = None) -> int:
         if errors:
             all_ok = False
         report["records"].append(entry)  # type: ignore[union-attr]
+        if isinstance(record, dict):
+            loaded.append((record.get("revolution_id") or path.name, record))
+
+    cross_errors, stats = check_cross_record(loaded)
+    if cross_errors:
+        all_ok = False
+    report["cross_record_errors"] = cross_errors
+    report["calibration_stats"] = stats
 
     report["passed"] = all_ok
     _emit(report, args.json)
@@ -462,6 +558,15 @@ def _emit(report: dict, as_json: bool) -> None:
                 print(f"  - {err}")
         else:
             print(f"OK   {entry.get('file')} ({entry.get('revolution_id')})")
+    for err in report.get("cross_record_errors") or []:
+        print(f"  - cross-record: {err}")
+    stats = report.get("calibration_stats")
+    if isinstance(stats, dict):
+        print(
+            f"calibration: {stats.get('records')} record(s), "
+            f"{stats.get('no_block_reviews')} no_block review(s), "
+            f"{stats.get('distinct_refute_artifacts')} distinct refutation artifact(s)."
+        )
     print("Spiral revolution check passed." if report.get("passed") else "Spiral revolution check failed.")
 
 
