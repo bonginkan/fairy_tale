@@ -51,6 +51,9 @@ _RUNTRACE = r"\b(?:run|trace)-[0-9A-Za-z][0-9A-Za-z._-]{7,}\b"
 CONCRETE_REF = re.compile("|".join((_URL, _SHA256, _RUNTRACE)), re.IGNORECASE)
 REPO_PATH_RE = re.compile(r"(?:[\w.\-]+/)+[\w.\-]+\.(?:py|json|md|ts|tsx|js|mjs|cjs|yml|yaml|sh|toml|txt)")
 
+# Discord user-id (snowflake): the unforgeable identity key for review calibration.
+_SNOWFLAKE = re.compile(r"^[0-9]{15,21}$")
+
 # Short label words allowed to prefix a ref (e.g. "see <url>") without the entry
 # counting as freeform prose.
 _LABEL_WORDS = re.compile(r"(?i)\b(?:commit|merge|pr|issue|sha|ref|run|trace|id|see|at|in|on|the|comment)\b")
@@ -206,26 +209,35 @@ def validate_record(record: dict) -> list[str]:
 
 
 def _check_reviews(record: dict, errors: list[str]) -> None:
+    # Identity keys on the unforgeable user_id, NOT the display name (aliases /
+    # bot-ID-literal-in-name / spacing variants must not fool distinctness or the
+    # circular-review guard). This mirrors the trust model's "judge by user_id" rule.
     implementer = record.get("implementer")
+    implementer_id = record.get("implementer_id")
     if not isinstance(implementer, str) or not implementer.strip():
         errors.append("implementer: required and non-empty")
+    if not isinstance(implementer_id, str) or not _SNOWFLAKE.match(implementer_id):
+        errors.append("implementer_id: required, must be a Discord user id (15-21 digits)")
     reviews = record.get("reviews")
     if not isinstance(reviews, list) or len(reviews) < 2:
-        errors.append("reviews: requires >= 2 reviewers (1 implementer + 2 reviewers discipline)")
+        errors.append("reviews: requires >= 2 entries")
         return
-    reviewer_names = []
+    reviewer_ids: list[str] = []
     for index, review in enumerate(reviews):
         label = f"reviews[{index}]"
         if not isinstance(review, dict):
             errors.append(f"{label}: must be an object")
             continue
         reviewer = review.get("reviewer")
+        reviewer_id = review.get("reviewer_id")
         verdict = review.get("verdict")
         refute = review.get("refute_pass")
         if not isinstance(reviewer, str) or not reviewer.strip():
             errors.append(f"{label}.reviewer: required and non-empty")
+        if not isinstance(reviewer_id, str) or not _SNOWFLAKE.match(reviewer_id):
+            errors.append(f"{label}.reviewer_id: required, must be a Discord user id (15-21 digits)")
         else:
-            reviewer_names.append(reviewer.strip().lower())
+            reviewer_ids.append(reviewer_id)
         if verdict not in ("block", "no_block"):
             errors.append(f"{label}.verdict: must be 'block' or 'no_block'")
         # The teeth: a no_block sign-off MUST point to a concrete refutation artifact
@@ -236,9 +248,12 @@ def _check_reviews(record: dict, errors: list[str]) -> None:
                 errors.append(f"{label}.refute_pass: a no_block verdict needs a concrete refutation artifact ({problem})")
         elif not (isinstance(refute, str) and refute.strip()):
             errors.append(f"{label}.refute_pass: required and non-empty")
-    # Circular-review guard: the implementer must not also be a reviewer.
-    if isinstance(implementer, str) and implementer.strip().lower() in reviewer_names:
-        errors.append(f"circular review: implementer '{implementer}' must not also be a reviewer")
+    # >= 2 DISTINCT reviewers (by id, so duplicate entries do not count).
+    if len(set(reviewer_ids)) < 2:
+        errors.append("reviews: requires >= 2 DISTINCT reviewer_id (duplicate reviewers do not count)")
+    # Circular-review guard, by id: the implementer must not also be a reviewer.
+    if isinstance(implementer_id, str) and implementer_id in reviewer_ids:
+        errors.append(f"circular review: implementer_id '{implementer_id}' must not also appear as a reviewer_id")
 
 
 def _good_record() -> dict:
@@ -272,10 +287,11 @@ def _good_record() -> dict:
         "safety_floor": "f",
         "ledger_receipt": ["run-20260626T0011Z-cc-selftest-evidence"],
         "implementer": "MISA 3",
+        "implementer_id": "1516725819517567077",
         "reviews": [
-            {"reviewer": "CC MISA", "verdict": "no_block",
+            {"reviewer": "CC MISA", "reviewer_id": "1510042936027381821", "verdict": "no_block",
              "refute_pass": "https://github.com/bonginkan/fairy_tale/issues/43#issuecomment-4805272898"},
-            {"reviewer": "Codex MISA", "verdict": "no_block",
+            {"reviewer": "Codex MISA", "reviewer_id": "1510912873981804627", "verdict": "no_block",
              "refute_pass": "https://github.com/bonginkan/fairy_tale/pull/45#issuecomment-4805339475"},
         ],
     }
@@ -308,28 +324,28 @@ def _selftest() -> int:
         if validate_record(record) == []:
             failures.append(f"hostile case '{name}' should be rejected but passed: {value!r}")
 
-    # Review-calibration hostile cases (fairy_tale #43): a smooth no_block without a
-    # concrete refutation artifact, too few reviewers, or a self-review must fail.
+    # Review-calibration hostile cases (fairy_tale #43), keyed on user_id so that
+    # display-name aliases cannot fool distinctness or the circular-review guard
+    # (Codex/MISA3 round-1 bypasses: duplicate reviewer, alias self-review).
+    _cc, _codex, _m3 = "1510042936027381821", "1510912873981804627", "1516725819517567077"
+    _good_refute = "https://github.com/bonginkan/fairy_tale/pull/45#issuecomment-4805339475"
+
+    def _rev(rid, refute=_good_refute, name="reviewer"):
+        return {"reviewer": name, "reviewer_id": rid, "verdict": "no_block", "refute_pass": refute}
+
     review_hostile = {
-        "no_block-empty-refute": {"reviews": [
-            {"reviewer": "CC MISA", "verdict": "no_block", "refute_pass": ""},
-            {"reviewer": "Codex MISA", "verdict": "no_block",
-             "refute_pass": "https://github.com/bonginkan/fairy_tale/pull/45#issuecomment-4805339475"},
-        ]},
-        "no_block-prose-refute": {"reviews": [
-            {"reviewer": "CC MISA", "verdict": "no_block", "refute_pass": "looked carefully, all good"},
-            {"reviewer": "Codex MISA", "verdict": "no_block",
-             "refute_pass": "https://github.com/bonginkan/fairy_tale/pull/45#issuecomment-4805339475"},
-        ]},
-        "too-few-reviewers": {"reviews": [
-            {"reviewer": "CC MISA", "verdict": "no_block",
-             "refute_pass": "https://github.com/bonginkan/fairy_tale/issues/43#issuecomment-4805272898"},
-        ]},
-        "self-review": {"implementer": "CC MISA", "reviews": [
-            {"reviewer": "CC MISA", "verdict": "no_block",
-             "refute_pass": "https://github.com/bonginkan/fairy_tale/issues/43#issuecomment-4805272898"},
-            {"reviewer": "Codex MISA", "verdict": "no_block",
-             "refute_pass": "https://github.com/bonginkan/fairy_tale/pull/45#issuecomment-4805339475"},
+        "no_block-empty-refute": {"reviews": [_rev(_cc, refute=""), _rev(_codex)]},
+        "no_block-prose-refute": {"reviews": [_rev(_cc, refute="looked carefully, all good"), _rev(_codex)]},
+        "too-few-reviewers": {"reviews": [_rev(_cc)]},
+        "duplicate-reviewer-id": {"reviews": [_rev(_cc), _rev(_cc)]},
+        "self-review-by-id": {"implementer_id": _cc, "reviews": [_rev(_cc), _rev(_codex)]},
+        "alias-self-review-name": {
+            "implementer": "MISA 3", "implementer_id": _m3,
+            "reviews": [_rev(_m3, name="MISA3"), _rev(_codex)],
+        },
+        "missing-reviewer-id": {"reviews": [
+            {"reviewer": "CC MISA", "verdict": "no_block", "refute_pass": _good_refute},
+            _rev(_codex),
         ]},
     }
     for name, overrides in review_hostile.items():

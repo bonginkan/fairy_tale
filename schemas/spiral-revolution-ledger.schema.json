@@ -20,22 +20,25 @@
     "safety_floor",
     "ledger_receipt",
     "implementer",
+    "implementer_id",
     "reviews"
   ],
   "properties": {
     "schema_version": { "type": "string", "pattern": "^1\\.0$" },
     "revolution_id": { "type": "string", "minLength": 1 },
     "implementer": { "type": "string", "minLength": 1 },
+    "implementer_id": { "type": "string", "pattern": "^[0-9]{15,21}$" },
     "reviews": {
-      "description": "Review-calibration record (fairy_tale #43). >=2 reviewers; a no_block verdict MUST carry a concrete refute_pass (what was actually attacked); the implementer must not appear as a reviewer (circular-review guard).",
+      "description": "Review-calibration record (fairy_tale #43). Distinct identity keys on the unforgeable user_id, NOT the display name: >=2 DISTINCT reviewer_id; a no_block verdict MUST carry a concrete refute_pass (what was actually attacked); the implementer_id must not appear among reviewer_id (circular-review guard).",
       "type": "array",
       "minItems": 2,
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["reviewer", "verdict", "refute_pass"],
+        "required": ["reviewer", "reviewer_id", "verdict", "refute_pass"],
         "properties": {
           "reviewer": { "type": "string", "minLength": 1 },
+          "reviewer_id": { "type": "string", "pattern": "^[0-9]{15,21}$" },
           "verdict": { "type": "string", "enum": ["block", "no_block"] },
           "refute_pass": { "type": "string", "minLength": 1 }
         }
