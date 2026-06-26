@@ -150,13 +150,13 @@
       "reviewer": "Codex MISA",
       "reviewer_id": "1510912873981804627",
       "verdict": "no_block",
-      "refute_pass": "https://github.com/bonginkan/fairy_tale/pull/50#issuecomment-4806267400"
+      "refute_pass": "https://github.com/bonginkan/fairy_tale/pull/52#issuecomment-4807616656"
     },
     {
       "reviewer": "MISA 3",
       "reviewer_id": "1516725819517567077",
       "verdict": "no_block",
-      "refute_pass": "https://github.com/bonginkan/fairy_tale/pull/50#issuecomment-4806209735"
+      "refute_pass": "https://github.com/bonginkan/fairy_tale/pull/52#issuecomment-4807618620"
     }
   ]
 }

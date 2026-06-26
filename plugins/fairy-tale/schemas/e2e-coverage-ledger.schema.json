@@ -86,7 +86,7 @@
             "properties": {
               "verified": { "type": "boolean", "description": "For mutation/auth/stateful surfaces this MUST be true: render/presence alone does not exercise the surface." },
               "kind": { "type": "string", "minLength": 1, "description": "What was actually exercised. For mutation/auth/stateful surfaces it must name a real exercise (create-readback-delete, round-trip, stateful-continuity, boundary-probe, mutate-verify, replay); a render/presence/screenshot-only kind is rejected even when verified is true." },
-              "evidence": { "type": "array", "items": { "type": "string" } }
+              "evidence": { "type": "array", "items": { "type": "string" }, "description": "For an exercised (mutation/auth/stateful) surface, >=1 entry must show a real exercise OUTCOME (HTTP status / -> result / read-back / create-delete / continuity) -- a valid-sounding kind backed only by a screenshot is rejected." }
             }
           },
           "boundary_companions": {
