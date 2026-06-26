@@ -31,6 +31,10 @@ jobs:
         run: python3 scripts/evolution_variant_check.py --selftest
       - name: Evolution variant exercise gate (records)
         run: python3 scripts/evolution_variant_check.py
+      - name: E2E coverage exercise gate (self-controls)
+        run: python3 scripts/e2e_coverage_check.py --selftest
+      - name: E2E coverage exercise gate (records)
+        run: python3 scripts/e2e_coverage_check.py
 
   adapters:
     name: adapters (manifest validation)
