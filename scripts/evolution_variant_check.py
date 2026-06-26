@@ -45,13 +45,26 @@ import spiral_revolution_check as spiral  # noqa: E402
 MUTATION_OPERATORS = {"process", "prompt", "harness", "validator", "role_assignment", "delegation_policy"}
 SELECTION_OUTCOMES = {"accepted", "rejected", "quarantined"}
 
-# Safety-floor surfaces a variant may NEVER list as changeable. Matched as
-# substrings (case-insensitive) against each `changeable` entry.
+# Safety-floor / authority / deploy / runtime surfaces a variant may NEVER list as
+# changeable. Matched as substrings (case-insensitive) against each `changeable`
+# entry. A mutation that names any of these is forbidden, not a variant -- a
+# safety gate errs toward rejecting (the author rephrases) rather than allowing.
 SAFETY_FLOOR_TERMS = (
-    "dnd", "do not disturb", "approval", "security", "credential", "secret",
-    "deploy", "external-mutation", "external mutation", "meeting-join",
-    "meeting join", "owner-escalation", "owner escalation", "branch/merge",
-    "branch merge", "merge gate", "runtime-install", "runtime install",
+    # operating gates
+    "dnd", "do not disturb", "approval", "security",
+    "meeting-join", "meeting join", "owner-escalation", "owner escalation",
+    "escalation", "branch/merge", "branch merge", "merge gate",
+    # secrets / credentials / auth / authority
+    "credential", "secret", "token", "api key", "apikey",
+    "permission", "allowlist", "allow-list", "allow list", "access control",
+    "access-control", "rbac", "privilege", "authorization", "authentication",
+    "role binding", "rolebinding", "scope grant",
+    # deploy / production / runtime
+    "deploy", "production", "rollout", "runtime-install", "runtime install",
+    "runtime promotion", "runtime-promotion", "self-update", "self update",
+    "runtime parity", "runtime-parity", "install companion",
+    # external mutation
+    "external-mutation", "external mutation",
 )
 
 REQUIRED_TOP = (
@@ -74,6 +87,31 @@ def _check_evidence_array(value, label: str, errors: list[str]) -> None:
         problem = spiral._entry_problem(entry)
         if problem:
             errors.append(f"{label}[{index}]: {problem}: {entry!r}")
+
+
+def _contains_concrete_ref(value) -> bool:
+    """True if the string CITES a concrete, verifiable mechanism somewhere in it:
+    a URL / sha256: / run-trace id (anywhere), or an existing repo path. Unlike
+    spiral._entry_problem (which requires the WHOLE entry to be a clean ref), this
+    allows descriptive prose AROUND a concrete reference -- so a re-introduction
+    guard / rollback / inherited-template claim must point at a real artifact, not
+    be pure prose."""
+    if not isinstance(value, str) or not value.strip():
+        return False
+    if spiral.CONCRETE_REF.search(value):
+        return True
+    for match in spiral.REPO_PATH_RE.finditer(value):
+        token = match.group(0)
+        if ".." in token.split("/"):
+            continue
+        try:
+            resolved = (ROOT / token).resolve()
+            resolved.relative_to(ROOT.resolve())
+        except ValueError:
+            continue
+        if resolved.exists():
+            return True
+    return False
 
 
 def _check_mutation_budget(budget, errors: list[str]) -> None:
@@ -133,6 +171,13 @@ def _check_inheritance(record: dict, errors: list[str]) -> None:
             f"inheritance_decision.inherited is true but selection.outcome is "
             f"{outcome!r}: only an accepted variant may be inherited"
         )
+    # An inherited template change must cite the concrete artifact it carries
+    # forward, not be a prose claim ("trust me").
+    if inherited is True and not _contains_concrete_ref(inheritance.get("template_change")):
+        errors.append(
+            "inheritance_decision.template_change: an inherited variant must cite a "
+            "concrete artifact (repo path / test / URL), not prose"
+        )
 
 
 def validate_record(record: dict) -> list[str]:
@@ -153,6 +198,15 @@ def validate_record(record: dict) -> list[str]:
     for key in ("hypothesis", "fitness_metric", "rollback_plan", "extinction_quarantine", "safety_floor"):
         if not _nonempty_str(record.get(key)):
             errors.append(f"{key}: required and non-empty")
+    # Re-introduction prevention and rollback must cite a concrete mechanism, not
+    # prose: a real test / repo path / CI ref, so the guard is evidence-backed.
+    for key in ("extinction_quarantine", "rollback_plan"):
+        value = record.get(key)
+        if _nonempty_str(value) and not _contains_concrete_ref(value):
+            errors.append(
+                f"{key}: must cite a concrete mechanism (a repo path / test / URL / "
+                f"run-trace ref), not prose -- presence is not re-introduction prevention"
+            )
 
     # parent_revolution + lineage anchor the variant to its source.
     parent = record.get("parent_revolution")
@@ -215,11 +269,11 @@ def _good_record() -> dict:
         },
         "inheritance_decision": {
             "inherited": True,
-            "template_change": "The evolutionary operator layer becomes part of the validated governance template.",
+            "template_change": "The evolutionary operator layer (scripts/evolution_variant_check.py) becomes part of the validated governance template.",
             "rationale": "It is validated by an objective red->green gate and reviewed with refute-pass.",
         },
-        "rollback_plan": "Delete the variant record and revert the checker; the spiral gate remains intact.",
-        "extinction_quarantine": "Each bypass is red-locked in --selftest so a pruned variant cannot silently reappear.",
+        "rollback_plan": "Delete the variant record and revert scripts/evolution_variant_check.py; the spiral gate remains intact.",
+        "extinction_quarantine": "Each bypass is red-locked in scripts/evolution_variant_check.py --selftest so a pruned variant cannot silently reappear.",
         "lineage": ["https://github.com/bonginkan/fairy_tale/issues/42"],
         "safety_floor": "Unchanged: DND, approval, security, credential, deploy, external-mutation, meeting-join, owner-escalation, branch/merge, secret, runtime-install gates outrank any mutation.",
         "ledger_receipt": ["run-20260626T0430Z-cc-42-evolution-operators"],
@@ -249,6 +303,10 @@ def _selftest() -> int:
     hostile = {
         "safety-floor-in-changeable": lambda r: r["mutation_budget"]["changeable"].append("relax the deploy approval gate"),
         "safety-floor-credential": lambda r: r["mutation_budget"]["changeable"].append("store the credential inline"),
+        "safety-floor-token": lambda r: r["mutation_budget"]["changeable"].append("token handling policy"),
+        "safety-floor-permission-allowlist": lambda r: r["mutation_budget"]["changeable"].append("access permission allowlist"),
+        "safety-floor-production-rollout": lambda r: r["mutation_budget"]["changeable"].append("production rollout policy"),
+        "safety-floor-runtime-promotion": lambda r: r["mutation_budget"]["changeable"].append("allow runtime promotion without self-update gate"),
         "empty-changeable": lambda r: r["mutation_budget"].__setitem__("changeable", []),
         "no-blast-radius": lambda r: r["mutation_budget"].__setitem__("blast_radius", ""),
         "bad-operator": lambda r: r.__setitem__("mutation_operator", "yolo"),
@@ -259,6 +317,9 @@ def _selftest() -> int:
         "inherit-without-accept": lambda r: (r["selection"].__setitem__("outcome", "rejected")),
         "prose-lineage": lambda r: r.__setitem__("lineage", ["because reasons"]),
         "bare-issue-parent": lambda r: r.__setitem__("parent_revolution", "#42"),
+        "prose-extinction": lambda r: r.__setitem__("extinction_quarantine", "we will remember not to do it again"),
+        "prose-rollback": lambda r: r.__setitem__("rollback_plan", "we will figure it out later"),
+        "prose-template-change": lambda r: r["inheritance_decision"].__setitem__("template_change", "trust me, it becomes the template"),
     }
     for name, mutator in hostile.items():
         if validate_record(mutated(mutator)) == []:
@@ -284,10 +345,11 @@ def _selftest() -> int:
         print("Evolution variant selftest failed.")
         return 1
     print(
-        "Evolution variant selftest passed (good->pass; reject: safety-floor-in-changeable, "
-        "credential-mutation, empty/!blast budget, bad operator, prose/empty selection evidence, "
-        "!safety_floor_preserved, bad outcome, inherit-without-accept, prose lineage, bare-#N parent, "
-        "duplicate reviewer)."
+        "Evolution variant selftest passed (good->pass; reject: safety-floor/authority/deploy/runtime "
+        "surfaces in changeable [deploy, credential, token, permission/allowlist, production rollout, "
+        "runtime promotion/self-update], empty/!blast budget, bad operator, prose/empty selection "
+        "evidence, !safety_floor_preserved, bad outcome, inherit-without-accept, prose lineage, "
+        "bare-#N parent, prose extinction/rollback/template_change, duplicate reviewer)."
     )
     return 0
 
