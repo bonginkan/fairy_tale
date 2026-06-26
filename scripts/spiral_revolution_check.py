@@ -297,18 +297,25 @@ def _concrete_refutes(record: dict) -> list[str]:
 
 def _canon_ref(value: str) -> str:
     """Canonicalize a refute artifact for cross-record identity comparison so a
-    reused artifact cannot be disguised by URL casing, a trailing slash, or a
-    query/junk appended after the fragment. For a URL: lowercase scheme+host,
-    drop the query, strip trailing slashes, and keep only the fragment up to the
-    first '?'/'&' (the comment anchor). Non-URL refs (sha256:, run-/trace- ids,
-    repo paths) collapse to their lowercased, slash-trimmed form.
+    reused artifact cannot be disguised by trivial URL variation. For a URL:
+    lowercase; normalize the scheme to https (http and https reach the same
+    artifact); strip a default port (80/443) but keep a non-default one; drop the
+    query and any trailing slashes; keep only the fragment up to the first '?'/'&'
+    (the comment anchor). Non-URL refs (sha256:, run-/trace- ids, repo paths)
+    collapse to their lowercased, slash-trimmed form.
     """
     s = value.strip().lower()
     parts = urlsplit(s)
     if parts.scheme and parts.netloc:
+        host = parts.hostname or parts.netloc
+        try:
+            port = parts.port
+        except ValueError:
+            port = None
+        netloc = host if port in (None, 80, 443) else f"{host}:{port}"
         path = parts.path.rstrip("/")
         fragment = re.split(r"[?&]", parts.fragment, maxsplit=1)[0].rstrip("/")
-        base = f"{parts.scheme}://{parts.netloc}{path}"
+        base = f"https://{netloc}{path}"
         return f"{base}#{fragment}" if fragment else base
     return s.rstrip("/")
 
@@ -501,7 +508,10 @@ def _selftest() -> int:
         "exact": _u1,
         "case-variant": _u1.replace("github.com", "GitHub.com").replace("/pull/", "/PULL/"),
         "query-after-fragment": _u1 + "?x=1",
+        "query-before-fragment": _u1.replace("#", "?z=1#"),
         "trailing-slash": _u1 + "/",
+        "http-scheme": _u1.replace("https://", "http://"),
+        "default-port": _u1.replace("github.com", "github.com:443"),
     }
     for name, variant in cross_reuse.items():
         errs, _ = check_cross_record([("a.json", _xrec(_u1, _o1)), ("b.json", _xrec(variant, _o2))])
