@@ -11,10 +11,11 @@ false-negative surfaced under Jun's no-blocking critical-thinking challenge
 
 This script exercises the spec: it requires at least one well-formed spiral
 revolution record whose evidence-bearing fields carry CONCRETE, verifiable
-references -- a URL with host+path, a full 40-hex commit sha, a sha256: digest,
-a run-/trace- id, or an existing repo path. Bare #N, abbreviated hex, and
-freeform prose are rejected. A record with empty/missing/placeholder evidence
-fails -- so the gate cannot be satisfied by presence alone.
+references -- a URL with host+path (e.g. a commit/PR URL), a sha256: digest,
+a run-/trace- id, or an existing repo path. Bare #N, bare commit shas (use a
+commit URL), abbreviated or shape-only hex, and freeform prose are rejected.
+A record with empty/missing/placeholder evidence fails -- so the gate cannot
+be satisfied by presence alone.
 
 Usage:
   spiral_revolution_check.py [--records DIR] [--json]
@@ -34,28 +35,29 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_RECORDS_DIR = ROOT / "spiral-revolutions"
 
 # A concrete, *verifiable* reference. Each evidence entry must BE one of these
-# (hostile-review hardened, fairy_tale #44 / PR #45): a bare short hex token
-# (`deadbee`), a bare `#44`, or freeform prose ("trust me, reviewed") are NOT
-# concrete refs and are rejected. Accepted forms:
-#   - URL with host+path:        https://github.com/owner/repo/pull/41
-#   - full 40-hex commit sha:    98341e43fce99a1157fbebec713537b406ef8e81
+# (hostile-review hardened, fairy_tale #44 / PR #45). Rejected as NOT concrete:
+# a bare short hex token (`deadbee`), a bare `#44`, a bare 40-hex sha that is only
+# the right *shape* (e.g. `0000...0` / `aaaa...a` -- use a commit URL instead),
+# and any freeform prose (incl. "trust me <url>"). Accepted forms:
+#   - URL with host+path:        https://github.com/owner/repo/commit/<sha>
 #   - sha256 digest (>=32 hex):  sha256:9e5e7b60...
 #   - run-/trace- id (length):   run-20260626T0011Z-cc-...
 #   - an existing repo file path: scripts/spiral_revolution_check.py
+# Bare commit shas are intentionally NOT accepted: a 40-hex shape is not
+# verifiable, so reference the commit by URL.
 _URL = r"https?://[^\s/]+\.[^\s/]+/\S+"
-_FULL_SHA = r"\b[0-9a-f]{40}\b"
 _SHA256 = r"\bsha256:[0-9a-f]{32,}\b"
 _RUNTRACE = r"\b(?:run|trace)-[0-9A-Za-z][0-9A-Za-z._-]{7,}\b"
-CONCRETE_REF = re.compile("|".join((_URL, _FULL_SHA, _SHA256, _RUNTRACE)), re.IGNORECASE)
+CONCRETE_REF = re.compile("|".join((_URL, _SHA256, _RUNTRACE)), re.IGNORECASE)
 REPO_PATH_RE = re.compile(r"(?:[\w.\-]+/)+[\w.\-]+\.(?:py|json|md|ts|tsx|js|mjs|cjs|yml|yaml|sh|toml|txt)")
 
-# Short label words allowed to accompany a ref (e.g. "merge commit <sha>") without
-# the entry counting as freeform prose.
+# Short label words allowed to prefix a ref (e.g. "see <url>") without the entry
+# counting as freeform prose.
 _LABEL_WORDS = re.compile(r"(?i)\b(?:commit|merge|pr|issue|sha|ref|run|trace|id|see|at|in|on|the|comment)\b")
 
-# Residue (entry minus refs/labels/punctuation) longer than this means the entry
-# is prose with a ref smuggled in, not a clean reference.
-_MAX_RESIDUE = 12
+# After removing refs, label words and non-alphanumerics, any leftover means the
+# entry is prose with a ref smuggled in, not a clean reference. Must be empty.
+_MAX_RESIDUE = 0
 
 # Tokens that look like evidence but are not.
 PLACEHOLDERS = {
@@ -213,7 +215,9 @@ def _good_record() -> dict:
         "risk": {
             "highest_uncertainty": "u",
             "spike": "s",
-            "burn_down_evidence": ["98341e43fce99a1157fbebec713537b406ef8e81"],
+            "burn_down_evidence": [
+                "https://github.com/bonginkan/fairy_tale/commit/98341e43fce99a1157fbebec713537b406ef8e81"
+            ],
         },
         "mismatch_repair": {"mismatches": ["m"], "repair_action": "r"},
         "validated_governance_template": "tpl",
@@ -240,6 +244,9 @@ def _selftest() -> int:
         "bare-issue": ["#1"],
         "prose+ref": ["trust me, reviewed carefully", "#44"],
         "abbrev-sha": ["98341e4"],
+        "prose+url": ["trust me https://github.com/bonginkan/fairy_tale/pull/45"],
+        "shape-sha-zero": ["0" * 40],
+        "shape-sha-a": ["a" * 40],
     }
     for name, value in hostile.items():
         record = _good_record()
@@ -262,7 +269,10 @@ def _selftest() -> int:
             print(f"SELFTEST FAIL: {line}")
         print("Spiral revolution selftest failed.")
         return 1
-    print("Spiral revolution selftest passed (good->pass; empty/placeholder/bare-hex/bare-#N/prose+ref/abbrev-sha->reject).")
+    print(
+        "Spiral revolution selftest passed (good->pass; "
+        "empty/placeholder/bare-hex/bare-#N/prose+ref/abbrev-sha/prose+url/shape-sha->reject)."
+    )
     return 0
 
 
