@@ -1,0 +1,757 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fairy Tale repo を読む：強いAIの魔法ではなく、仕事の型を配る仕組み</title>
+  <meta name="description" content="fairy_tale repo の思想、ベンチマーク、作業アルゴリズム、plugin と SKILL.md の違い、tako / SkillOps への活かし方を、部活の作戦ノートの比喩で整理する。">
+  <meta name="tags" content="fairy-tale,skillops,tako,plugin,skill,benchmark,agent-coding,harness,learning">
+  <script>
+    (function () {
+      try {
+        var stored = localStorage.getItem("fairy-tale-explainer-theme");
+        var dark = stored ? stored === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.classList.toggle("dark", dark);
+      } catch (_) {}
+    })();
+  </script>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #fbfaf7;
+      --paper: #fffdf8;
+      --paper-2: #f2eadf;
+      --ink: #202124;
+      --muted: #64615b;
+      --line: #d9d0c2;
+      --strong-line: #a79276;
+      --accent: #9f5b26;
+      --blue: #2d609b;
+      --green: #2f7556;
+      --red: #a8463f;
+      --violet: #67519a;
+      --shadow: 0 18px 50px rgba(45, 41, 34, 0.08);
+      --radius: 8px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --serif: ui-serif, "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", Georgia, serif;
+    }
+
+    html.dark {
+      color-scheme: dark;
+      --bg: #171615;
+      --paper: #211f1c;
+      --paper-2: #2b2823;
+      --ink: #f3eee5;
+      --muted: #bbb0a1;
+      --line: #494137;
+      --strong-line: #8c7b67;
+      --accent: #e0a05a;
+      --blue: #8db8ef;
+      --green: #83c79d;
+      --red: #e08a82;
+      --violet: #c5b0ef;
+      --shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at top left, rgba(159, 91, 38, 0.10), transparent 35rem),
+        linear-gradient(180deg, var(--bg), var(--paper-2));
+      color: var(--ink);
+      font-family: var(--sans);
+      line-height: 1.85;
+      letter-spacing: 0;
+    }
+
+    a { color: var(--blue); }
+    code { font-family: var(--mono); font-size: 0.92em; }
+
+    .theme-toggle {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      z-index: 10;
+      width: 42px;
+      height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      background: var(--paper);
+      color: var(--ink);
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      font-size: 18px;
+    }
+
+    header {
+      min-height: 82vh;
+      display: grid;
+      align-items: end;
+      border-bottom: 1px solid var(--line);
+      background:
+        linear-gradient(135deg, rgba(47, 117, 86, 0.10), transparent 28rem),
+        linear-gradient(225deg, rgba(45, 96, 155, 0.12), transparent 32rem);
+    }
+
+    .hero {
+      width: min(1120px, calc(100% - 36px));
+      margin: 0 auto;
+      padding: 100px 0 76px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 10px;
+      border: 1px solid var(--strong-line);
+      border-radius: 999px;
+      color: var(--accent);
+      background: color-mix(in srgb, var(--paper) 88%, transparent);
+      font-weight: 800;
+      font-size: 14px;
+    }
+
+    h1 {
+      max-width: 980px;
+      margin: 22px 0 18px;
+      font-size: clamp(40px, 7vw, 82px);
+      line-height: 1.05;
+      letter-spacing: 0;
+      font-family: var(--serif);
+    }
+
+    .subtitle {
+      max-width: 900px;
+      margin: 0;
+      color: var(--muted);
+      font-size: clamp(18px, 2.2vw, 24px);
+    }
+
+    .thesis {
+      margin-top: 30px;
+      max-width: 920px;
+      padding: 18px 22px;
+      border-left: 6px solid var(--accent);
+      background: var(--paper);
+      box-shadow: var(--shadow);
+      font-size: 19px;
+    }
+
+    main {
+      width: min(1120px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 34px 0 88px;
+    }
+
+    section {
+      padding: 42px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    section:last-child { border-bottom: 0; }
+
+    h2 {
+      margin: 0 0 16px;
+      font-size: clamp(28px, 4vw, 44px);
+      line-height: 1.18;
+      letter-spacing: 0;
+      font-family: var(--serif);
+    }
+
+    h3 {
+      margin: 24px 0 10px;
+      font-size: 22px;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 0 0 14px;
+      font-size: 17px;
+    }
+
+    .lead {
+      max-width: 900px;
+      color: var(--muted);
+      font-size: 20px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 20px;
+    }
+
+    .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+    .card {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .card h3 { margin-top: 0; }
+
+    .tag {
+      display: inline-block;
+      margin-bottom: 8px;
+      padding: 2px 8px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1.5;
+    }
+
+    .figure {
+      margin: 24px 0;
+      padding: 18px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .figure svg {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    .caption {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .ink-line {
+      fill: none;
+      stroke: var(--ink);
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .fine-line {
+      fill: none;
+      stroke: var(--line);
+      stroke-width: 1.4;
+      stroke-linecap: round;
+    }
+
+    .box-fill { fill: var(--paper-2); stroke: var(--line); stroke-width: 1.5; }
+    .accent-fill { fill: color-mix(in srgb, var(--accent) 16%, var(--paper)); stroke: var(--accent); stroke-width: 1.5; }
+    .blue-fill { fill: color-mix(in srgb, var(--blue) 14%, var(--paper)); stroke: var(--blue); stroke-width: 1.5; }
+    .green-fill { fill: color-mix(in srgb, var(--green) 14%, var(--paper)); stroke: var(--green); stroke-width: 1.5; }
+    .red-fill { fill: color-mix(in srgb, var(--red) 14%, var(--paper)); stroke: var(--red); stroke-width: 1.5; }
+    .violet-fill { fill: color-mix(in srgb, var(--violet) 14%, var(--paper)); stroke: var(--violet); stroke-width: 1.5; }
+
+    .label {
+      fill: var(--ink);
+      font: 700 17px var(--sans);
+    }
+
+    .small-label {
+      fill: var(--muted);
+      font: 500 13px var(--sans);
+    }
+
+    .note {
+      margin: 20px 0;
+      padding: 16px 18px;
+      border-left: 5px solid var(--blue);
+      background: color-mix(in srgb, var(--blue) 8%, var(--paper));
+    }
+
+    .warn {
+      margin: 20px 0;
+      padding: 16px 18px;
+      border-left: 5px solid var(--red);
+      background: color-mix(in srgb, var(--red) 8%, var(--paper));
+    }
+
+    .codeblock {
+      display: block;
+      margin: 18px 0;
+      padding: 16px;
+      overflow-x: auto;
+      border-radius: var(--radius);
+      background: #1f2428;
+      color: #f5f1e9;
+      font-family: var(--mono);
+      font-size: 14px;
+      line-height: 1.65;
+    }
+
+    html.dark .codeblock {
+      background: #0f1115;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 22px 0;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+
+    th, td {
+      padding: 12px 10px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+      font-size: 15px;
+    }
+
+    th {
+      background: var(--paper-2);
+      font-weight: 800;
+    }
+
+    tr:last-child td { border-bottom: 0; }
+
+    .score {
+      color: var(--green);
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .path-map {
+      display: grid;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .path-row {
+      display: grid;
+      grid-template-columns: 230px minmax(0, 1fr);
+      gap: 12px;
+      padding: 14px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+    }
+
+    .path-row strong { color: var(--violet); }
+
+    .checklist {
+      display: grid;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .check {
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr);
+      gap: 10px;
+      padding: 12px 14px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+    }
+
+    .check b {
+      display: grid;
+      place-items: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: var(--green);
+      color: #fff;
+      font-size: 14px;
+    }
+
+    footer {
+      padding: 32px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    @media (max-width: 860px) {
+      .grid, .grid.two, .path-row {
+        grid-template-columns: 1fr;
+      }
+
+      header {
+        min-height: 72vh;
+      }
+
+      .theme-toggle {
+        top: 10px;
+        right: 10px;
+      }
+
+      th, td {
+        font-size: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <button class="theme-toggle" type="button" aria-label="テーマ切り替え" title="テーマ切り替え">◐</button>
+
+  <header>
+    <div class="hero">
+      <span class="eyebrow">Fairy Tale repo 読解メモ</span>
+      <h1>強いAIの「魔法」ではなく、仕事の型を配る仕組み</h1>
+      <p class="subtitle">fairy_tale repo は、Fable / Mythos 系の公開レポートから、普通の agent でも使える作業手順、検証ゲート、ベンチマーク改善ループを取り出す研究・配布 workspace です。</p>
+      <div class="thesis"><strong>この記事の主張:</strong> Fairy Tale の本体はモデル能力ではなく、作業を「目的設定 → 証拠 → 小さな実行 → 検証 → 失敗分類 → 昇格」に分解する運用アルゴリズムであり、tako / SkillOps に持ち込むべき価値もそこにある。</div>
+    </div>
+  </header>
+
+  <main>
+    <section id="origin">
+      <h2>発端: この repo は何をしているのか</h2>
+      <p class="lead">たとえるなら、伝説の選手のバットを盗む場所ではなく、公開されている試合映像から「良い練習メニュー」を作る場所です。</p>
+      <p>Fable / Mythos という強い agent の公開レポートがある。Fairy Tale はそれを見て、「どんな道具を使ったのか」「失敗をどう直したのか」「どこで検証していたのか」を分解します。</p>
+      <p>ただし、秘密のモデル、重み、内部プロンプト、アクセス制限の突破は扱いません。公開情報から、再利用できる仕事の型だけを取り出します。</p>
+
+      <div class="figure" aria-label="sports analogy diagram">
+        <svg viewBox="0 0 980 320" role="img">
+          <rect x="24" y="44" width="260" height="190" rx="8" class="blue-fill"></rect>
+          <text x="154" y="92" text-anchor="middle" class="label">公開レポート</text>
+          <text x="154" y="125" text-anchor="middle" class="small-label">試合映像を見る</text>
+          <text x="154" y="154" text-anchor="middle" class="small-label">強い動きを観察する</text>
+          <path d="M284 140 C345 140 362 140 420 140" class="ink-line"></path>
+          <path d="M405 127 L422 140 L405 153" class="ink-line"></path>
+          <rect x="420" y="44" width="260" height="190" rx="8" class="accent-fill"></rect>
+          <text x="550" y="92" text-anchor="middle" class="label">Fairy Tale</text>
+          <text x="550" y="125" text-anchor="middle" class="small-label">良い動きを分解する</text>
+          <text x="550" y="154" text-anchor="middle" class="small-label">検証つきの型にする</text>
+          <path d="M680 140 C740 140 756 140 814 140" class="ink-line"></path>
+          <path d="M800 127 L816 140 L800 153" class="ink-line"></path>
+          <rect x="816" y="44" width="140" height="190" rx="8" class="green-fill"></rect>
+          <text x="886" y="92" text-anchor="middle" class="label">SKILL.md</text>
+          <text x="886" y="125" text-anchor="middle" class="small-label">作戦ノート</text>
+          <text x="886" y="154" text-anchor="middle" class="small-label">agent が読む</text>
+          <text x="490" y="276" text-anchor="middle" class="small-label">盗むのではなく、公開情報から練習メニューを作る</text>
+        </svg>
+        <div class="caption">この図の読み方: Fairy Tale は「モデル再現」ではなく「仕事手順の抽出と配布」に責務を置いている。</div>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <span class="tag">やらない</span>
+          <h3>秘密のAIを再現しない</h3>
+          <p>アクセス制御、安全装置、輸出規制の迂回をしない。Fable / Mythos の中身ではなく、公開レポートから分かる作業プロセスだけを見る。</p>
+        </div>
+        <div class="card">
+          <span class="tag">やる</span>
+          <h3>作業の型を作る</h3>
+          <p>予算を決める、証拠を残す、小さく試す、失敗を分類する、検証してから完了と言う。これを skill 化する。</p>
+        </div>
+        <div class="card">
+          <span class="tag">守る</span>
+          <h3>盛らない</h3>
+          <p>ベンチマークの sample size、信頼区間、reference only、失敗分類を分けて書く。数字を強く見せるより、次の改善に使える形を優先する。</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="repo-map">
+      <h2>repo の構成: 作戦ノートと遠征バッグ</h2>
+      <p class="lead">この repo は、研究ノート、配布パッケージ、検証器、公開ページが同居しています。最初は複雑に見えますが、役割で見ると分かりやすいです。</p>
+
+      <div class="path-map">
+        <div class="path-row">
+          <strong><code>skills/</code></strong>
+          <span>正本の作戦ノート。Fairy Tale の思想、routing、禁止事項、検証ゲートが書かれている。</span>
+        </div>
+        <div class="path-row">
+          <strong><code>.agents/skills/</code> / <code>.claude/skills/</code></strong>
+          <span>Codex / Claude Code が読むための repo-local コピー。置き場所が違うのでコピーが必要になる。</span>
+        </div>
+        <div class="path-row">
+          <strong><code>plugins/fairy-tale/</code></strong>
+          <span>配布用の遠征バッグ。skills、scripts、schemas、hooks、resources、manifest をまとめる。</span>
+        </div>
+        <div class="path-row">
+          <strong><code>scripts/</code></strong>
+          <span>測定器と実験道具。benchmark runner、feedback ledger、fusion review、residency check がある。</span>
+        </div>
+        <div class="path-row">
+          <strong><code>adapters/</code> / <code>schemas/</code></strong>
+          <span>外部ツールを安全に接続するための契約。入力、出力、証拠、安全境界、validation を決める。</span>
+        </div>
+        <div class="path-row">
+          <strong><code>sample_results/</code></strong>
+          <span>試合結果ノート。何を測り、どこで失敗し、どの feedback が効いたかを残す。</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="algorithm">
+      <h2>Fairy Tale の作業アルゴリズム</h2>
+      <p class="lead">ここでいうアルゴリズムは、agent が迷子にならないための仕事の順番です。難しい数式ではなく、判断の流れです。</p>
+
+      <div class="figure">
+        <svg viewBox="0 0 980 360" role="img" aria-label="Fairy Tale workflow">
+          <rect x="24" y="82" width="120" height="72" rx="8" class="blue-fill"></rect>
+          <text x="84" y="113" text-anchor="middle" class="label">目的</text>
+          <text x="84" y="137" text-anchor="middle" class="small-label">成功条件</text>
+          <path d="M144 118 H224" class="ink-line"></path><path d="M210 106 L226 118 L210 130" class="ink-line"></path>
+          <rect x="226" y="82" width="120" height="72" rx="8" class="accent-fill"></rect>
+          <text x="286" y="113" text-anchor="middle" class="label">予算</text>
+          <text x="286" y="137" text-anchor="middle" class="small-label">時間/tool</text>
+          <path d="M346 118 H426" class="ink-line"></path><path d="M412 106 L428 118 L412 130" class="ink-line"></path>
+          <rect x="428" y="82" width="120" height="72" rx="8" class="green-fill"></rect>
+          <text x="488" y="113" text-anchor="middle" class="label">偵察</text>
+          <text x="488" y="137" text-anchor="middle" class="small-label">小さく読む</text>
+          <path d="M548 118 H628" class="ink-line"></path><path d="M614 106 L630 118 L614 130" class="ink-line"></path>
+          <rect x="630" y="82" width="130" height="72" rx="8" class="violet-fill"></rect>
+          <text x="695" y="113" text-anchor="middle" class="label">証拠</text>
+          <text x="695" y="137" text-anchor="middle" class="small-label">claim/source</text>
+          <path d="M760 118 H840" class="ink-line"></path><path d="M826 106 L842 118 L826 130" class="ink-line"></path>
+          <rect x="842" y="82" width="114" height="72" rx="8" class="red-fill"></rect>
+          <text x="899" y="113" text-anchor="middle" class="label">検証</text>
+          <text x="899" y="137" text-anchor="middle" class="small-label">完了判定</text>
+
+          <path d="M900 154 C900 248 610 284 470 246 C372 220 270 214 178 262" class="fine-line" stroke-dasharray="6 7"></path>
+          <path d="M190 243 L176 263 L201 263" class="fine-line"></path>
+          <text x="520" y="292" text-anchor="middle" class="small-label">失敗分類を次の作戦ノートへ戻す</text>
+        </svg>
+        <div class="caption">この画像の読み方: Fairy Tale の強みは、一発で正解することではなく、失敗を分類して次の手順へ戻す loop にある。</div>
+      </div>
+
+      <pre class="codeblock">Fairy Tale の疑似コード
+
+task を受け取る
+  -> 何が成功か、何が危険かを決める
+  -> 時間・tool・並列数の上限を決める
+  -> README / test / schema / runner を小さく読む
+  -> claim と source を分ける
+  -> coding / legal / bio / security / UI など分野別 harness を選ぶ
+  -> 小さく実行する
+  -> test / runner / schema / screenshot で検証する
+  -> 失敗を分類する
+  -> 次回も使える rule だけを昇格する</pre>
+    </section>
+
+    <section id="benchmarks">
+      <h2>ベンチマーク: 点数自慢ではなく、失敗を学習する測定器</h2>
+      <p class="lead">ベンチマークは「試合の点数」です。ただし Fairy Tale は、点数だけではなく、条件、サンプル数、失敗の種類を重視します。</p>
+
+      <div class="warn">
+        <strong>読み方の注意:</strong> README の多くの数値はローカル測定や reference 情報です。公式 leaderboard claim ではないものは、そのように明記されています。これは弱さではなく、あとで検証できるようにするための慎重さです。
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>分野</th>
+            <th>何を測るか</th>
+            <th>Fairy Tale の見方</th>
+            <th>tako / SkillOps への示唆</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Agentic coding</td>
+            <td>SWE-Bench Pro 系。実 repo の bug を直せるか。</td>
+            <td><span class="score">9/15 = 60.0%</span>。ただし小 sample。失敗は API 互換、欠けた symbol、edge case、mock contract が中心。</td>
+            <td>成功率だけでなく「どの契約を壊したか」を failure taxonomy にする。</td>
+          </tr>
+          <tr>
+            <td>Biology</td>
+            <td>BioMysteryBench preview。根拠ある生物系推論ができるか。</td>
+            <td><span class="score">4/5 = 80.0%</span>。根拠 gate により、勢いで断言する失敗を減らす方向。</td>
+            <td>専門領域は domain router と evidence table を先に作る。</td>
+          </tr>
+          <tr>
+            <td>Cybersecurity</td>
+            <td>ExploitBench v8 sample。防御目的の sandbox 内でリスク探索できるか。</td>
+            <td><span class="score">avg 1.33, 4/6 positive</span>。Cap% の直接再現ではないため reference only。</td>
+            <td>security skill は weaponization ではなく、非攻撃的 evidence と再現可能な防御検証を出す。</td>
+          </tr>
+          <tr>
+            <td>Legal</td>
+            <td>法律タスクの criteria を満たせるか。</td>
+            <td><span class="score">11/100 = 11.0%</span>。低く見えるが、feedback retry で criterion pass や one-miss 減少を見る。</td>
+            <td>aggregate score より criterion-level feedback が skill 改善に効く。</td>
+          </tr>
+          <tr>
+            <td>Context</td>
+            <td>不完全な workspace で、無理に答えず安全に止まれるか。</td>
+            <td>guarded completion / abstention discipline を見る。</td>
+            <td>「答えない判断」も能力として評価する。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>ベンチマーク改善ループ</h3>
+      <pre class="codeblock">1. baseline を測る
+2. candidate skill ありで測る
+3. 差を見る
+4. 失敗を分類する
+5. 失敗に効く小さな rule を作る
+6. held-out sample で再測定する
+7. 改善し、退行しない rule だけ keep
+8. 悪化した rule は review / prune に戻す</pre>
+
+      <p>ここで重要なのは、skill を「書いたから採用」しないことです。採用するには、測定と失敗分類と pruning が必要です。</p>
+    </section>
+
+    <section id="plugin-skill">
+      <h2>plugin と SKILL.md の違い</h2>
+      <p class="lead"><code>SKILL.md</code> は作戦ノート。plugin は、その作戦ノートと道具をまとめて配る遠征バッグです。</p>
+
+      <div class="figure">
+        <svg viewBox="0 0 980 330" role="img" aria-label="plugin and skill comparison">
+          <rect x="50" y="64" width="360" height="190" rx="8" class="green-fill"></rect>
+          <text x="230" y="108" text-anchor="middle" class="label">SKILL.md</text>
+          <text x="230" y="146" text-anchor="middle" class="small-label">agent が読む作戦ノート</text>
+          <text x="230" y="176" text-anchor="middle" class="small-label">判断基準 / 禁止事項 / routing</text>
+          <text x="230" y="206" text-anchor="middle" class="small-label">軽い、レビューしやすい</text>
+          <rect x="570" y="44" width="360" height="230" rx="8" class="blue-fill"></rect>
+          <text x="750" y="88" text-anchor="middle" class="label">plugin</text>
+          <text x="750" y="126" text-anchor="middle" class="small-label">skills + scripts + schemas + hooks</text>
+          <text x="750" y="156" text-anchor="middle" class="small-label">version / manifest / install / update</text>
+          <text x="750" y="186" text-anchor="middle" class="small-label">配布と実行環境まで持つ</text>
+          <path d="M410 160 C480 160 500 160 570 160" class="ink-line"></path>
+          <path d="M554 147 L572 160 L554 173" class="ink-line"></path>
+          <text x="490" y="132" text-anchor="middle" class="small-label">plugin が skill を運ぶ</text>
+        </svg>
+        <div class="caption">この画像の読み方: plugin の中心にも SKILL.md はある。ただし plugin は hook や script も一緒に届けられる。</div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>観点</th>
+            <th>SKILL.md</th>
+            <th>plugin</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>目的</td>
+            <td>agent の考え方と手順を変える</td>
+            <td>skill と周辺道具をインストール可能にする</td>
+          </tr>
+          <tr>
+            <td>含むもの</td>
+            <td>文章、参照ファイル、軽い手順</td>
+            <td>skills、scripts、schemas、hooks、resources、manifest</td>
+          </tr>
+          <tr>
+            <td>失敗しやすい点</td>
+            <td>長文化、矛盾、測定なしの rule 追加</td>
+            <td>version drift、copy drift、hook 不発、manifest 不整合</td>
+          </tr>
+          <tr>
+            <td>SkillOps 的な位置づけ</td>
+            <td>評価・改善される content 本体</td>
+            <td>評価済み content を配る package</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="residency">
+      <h2>residency check: 古い作戦ノートで戦わないための検査</h2>
+      <p class="lead">Fairy Tale には同じ skill のコピーが複数あります。これは危険なので、コピーが正本とズレていないかを検査します。</p>
+      <p><code>scripts/fairy_tale_residency_check.py</code> は、<code>skills/</code>、<code>plugins/fairy-tale/skills/</code>、<code>.agents/skills/</code>、<code>.claude/skills/</code> の一致を確認します。ズレは warning ではなく failure です。</p>
+
+      <pre class="codeblock">residency check の考え方
+
+canonical = skills/
+  -> plugin copy と一致するか
+  -> Codex repo-local copy と一致するか
+  -> Claude Code repo-local copy と一致するか
+  -> manifest が ./skills/ を指すか
+  -> benchmark runner が Fairy Tale 前提を忘れていないか
+
+全部 OK なら、長い benchmark / multi-agent 作業に入ってよい</pre>
+    </section>
+
+    <section id="tako-skillops">
+      <h2>tako / SkillOps にどう活かすか</h2>
+      <p class="lead">一番大きな学びは、「skill を書く」ではなく「skill を測って昇格させる」です。</p>
+
+      <div class="grid two">
+        <div class="card">
+          <span class="tag">SkillOps</span>
+          <h3>PromotionGate を主役にする</h3>
+          <p><code>ms feedback</code> や感想だけで採用しない。fixture、hidden eval、deterministic verifier、owner review を通したものだけ昇格する。</p>
+        </div>
+        <div class="card">
+          <span class="tag">tako</span>
+          <h3>runtime と content を分ける</h3>
+          <p>tako は skill を実行・配布・観測する runtime。SKILL.md は content。runtime 固有事情を skill 本文に混ぜすぎない。</p>
+        </div>
+        <div class="card">
+          <span class="tag">plugin</span>
+          <h3>配布単位として扱う</h3>
+          <p>plugin は便利なフォルダではなく、version、manifest、hooks、scripts、schemas を持つ release artifact。CI で壊れないことを確認する。</p>
+        </div>
+        <div class="card">
+          <span class="tag">運用</span>
+          <h3>residency を preflight に入れる</h3>
+          <p>長い agent 作業では、正しい skill が resident であること自体を検証対象にする。これを tako 側にも持ち込みたい。</p>
+        </div>
+      </div>
+
+      <h3>SkillOps に写すなら、この順番</h3>
+      <pre class="codeblock">1. candidate skill を作る
+2. どの failure class を直す skill かを書く
+3. fixture / eval pack / verifier を作る
+4. baseline を測る
+5. candidate ありで測る
+6. 改善したか、退行していないかを見る
+7. hidden test と owner review を通す
+8. registry に promotion metadata を残す
+9. plugin / installer / ms index で配布確認する
+10. 別 Mac でも install -> load -> run を確認する</pre>
+    </section>
+
+    <section id="is-best">
+      <h2>今の構成はベストか</h2>
+      <p class="lead">研究・配布・検証を一つの repo で高速に回す段階なら、今の構成はかなり合っています。ただし最終形としては CI が足りません。</p>
+
+      <div class="checklist">
+        <div class="check"><b>1</b><span><strong>良い:</strong> <code>skills/</code> 正本と複数コピーを residency check で守っている。</span></div>
+        <div class="check"><b>2</b><span><strong>良い:</strong> ベンチマークを盛らず、reference only や CI 幅を分けている。</span></div>
+        <div class="check"><b>3</b><span><strong>良い:</strong> adapter schema によって外部ツールを雑に混ぜない。</span></div>
+        <div class="check"><b>4</b><span><strong>弱い:</strong> コピーが多く、保守コストがある。check がなければ危険。</span></div>
+        <div class="check"><b>5</b><span><strong>次:</strong> GitHub Actions で residency、adapter validate、package build、installer dry-run を回したい。</span></div>
+      </div>
+
+      <div class="note">
+        <strong>結論:</strong> いまは repo 分割より CI 追加が先。利用者が増えて release 管理が重くなったら、研究 repo と配布 repo の分離を検討する。
+      </div>
+    </section>
+
+    <section id="sources">
+      <h2>確認した主な source</h2>
+      <p>この記事はローカル repo のファイルと実行結果をもとにした読解メモです。URL があるものは以下です。</p>
+      <ul>
+        <li>Fairy Tale repo: <a href="https://github.com/bonginkan/fairy_tale">https://github.com/bonginkan/fairy_tale</a></li>
+        <li>ytsun-notes private site: <a href="https://ytsun-notes.pages.dev">https://ytsun-notes.pages.dev</a></li>
+        <li>確認したローカル command: <code>python3 scripts/fairy_tale_residency_check.py</code>, <code>cargo run -q -- validate</code></li>
+        <li>URL未提供: このチャットでの「12歳でもわかる比喩で教えて」「HTML を作成して改善してから ytsun-notes にアップ」という依頼文</li>
+      </ul>
+    </section>
+
+    <footer>
+      <p>この記事の読みどころ: Fairy Tale の価値は「強いAIっぽい文章」ではなく、失敗を測って作業手順へ戻す loop にある。tako / SkillOps に入れるなら、skill content、runtime、plugin package、promotion gate を分けて扱う。</p>
+    </footer>
+  </main>
+
+  <script>
+    document.querySelector(".theme-toggle").addEventListener("click", function () {
+      var next = !document.documentElement.classList.contains("dark");
+      document.documentElement.classList.toggle("dark", next);
+      try { localStorage.setItem("fairy-tale-explainer-theme", next ? "dark" : "light"); } catch (_) {}
+    });
+  </script>
+</body>
+</html>
