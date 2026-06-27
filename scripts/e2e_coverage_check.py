@@ -76,7 +76,7 @@ REQUIRED_COMPANIONS = (
 
 REQUIRED_TOP = (
     "schema_version", "run_id", "target", "environment", "no_mock",
-    "surface_inventory", "coverage", "red_findings", "residue",
+    "surface_inventory", "coverage", "gui", "red_findings", "residue",
     "evidence_refs", "safety", "implementer", "implementer_id", "reviews",
 )
 
@@ -131,6 +131,11 @@ READBACK_SIGNAL = re.compile(
 )
 # A tracker URL (issue/PR/ticket). issue_ref must be one of these, not a path/route.
 _TRACKER_URL = re.compile(r"https?://\S+", re.IGNORECASE)
+
+# A GUI dogfood pass leaves visual/video proof. A browser artifact is an annotated
+# screenshot or a repro video; a GUI "exercise" with no such artifact is presence
+# wearing an exercise label (the presence-vs-exercise rule applied to the front end).
+_BROWSER_ARTIFACT = re.compile(r"(?i)\.(?:png|jpe?g|webm)\b")
 
 # Secret-shaped blobs that must never be pasted into a ledger. The reachability
 # story describes HOW a session was obtained; it never carries the value. These
@@ -448,6 +453,82 @@ def _check_safety(record: dict, errors: list[str]) -> None:
         errors.append("safety.safety_floor_preserved: must be true (reachability/session-mint must not relax auth/authz or leak secrets)")
 
 
+def _check_gui(record: dict, errors: list[str]) -> None:
+    """GUI strand of the e2e (references/gui-dogfood-qa.md). The GUI question must be
+    answered for every run; when the system under test exposes a GUI, a browser
+    dogfood pass is mandatory (performed, or carried as a tracked-outstanding gap).
+    A `panel` surface declared has_gui:false is a closure contradiction."""
+    gui = record.get("gui")
+    if not isinstance(gui, dict):
+        errors.append("gui: required object (answer the GUI question for every run via gui.has_gui)")
+        return
+    has_gui = gui.get("has_gui")
+    if not isinstance(has_gui, bool):
+        errors.append("gui.has_gui: required boolean (does the system under test expose a GUI surface?)")
+        return
+
+    # Negative-Space closure cross-check: a `panel` is unambiguously a GUI surface,
+    # so declaring has_gui:false while the inventory lists one is a contradiction --
+    # you cannot dogfood-skip a surface you discovered.
+    inv = record.get("surface_inventory")
+    panel_ids = [
+        d.get("id") for d in (inv.get("discovered") or [])
+        if isinstance(inv, dict) and isinstance(d, dict) and d.get("kind") == "panel"
+    ] if isinstance(inv, dict) else []
+    if not has_gui and panel_ids:
+        errors.append(
+            f"gui.has_gui: declared false but surface_inventory lists panel surface(s) {panel_ids} "
+            f"-- a panel is a GUI surface; declare has_gui:true and dogfood it (closure)"
+        )
+
+    if not has_gui:
+        reason = gui.get("no_gui_reason")
+        if not _nonempty_str(reason):
+            errors.append("gui.no_gui_reason: required (substantive) when has_gui is false")
+        elif reason.strip().rstrip(".").lower() in VAGUE_NA_REASONS or len(reason.strip()) < _MIN_NA_REASON_LEN:
+            errors.append("gui.no_gui_reason: vague/too short -- explain why there is no GUI surface")
+        return
+
+    # has_gui is true -> a dogfood pass is mandatory: performed, or tracked-outstanding.
+    dogfood = gui.get("dogfood")
+    if not isinstance(dogfood, dict):
+        errors.append("gui.dogfood: required object when has_gui is true (GUI present -> GUI dogfood is mandatory)")
+        return
+    performed = dogfood.get("performed")
+    if not isinstance(performed, bool):
+        errors.append("gui.dogfood.performed: required boolean")
+        return
+    if performed:
+        if dogfood.get("console_checked") is not True:
+            errors.append(
+                "gui.dogfood.console_checked: must be true for a performed dogfood "
+                "(check the console after navigation/interaction -- silent JS errors are high-value)"
+            )
+        if dogfood.get("issue_taxonomy_applied") is not True:
+            errors.append(
+                "gui.dogfood.issue_taxonomy_applied: must be true for a performed dogfood "
+                "(calibrate findings against the severity/category taxonomy)"
+            )
+        evidence = dogfood.get("evidence")
+        _check_evidence_array(evidence, "gui.dogfood.evidence", errors)
+        if not (isinstance(evidence, list) and any(
+            isinstance(e, str) and _BROWSER_ARTIFACT.search(e) for e in evidence
+        )):
+            errors.append(
+                "gui.dogfood.evidence: a performed dogfood needs >=1 browser artifact "
+                "(annotated screenshot .png/.jpg or repro video .webm) -- a GUI exercise "
+                "with no visual/video evidence is presence wearing an exercise label"
+            )
+    else:
+        # Outstanding: the GUI dogfood is tracked, not done (the GUI analog of RED -> tracked).
+        ref = dogfood.get("outstanding_ref")
+        if not (_nonempty_str(ref) and _TRACKER_URL.search(ref)):
+            errors.append(
+                "gui.dogfood.outstanding_ref: an un-performed GUI dogfood must carry a tracker URL "
+                "(issue/PR) -- the GUI analog of RED -> tracked; it cannot be silently skipped"
+            )
+
+
 def validate_record(record: dict) -> list[str]:
     errors: list[str] = []
     if not isinstance(record, dict):
@@ -467,6 +548,7 @@ def validate_record(record: dict) -> list[str]:
     _check_no_mock(record, errors)
     _check_surface_inventory(record, errors)
     _check_coverage(record, errors)
+    _check_gui(record, errors)
     _check_red_findings(record, errors)
     _check_residue(record, errors)
     _check_evidence_array(record.get("evidence_refs"), "evidence_refs", errors)
@@ -525,6 +607,20 @@ def _good_record() -> dict:
                 "exercise": {"verified": False, "kind": "render-only", "evidence": []},
             },
         ],
+        "gui": {
+            "has_gui": True,
+            "dogfood": {
+                "performed": True,
+                "console_checked": True,
+                "issue_taxonomy_applied": True,
+                "issues_found": 2,
+                "evidence": [
+                    "annotated screenshot dogfood-dashboard.png (orientation + nav map)",
+                    "repro video issue-001-repro.webm (numbered steps for the broken filter)",
+                    "console clean after nav + interactions: 0 errors (dogfood-output/report.md)",
+                ],
+            },
+        },
         "red_findings": [
             {"id": "R-1", "summary": "tenant-less create returned 500",
              "repro": "POST /api/widget without tenantId -> 500 (app/api/widget/route.ts:30)",
@@ -553,6 +649,24 @@ def _selftest() -> int:
     good = _good_record()
     if validate_record(good) != []:
         failures.append(f"good record should pass but got: {validate_record(good)}")
+
+    # GUI positive controls: a valid headless (no-GUI) record and a valid
+    # tracked-outstanding dogfood must both pass -- the gate must not make a
+    # legitimately GUI-less or not-yet-dogfooded run impossible.
+    nogui = _good_record()
+    nogui["surface_inventory"]["discovered"].pop(1)  # drop panel:dashboard
+    nogui["coverage"].pop(1)
+    nogui["surface_inventory"]["closure"]["missing_from_provided"] = []
+    nogui["gui"] = {"has_gui": False,
+                    "no_gui_reason": "headless integration service exercised via API only; no rendered/GUI surface in this deployment"}
+    if validate_record(nogui) != []:
+        failures.append(f"valid no-GUI record should pass but got: {validate_record(nogui)}")
+
+    outstanding = _good_record()
+    outstanding["gui"]["dogfood"] = {"performed": False,
+                                     "outstanding_ref": "https://github.com/bonginkan/fairy_tale/issues/55"}
+    if validate_record(outstanding) != []:
+        failures.append(f"valid outstanding-dogfood record should pass but got: {validate_record(outstanding)}")
 
     def mutated(mutator) -> dict:
         record = _good_record()
@@ -636,6 +750,29 @@ def _selftest() -> int:
         # 7. RED issue_ref is a file path / route, not a tracker URL
         "red-issue-ref-path": lambda r: r["red_findings"][0].__setitem__("issue_ref", "app/api/widget/route.ts:30"),
         "red-issue-ref-route": lambda r: r["red_findings"][0].__setitem__("issue_ref", "POST /api/widget"),
+        # --- GUI dogfood gate (GUI present -> e2e mandatory) ---
+        # the GUI question must be answered for every run
+        "gui-missing": lambda r: r.pop("gui"),
+        "gui-has-gui-not-bool": lambda r: r["gui"].__setitem__("has_gui", "yes"),
+        # a panel surface is a GUI surface: has_gui:false while a panel is in the inventory is a closure contradiction
+        "gui-panel-but-has-gui-false": lambda r: r.__setitem__(
+            "gui", {"has_gui": False, "no_gui_reason": "backend integration service with no rendered surface in this deployment"}),
+        # has_gui:true must carry a dogfood pass
+        "gui-true-no-dogfood": lambda r: r["gui"].pop("dogfood"),
+        # a performed dogfood must check the console / apply the taxonomy / carry a browser artifact
+        "gui-performed-no-console-check": lambda r: r["gui"]["dogfood"].__setitem__("console_checked", False),
+        "gui-performed-no-taxonomy": lambda r: r["gui"]["dogfood"].__setitem__("issue_taxonomy_applied", False),
+        "gui-performed-no-browser-artifact": lambda r: r["gui"]["dogfood"].__setitem__(
+            "evidence", ["https://github.com/bonginkan/fairy_tale/pull/52"]),
+        # an un-performed (outstanding) dogfood must carry a tracker URL
+        "gui-outstanding-no-tracker": lambda r: r["gui"].__setitem__("dogfood", {"performed": False}),
+        # has_gui:false (no panel) with a vague no_gui_reason
+        "gui-false-vague-reason": lambda r: (
+            r["surface_inventory"]["discovered"].pop(1),
+            r["coverage"].pop(1),
+            r["surface_inventory"]["closure"].__setitem__("missing_from_provided", []),
+            r.__setitem__("gui", {"has_gui": False, "no_gui_reason": "n/a"}),
+        ),
     }
     for name, mutator in hostile.items():
         if validate_record(mutated(mutator)) == []:
@@ -672,7 +809,10 @@ def _selftest() -> int:
         "evidence, bad surface class, duplicate/self reviewer; PR#52 review round: render-only/"
         "screenshot exercise kind, all-NA/core-NA/vague-NA companion, no_mock url-only without "
         "read-back, secret hex beside an unrelated sha256:, missing_from_provided prose/ghost id, "
-        "RED issue_ref as path/route, valid kind label backed only by screenshot evidence)."
+        "RED issue_ref as path/route, valid kind label backed only by screenshot evidence; GUI gate: "
+        "missing gui block, non-bool has_gui, panel-with-has_gui:false closure contradiction, "
+        "has_gui:true without dogfood, performed dogfood missing console-check/taxonomy/browser-artifact, "
+        "outstanding dogfood without tracker, vague no_gui_reason -- and green: no-GUI + outstanding records pass)."
     )
     return 0
 
