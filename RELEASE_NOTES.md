@@ -1,5 +1,17 @@
 # Release Notes
 
+## 0.2.14
+
+- Added a scope gate / task-type gate so a workflow-less, simple
+  divergent-generation prompt (e.g. "propose N variants of X" with no review,
+  migration, security, or legal framing) skips the Closure check and
+  negative-space machinery instead of over-firing on it. The heavy harness stays
+  fully active when the request is explicitly critical ("批判的に", "抜け漏れ",
+  "レビュー") or carries review / migration / security / legal context.
+- Pinned the new gate phrases as residency markers so the carve-out cannot
+  silently regress, and added the loop-engineering-automation residency file set
+  to the residency checker.
+
 ## 0.2.11
 
 - Consolidated the overlapping Generalization and Latent Structure harness
