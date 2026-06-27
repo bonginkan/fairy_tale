@@ -1,5 +1,24 @@
 # Release Notes
 
+## 0.2.15
+
+- Added the **GUI strand** to the helix e2e layer, distilling two browser-dogfood
+  skills (NousResearch hermes-agent `dogfood`, Vercel `agent-browser` dogfood) into
+  `references/gui-dogfood-qa.md`: test the GUI as a user (black-box), check the
+  console after every interaction, repro-grade the evidence (interactive → video +
+  step screenshots / static → one annotated shot), and tag findings by severity and
+  category. Scope is white-box (surfaces from code/deploy), execution is black-box.
+- Made **GUI present → GUI dogfood mandatory** an enforced gate (the 8th gate of
+  `general-e2e-completion.md`). The e2e-coverage ledger now answers the GUI question
+  for every run via a required `gui` block; `scripts/e2e_coverage_check.py` fails
+  closed on a missing `gui` block, a `route`/`panel`/`flow` surface declared
+  `has_gui:false` (closure contradiction; an API `endpoint`/`job` is not GUI), a
+  performed dogfood lacking a console check / taxonomy / browser-artifact evidence
+  or carrying fewer tracked REDs than `issues_found`, or an outstanding dogfood
+  without a tracker URL. A GUI dogfood is either performed or carried as an
+  explicitly tracked-outstanding gap (the GUI analog of RED → tracked), never
+  silently skipped.
+
 ## 0.2.14
 
 - Added a scope gate / task-type gate so a workflow-less, simple
