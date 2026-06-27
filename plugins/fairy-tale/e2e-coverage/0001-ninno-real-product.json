@@ -122,6 +122,13 @@
       "exercise": { "verified": false, "kind": "display-of-registered-data", "evidence": [] }
     }
   ],
+  "gui": {
+    "has_gui": true,
+    "dogfood": {
+      "performed": false,
+      "outstanding_ref": "https://github.com/bonginkan/NINNO-real-product/issues/45"
+    }
+  },
   "red_findings": [
     {
       "id": "H-017",
