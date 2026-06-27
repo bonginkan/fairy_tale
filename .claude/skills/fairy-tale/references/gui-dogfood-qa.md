@@ -20,11 +20,12 @@ closure / presence-vs-exercise discipline:
 
 ## The mandate: GUI present → GUI dogfood is mandatory
 
-A completed e2e for a system that exposes **any** GUI surface (a page route, a
-panel, a rendered view) must include a GUI dogfood pass — or carry it as an
-explicitly **tracked outstanding** gap (the GUI analog of RED → tracked). It can
-never be silently skipped. The e2e-coverage ledger therefore answers the GUI
-question for every run: `gui.has_gui` is mandatory, and a `panel` surface in the
+A completed e2e for a system that exposes **any** GUI surface — a page `route`, a
+`panel`/rendered view, or a user-facing `flow` (an API `endpoint` or background
+`job` is not GUI) — must include a GUI dogfood pass, or carry it as an explicitly
+**tracked outstanding** gap (the GUI analog of RED → tracked). It can never be
+silently skipped. The e2e-coverage ledger therefore answers the GUI question for
+every run: `gui.has_gui` is mandatory, and a `route`/`panel`/`flow` surface in the
 inventory with `has_gui:false` is a closure contradiction the gate rejects.
 
 This is the Negative-Space Closure Check pointed at the front end: "the API tests
@@ -126,23 +127,25 @@ under `gui` (validated by `scripts/e2e_coverage_check.py`, `schemas/e2e-coverage
 ledger.schema.json`):
 
 - `gui.has_gui` (mandatory boolean) — does the system expose a GUI surface? A
-  `panel`/page surface in the inventory with `has_gui:false` fails closed.
+  `route`/`panel`/`flow` surface in the inventory with `has_gui:false` fails closed
+  (an API `endpoint` or background `job` is not GUI).
 - If `has_gui:false` → `gui.no_gui_reason` (substantive; "headless voice/API
   service, no rendered surface" — a vague reason fails).
 - If `has_gui:true` → `gui.dogfood`, which is either:
   - **performed**: `performed:true`, `console_checked:true` (the dogfood
-    signature), `issue_taxonomy_applied:true`, `issues_found` (≥0), and `evidence`
-    with at least one **browser artifact** (annotated screenshot `.png`/`.jpg` or
-    repro video `.webm`) — a GUI "exercise" with no visual/video evidence is
-    presence wearing an exercise label; **or**
+    signature), `issue_taxonomy_applied:true`, `issues_found` (≥0) with **≥
+    `issues_found` tracked `red_findings`** (every surfaced issue is a tracked RED —
+    RED → tracked), and `evidence` with at least one **browser artifact** (annotated
+    screenshot `.png`/`.jpg` or repro video `.webm`) — a GUI "exercise" with no
+    visual/video evidence is presence wearing an exercise label; **or**
   - **outstanding**: `performed:false` with `outstanding_ref` (a tracker URL). This
     is a *valid but not complete* state — the GUI dogfood is tracked, not done. A
     completion claim requires `performed:true`.
 
-The gate fails closed on: a missing `gui` block, a `panel` surface with
-`has_gui:false`, a missing/vague `no_gui_reason`, a performed dogfood without a
-console check / taxonomy / browser-artifact evidence, or an outstanding dogfood
-without a tracker URL.
+The gate fails closed on: a missing `gui` block, a `route`/`panel`/`flow` surface
+with `has_gui:false`, a missing/vague `no_gui_reason`, a performed dogfood without a
+console check / taxonomy / browser-artifact evidence, a performed dogfood with fewer
+tracked REDs than `issues_found`, or an outstanding dogfood without a tracker URL.
 
 ## How it connects
 

@@ -106,10 +106,10 @@
     },
     "gui": {
       "type": "object",
-      "description": "GUI strand of the e2e (references/gui-dogfood-qa.md). Mandatory for every run: the GUI question must be answered. When the system under test exposes any GUI surface, a browser dogfood pass (test as a user, console-checked, repro-graded) is required for completion -- or carried as an explicitly tracked outstanding gap. Enforced by scripts/e2e_coverage_check.py: a `panel` surface with has_gui:false is a closure contradiction; a performed dogfood needs a console check, the issue taxonomy, and >=1 browser-artifact (screenshot/video) evidence; an outstanding dogfood needs a tracker URL.",
+      "description": "GUI strand of the e2e (references/gui-dogfood-qa.md). Mandatory for every run: the GUI question must be answered. When the system under test exposes any GUI surface (a page route, a panel/rendered view, or a user-facing flow), a browser dogfood pass (test as a user, console-checked, repro-graded) is required for completion -- or carried as an explicitly tracked outstanding gap. Enforced by scripts/e2e_coverage_check.py: a `route`/`panel`/`flow` surface with has_gui:false is a closure contradiction (an `endpoint`/`job` surface is not GUI); a performed dogfood needs a console check, the issue taxonomy, >=1 browser-artifact (screenshot/video) evidence, and >= issues_found tracked red_findings; an outstanding dogfood needs a tracker URL.",
       "required": ["has_gui"],
       "properties": {
-        "has_gui": { "type": "boolean", "description": "Does the system under test expose any GUI surface (page route / panel / rendered view)? A `panel` surface in surface_inventory with has_gui:false is rejected." },
+        "has_gui": { "type": "boolean", "description": "Does the system under test expose any GUI surface (page route / panel / rendered view / user flow)? A `route`/`panel`/`flow` surface in surface_inventory with has_gui:false is rejected (an API `endpoint` or background `job` is not GUI)." },
         "no_gui_reason": { "type": "string", "description": "Required (substantive, non-vague) when has_gui is false -- e.g. 'headless voice/API service, no rendered surface'." },
         "dogfood": {
           "type": "object",

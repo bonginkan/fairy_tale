@@ -11,11 +11,13 @@
 - Made **GUI present → GUI dogfood mandatory** an enforced gate (the 8th gate of
   `general-e2e-completion.md`). The e2e-coverage ledger now answers the GUI question
   for every run via a required `gui` block; `scripts/e2e_coverage_check.py` fails
-  closed on a missing `gui` block, a `panel` surface declared `has_gui:false`
-  (closure contradiction), a performed dogfood lacking a console check / taxonomy /
-  browser-artifact evidence, or an outstanding dogfood without a tracker URL. A GUI
-  dogfood is either performed or carried as an explicitly tracked-outstanding gap
-  (the GUI analog of RED → tracked), never silently skipped.
+  closed on a missing `gui` block, a `route`/`panel`/`flow` surface declared
+  `has_gui:false` (closure contradiction; an API `endpoint`/`job` is not GUI), a
+  performed dogfood lacking a console check / taxonomy / browser-artifact evidence
+  or carrying fewer tracked REDs than `issues_found`, or an outstanding dogfood
+  without a tracker URL. A GUI dogfood is either performed or carried as an
+  explicitly tracked-outstanding gap (the GUI analog of RED → tracked), never
+  silently skipped.
 
 ## 0.2.14
 

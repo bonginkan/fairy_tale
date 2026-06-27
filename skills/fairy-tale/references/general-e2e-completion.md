@@ -64,16 +64,18 @@ validate with `scripts/e2e_coverage_check.py` (the gate is exercise, not presenc
 
 8. **GUI present → GUI dogfood is mandatory.** Gates 1–7 prove the backend/API
    strand; they do not prove the *visible* product. If the system under test exposes
-   any GUI surface (a page route, a panel, a rendered view), the e2e is not complete
-   without a browser dogfood pass — driving the GUI as a real user, checking the
-   console after every interaction, and turning what breaks into repro-graded,
+   any GUI surface (a page `route`, a `panel`/rendered view, or a user-facing
+   `flow` — an API `endpoint` or background `job` is not GUI), the e2e is not
+   complete without a browser dogfood pass — driving the GUI as a real user, checking
+   the console after every interaction, and turning what breaks into repro-graded,
    severity-tagged findings (`references/gui-dogfood-qa.md`). The ledger answers the
-   GUI question for every run (`gui.has_gui` is mandatory); a `panel` surface with
-   `has_gui:false` is a closure contradiction. The dogfood is either *performed*
-   (console-checked, taxonomy-applied, with browser-artifact evidence) or carried as
-   an explicitly *tracked outstanding* gap — never silently skipped. Scope the GUI
-   surfaces white-box (from code/deploy, gate 2); exercise them black-box (as a user,
-   not by reading the app source).
+   GUI question for every run (`gui.has_gui` is mandatory); a `route`/`panel`/`flow`
+   surface with `has_gui:false` is a closure contradiction. The dogfood is either
+   *performed* (console-checked, taxonomy-applied, with browser-artifact evidence,
+   and ≥ `issues_found` tracked REDs) or carried as an explicitly *tracked
+   outstanding* gap — never silently skipped. Scope the GUI surfaces white-box (from
+   code/deploy, gate 2); exercise them black-box (as a user, not by reading the app
+   source).
 
 ## How it connects
 
@@ -93,7 +95,8 @@ from coverage, a mutation/auth/stateful surface marked present-but-not-exercised
 missing/unjustified boundary companion, a RED without a repro+tracker, nonzero
 residue, a mocked backend, a relaxed safety floor, any raw secret/token pasted
 into the ledger, or a GUI system without a dogfood pass (a missing `gui` block, a
-`panel` surface declared `has_gui:false`, a performed dogfood lacking a console
-check / taxonomy / browser-artifact evidence, or an outstanding dogfood without a
+`route`/`panel`/`flow` surface declared `has_gui:false`, a performed dogfood lacking
+a console check / taxonomy / browser-artifact evidence, a performed dogfood with
+fewer tracked REDs than `issues_found`, or an outstanding dogfood without a
 tracker). Reviews follow the same 2-distinct-reviewer / refute-pass contract as the
 spiral and evolution ledgers.
