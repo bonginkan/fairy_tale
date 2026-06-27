@@ -34,6 +34,7 @@ SKILL_MARKERS = {
         "Do Not Disturb",
         "Usage-Aware Multi-Agent Load Balancer",
         "Excess / Redundancy / Legacy-Surface",
+        "Scope gate (apply first)",
         "fairy-tale-benchmark-feedback",
     ),
     "fairy-tale-benchmark-feedback": (
@@ -56,6 +57,7 @@ SKILL_REFERENCE_MARKERS = {
         "Financial Engineering Replication Gate",
     ),
     Path("fairy-tale/references/process.md"): (
+        "Task-type gate (apply before the noise/recall guards)",
         "Accessible genius method record",
         "Implicit-contract discovery family router",
         "Excess / redundancy / legacy-surface discovery record",
@@ -219,6 +221,28 @@ def plugin_mirror_path(rel: Path) -> Path:
     """Plugin-packaged mirror path for a canonical root artifact."""
     return PLUGIN_PREFIX / rel
 
+LOOP_ENGINEERING_FILES = {
+    Path("docs/loop-engineering-automation.md"): (
+        "Loop Engineering and Job Automation",
+        "Spiral Engineering",
+        "double-helix",
+        "mismatch-repair",
+        "cross-channel command discipline",
+        "silent-loop auto-resume",
+        "External-Channel Ingestion",
+        "Fairy Tale Self-Pilot",
+    ),
+    Path("plugins/fairy-tale/docs/loop-engineering-automation.md"): (
+        "Loop Engineering and Job Automation",
+        "Spiral Engineering",
+        "double-helix",
+        "mismatch-repair",
+        "cross-channel command discipline",
+        "silent-loop auto-resume",
+        "External-Channel Ingestion",
+        "Fairy Tale Self-Pilot",
+    ),
+}
 
 def with_plugin_mirrors(
     canonical: dict[Path, tuple[str, ...]],

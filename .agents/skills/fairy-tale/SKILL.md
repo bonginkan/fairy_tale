@@ -64,6 +64,19 @@ python3 scripts/fairy_tale_residency_check.py
    - The main agent performs synthesis only after scout summaries exist.
 
 4. **Audit frame completeness, negative space, and excess**
+   - **Scope gate (apply first).** This audit — the closure check, the
+     negative-space pass, and the excess pass — is for review, requirements /
+     design / architecture decisions, refactor / migration / deprecation, e2e,
+     security, legal, and any stateful create / update / delete or
+     workflow-gated task. **Do NOT run it for a workflow-less, simple divergent
+     -generation request** — "propose N patterns / options / ideas for X",
+     "brainstorm approaches", "name candidates", "generate variations". For
+     those, produce the requested divergent output directly and stay silent on
+     closure / entailed companions; over-surfacing here distorts a plain "give
+     me N options" ask. It re-engages — even for a generative request — only if
+     the user explicitly asks to review, critique, audit, or check for gaps
+     ("批判的に見て", "抜け漏れ確認して", "レビューして"). When in doubt about a
+     mixed request (e.g. "draft and review"), keep the audit on.
    - Before synthesis, check whether the visible artifact set is complete:
      observed or stated `N` is not automatically verified exhaustive `N`.
      Run this check especially for partial text, numbered files, image sets,
@@ -593,6 +606,14 @@ benchmark misses.
   underspecified requests, clipped or partial artifacts, numbered item sets,
   multi-image/file tasks, refactor/deprecation review, and any task where the
   visible frame may be incomplete, bloated, stale, or adversarially shaped.
+- **Do NOT use this harness for a workflow-less, simple divergent-generation
+  request** ("propose N options / patterns / ideas", "brainstorm", "name
+  candidates", "generate variations") that carries no review, decision, or
+  workflow component — produce the options directly. A numbered set that is the
+  *requested output of a generation* ("give me 5 X") is not the "numbered item
+  set" this harness audits; the harness audits numbered sets that are *given to
+  you as possibly-incomplete input*. The harness re-engages for a generative
+  request only on an explicit "review / critique / audit / 抜け漏れ / 批判的に".
 - First run a non-suppressible closure check: stated or observed `N` is not
   automatically verified exhaustive `N`. Do not skip the audit because a count
   was stated, numbered, implied, or apparently known.
