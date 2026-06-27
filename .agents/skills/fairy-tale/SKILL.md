@@ -668,9 +668,10 @@ benchmark misses.
   with `scripts/e2e_coverage_check.py` (fails closed on uncovered discovered
   surfaces, render-only mutation surfaces, missing companions, untracked REDs,
   nonzero residue, mocked backend, relaxed safety floor, a leaked secret, or a GUI
-  system without a dogfood pass -- a missing `gui` block, a `panel` surface declared
-  `has_gui:false`, a performed dogfood lacking a console check / taxonomy / browser-
-  artifact evidence, or an outstanding dogfood without a tracker).
+  system without a dogfood pass -- a missing `gui` block, a `route`/`panel`/`flow`
+  surface declared `has_gui:false`, a performed dogfood lacking a console check /
+  taxonomy / browser-artifact evidence or with fewer tracked REDs than issues_found,
+  or an outstanding dogfood without a tracker).
   This is the Closure Check and entailed-companion (Tier-A) discipline applied to
   e2e scope; run it as a double-helix (execution strand drives surfaces, review
   strand refutes coverage).
