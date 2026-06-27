@@ -221,29 +221,6 @@ def plugin_mirror_path(rel: Path) -> Path:
     """Plugin-packaged mirror path for a canonical root artifact."""
     return PLUGIN_PREFIX / rel
 
-LOOP_ENGINEERING_FILES = {
-    Path("docs/loop-engineering-automation.md"): (
-        "Loop Engineering and Job Automation",
-        "Spiral Engineering",
-        "double-helix",
-        "mismatch-repair",
-        "cross-channel command discipline",
-        "silent-loop auto-resume",
-        "External-Channel Ingestion",
-        "Fairy Tale Self-Pilot",
-    ),
-    Path("plugins/fairy-tale/docs/loop-engineering-automation.md"): (
-        "Loop Engineering and Job Automation",
-        "Spiral Engineering",
-        "double-helix",
-        "mismatch-repair",
-        "cross-channel command discipline",
-        "silent-loop auto-resume",
-        "External-Channel Ingestion",
-        "Fairy Tale Self-Pilot",
-    ),
-}
-
 def with_plugin_mirrors(
     canonical: dict[Path, tuple[str, ...]],
     mirror: Iterable[Path],
