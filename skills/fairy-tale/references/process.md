@@ -439,6 +439,20 @@ Tier policy:
 - Tier C = private log. Mature-product or best-practice analogies are silent by
   default unless the user asks for broader ideation.
 
+Task-type gate (apply before the noise/recall guards):
+
+- The closure check and divergence/negative-space pass apply to review,
+  requirements/design, architecture decisions, refactor/migration/deprecation,
+  e2e, security, legal, and stateful create/update/delete or workflow-gated
+  tasks. For a **workflow-less simple divergent-generation request** ("propose N
+  options/patterns/ideas", "brainstorm", "name candidates", "generate
+  variations") they do NOT run at all — produce the requested output directly,
+  and Tier-A/closure protection below does not apply (there is nothing to
+  protect because the pass never ran). This gate is overridden — the pass and
+  its guards re-engage — when the user explicitly asks to review, critique,
+  audit, or check for gaps ("批判的に見て", "抜け漏れ確認して", "レビューして"),
+  or for any mixed request that includes a review/decision step.
+
 Noise guard:
 
 - Do not run the divergence pass for purely mechanical deterministic tasks,
