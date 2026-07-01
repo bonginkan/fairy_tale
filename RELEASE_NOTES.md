@@ -1,5 +1,17 @@
 # Release Notes
 
+## 0.2.16
+
+- Added the **Creator-Proxy Elaboration (WWCD)** harness: acting as a relayed
+  creator/principal proxy by elaborating the creator's intent as an
+  evidence-grounded, confidence-tagged HYPOTHESIS -- never as authority. Ships the
+  ledger schema (`creator-proxy-elaboration-ledger`), a teeth-beyond-presence
+  enforcement checker (`creator_proxy_elaboration_check.py`, `--selftest` = 1 GREEN
+  + 13 RED gates), a worked example record, and the tri-agent dogfood prompt +
+  evidence pack. Authority stays a separate identity/policy decision (never derived
+  from WWCD); evidence refs must resolve; high-risk action surfaces cannot be
+  self-labeled below high stakes.
+
 ## 0.2.15
 
 - Added the **GUI strand** to the helix e2e layer, distilling two browser-dogfood

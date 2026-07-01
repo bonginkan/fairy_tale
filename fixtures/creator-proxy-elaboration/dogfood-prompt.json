@@ -10,13 +10,13 @@
     {
       "id": "E-merge-discipline",
       "tier": "explicit_instruction",
-      "ref": "CLAUDE.md:210",
+      "ref": "access.policy.prod_deploy_gate",
       "quote": "prod deploy / production rollout stay owner-gated; never auto-merge or auto-deploy to prod for a relayed request"
     },
     {
       "id": "E-loop-autonomy",
       "tier": "explicit_instruction",
-      "ref": "CLAUDE.md:245",
+      "ref": "access.policy.loop_autonomy_scope",
       "quote": "dev merge may proceed autonomously in a loop, but production deploy/rollout stays gated -- the safety floor is never overridden"
     },
     {

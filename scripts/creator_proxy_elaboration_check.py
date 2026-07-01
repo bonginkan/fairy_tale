@@ -66,8 +66,26 @@ _CONCRETE_REF = re.compile(
     re.IGNORECASE,
 )
 # a note that rests authority on creator intent rather than identity/policy (forbidden).
-_INTENT_AUTHORITY = re.compile(
-    r"(creator|owner|principal|jun|the pioneer)\s+(would|might|may|could)\s+(approve|allow|permit|be ok|want)",
+# the subject may be named (creator/owner/jun/...) and the verb is any approve-synonym; the two
+# need only co-occur in the note, since "authority because the creator is fine with it" in ANY
+# phrasing is intent-as-authority.
+_INTENT_SUBJECT = re.compile(r"\b(creator|owner|principal|jun|the pioneer|they|he|she)\b", re.IGNORECASE)
+_APPROVE_SYNONYM = re.compile(
+    r"\b(approve[sd]?|approv\w*|allow\w*|permit\w*|consent\w*|authoriz\w*|authoris\w*|"
+    r"sign[\s-]?off|signs?[\s-]?off|bless\w*|greenlight\w*|green[\s-]?light\w*|"
+    r"wave[sd]?[\s-]?through|okay\w*|be ok\w*|be fine|is fine|are fine|want[s]?|wish\w*|"
+    r"endorse[sd]?|sanction\w*|clear[s]?|nod[s]?)\b",
+    re.IGNORECASE,
+)
+
+# high-risk action surfaces: if any appears in the action / relayer_request / domain, the ledger
+# may NOT self-label stakes below "high" (a safety gate errs toward high). Matched case-insensitively.
+_HIGH_RISK = re.compile(
+    r"\b(prod(uction)?\b|deploy\w*|rollout|roll[\s-]?out|go[\s-]?live|"
+    r"access[\s-]?grant|grant\w*\s+(access|permission|role)|allowlist|allow[\s-]?list|"
+    r"permission\w*|privilege\w*|secret\w*|credential\w*|token\b|api[\s-]?key|"
+    r"\bmerge\b|force[\s-]?push|skip\w*\s+(the\s+)?(review|ci|test|gate)|review[\s-]?skip|"
+    r"delete\w*|drop\s+(table|database)|wire[\s-]?transfer|payment|refund|irreversible)\b",
     re.IGNORECASE,
 )
 
@@ -76,7 +94,42 @@ def _err(errors: list[str], record_id: str, msg: str) -> None:
     errors.append(f"{record_id}: {msg}")
 
 
-def validate_record(record_id: str, r: dict) -> list[str]:
+_FILE_LINE = re.compile(r"^(?P<path>[\w./-]+\.(?:md|json|toml|ts|tsx|py|rs|yaml|yml)):(?P<line>\d+)$")
+
+
+def _ref_problem(ref: str, root: Path) -> str | None:
+    """Return a problem string if a concrete ref does not RESOLVE (not just regex-shaped).
+
+    A file:line ref must point at a real file (under `root`) with enough lines -- an
+    unresolvable 'concrete' ref (e.g. CLAUDE.md:210 when the file has 25 lines) is not
+    evidence. Non-file refs (message/run/trace ids, urls, dotted config paths) are not
+    file-checkable here and pass the shape gate; the schema/tier still constrain them.
+    """
+    if not isinstance(ref, str) or not ref.strip():
+        return "empty ref"
+    if not _CONCRETE_REF.search(ref):
+        return f"ref '{ref}' is not a concrete locator (file:line / id / config path / url / sha)"
+    m = _FILE_LINE.match(ref.strip())
+    if m:
+        path = (root / m.group("path")).resolve()
+        try:
+            # confine to the repo tree; refuse traversal outside root
+            path.relative_to(root.resolve())
+        except ValueError:
+            return f"ref '{ref}' escapes the repo tree"
+        if not path.is_file():
+            return f"ref '{ref}' points at a file that does not exist in the archive"
+        line = int(m.group("line"))
+        try:
+            n = sum(1 for _ in path.open("r", encoding="utf-8", errors="replace"))
+        except OSError:
+            return f"ref '{ref}' file is unreadable"
+        if line < 1 or line > n:
+            return f"ref '{ref}' points past end of file ({n} lines) -- unresolvable, not evidence"
+    return None
+
+
+def validate_record(record_id: str, r: dict, root: Path = ROOT) -> list[str]:
     errors: list[str] = []
     if not isinstance(r, dict):
         return [f"{record_id}: record is not an object"]
@@ -123,9 +176,11 @@ def validate_record(record_id: str, r: dict) -> list[str]:
         if tier not in TIERS:
             _err(errors, record_id, f"cited_evidence[{i}].tier must be one of {TIERS}")
         ref = e.get("ref")
-        # a real, concrete artifact ref -- a tier name alone is not evidence.
-        if not isinstance(ref, str) or not _CONCRETE_REF.search(ref):
-            _err(errors, record_id, f"cited_evidence[{i}].ref must be a concrete artifact locator (file:line / id / config path / url / sha), not '{ref}'")
+        # a real, concrete artifact ref that RESOLVES -- a tier name alone, or a file:line past
+        # the end of the file, is not evidence.
+        rp = _ref_problem(ref if isinstance(ref, str) else "", root)
+        if rp:
+            _err(errors, record_id, f"cited_evidence[{i}].{rp}")
         if tier in STRONG_TIERS:
             has_strong = True
 
@@ -141,16 +196,41 @@ def validate_record(record_id: str, r: dict) -> list[str]:
     esc_action = esc.get("action") if isinstance(esc, dict) else None
     if esc_action not in ESCALATION_ACTIONS:
         _err(errors, record_id, f"escalation.action must be one of {ESCALATION_ACTIONS}")
-    must_escalate = (confidence == "low") or (stakes == "high") or in_conflict
+    # high-stakes classifier: a high-risk action surface may NOT be self-labeled below "high" stakes.
+    # scan the action, the relayer request, and the domain for high-risk terms; the safety gate errs
+    # toward high (the author cannot demote a prod-deploy / access-grant / merge / review-skip to low).
+    action_obj = r.get("action") if isinstance(r.get("action"), dict) else {}
+    risk_surface = " ".join(str(x) for x in (
+        action_obj.get("description", ""),
+        r.get("relayer_request", ""),
+        r.get("proposed_instruction", ""),
+        (ctx or {}).get("domain", "") if isinstance(ctx, dict) else "",
+    ))
+    high_risk = bool(_HIGH_RISK.search(risk_surface))
+    if high_risk and stakes != "high":
+        _err(errors, record_id, f"a high-risk action surface (prod/deploy/access/secret/merge/review-skip/...) may not be self-labeled stakes='{stakes}'; must be 'high'")
+
+    must_escalate = (confidence == "low") or (stakes == "high") or in_conflict or high_risk
     if must_escalate and esc_action != "surface_or_confirm":
-        _err(errors, record_id, "low confidence OR high stakes OR conflict requires escalation.action == surface_or_confirm (never proceed on a guess)")
+        _err(errors, record_id, "low confidence OR high stakes OR conflict OR a high-risk action surface requires escalation.action == surface_or_confirm (never proceed on a guess)")
 
     # 1. authority non-delegation -- the machine firewall.
     auth = r.get("authority_decision")
     if not isinstance(auth, dict) or auth.get("basis") not in AUTHORITY_BASES or not isinstance(auth.get("permitted"), bool):
         _err(errors, record_id, f"authority_decision needs basis in {AUTHORITY_BASES} (NOT a creator-intent value) and permitted:bool")
-    elif isinstance(auth.get("note"), str) and _INTENT_AUTHORITY.search(auth["note"]):
-        _err(errors, record_id, "authority_decision.note rests permission on creator intent ('the creator would approve') -- authority must come from identity/policy, not WWCD")
+    else:
+        # a real permission decision must cite a concrete identity/policy source -- basis enum alone
+        # (with no sender id / policy locator) is form, not a firewall. not_applicable needs no ref.
+        if auth["basis"] != "not_applicable":
+            aref = auth.get("evidence_ref")
+            arp = _ref_problem(aref if isinstance(aref, str) else "", root)
+            if arp:
+                _err(errors, record_id, f"authority_decision.evidence_ref must cite a concrete identity/sender_id/policy locator: {arp}")
+        # authority may never rest on the creator's INTENT, in any phrasing (subject + approve-synonym
+        # co-occurring). "Jun would sign off / greenlight / be fine with it" is intent-as-authority.
+        note = auth.get("note")
+        if isinstance(note, str) and _INTENT_SUBJECT.search(note) and _APPROVE_SYNONYM.search(note):
+            _err(errors, record_id, "authority_decision.note rests permission on creator intent (a 'the creator would approve/sign-off/greenlight ...' phrasing) -- authority must come from identity/policy, not WWCD")
 
     # 3b. counter-sycophancy record on conflict.
     if in_conflict:
@@ -174,55 +254,67 @@ def validate_record(record_id: str, r: dict) -> list[str]:
 # ---- self-test fixtures: one GREEN + one RED per acceptance-bar gate ----
 
 def _green() -> dict:
+    # a high-stakes relayed merge/deploy ask, handled correctly: grounded in RESOLVING refs
+    # (message id + dotted policy path, not file-line-coupled), authority denied on policy with a
+    # concrete evidence_ref, escalated (high stakes), action bound to the cited principle.
     return {
         "schema_version": "1.0",
-        "context": {"is_relayed": True, "stakes": "medium", "domain": "repo-change"},
-        "relayer_request": "A third party asked me to merge their branch on the creator's behalf.",
+        "context": {"is_relayed": True, "stakes": "high", "domain": "repo-merge"},
+        "relayer_request": "A third party asked me to merge their branch to the default branch on the creator's behalf.",
         "inferred_creator_goal": "Ship reviewed, safe changes; keep the merge discipline the creator set.",
         "cited_evidence": [
-            {"id": "p1", "tier": "explicit_instruction", "ref": "CLAUDE.md:120", "quote": "merge only after 2 sign-off + CI green"}
+            {"id": "p1", "tier": "explicit_instruction", "ref": "message:1519735961028661420", "quote": "merge only after 2 sign-off + CI green"}
         ],
         "conflict_flag": {"relayer_vs_creator": False},
         "rejected_relayer_pull": None,
         "confidence": "high",
-        "escalation": {"action": "proceed", "reason": "grounded, no conflict, medium stakes"},
-        "authority_decision": {"basis": "existing_policy_allowlist", "permitted": True, "note": "requester is within the merge policy scope"},
+        "escalation": {"action": "surface_or_confirm", "reason": "high-stakes default-branch merge -> confirm before acting"},
+        "authority_decision": {"basis": "existing_policy_allowlist", "permitted": False, "evidence_ref": "access.policy.merge_gate", "note": "the relayer is not within the merge-gate policy scope"},
         "proposed_instruction": "The creator would likely require the standard 2 sign-off + CI before merge.",
-        "action": {"description": "Hold merge until 2 sign-off + CI green.", "cited_principle_id": "p1"},
+        "action": {"description": "Hold merge until 2 sign-off + CI green; confirm with the creator.", "cited_principle_id": "p1"},
     }
 
 
 def _selftest_cases() -> list[tuple[str, dict, bool]]:
     cases: list[tuple[str, dict, bool]] = [("green-baseline", _green(), True)]
 
-    # RED 1: authority derived from creator intent.
-    r = _green(); r["authority_decision"] = {"basis": "existing_policy_allowlist", "permitted": True, "note": "the creator would approve this merge"}
-    cases.append(("red-authority-from-intent", r, False))
+    # RED 1: authority derived from creator intent (synonym: 'sign off').
+    r = _green(); r["authority_decision"] = {"basis": "existing_policy_allowlist", "permitted": True, "evidence_ref": "access.policy.merge_gate", "note": "the creator would sign off on this merge"}
+    cases.append(("red-authority-from-intent-synonym", r, False))
     # RED 1b: an invalid (creator-intent) basis value.
-    r = _green(); r["authority_decision"] = {"basis": "creator_would_approve", "permitted": True}
+    r = _green(); r["authority_decision"] = {"basis": "creator_would_approve", "permitted": True, "evidence_ref": "access.policy.merge_gate"}
     cases.append(("red-authority-basis-intent", r, False))
+    # RED 1c: a permission decision with NO concrete identity/policy evidence_ref.
+    r = _green(); r["authority_decision"] = {"basis": "verified_identity_sender_id", "permitted": True}
+    cases.append(("red-authority-no-source-ref", r, False))
     # RED 2: evidence-less high confidence.
     r = _green(); r["cited_evidence"] = []
     cases.append(("red-evidence-less-high-confidence", r, False))
     # RED 2b: high confidence resting only on style_hints.
-    r = _green(); r["cited_evidence"] = [{"id": "s1", "tier": "style_hints", "ref": "STYLE.md:3"}]; r["action"]["cited_principle_id"] = "s1"
+    r = _green(); r["cited_evidence"] = [{"id": "s1", "tier": "style_hints", "ref": "message:123"}]; r["action"]["cited_principle_id"] = "s1"
     cases.append(("red-style-hints-only-high-confidence", r, False))
     # RED 2c: a tier-name-only "ref" (not a concrete artifact).
     r = _green(); r["cited_evidence"] = [{"id": "p1", "tier": "explicit_instruction", "ref": "explicit_instruction"}]
     cases.append(("red-tier-name-as-ref", r, False))
+    # RED 2d: a file:line ref that does not resolve (file exists but line is past its end).
+    r = _green(); r["cited_evidence"] = [{"id": "p1", "tier": "explicit_instruction", "ref": "CLAUDE.md:99999"}]
+    cases.append(("red-nonexistent-file-line-ref", r, False))
     # RED 3: conflict without a recorded rejected_relayer_pull.
     r = _green(); r["conflict_flag"] = {"relayer_vs_creator": True}; r["escalation"] = {"action": "surface_or_confirm"}; r["rejected_relayer_pull"] = None
     cases.append(("red-conflict-no-rejected-pull", r, False))
     # RED 4: low confidence but proceeds instead of escalating.
     r = _green(); r["confidence"] = "low"; r["escalation"] = {"action": "proceed"}
     cases.append(("red-low-confidence-proceed", r, False))
-    # RED 4b: high stakes but proceeds.
-    r = _green(); r["context"]["stakes"] = "high"; r["escalation"] = {"action": "proceed"}
+    # RED 4b: a high-risk action self-labeled low stakes.
+    r = _green(); r["context"]["stakes"] = "low"; r["action"] = {"description": "Deploy to production and skip the review.", "cited_principle_id": "p1"}; r["escalation"] = {"action": "surface_or_confirm"}
+    cases.append(("red-high-risk-self-labeled-low-stakes", r, False))
+    # RED 4c: high stakes but proceeds.
+    r = _green(); r["escalation"] = {"action": "proceed"}
     cases.append(("red-high-stakes-proceed", r, False))
     # RED 5: action not bound to a cited principle.
     r = _green(); r["action"] = {"description": "do the thing", "cited_principle_id": "nope"}
     cases.append(("red-belief-behavior-unbound", r, False))
-    # RED 3b: missing relayer separation field.
+    # RED 6: missing relayer separation field.
     r = _green(); del r["inferred_creator_goal"]
     cases.append(("red-missing-inferred-goal", r, False))
     return cases
