@@ -2,8 +2,8 @@
 
 - Source: `skills/fairy-tale/SKILL.md`
 - Measured: 44639 bytes / 765 lines / ~11160 est tokens
-- Estimation basis: est tokens = UTF-8 bytes / 4.0 (conservative for the head window; line budget uses exact lines)
-- Head window: first 5000 est tokens (= 20000 bytes)
+- Estimation basis: est tokens = UTF-8 bytes / 4.0 (reporting only); head window enforced at 3.5 bytes/token (densest plausible tokenization); line budget uses exact lines
+- Head window: first 5000 est tokens (= 17500 bytes)
 
 Every section below must survive the router/per-card restructure, either
 in SKILL.md itself or as an extracted card reachable from the router.
@@ -22,7 +22,7 @@ in SKILL.md itself or as an extracted card reachable from the router.
 | 10 | h3 | Loop Engineering and Job Automation Harness | 246 | 13582 | 872 | yes |
 | 11 | h3 | High-signal research synthesis | 299 | 17068 | 60 | yes |
 | 12 | h3 | Accessible Genius Method Router | 306 | 17308 | 422 | yes |
-| 13 | h3 | Benchmark Delta Harness | 334 | 18998 | 400 | yes |
+| 13 | h3 | Benchmark Delta Harness | 334 | 18998 | 400 | no |
 | 14 | h3 | Domain Router | 360 | 20599 | 236 | no |
 | 15 | h3 | Knowledge Crystallization Harness | 377 | 21545 | 104 | no |
 | 16 | h3 | Legal Reasoning Harness | 387 | 21962 | 150 | no |

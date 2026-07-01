@@ -12,12 +12,15 @@ Why this exists (primary sources, fetched 2026-07-02):
   (https://code.claude.com/docs/en/skills)
 
 Token estimation basis:
-- Estimated tokens = UTF-8 bytes / 4.0. English markdown tokenizes at roughly
-  3.5-4.5 bytes per token on Claude-family BPE vocabularies, so dividing by
-  4.0 undercounts the byte window slightly (5,000 tokens -> 20,000 bytes
-  instead of ~22,000), which keeps the head-window check on the conservative
-  side. Exact bytes, lines, and characters are always reported next to the
-  estimate; the line budget keys on exact lines, not on the estimate.
+- Reporting estimate: tokens ~= UTF-8 bytes / 4.0 (mid-range of the rough
+  3.5-4.5 bytes-per-token band for English markdown on Claude-family BPE
+  vocabularies). Display only, never used for enforcement.
+- Head-window enforcement: the window must GUARANTEE survival inside the
+  first 5,000 re-attached tokens, so it assumes the densest plausible
+  tokenization (3.5 bytes/token): 5,000 tokens -> 17,500 bytes. Using 4.0
+  here would overestimate the window (20,000 bytes) and pass content that a
+  denser tokenization drops. Exact bytes, lines, and characters are always
+  reported next to the estimates; the line budget keys on exact lines.
 
 Checks (RED in --enforce mode, reported in baseline mode):
 - C1 line_budget: SKILL.md total lines <= --max-lines (default 500).
@@ -28,9 +31,13 @@ Checks (RED in --enforce mode, reported in baseline mode):
   subsections) -- is fully contained in the head window. After the router
   restructure the router section has no subsections, so this check then covers
   the entire routing surface.
-- C4 inventory_parity (only with --inventory-compare): every heading recorded
-  in the stored inventory still exists in SKILL.md. This is the parity gate
-  that keeps future card extractions from silently dropping a harness.
+- C4 inventory_parity (only with --inventory-compare): EXACT two-way heading
+  parity. A stored section missing from SKILL.md is RED (silent drop), and a
+  current section absent from the stored inventory is RED (untracked drift --
+  regenerate with --write-inventory). This is the gate that keeps future card
+  extractions from silently dropping or side-adding a harness.
+- A check named in --enforce-checks that resolves to "skipped" is RED: asking
+  for a gate that cannot run must fail, not silently pass.
 
 Usage:
   python3 scripts/skill_token_budget_check.py                  # baseline report
@@ -60,7 +67,8 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SKILL_MD = ROOT / "skills" / "fairy-tale" / "SKILL.md"
 DEFAULT_REFERENCES_DIR = ROOT / "skills" / "fairy-tale" / "references"
 
-BYTES_PER_TOKEN = 4.0
+BYTES_PER_TOKEN = 4.0  # reporting estimate only (mid-range)
+HEAD_BYTES_PER_TOKEN = 3.5  # enforcement: densest plausible tokenization
 DEFAULT_MAX_LINES = 500
 DEFAULT_HEAD_TOKEN_BUDGET = 5000
 
@@ -170,7 +178,7 @@ def build_report(
 ) -> Report:
     data = skill_md.read_bytes()
     text = data.decode("utf-8", errors="replace")
-    head_window_bytes = int(head_token_budget * BYTES_PER_TOKEN)
+    head_window_bytes = int(head_token_budget * HEAD_BYTES_PER_TOKEN)
     sections = parse_sections(data)
     report = Report(
         skill_md=str(skill_md.relative_to(ROOT) if skill_md.is_relative_to(ROOT) else skill_md),
@@ -182,8 +190,9 @@ def build_report(
         head_token_budget=head_token_budget,
         max_lines=max_lines,
         estimation_basis=(
-            f"est tokens = UTF-8 bytes / {BYTES_PER_TOKEN} "
-            "(conservative for the head window; line budget uses exact lines)"
+            f"est tokens = UTF-8 bytes / {BYTES_PER_TOKEN} (reporting only); "
+            f"head window enforced at {HEAD_BYTES_PER_TOKEN} bytes/token (densest "
+            "plausible tokenization); line budget uses exact lines"
         ),
         sections=sections,
     )
@@ -273,22 +282,25 @@ def build_report(
     else:
         stored = json.loads(inventory_compare.read_text(encoding="utf-8"))
         stored_titles = [s["title"] for s in stored.get("sections", [])]
-        current_titles = {s.title for s in sections}
-        dropped = [t for t in stored_titles if t not in current_titles]
+        current_titles = [s.title for s in sections]
+        dropped = [t for t in stored_titles if t not in set(current_titles)]
+        untracked = [t for t in current_titles if t not in set(stored_titles)]
+        problems: list[str] = []
         if dropped:
-            report.checks.append(
-                CheckResult(
-                    "inventory_parity",
-                    "red",
-                    "sections dropped vs stored inventory: " + "; ".join(dropped),
-                )
+            problems.append("dropped vs stored inventory: " + "; ".join(dropped))
+        if untracked:
+            problems.append(
+                "present but not in stored inventory (regenerate with --write-inventory): "
+                + "; ".join(untracked)
             )
+        if problems:
+            report.checks.append(CheckResult("inventory_parity", "red", " | ".join(problems)))
         else:
             report.checks.append(
                 CheckResult(
                     "inventory_parity",
                     "green",
-                    f"all {len(stored_titles)} stored sections still present",
+                    f"exact two-way parity: {len(stored_titles)} stored == {len(current_titles)} current",
                 )
             )
     return report
@@ -380,6 +392,31 @@ def print_report(report: Report) -> None:
         print(f"[{check.status.upper():7}] {check.check}: {check.detail}")
 
 
+def enforcement_failures(
+    report: Report, enforce_all: bool, enforce_checks: str | None
+) -> list[str]:
+    """Resolve enforcement outcome. A check NAMED in enforce_checks that is
+    'skipped' fails closed: asking for a gate that cannot run must not pass."""
+    failures: list[str] = []
+    if enforce_all and report.red_count:
+        failures.append(f"{report.red_count} red check(s)")
+    if enforce_checks:
+        wanted = {name.strip() for name in enforce_checks.split(",") if name.strip()}
+        by_name = {c.check: c for c in report.checks}
+        unknown = wanted - set(by_name)
+        if unknown:
+            failures.append("unknown check name(s): " + ", ".join(sorted(unknown)))
+        for name in sorted(wanted & set(by_name)):
+            check = by_name[name]
+            if check.status == "red":
+                failures.append(f"{name}: red ({check.detail})")
+            elif check.status == "skipped":
+                failures.append(
+                    f"{name}: skipped under enforcement -- fail closed ({check.detail})"
+                )
+    return failures
+
+
 def selftest() -> int:
     """GREEN fixture passes all checks; RED fixture trips every gate."""
     failures: list[str] = []
@@ -412,10 +449,14 @@ def selftest() -> int:
         if red_map.get("head_anchors") != "red":
             failures.append("red fixture: head_anchors did not go red")
 
-        # inventory parity RED: stored inventory contains a section the file lost
+        green_sections = ["Non-negotiables", "Residency Guard", "Default workflow", "Mode-pattern router"]
+
+        # inventory parity RED (drop direction): stored section missing from the file
         inv = Path(tmp) / "inv.json"
         inv.write_text(
-            json.dumps({"sections": [{"title": "Non-negotiables"}, {"title": "Vanished Harness"}]}),
+            json.dumps(
+                {"sections": [{"title": t} for t in green_sections + ["Vanished Harness"]]}
+            ),
             encoding="utf-8",
         )
         p = build_report(green, DEFAULT_MAX_LINES, DEFAULT_HEAD_TOKEN_BUDGET, inv)
@@ -423,14 +464,58 @@ def selftest() -> int:
         if parity.status != "red" or "Vanished Harness" not in parity.detail:
             failures.append("parity fixture: dropped section did not go red")
 
-        # inventory parity GREEN
+        # inventory parity RED (untracked direction): file has a section the
+        # stored inventory never recorded (subset-only parity is not parity)
+        inv_subset = Path(tmp) / "inv_subset.json"
+        inv_subset.write_text(
+            json.dumps({"sections": [{"title": t} for t in green_sections[:-1]]}),
+            encoding="utf-8",
+        )
+        p_extra = build_report(green, DEFAULT_MAX_LINES, DEFAULT_HEAD_TOKEN_BUDGET, inv_subset)
+        extra = {c.check: c for c in p_extra.checks}["inventory_parity"]
+        if extra.status != "red" or "Mode-pattern router" not in extra.detail:
+            failures.append("parity fixture: untracked current section did not go red")
+
+        # inventory parity GREEN: exact two-way match
         inv_ok = Path(tmp) / "inv_ok.json"
         inv_ok.write_text(
-            json.dumps({"sections": [{"title": "Non-negotiables"}]}), encoding="utf-8"
+            json.dumps({"sections": [{"title": t} for t in green_sections]}), encoding="utf-8"
         )
         p_ok = build_report(green, DEFAULT_MAX_LINES, DEFAULT_HEAD_TOKEN_BUDGET, inv_ok)
         if {c.check: c.status for c in p_ok.checks}["inventory_parity"] != "green":
-            failures.append("parity fixture: matching inventory did not stay green")
+            failures.append("parity fixture: exact-matching inventory did not stay green")
+
+        # enforcement fail-closed: a NAMED gate that is skipped must fail
+        p_skip = build_report(green, DEFAULT_MAX_LINES, DEFAULT_HEAD_TOKEN_BUDGET, None)
+        if not enforcement_failures(p_skip, False, "inventory_parity"):
+            failures.append("enforcement fixture: named skipped gate did not fail closed")
+        if enforcement_failures(p_ok, False, "inventory_parity"):
+            failures.append("enforcement fixture: named green gate failed unexpectedly")
+        if not enforcement_failures(p_skip, False, "no_such_check"):
+            failures.append("enforcement fixture: unknown check name did not fail")
+
+        # head-window boundary: router table ending inside the 17,500-20,000
+        # byte band (green under a 4.0 B/tok window, RED under the enforced
+        # conservative 3.5 B/tok window)
+        boundary = Path(tmp) / "boundary.md"
+        pad = "x" * 78 + "\n"  # 79 bytes/line
+        boundary.write_text(
+            "## Non-negotiables\n\n- a\n\n## Residency Guard\n\n- b\n\n## Default workflow\n\n"
+            + pad * 200  # ~15.8 KB inside Default workflow
+            + "\n## Mode-pattern router\n\n"
+            + ("- route x -> refs/x.md\n" * 100)  # table ends ~18.2 KB
+            + "\n## Supporting references\n\n- refs\n",
+            encoding="utf-8",
+        )
+        b = build_report(boundary, 10_000, DEFAULT_HEAD_TOKEN_BUDGET, None)
+        b_map = {c.check: c.status for c in b.checks}
+        if b_map.get("router_table_in_head") != "red":
+            failures.append("boundary fixture: 17.5k-20k band did not go red at 3.5 B/tok")
+        b_wide = build_report(boundary, 10_000, 5715, None)  # window ~20,002 bytes
+        if {c.check: c.status for c in b_wide.checks}.get("router_table_in_head") != "green":
+            failures.append(
+                "boundary fixture: not inside the disputed band (should be green at ~20k window)"
+            )
 
         # router containment RED: router heading anchored late, past the head window
         late_router = Path(tmp) / "late_router.md"
@@ -502,20 +587,11 @@ def main() -> int:
     else:
         print_report(report)
 
-    if args.enforce and report.red_count:
-        print(f"ENFORCE: {report.red_count} red check(s)", file=sys.stderr)
+    failures = enforcement_failures(report, args.enforce, args.enforce_checks)
+    if failures:
+        for failure in failures:
+            print(f"ENFORCE: {failure}", file=sys.stderr)
         return 1
-    if args.enforce_checks:
-        wanted = {name.strip() for name in args.enforce_checks.split(",") if name.strip()}
-        known = {c.check for c in report.checks}
-        unknown = wanted - known
-        if unknown:
-            print(f"ENFORCE: unknown check name(s): {', '.join(sorted(unknown))}", file=sys.stderr)
-            return 1
-        red = [c.check for c in report.checks if c.check in wanted and c.status == "red"]
-        if red:
-            print(f"ENFORCE ({args.enforce_checks}): red: {', '.join(red)}", file=sys.stderr)
-            return 1
     return 0
 
 
