@@ -6,8 +6,7 @@
   creator/principal proxy by elaborating the creator's intent as an
   evidence-grounded, confidence-tagged HYPOTHESIS -- never as authority. Ships the
   ledger schema (`creator-proxy-elaboration-ledger`), a teeth-beyond-presence
-  enforcement checker (`creator_proxy_elaboration_check.py`, `--selftest` = 1 GREEN
-  + 13 RED gates), a worked example record, and the tri-agent dogfood prompt +
+  enforcement checker (`creator_proxy_elaboration_check.py`, `--selftest` = 3 GREEN controls + 21 RED gates), a worked example record, and the tri-agent dogfood prompt +
   evidence pack. Authority stays a separate identity/policy decision (never derived
   from WWCD); evidence refs must resolve; high-risk action surfaces cannot be
   self-labeled below high stakes.
