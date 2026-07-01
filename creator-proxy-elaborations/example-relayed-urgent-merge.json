@@ -11,7 +11,7 @@
     {
       "id": "merge-discipline",
       "tier": "explicit_instruction",
-      "ref": "CLAUDE.md:210",
+      "ref": "access.policy.merge_gate",
       "quote": "merge to develop proceeds only after 2 sign-off + CI green; never auto-merge for prod repos"
     },
     {
@@ -34,7 +34,8 @@
   "authority_decision": {
     "basis": "existing_policy_allowlist",
     "permitted": false,
-    "note": "the relayer is not authorized to waive the merge gate; permission is judged by policy, independent of what the creator 'would' want"
+    "evidence_ref": "access.policy.merge_gate",
+    "note": "the relayer is not authorized to waive the merge gate; permission is judged by policy, independent of intent"
   },
   "proposed_instruction": "The creator would most likely say: expedite the review (ping both reviewers now) and merge the moment 2 sign-off + CI green land -- do not skip the gate for urgency.",
   "action": {

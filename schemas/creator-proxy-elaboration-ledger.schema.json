@@ -103,8 +103,14 @@
           "description": "how permission was decided. Note: 'creator_intent'/'creator_would_approve' are intentionally NOT valid values."
         },
         "permitted": { "type": "boolean" },
+        "evidence_ref": {
+          "type": "string",
+          "description": "a concrete identity/sender_id/policy locator backing the decision (required when basis != not_applicable -- basis enum alone is not a firewall). The runner also checks it resolves."
+        },
         "note": { "type": "string" }
-      }
+      },
+      "if": { "properties": { "basis": { "not": { "const": "not_applicable" } } }, "required": ["basis"] },
+      "then": { "required": ["basis", "permitted", "evidence_ref"] }
     },
     "proposed_instruction": {
       "type": "string",
