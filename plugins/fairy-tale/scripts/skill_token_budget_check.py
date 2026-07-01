@@ -25,7 +25,7 @@ Token estimation basis:
 Checks (RED in --enforce mode, reported in baseline mode):
 - C1 line_budget: SKILL.md total lines <= --max-lines (default 500).
 - C2 head_anchors: every required section heading starts within the head
-  window (default 5,000 estimated tokens = 20,000 bytes).
+  window (default 5,000 tokens enforced at 3.5 bytes/token = 17,500 bytes).
 - C3 router_table_in_head: the router table -- the content between the router
   section heading and its first subsection (or the section end when it has no
   subsections) -- is fully contained in the head window. After the router
