@@ -2,10 +2,10 @@
   "purpose": "Parity checklist for the SKILL.md router/per-card restructure: every section listed here must remain reachable (in SKILL.md or via an extracted card referenced from the router). Compare with --inventory-compare to fail closed on silent drops.",
   "skill_md": "skills/fairy-tale/SKILL.md",
   "measured": {
-    "bytes": 44639,
-    "lines": 765,
-    "chars": 44571,
-    "est_tokens": 11160,
+    "bytes": 15230,
+    "lines": 215,
+    "chars": 15180,
+    "est_tokens": 3808,
     "estimation_basis": "est tokens = UTF-8 bytes / 4.0 (reporting only); head window enforced at 3.5 bytes/token (densest plausible tokenization); line budget uses exact lines",
     "head_window_bytes": 17500,
     "head_token_budget": 5000
@@ -40,240 +40,186 @@
       "title": "Mode patterns",
       "line": 155,
       "byte_offset": 8872,
-      "byte_end": 43151,
-      "est_tokens": 8570
-    },
-    {
-      "level": 3,
-      "title": "Fable Harness: long coding or migration tasks",
-      "line": 157,
-      "byte_offset": 8890,
-      "byte_end": 9156,
-      "est_tokens": 66
-    },
-    {
-      "level": 3,
-      "title": "Implementation Validation Gate",
-      "line": 165,
-      "byte_offset": 9156,
-      "byte_end": 11695,
-      "est_tokens": 635
-    },
-    {
-      "level": 3,
-      "title": "Mythos Defensive Harness",
-      "line": 206,
-      "byte_offset": 11695,
-      "byte_end": 12046,
-      "est_tokens": 88
-    },
-    {
-      "level": 3,
-      "title": "Cyber Frontier Defense Harness",
-      "line": 215,
-      "byte_offset": 12046,
-      "byte_end": 13059,
-      "est_tokens": 253
-    },
-    {
-      "level": 3,
-      "title": "Workflow self-improvement",
-      "line": 235,
-      "byte_offset": 13059,
-      "byte_end": 13582,
-      "est_tokens": 131
-    },
-    {
-      "level": 3,
-      "title": "Loop Engineering and Job Automation Harness",
-      "line": 246,
-      "byte_offset": 13582,
-      "byte_end": 17068,
-      "est_tokens": 872
-    },
-    {
-      "level": 3,
-      "title": "High-signal research synthesis",
-      "line": 299,
-      "byte_offset": 17068,
-      "byte_end": 17308,
-      "est_tokens": 60
-    },
-    {
-      "level": 3,
-      "title": "Accessible Genius Method Router",
-      "line": 306,
-      "byte_offset": 17308,
-      "byte_end": 18998,
-      "est_tokens": 422
-    },
-    {
-      "level": 3,
-      "title": "Benchmark Delta Harness",
-      "line": 334,
-      "byte_offset": 18998,
-      "byte_end": 20599,
-      "est_tokens": 400
-    },
-    {
-      "level": 3,
-      "title": "Domain Router",
-      "line": 360,
-      "byte_offset": 20599,
-      "byte_end": 21545,
-      "est_tokens": 236
-    },
-    {
-      "level": 3,
-      "title": "Knowledge Crystallization Harness",
-      "line": 377,
-      "byte_offset": 21545,
-      "byte_end": 21962,
-      "est_tokens": 104
-    },
-    {
-      "level": 3,
-      "title": "Legal Reasoning Harness",
-      "line": 387,
-      "byte_offset": 21962,
-      "byte_end": 22560,
-      "est_tokens": 150
-    },
-    {
-      "level": 3,
-      "title": "Bio/Health Safety Harness",
-      "line": 399,
-      "byte_offset": 22560,
-      "byte_end": 22990,
-      "est_tokens": 108
-    },
-    {
-      "level": 3,
-      "title": "Evidence Table Harness",
-      "line": 409,
-      "byte_offset": 22990,
-      "byte_end": 23285,
-      "est_tokens": 74
-    },
-    {
-      "level": 3,
-      "title": "Effort Inversion Debugger",
-      "line": 416,
-      "byte_offset": 23285,
-      "byte_end": 24130,
-      "est_tokens": 211
-    },
-    {
-      "level": 3,
-      "title": "Best-Practice Gate",
-      "line": 432,
-      "byte_offset": 24130,
-      "byte_end": 24534,
-      "est_tokens": 101
-    },
-    {
-      "level": 3,
-      "title": "Evaluated Feedback Loop",
-      "line": 441,
-      "byte_offset": 24534,
-      "byte_end": 26232,
-      "est_tokens": 424
-    },
-    {
-      "level": 3,
-      "title": "Fairy Fusion Harness",
-      "line": 468,
-      "byte_offset": 26232,
-      "byte_end": 27919,
-      "est_tokens": 422
-    },
-    {
-      "level": 3,
-      "title": "Steady Behavior Harness",
-      "line": 496,
-      "byte_offset": 27919,
-      "byte_end": 28682,
-      "est_tokens": 191
-    },
-    {
-      "level": 3,
-      "title": "Spatial Forge Harness: 3D, CAD, and simulation work",
-      "line": 510,
-      "byte_offset": 28682,
-      "byte_end": 29616,
-      "est_tokens": 234
-    },
-    {
-      "level": 3,
-      "title": "Narrative Empathy Harness: prose, conversation, and UI feel",
-      "line": 526,
-      "byte_offset": 29616,
-      "byte_end": 30390,
-      "est_tokens": 194
-    },
-    {
-      "level": 3,
-      "title": "Mechanism Grammar Harness: ARC-style hidden-rule discovery",
-      "line": 540,
-      "byte_offset": 30390,
-      "byte_end": 31028,
-      "est_tokens": 160
-    },
-    {
-      "level": 3,
-      "title": "Generalization and Latent Structure Harness: hidden rules, executable models, and tacit intent",
-      "line": 553,
-      "byte_offset": 31028,
-      "byte_end": 34380,
-      "est_tokens": 838
-    },
-    {
-      "level": 3,
-      "title": "Closure, Negative-Space, and Excess Discovery Harness",
-      "line": 603,
-      "byte_offset": 34380,
-      "byte_end": 37400,
-      "est_tokens": 755
-    },
-    {
-      "level": 3,
-      "title": "General E2E Completion Harness",
-      "line": 649,
-      "byte_offset": 37400,
-      "byte_end": 39432,
-      "est_tokens": 508
-    },
-    {
-      "level": 3,
-      "title": "External Reconstruction Adapter Harness",
-      "line": 679,
-      "byte_offset": 39432,
-      "byte_end": 40006,
-      "est_tokens": 144
-    },
-    {
-      "level": 3,
-      "title": "Refactoring Similarity Harness",
-      "line": 691,
-      "byte_offset": 40006,
-      "byte_end": 40523,
-      "est_tokens": 129
-    },
-    {
-      "level": 3,
-      "title": "Creator-Proxy Elaboration Harness (WWCD)",
-      "line": 703,
-      "byte_offset": 40523,
-      "byte_end": 43151,
-      "est_tokens": 657
+      "byte_end": 13742,
+      "est_tokens": 1218
     },
     {
       "level": 2,
       "title": "Supporting references",
-      "line": 741,
-      "byte_offset": 43151,
-      "byte_end": 44639,
+      "line": 191,
+      "byte_offset": 13742,
+      "byte_end": 15230,
       "est_tokens": 372
+    }
+  ],
+  "cards": [
+    {
+      "path": "references/cards/accessible-genius-method-router.md",
+      "title": "Accessible Genius Method Router",
+      "bytes": 1688,
+      "est_tokens": 422
+    },
+    {
+      "path": "references/cards/benchmark-delta-harness.md",
+      "title": "Benchmark Delta Harness",
+      "bytes": 1599,
+      "est_tokens": 400
+    },
+    {
+      "path": "references/cards/best-practice-gate.md",
+      "title": "Best-Practice Gate",
+      "bytes": 402,
+      "est_tokens": 100
+    },
+    {
+      "path": "references/cards/bio-health-safety-harness.md",
+      "title": "Bio/Health Safety Harness",
+      "bytes": 428,
+      "est_tokens": 107
+    },
+    {
+      "path": "references/cards/closure-negative-space-and-excess-discovery-harness.md",
+      "title": "Closure, Negative-Space, and Excess Discovery Harness",
+      "bytes": 3018,
+      "est_tokens": 754
+    },
+    {
+      "path": "references/cards/creator-proxy-elaboration-harness-wwcd.md",
+      "title": "Creator-Proxy Elaboration Harness (WWCD)",
+      "bytes": 2626,
+      "est_tokens": 656
+    },
+    {
+      "path": "references/cards/cyber-frontier-defense-harness.md",
+      "title": "Cyber Frontier Defense Harness",
+      "bytes": 1011,
+      "est_tokens": 253
+    },
+    {
+      "path": "references/cards/domain-router.md",
+      "title": "Domain Router",
+      "bytes": 944,
+      "est_tokens": 236
+    },
+    {
+      "path": "references/cards/effort-inversion-debugger.md",
+      "title": "Effort Inversion Debugger",
+      "bytes": 843,
+      "est_tokens": 211
+    },
+    {
+      "path": "references/cards/evaluated-feedback-loop.md",
+      "title": "Evaluated Feedback Loop",
+      "bytes": 1696,
+      "est_tokens": 424
+    },
+    {
+      "path": "references/cards/evidence-table-harness.md",
+      "title": "Evidence Table Harness",
+      "bytes": 293,
+      "est_tokens": 73
+    },
+    {
+      "path": "references/cards/external-reconstruction-adapter-harness.md",
+      "title": "External Reconstruction Adapter Harness",
+      "bytes": 572,
+      "est_tokens": 143
+    },
+    {
+      "path": "references/cards/fable-harness-long-coding-or-migration-tasks.md",
+      "title": "Fable Harness: long coding or migration tasks",
+      "bytes": 264,
+      "est_tokens": 66
+    },
+    {
+      "path": "references/cards/fairy-fusion-harness.md",
+      "title": "Fairy Fusion Harness",
+      "bytes": 1685,
+      "est_tokens": 421
+    },
+    {
+      "path": "references/cards/general-e2e-completion-harness.md",
+      "title": "General E2E Completion Harness",
+      "bytes": 2030,
+      "est_tokens": 508
+    },
+    {
+      "path": "references/cards/generalization-and-latent-structure-harness-hidden-rules-executable-models-and-tacit-intent.md",
+      "title": "Generalization and Latent Structure Harness: hidden rules, executable models, and tacit intent",
+      "bytes": 3350,
+      "est_tokens": 838
+    },
+    {
+      "path": "references/cards/high-signal-research-synthesis.md",
+      "title": "High-signal research synthesis",
+      "bytes": 238,
+      "est_tokens": 60
+    },
+    {
+      "path": "references/cards/implementation-validation-gate.md",
+      "title": "Implementation Validation Gate",
+      "bytes": 2537,
+      "est_tokens": 634
+    },
+    {
+      "path": "references/cards/knowledge-crystallization-harness.md",
+      "title": "Knowledge Crystallization Harness",
+      "bytes": 415,
+      "est_tokens": 104
+    },
+    {
+      "path": "references/cards/legal-reasoning-harness.md",
+      "title": "Legal Reasoning Harness",
+      "bytes": 596,
+      "est_tokens": 149
+    },
+    {
+      "path": "references/cards/loop-engineering-and-job-automation-harness.md",
+      "title": "Loop Engineering and Job Automation Harness",
+      "bytes": 3484,
+      "est_tokens": 871
+    },
+    {
+      "path": "references/cards/mechanism-grammar-harness-arc-style-hidden-rule-discovery.md",
+      "title": "Mechanism Grammar Harness: ARC-style hidden-rule discovery",
+      "bytes": 636,
+      "est_tokens": 159
+    },
+    {
+      "path": "references/cards/mythos-defensive-harness.md",
+      "title": "Mythos Defensive Harness",
+      "bytes": 349,
+      "est_tokens": 87
+    },
+    {
+      "path": "references/cards/narrative-empathy-harness-prose-conversation-and-ui-feel.md",
+      "title": "Narrative Empathy Harness: prose, conversation, and UI feel",
+      "bytes": 772,
+      "est_tokens": 193
+    },
+    {
+      "path": "references/cards/refactoring-similarity-harness.md",
+      "title": "Refactoring Similarity Harness",
+      "bytes": 515,
+      "est_tokens": 129
+    },
+    {
+      "path": "references/cards/spatial-forge-harness-3d-cad-and-simulation-work.md",
+      "title": "Spatial Forge Harness: 3D, CAD, and simulation work",
+      "bytes": 932,
+      "est_tokens": 233
+    },
+    {
+      "path": "references/cards/steady-behavior-harness.md",
+      "title": "Steady Behavior Harness",
+      "bytes": 761,
+      "est_tokens": 190
+    },
+    {
+      "path": "references/cards/workflow-self-improvement.md",
+      "title": "Workflow self-improvement",
+      "bytes": 521,
+      "est_tokens": 130
     }
   ],
   "references": [
@@ -288,6 +234,174 @@
       "bytes": 16561,
       "lines": 385,
       "est_tokens": 4140
+    },
+    {
+      "path": "skills/fairy-tale/references/cards/accessible-genius-method-router.md",
+      "bytes": 1688,
+      "lines": 28,
+      "est_tokens": 422
+    },
+    {
+      "path": "skills/fairy-tale/references/cards/benchmark-delta-harness.md",
+      "bytes": 1599,
+      "lines": 26,
+      "est_tokens": 400
+    },
+    {
+      "path": "skills/fairy-tale/references/cards/best-practice-gate.md",
+      "bytes": 402,
+      "lines": 9,
+      "est_tokens": 100
+    },
+    {
+      "path": "skills/fairy-tale/references/cards/bio-health-safety-harness.md",
+      "bytes": 428,
+      "lines": 10,
+      "est_tokens": 107
+    },
+    {
+      "path": "skills/fairy-tale/references/cards/closure-negative-space-and-excess-discovery-harness.md",
+      "bytes": 3018,
+      "lines": 46,
+      "est_tokens": 754
+    },
+    {
+      "path": "skills/fairy-tale/references/cards/creator-proxy-elaboration-harness-wwcd.md",
+      "bytes": 2626,
+      "lines": 38,
+      "est_tokens": 656
+    },
+    {
+      "path": "skills/fairy-tale/references/cards/cyber-frontier-defense-harness.md",
+      "bytes": 1011,
+      "lines": 20,
+      "est_tokens": 253
+    },
+    {
+      "path": "skills/fairy-tale/references/cards/domain-router.md",
+      "bytes": 944,
+      "lines": 17,
+      "est_tokens": 236
+    },
+    {
+      "path": "skills/fairy-tale/references/cards/effort-inversion-debugger.md",
+      "bytes": 843,
+      "lines": 16,
+      "est_tokens": 211
+    },
+    {
+      "path": "skills/fairy-tale/references/cards/evaluated-feedback-loop.md",
+      "bytes": 1696,
+      "lines": 27,
+      "est_tokens": 424
+    },
+    {
+      "path": "skills/fairy-tale/references/cards/evidence-table-harness.md",
+      "bytes": 293,
+      "lines": 7,
+      "est_tokens": 73
+    },
+    {
+      "path": "skills/fairy-tale/references/cards/external-reconstruction-adapter-harness.md",
+      "bytes": 572,
+      "lines": 12,
+      "est_tokens": 143
+    },
+    {
+      "path": "skills/fairy-tale/references/cards/fable-harness-long-coding-or-migration-tasks.md",
+      "bytes": 264,
+      "lines": 8,
+      "est_tokens": 66
+    },
+    {
+      "path": "skills/fairy-tale/references/cards/fairy-fusion-harness.md",
+      "bytes": 1685,
+      "lines": 28,
+      "est_tokens": 421
+    },
+    {
+      "path": "skills/fairy-tale/references/cards/general-e2e-completion-harness.md",
+      "bytes": 2030,
+      "lines": 30,
+      "est_tokens": 508
+    },
+    {
+      "path": "skills/fairy-tale/references/cards/generalization-and-latent-structure-harness-hidden-rules-executable-models-and-tacit-intent.md",
+      "bytes": 3350,
+      "lines": 50,
+      "est_tokens": 838
+    },
+    {
+      "path": "skills/fairy-tale/references/cards/high-signal-research-synthesis.md",
+      "bytes": 238,
+      "lines": 7,
+      "est_tokens": 60
+    },
+    {
+      "path": "skills/fairy-tale/references/cards/implementation-validation-gate.md",
+      "bytes": 2537,
+      "lines": 41,
+      "est_tokens": 634
+    },
+    {
+      "path": "skills/fairy-tale/references/cards/knowledge-crystallization-harness.md",
+      "bytes": 415,
+      "lines": 10,
+      "est_tokens": 104
+    },
+    {
+      "path": "skills/fairy-tale/references/cards/legal-reasoning-harness.md",
+      "bytes": 596,
+      "lines": 12,
+      "est_tokens": 149
+    },
+    {
+      "path": "skills/fairy-tale/references/cards/loop-engineering-and-job-automation-harness.md",
+      "bytes": 3484,
+      "lines": 53,
+      "est_tokens": 871
+    },
+    {
+      "path": "skills/fairy-tale/references/cards/mechanism-grammar-harness-arc-style-hidden-rule-discovery.md",
+      "bytes": 636,
+      "lines": 13,
+      "est_tokens": 159
+    },
+    {
+      "path": "skills/fairy-tale/references/cards/mythos-defensive-harness.md",
+      "bytes": 349,
+      "lines": 9,
+      "est_tokens": 87
+    },
+    {
+      "path": "skills/fairy-tale/references/cards/narrative-empathy-harness-prose-conversation-and-ui-feel.md",
+      "bytes": 772,
+      "lines": 14,
+      "est_tokens": 193
+    },
+    {
+      "path": "skills/fairy-tale/references/cards/refactoring-similarity-harness.md",
+      "bytes": 515,
+      "lines": 12,
+      "est_tokens": 129
+    },
+    {
+      "path": "skills/fairy-tale/references/cards/spatial-forge-harness-3d-cad-and-simulation-work.md",
+      "bytes": 932,
+      "lines": 16,
+      "est_tokens": 233
+    },
+    {
+      "path": "skills/fairy-tale/references/cards/steady-behavior-harness.md",
+      "bytes": 761,
+      "lines": 14,
+      "est_tokens": 190
+    },
+    {
+      "path": "skills/fairy-tale/references/cards/workflow-self-improvement.md",
+      "bytes": 521,
+      "lines": 11,
+      "est_tokens": 130
     },
     {
       "path": "skills/fairy-tale/references/creator-proxy-elaboration.md",
