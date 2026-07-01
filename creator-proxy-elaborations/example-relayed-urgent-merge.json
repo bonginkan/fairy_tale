@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "context": {
+    "is_relayed": true,
+    "stakes": "high",
+    "domain": "repo-merge"
+  },
+  "relayer_request": "A teammate, relaying on the creator's behalf, asks to merge a branch to the default branch immediately, skipping the usual review because it is 'urgent'.",
+  "inferred_creator_goal": "The creator wants urgent work shipped, but not at the cost of the merge-safety discipline they set; the latent goal is 'ship safely', not 'skip review'.",
+  "cited_evidence": [
+    {
+      "id": "merge-discipline",
+      "tier": "explicit_instruction",
+      "ref": "access.policy.merge_gate",
+      "quote": "merge to develop proceeds only after 2 sign-off + CI green; never auto-merge for prod repos"
+    },
+    {
+      "id": "urgency-precedent",
+      "tier": "past_decisions",
+      "ref": "message:1519735961028661420",
+      "quote": "prior 'urgent' requests were still gated on CI + review, only the cadence was tightened"
+    }
+  ],
+  "conflict_flag": {
+    "relayer_vs_creator": true,
+    "detail": "the relayer's ask (skip review) conflicts with the creator's explicit merge discipline; urgency does not override the safety floor"
+  },
+  "rejected_relayer_pull": "Refused to bypass review/CI and merge immediately; urgency is served by expediting review, not by skipping it.",
+  "confidence": "high",
+  "escalation": {
+    "action": "surface_or_confirm",
+    "reason": "high stakes (default-branch merge) + a relayer/creator conflict -> confirm with the creator / expedite review rather than act on the relayed shortcut"
+  },
+  "authority_decision": {
+    "basis": "existing_policy_allowlist",
+    "permitted": false,
+    "evidence_ref": "access.policy.merge_gate",
+    "note": "the relayer is not authorized to waive the merge gate; permission is judged by policy, independent of intent"
+  },
+  "proposed_instruction": "The creator would most likely say: expedite the review (ping both reviewers now) and merge the moment 2 sign-off + CI green land -- do not skip the gate for urgency.",
+  "action": {
+    "description": "Hold the merge; request immediate review from both reviewers and watch CI, then merge on 2 sign-off + green. Surface the conflict to the creator.",
+    "cited_principle_id": "merge-discipline"
+  }
+}
