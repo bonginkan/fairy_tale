@@ -161,6 +161,16 @@
       }
     },
     {
+      "description": "not_applicable authority cannot grant permission -- if no permission decision applies, it is not permitted.",
+      "if": {
+        "properties": { "authority_decision": { "properties": { "basis": { "const": "not_applicable" } }, "required": ["basis"] } },
+        "required": ["authority_decision"]
+      },
+      "then": {
+        "properties": { "authority_decision": { "properties": { "permitted": { "const": false } } } }
+      }
+    },
+    {
       "description": "Counter-sycophancy record: when the relayer conflicts with the creator, the resisted relayer pull must be recorded concretely (not null / empty).",
       "if": {
         "properties": { "conflict_flag": { "properties": { "relayer_vs_creator": { "const": true } }, "required": ["relayer_vs_creator"] } },
