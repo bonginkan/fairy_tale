@@ -1,0 +1,261 @@
+{
+  "purpose": "Byte-preserving extraction manifest: each card body must equal the original SKILL.md byte range. Verify with --verify against the committed pre-extraction snapshot.",
+  "original_skill_md_snapshot": "/Users/thepioneer/Documents/GitHub/fairy_tale/docs/skill-budget/skill-md-pre-extraction-snapshot.md",
+  "skill_md_sha256": "562723a75e37f106aba573752bbfd0c4fc0f3712c7fa490ac0d8fca394b4f2a7",
+  "new_skill_md_sha256": "60e4e4b4e16387c7e20fae1da202d3b71eb301ce671b7cd046d1046d73d514de",
+  "router_preamble": "Route with the table below and read the linked card before applying a pattern; the cards are the canonical harness bodies.\n",
+  "cards": [
+    {
+      "title": "Fable Harness: long coding or migration tasks",
+      "slug": "fable-harness-long-coding-or-migration-tasks",
+      "card_path": "references/cards/fable-harness-long-coding-or-migration-tasks.md",
+      "old_body_start": 8940,
+      "old_body_end": 9156,
+      "body_sha256": "e1196ca927ea1b41e0a1d3111aea8e2f4a9c2cda3affafc796d345df43633e8d",
+      "route_hint": "Start with repository map and invariants."
+    },
+    {
+      "title": "Implementation Validation Gate",
+      "slug": "implementation-validation-gate",
+      "card_path": "references/cards/implementation-validation-gate.md",
+      "old_body_start": 9191,
+      "old_body_end": 11695,
+      "body_sha256": "0174cbdfb48ae2d114dfab05724c44a2603587f1965c167e73a622c65c068c3e",
+      "route_hint": "Use for any implementation task with a clear behavioral target, not only"
+    },
+    {
+      "title": "Mythos Defensive Harness",
+      "slug": "mythos-defensive-harness",
+      "card_path": "references/cards/mythos-defensive-harness.md",
+      "old_body_start": 11724,
+      "old_body_end": 12046,
+      "body_sha256": "9a80cbd9eaaa56d5b5aa6cfeb64b538f2b6d2f7b8f07aa89d0af39c781502865",
+      "route_hint": "Confirm authorization and target scope."
+    },
+    {
+      "title": "Cyber Frontier Defense Harness",
+      "slug": "cyber-frontier-defense-harness",
+      "card_path": "references/cards/cyber-frontier-defense-harness.md",
+      "old_body_start": 12081,
+      "old_body_end": 13059,
+      "body_sha256": "2749e030a4732fba05eabe22fe6ddec64823baea6ea15e533c3c09fbdc6d8528",
+      "route_hint": "Use only for authorized defensive work."
+    },
+    {
+      "title": "Workflow self-improvement",
+      "slug": "workflow-self-improvement",
+      "card_path": "references/cards/workflow-self-improvement.md",
+      "old_body_start": 13089,
+      "old_body_end": 13582,
+      "body_sha256": "292b4c2d1ef499a054c2878af6230a27b25925956ba3f134cfa03057be899b7b",
+      "route_hint": "Inspect current agent config, skills, commands, hooks, and usage patterns."
+    },
+    {
+      "title": "Loop Engineering and Job Automation Harness",
+      "slug": "loop-engineering-and-job-automation-harness",
+      "card_path": "references/cards/loop-engineering-and-job-automation-harness.md",
+      "old_body_start": 13630,
+      "old_body_end": 17068,
+      "body_sha256": "262220039248345d857df34b05880ae02cf20411e3ba3f9765af30e06450245f",
+      "route_hint": "Use this when the task asks agents to keep running across turns,"
+    },
+    {
+      "title": "High-signal research synthesis",
+      "slug": "high-signal-research-synthesis",
+      "card_path": "references/cards/high-signal-research-synthesis.md",
+      "old_body_start": 17103,
+      "old_body_end": 17308,
+      "body_sha256": "33c8f9beb5310ca5f5b1877e45aa16b8be321be67ddb1702fed6030f1eec8abc",
+      "route_hint": "Separate primary sources from user reports."
+    },
+    {
+      "title": "Accessible Genius Method Router",
+      "slug": "accessible-genius-method-router",
+      "card_path": "references/cards/accessible-genius-method-router.md",
+      "old_body_start": 17344,
+      "old_body_end": 18998,
+      "body_sha256": "afa747fd2abd2f1f673c645f79eb59c5ecd20c07c279f801a2114537370715a1",
+      "route_hint": "Use when the task benefits from durable methods distilled from historical"
+    },
+    {
+      "title": "Benchmark Delta Harness",
+      "slug": "benchmark-delta-harness",
+      "card_path": "references/cards/benchmark-delta-harness.md",
+      "old_body_start": 19026,
+      "old_body_end": 20599,
+      "body_sha256": "1d4c40d2dddeba56309382c78cd1bf6d5ec24d2844dfc74ec738f288c5a34138",
+      "route_hint": "Identify which benchmark capability is being targeted: agentic coding,"
+    },
+    {
+      "title": "Domain Router",
+      "slug": "domain-router",
+      "card_path": "references/cards/domain-router.md",
+      "old_body_start": 20617,
+      "old_body_end": 21545,
+      "body_sha256": "94d200722b99073f567e526528468e8331368fe3628ba0fb093d187f40630c2a",
+      "route_hint": "Do not apply the coding harness to every benchmark. Route first by task"
+    },
+    {
+      "title": "Knowledge Crystallization Harness",
+      "slug": "knowledge-crystallization-harness",
+      "card_path": "references/cards/knowledge-crystallization-harness.md",
+      "old_body_start": 21583,
+      "old_body_end": 21962,
+      "body_sha256": "3564881870623fd2f6b4c9a6245afac1274d76e92fb9da0b3781d27b0b7bdb9b",
+      "route_hint": "Classify subject, answer type, and required exactness."
+    },
+    {
+      "title": "Legal Reasoning Harness",
+      "slug": "legal-reasoning-harness",
+      "card_path": "references/cards/legal-reasoning-harness.md",
+      "old_body_start": 21990,
+      "old_body_end": 22560,
+      "body_sha256": "c91ce01371bdc1de0226ff151578e028506e5fca89574a3385f74ec02575371d",
+      "route_hint": "Identify jurisdiction, authority type, date, procedural posture, and task"
+    },
+    {
+      "title": "Bio/Health Safety Harness",
+      "slug": "bio-health-safety-harness",
+      "card_path": "references/cards/bio-health-safety-harness.md",
+      "old_body_start": 22590,
+      "old_body_end": 22990,
+      "body_sha256": "96c496932ab45a1a5c610001c2099c0eff3c9de96c93329f5e3257fcfc0ca5bb",
+      "route_hint": "Classify whether the task is benign explanation, clinical guidance, lab"
+    },
+    {
+      "title": "Evidence Table Harness",
+      "slug": "evidence-table-harness",
+      "card_path": "references/cards/evidence-table-harness.md",
+      "old_body_start": 23017,
+      "old_body_end": 23285,
+      "body_sha256": "af0d6a694db521eeaacba8ec16dd45079b6037295d26eb51a13b608fb419396e",
+      "route_hint": "Extract document, table, chart, and source facts before analysis."
+    },
+    {
+      "title": "Effort Inversion Debugger",
+      "slug": "effort-inversion-debugger",
+      "card_path": "references/cards/effort-inversion-debugger.md",
+      "old_body_start": 23315,
+      "old_body_end": 24130,
+      "body_sha256": "bef7af7c96fd22110ba795eab17e1f446e49cb814e7229beb6f6f8f8c2363f6b",
+      "route_hint": "Do not assume higher effort is better. If `xhigh` or max effort underperforms"
+    },
+    {
+      "title": "Best-Practice Gate",
+      "slug": "best-practice-gate",
+      "card_path": "references/cards/best-practice-gate.md",
+      "old_body_start": 24153,
+      "old_body_end": 24534,
+      "body_sha256": "d5f0e599bdb258a089ed454ad908238ed6063fb7c59c1b086a1a29c7ebb257b2",
+      "route_hint": "Use official or upstream documentation for current claims before updating the"
+    },
+    {
+      "title": "Evaluated Feedback Loop",
+      "slug": "evaluated-feedback-loop",
+      "card_path": "references/cards/evaluated-feedback-loop.md",
+      "old_body_start": 24562,
+      "old_body_end": 26232,
+      "body_sha256": "aaebb3cbbd1bc196ab010e4712d759850924ad8f7026aac9fe8fab99b11e82a4",
+      "route_hint": "Treat failed benchmark criteria as reusable feedback, not just result data."
+    },
+    {
+      "title": "Fairy Fusion Harness",
+      "slug": "fairy-fusion-harness",
+      "card_path": "references/cards/fairy-fusion-harness.md",
+      "old_body_start": 26257,
+      "old_body_end": 27919,
+      "body_sha256": "458b934d13bfcdee974e4a668b9eba269b7d665c91b2f3f6a0e03b758d13c4c6",
+      "route_hint": "Choose the fusion mode before running reviewers."
+    },
+    {
+      "title": "Steady Behavior Harness",
+      "slug": "steady-behavior-harness",
+      "card_path": "references/cards/steady-behavior-harness.md",
+      "old_body_start": 27947,
+      "old_body_end": 28682,
+      "body_sha256": "70b30014136d83cf35fa3207a30c93563ff9659adbb03996eefc3c56b75a7730",
+      "route_hint": "Keep ordinary responses natural and lightly formatted. Use bullets, headings,"
+    },
+    {
+      "title": "Spatial Forge Harness: 3D, CAD, and simulation work",
+      "slug": "spatial-forge-harness-3d-cad-and-simulation-work",
+      "card_path": "references/cards/spatial-forge-harness-3d-cad-and-simulation-work.md",
+      "old_body_start": 28738,
+      "old_body_end": 29616,
+      "body_sha256": "df6f62995a94eecf885382996a9cbb8f9ceb9fc95780044b0a045ebdc6461ddd",
+      "route_hint": "Require an explicit spatial brief: coordinate system, units, camera,"
+    },
+    {
+      "title": "Narrative Empathy Harness: prose, conversation, and UI feel",
+      "slug": "narrative-empathy-harness-prose-conversation-and-ui-feel",
+      "card_path": "references/cards/narrative-empathy-harness-prose-conversation-and-ui-feel.md",
+      "old_body_start": 29680,
+      "old_body_end": 30390,
+      "body_sha256": "d8a35bb05485d0d39147abf2fd53126514ec2ea5f797bbb24816b719bd9448cd",
+      "route_hint": "Build a voice and affect brief before writing: audience, relationship,"
+    },
+    {
+      "title": "Mechanism Grammar Harness: ARC-style hidden-rule discovery",
+      "slug": "mechanism-grammar-harness-arc-style-hidden-rule-discovery",
+      "card_path": "references/cards/mechanism-grammar-harness-arc-style-hidden-rule-discovery.md",
+      "old_body_start": 30453,
+      "old_body_end": 31028,
+      "body_sha256": "9be30d05f7b27d33437e70aedd22d2471e19556c54bfbf159030b4ca8934d683",
+      "route_hint": "Instrument before solving: frame capture, replay, score ledger, action logs,"
+    },
+    {
+      "title": "Generalization and Latent Structure Harness: hidden rules, executable models, and tacit intent",
+      "slug": "generalization-and-latent-structure-harness-hidden-rules-executable-models-and-tacit-intent",
+      "card_path": "references/cards/generalization-and-latent-structure-harness-hidden-rules-executable-models-and-tacit-intent.md",
+      "old_body_start": 31127,
+      "old_body_end": 34380,
+      "body_sha256": "3d8fa52c35c92e6f9c82b852290f63ea6a4298e29c3db57cf56990a7aba0482c",
+      "route_hint": "This consolidates the former Generalization Harness and Latent Structure"
+    },
+    {
+      "title": "Closure, Negative-Space, and Excess Discovery Harness",
+      "slug": "closure-negative-space-and-excess-discovery-harness",
+      "card_path": "references/cards/closure-negative-space-and-excess-discovery-harness.md",
+      "old_body_start": 34438,
+      "old_body_end": 37400,
+      "body_sha256": "d54f6d78763931f7bf3a4cbc661814bec959e88ef28dced82819de610518407f",
+      "route_hint": "Use this during review, requirements discovery, product/UX work,"
+    },
+    {
+      "title": "General E2E Completion Harness",
+      "slug": "general-e2e-completion-harness",
+      "card_path": "references/cards/general-e2e-completion-harness.md",
+      "old_body_start": 37435,
+      "old_body_end": 39432,
+      "body_sha256": "86f2caf904c62bec2524b8adaaafccd4616e79d23a44280dc1c5ac34a34991c2",
+      "route_hint": "Use this when driving an end-to-end test of a real deployed system to"
+    },
+    {
+      "title": "External Reconstruction Adapter Harness",
+      "slug": "external-reconstruction-adapter-harness",
+      "card_path": "references/cards/external-reconstruction-adapter-harness.md",
+      "old_body_start": 39476,
+      "old_body_end": 40006,
+      "body_sha256": "d19b63435d894be977883cc4cd79214390140ed28742c0812d10fb2685766127",
+      "route_hint": "Use external reconstruction repos through adapter manifests instead of"
+    },
+    {
+      "title": "Refactoring Similarity Harness",
+      "slug": "refactoring-similarity-harness",
+      "card_path": "references/cards/refactoring-similarity-harness.md",
+      "old_body_start": 40041,
+      "old_body_end": 40523,
+      "body_sha256": "ce36b85a471c22dd044d5643d76448ebe5b7605a2717dd6eca5f7aa609a04ca8",
+      "route_hint": "Run structural similarity tools before broad refactors when the target is a"
+    },
+    {
+      "title": "Creator-Proxy Elaboration Harness (WWCD)",
+      "slug": "creator-proxy-elaboration-harness-wwcd",
+      "card_path": "references/cards/creator-proxy-elaboration-harness-wwcd.md",
+      "old_body_start": 40568,
+      "old_body_end": 43151,
+      "body_sha256": "e627db4157556695c247389b4579625dd6ee1aee1c62ea661cb11056b3180105",
+      "route_hint": "Fires when acting as a creator/principal's proxy while invoked by a THIRD PARTY /"
+    }
+  ]
+}

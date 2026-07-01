@@ -1,7 +1,7 @@
 # SKILL.md section inventory (parity checklist)
 
 - Source: `skills/fairy-tale/SKILL.md`
-- Measured: 44639 bytes / 765 lines / ~11160 est tokens
+- Measured: 15230 bytes / 215 lines / ~3808 est tokens
 - Estimation basis: est tokens = UTF-8 bytes / 4.0 (reporting only); head window enforced at 3.5 bytes/token (densest plausible tokenization); line budget uses exact lines
 - Head window: first 5000 est tokens (= 17500 bytes)
 
@@ -13,36 +13,8 @@ in SKILL.md itself or as an extracted card reachable from the router.
 | 1 | h2 | Non-negotiables | 11 | 1195 | 185 | yes |
 | 2 | h2 | Residency Guard | 26 | 1936 | 174 | yes |
 | 3 | h2 | Default workflow | 45 | 2633 | 1560 | yes |
-| 4 | h2 | Mode patterns | 155 | 8872 | 8570 | yes |
-| 5 | h3 | Fable Harness: long coding or migration tasks | 157 | 8890 | 66 | yes |
-| 6 | h3 | Implementation Validation Gate | 165 | 9156 | 635 | yes |
-| 7 | h3 | Mythos Defensive Harness | 206 | 11695 | 88 | yes |
-| 8 | h3 | Cyber Frontier Defense Harness | 215 | 12046 | 253 | yes |
-| 9 | h3 | Workflow self-improvement | 235 | 13059 | 131 | yes |
-| 10 | h3 | Loop Engineering and Job Automation Harness | 246 | 13582 | 872 | yes |
-| 11 | h3 | High-signal research synthesis | 299 | 17068 | 60 | yes |
-| 12 | h3 | Accessible Genius Method Router | 306 | 17308 | 422 | yes |
-| 13 | h3 | Benchmark Delta Harness | 334 | 18998 | 400 | no |
-| 14 | h3 | Domain Router | 360 | 20599 | 236 | no |
-| 15 | h3 | Knowledge Crystallization Harness | 377 | 21545 | 104 | no |
-| 16 | h3 | Legal Reasoning Harness | 387 | 21962 | 150 | no |
-| 17 | h3 | Bio/Health Safety Harness | 399 | 22560 | 108 | no |
-| 18 | h3 | Evidence Table Harness | 409 | 22990 | 74 | no |
-| 19 | h3 | Effort Inversion Debugger | 416 | 23285 | 211 | no |
-| 20 | h3 | Best-Practice Gate | 432 | 24130 | 101 | no |
-| 21 | h3 | Evaluated Feedback Loop | 441 | 24534 | 424 | no |
-| 22 | h3 | Fairy Fusion Harness | 468 | 26232 | 422 | no |
-| 23 | h3 | Steady Behavior Harness | 496 | 27919 | 191 | no |
-| 24 | h3 | Spatial Forge Harness: 3D, CAD, and simulation work | 510 | 28682 | 234 | no |
-| 25 | h3 | Narrative Empathy Harness: prose, conversation, and UI feel | 526 | 29616 | 194 | no |
-| 26 | h3 | Mechanism Grammar Harness: ARC-style hidden-rule discovery | 540 | 30390 | 160 | no |
-| 27 | h3 | Generalization and Latent Structure Harness: hidden rules, executable models, and tacit intent | 553 | 31028 | 838 | no |
-| 28 | h3 | Closure, Negative-Space, and Excess Discovery Harness | 603 | 34380 | 755 | no |
-| 29 | h3 | General E2E Completion Harness | 649 | 37400 | 508 | no |
-| 30 | h3 | External Reconstruction Adapter Harness | 679 | 39432 | 144 | no |
-| 31 | h3 | Refactoring Similarity Harness | 691 | 40006 | 129 | no |
-| 32 | h3 | Creator-Proxy Elaboration Harness (WWCD) | 703 | 40523 | 657 | no |
-| 33 | h2 | Supporting references | 741 | 43151 | 372 | no |
+| 4 | h2 | Mode patterns | 155 | 8872 | 1218 | yes |
+| 5 | h2 | Supporting references | 191 | 13742 | 372 | yes |
 
 ## References inventory
 
@@ -50,6 +22,34 @@ in SKILL.md itself or as an extracted card reachable from the router.
 |------|-------|-------|------------|
 | skills/fairy-tale/references/best-practices.md | 4257 | 97 | 1064 |
 | skills/fairy-tale/references/capabilities.md | 16561 | 385 | 4140 |
+| skills/fairy-tale/references/cards/accessible-genius-method-router.md | 1688 | 28 | 422 |
+| skills/fairy-tale/references/cards/benchmark-delta-harness.md | 1599 | 26 | 400 |
+| skills/fairy-tale/references/cards/best-practice-gate.md | 402 | 9 | 100 |
+| skills/fairy-tale/references/cards/bio-health-safety-harness.md | 428 | 10 | 107 |
+| skills/fairy-tale/references/cards/closure-negative-space-and-excess-discovery-harness.md | 3018 | 46 | 754 |
+| skills/fairy-tale/references/cards/creator-proxy-elaboration-harness-wwcd.md | 2626 | 38 | 656 |
+| skills/fairy-tale/references/cards/cyber-frontier-defense-harness.md | 1011 | 20 | 253 |
+| skills/fairy-tale/references/cards/domain-router.md | 944 | 17 | 236 |
+| skills/fairy-tale/references/cards/effort-inversion-debugger.md | 843 | 16 | 211 |
+| skills/fairy-tale/references/cards/evaluated-feedback-loop.md | 1696 | 27 | 424 |
+| skills/fairy-tale/references/cards/evidence-table-harness.md | 293 | 7 | 73 |
+| skills/fairy-tale/references/cards/external-reconstruction-adapter-harness.md | 572 | 12 | 143 |
+| skills/fairy-tale/references/cards/fable-harness-long-coding-or-migration-tasks.md | 264 | 8 | 66 |
+| skills/fairy-tale/references/cards/fairy-fusion-harness.md | 1685 | 28 | 421 |
+| skills/fairy-tale/references/cards/general-e2e-completion-harness.md | 2030 | 30 | 508 |
+| skills/fairy-tale/references/cards/generalization-and-latent-structure-harness-hidden-rules-executable-models-and-tacit-intent.md | 3350 | 50 | 838 |
+| skills/fairy-tale/references/cards/high-signal-research-synthesis.md | 238 | 7 | 60 |
+| skills/fairy-tale/references/cards/implementation-validation-gate.md | 2537 | 41 | 634 |
+| skills/fairy-tale/references/cards/knowledge-crystallization-harness.md | 415 | 10 | 104 |
+| skills/fairy-tale/references/cards/legal-reasoning-harness.md | 596 | 12 | 149 |
+| skills/fairy-tale/references/cards/loop-engineering-and-job-automation-harness.md | 3484 | 53 | 871 |
+| skills/fairy-tale/references/cards/mechanism-grammar-harness-arc-style-hidden-rule-discovery.md | 636 | 13 | 159 |
+| skills/fairy-tale/references/cards/mythos-defensive-harness.md | 349 | 9 | 87 |
+| skills/fairy-tale/references/cards/narrative-empathy-harness-prose-conversation-and-ui-feel.md | 772 | 14 | 193 |
+| skills/fairy-tale/references/cards/refactoring-similarity-harness.md | 515 | 12 | 129 |
+| skills/fairy-tale/references/cards/spatial-forge-harness-3d-cad-and-simulation-work.md | 932 | 16 | 233 |
+| skills/fairy-tale/references/cards/steady-behavior-harness.md | 761 | 14 | 190 |
+| skills/fairy-tale/references/cards/workflow-self-improvement.md | 521 | 11 | 130 |
 | skills/fairy-tale/references/creator-proxy-elaboration.md | 5082 | 78 | 1270 |
 | skills/fairy-tale/references/feedback-governance.md | 4515 | 123 | 1129 |
 | skills/fairy-tale/references/general-e2e-completion.md | 6580 | 102 | 1645 |
