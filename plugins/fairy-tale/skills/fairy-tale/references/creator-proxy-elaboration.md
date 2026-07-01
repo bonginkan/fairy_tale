@@ -43,21 +43,30 @@ Every pass is recorded as a `creator-proxy-elaboration-ledger`
 (`schemas/creator-proxy-elaboration-ledger.schema.json`). The checker fails (RED) on:
 
 1. **Authority delegation** — `authority_decision.basis` is not one of
-   `verified_identity_sender_id | existing_policy_allowlist | not_applicable`, or its `note`
-   rests permission on creator intent ("the creator would approve"). Authority is decided
-   from identity/policy only, in a field separate from the intent hypothesis.
-2. **Evidence** — a cited evidence entry lacks a *concrete* `ref` (a tier name alone is not
-   evidence); a `high` confidence inference lacks any artifact stronger than `style_hints`;
-   memory / home config / private notes used without existing permission+scope.
+   `verified_identity_sender_id | existing_policy_allowlist | not_applicable`; its `note`
+   rests permission on the creator + any approve-synonym ("the creator would
+   approve/sign-off/greenlight/…"); a permission decision lacks a concrete `evidence_ref`,
+   or the ref is a display name rather than an unforgeable id / policy locator;
+   `not_applicable` with `permitted=true`; or a high-risk action decided as `not_applicable`
+   instead of by identity/policy. Authority is judged from identity/policy only, separate
+   from the intent hypothesis.
+2. **Evidence** — a cited `ref` is not *concrete* (a tier name alone) or does not RESOLVE (a
+   `file:line` past the file's end); a `high` confidence inference lacks any artifact
+   stronger than `style_hints`; a memory / home-config / private-notes ref used without
+   existing permission+scope.
 3. **Relayer separation** — a missing `relayer_request` / `inferred_creator_goal` /
-   `conflict_flag`; a relayer/creator conflict without a concrete `rejected_relayer_pull`.
-4. **Escalation** — low confidence OR high stakes OR conflict without
+   `conflict_flag`; a relayer/creator conflict without a concrete `rejected_relayer_pull`; a
+   relayer request that asks to bypass a safety gate (skip review/ci, waive, override,
+   straight to prod) self-declared `conflict_flag=false`.
+4. **Escalation** — low confidence OR high stakes OR conflict OR a high-risk action surface
+   (prod/deploy/access/secret/merge/review-skip/…) self-labeled below high stakes, without
    `escalation.action = surface_or_confirm`.
 5. **Belief→behavior** — `action.cited_principle_id` does not resolve to a
-   `cited_evidence[].id`.
+   `cited_evidence[].id`, or resolves to a `style_hints` entry (a style hint cannot be the
+   principle a decision is bound to).
 
-Run `python3 scripts/creator_proxy_elaboration_check.py --selftest` to exercise one GREEN
-baseline and one RED per gate.
+Run `python3 scripts/creator_proxy_elaboration_check.py --selftest` (1 GREEN baseline + 19
+RED gate cases).
 
 ## Dogfood protocol (tri-agent)
 

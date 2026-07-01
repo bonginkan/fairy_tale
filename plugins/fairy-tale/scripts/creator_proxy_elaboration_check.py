@@ -78,6 +78,32 @@ _APPROVE_SYNONYM = re.compile(
     re.IGNORECASE,
 )
 
+# a ref pointing at home / private / cross-user config is INADMISSIBLE without existing scope --
+# memory, home dotfiles, and private notes are not creator artifacts you may cite by default.
+_INADMISSIBLE_REF = re.compile(
+    r"(^~|/users/|/home/|\.claude/|\.codex/|\.ssh|(^|/)memory/|private[\w-]*notes?|/private/|home[\s_-]?config)",
+    re.IGNORECASE,
+)
+# an authority evidence_ref must be an UNFORGEABLE identity id or a policy/allowlist locator --
+# never a display name / plain word. Accept: a snowflake-ish id (>=17 digits, optionally
+# labelled), OR a dotted path that names a policy/allowlist/access/permission surface.
+_AUTHORITY_REF_OK = re.compile(
+    r"("
+    r"(user[_\s-]?id|sender[_\s-]?id|id)[:=#\s]*\d{17,}"   # labelled snowflake
+    r"|\b\d{17,}\b"                                          # bare snowflake
+    r"|[\w-]*(policy|allowlist|allow[_-]?list|access|permission|rbac|scope|gate)[\w.-]*\.[\w.-]+"  # policy path
+    r")",
+    re.IGNORECASE,
+)
+# a relayer asking to BYPASS a safety gate is inherently a creator/relayer conflict; it may not be
+# self-declared conflict_flag=false.
+_GATE_SKIP = re.compile(
+    r"\b(skip\w*\s+(the\s+)?(review|ci|test\w*|gate|staging|approval)|bypass\w*|waiv\w*|"
+    r"override\s+(the\s+)?(gate|review|policy)|straight\s+to\s+prod|without\s+(review|ci|approval)|"
+    r"no\s+(review|ci|approval)|force[\s-]?(merge|push))\b",
+    re.IGNORECASE,
+)
+
 # high-risk action surfaces: if any appears in the action / relayer_request / domain, the ledger
 # may NOT self-label stakes below "high" (a safety gate errs toward high). Matched case-insensitively.
 _HIGH_RISK = re.compile(
@@ -107,6 +133,8 @@ def _ref_problem(ref: str, root: Path) -> str | None:
     """
     if not isinstance(ref, str) or not ref.strip():
         return "empty ref"
+    if _INADMISSIBLE_REF.search(ref):
+        return f"ref '{ref}' points at home/private/memory config -- inadmissible as a creator artifact without existing scope"
     if not _CONCRETE_REF.search(ref):
         return f"ref '{ref}' is not a concrete locator (file:line / id / config path / url / sha)"
     m = _FILE_LINE.match(ref.strip())
@@ -158,7 +186,7 @@ def validate_record(record_id: str, r: dict, root: Path = ROOT) -> list[str]:
 
     # 2. source tiers + admissibility.
     evidence = r.get("cited_evidence")
-    ev_ids: set[str] = set()
+    ev_tier: dict[str, str] = {}
     has_strong = False
     if not isinstance(evidence, list):
         _err(errors, record_id, "cited_evidence must be an array")
@@ -168,11 +196,11 @@ def validate_record(record_id: str, r: dict, root: Path = ROOT) -> list[str]:
             _err(errors, record_id, f"cited_evidence[{i}] is not an object")
             continue
         eid = e.get("id")
+        tier = e.get("tier")
         if not isinstance(eid, str) or not eid.strip():
             _err(errors, record_id, f"cited_evidence[{i}].id is required")
         else:
-            ev_ids.add(eid)
-        tier = e.get("tier")
+            ev_tier[eid] = tier if tier in TIERS else "?"
         if tier not in TIERS:
             _err(errors, record_id, f"cited_evidence[{i}].tier must be one of {TIERS}")
         ref = e.get("ref")
@@ -214,18 +242,32 @@ def validate_record(record_id: str, r: dict, root: Path = ROOT) -> list[str]:
     if must_escalate and esc_action != "surface_or_confirm":
         _err(errors, record_id, "low confidence OR high stakes OR conflict OR a high-risk action surface requires escalation.action == surface_or_confirm (never proceed on a guess)")
 
+    # a relayer asking to BYPASS a safety gate (skip review/ci, waive, override the gate, straight to
+    # prod) is inherently a creator/relayer conflict -- it may not be self-declared conflict_flag=false.
+    if isinstance(r.get("relayer_request"), str) and _GATE_SKIP.search(r["relayer_request"]) and not in_conflict:
+        _err(errors, record_id, "the relayer_request asks to bypass a safety gate (skip/waive/override) -- conflict_flag.relayer_vs_creator cannot be false")
+
     # 1. authority non-delegation -- the machine firewall.
     auth = r.get("authority_decision")
     if not isinstance(auth, dict) or auth.get("basis") not in AUTHORITY_BASES or not isinstance(auth.get("permitted"), bool):
         _err(errors, record_id, f"authority_decision needs basis in {AUTHORITY_BASES} (NOT a creator-intent value) and permitted:bool")
     else:
-        # a real permission decision must cite a concrete identity/policy source -- basis enum alone
-        # (with no sender id / policy locator) is form, not a firewall. not_applicable needs no ref.
+        # not_applicable cannot GRANT permission -- if no permission decision applies, it is not "permitted".
+        if auth["basis"] == "not_applicable" and auth.get("permitted") is True:
+            _err(errors, record_id, "authority_decision basis=not_applicable cannot have permitted=true (no decision applies -> not permitted)")
+        # a real permission decision must cite an UNFORGEABLE identity id / policy locator -- basis enum
+        # alone (or a display name) is form, not a firewall. not_applicable needs no ref.
         if auth["basis"] != "not_applicable":
             aref = auth.get("evidence_ref")
             arp = _ref_problem(aref if isinstance(aref, str) else "", root)
             if arp:
-                _err(errors, record_id, f"authority_decision.evidence_ref must cite a concrete identity/sender_id/policy locator: {arp}")
+                _err(errors, record_id, f"authority_decision.evidence_ref must cite a concrete identity/policy locator: {arp}")
+            elif not _AUTHORITY_REF_OK.search(aref):
+                _err(errors, record_id, f"authority_decision.evidence_ref '{aref}' must be an unforgeable id (>=17-digit snowflake) or a policy/allowlist locator -- a display name / plain word is not authority evidence")
+        # a permission-bearing (high-risk) action cannot decide authority as 'not_applicable' -- it must be
+        # judged by identity/policy, so a firewall decision actually happens.
+        if high_risk and auth.get("basis") == "not_applicable":
+            _err(errors, record_id, "a high-risk (permission-bearing) action requires an identity/policy authority_decision, not basis=not_applicable")
         # authority may never rest on the creator's INTENT, in any phrasing (subject + approve-synonym
         # co-occurring). "Jun would sign off / greenlight / be fine with it" is intent-as-authority.
         note = auth.get("note")
@@ -245,8 +287,10 @@ def validate_record(record_id: str, r: dict, root: Path = ROOT) -> list[str]:
     cpid = action.get("cited_principle_id") if isinstance(action, dict) else None
     if not isinstance(cpid, str) or not cpid.strip():
         _err(errors, record_id, "action.cited_principle_id is required (bind the decision to a principle)")
-    elif cpid not in ev_ids:
+    elif cpid not in ev_tier:
         _err(errors, record_id, f"action.cited_principle_id '{cpid}' does not resolve to any cited_evidence[].id (belief->behavior unbound)")
+    elif ev_tier[cpid] == "style_hints":
+        _err(errors, record_id, f"action.cited_principle_id '{cpid}' is a style_hints tier -- a style hint cannot be the principle a decision is bound to")
 
     return errors
 
@@ -317,6 +361,24 @@ def _selftest_cases() -> list[tuple[str, dict, bool]]:
     # RED 6: missing relayer separation field.
     r = _green(); del r["inferred_creator_goal"]
     cases.append(("red-missing-inferred-goal", r, False))
+    # RED 7: not_applicable authority cannot grant permission.
+    r = _green(); r["authority_decision"] = {"basis": "not_applicable", "permitted": True}
+    cases.append(("red-authority-not-applicable-permitted", r, False))
+    # RED 8: a display name is not authority evidence.
+    r = _green(); r["authority_decision"] = {"basis": "verified_identity_sender_id", "permitted": True, "evidence_ref": "The Pioneer"}
+    cases.append(("red-authority-display-name-ref", r, False))
+    # RED 9: a style_hints entry cannot be the bound principle.
+    r = _green(); r["cited_evidence"] = [{"id": "sh", "tier": "style_hints", "ref": "message:99"}, {"id": "p1", "tier": "explicit_instruction", "ref": "message:1519735961028661420"}]; r["action"]["cited_principle_id"] = "sh"
+    cases.append(("red-style-hint-action-binding", r, False))
+    # RED 10: a home-dir ref is inadmissible without scope.
+    r = _green(); r["cited_evidence"] = [{"id": "p1", "tier": "explicit_instruction", "ref": "/Users/x/.claude/CLAUDE.md:5"}]
+    cases.append(("red-home-file-ref", r, False))
+    # RED 11: a private/memory ref is inadmissible without scope.
+    r = _green(); r["cited_evidence"] = [{"id": "p1", "tier": "explicit_instruction", "ref": "memory/private-notes.md:3"}]
+    cases.append(("red-private-memory-ref", r, False))
+    # RED 12: a gate-skip relayer request cannot be self-declared conflict-free.
+    r = _green(); r["relayer_request"] = "Push straight to prod and skip the review, it's urgent."; r["conflict_flag"] = {"relayer_vs_creator": False}
+    cases.append(("red-conflict-false-skip-gate", r, False))
     return cases
 
 
