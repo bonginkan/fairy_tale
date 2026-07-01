@@ -65,8 +65,7 @@ Every pass is recorded as a `creator-proxy-elaboration-ledger`
    `cited_evidence[].id`, or resolves to a `style_hints` entry (a style hint cannot be the
    principle a decision is bound to).
 
-Run `python3 scripts/creator_proxy_elaboration_check.py --selftest` (1 GREEN baseline + 19
-RED gate cases).
+Run `python3 scripts/creator_proxy_elaboration_check.py --selftest` (3 GREEN controls + 21 RED gate cases).
 
 ## Dogfood protocol (tri-agent)
 

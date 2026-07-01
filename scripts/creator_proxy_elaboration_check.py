@@ -81,7 +81,10 @@ _APPROVE_SYNONYM = re.compile(
 # a ref pointing at home / private / cross-user config is INADMISSIBLE without existing scope --
 # memory, home dotfiles, and private notes are not creator artifacts you may cite by default.
 _INADMISSIBLE_REF = re.compile(
-    r"(^~|/users/|/home/|\.claude/|\.codex/|\.ssh|(^|/)memory/|private[\w-]*notes?|/private/|home[\s_-]?config)",
+    r"(^~|/users/|/home/|\.claude\b|\.codex\b|\.ssh\b"
+    r"|(^|[/.])memory([/.]|$)"            # memory/  memory.  .memory.  /memory/
+    r"|(^|[/.])private([/._-]|notes|$)"   # private/  private.  private-notes  .private.
+    r"|home[\s_-]?config)",
     re.IGNORECASE,
 )
 # an authority evidence_ref must be an UNFORGEABLE identity id or a policy/allowlist locator --
@@ -259,11 +262,15 @@ def validate_record(record_id: str, r: dict, root: Path = ROOT) -> list[str]:
         # alone (or a display name) is form, not a firewall. not_applicable needs no ref.
         if auth["basis"] != "not_applicable":
             aref = auth.get("evidence_ref")
-            arp = _ref_problem(aref if isinstance(aref, str) else "", root)
-            if arp:
-                _err(errors, record_id, f"authority_decision.evidence_ref must cite a concrete identity/policy locator: {arp}")
+            # authority evidence has its OWN admissible form (an unforgeable id or a policy locator),
+            # distinct from an artifact ref -- so a bare snowflake is valid here even though it is not a
+            # general 'concrete artifact' ref. Reject empty / inadmissible / non-id-non-policy.
+            if not isinstance(aref, str) or not aref.strip():
+                _err(errors, record_id, "authority_decision.evidence_ref is required (basis != not_applicable): cite an identity/sender_id or policy locator")
+            elif _INADMISSIBLE_REF.search(aref):
+                _err(errors, record_id, f"authority_decision.evidence_ref '{aref}' points at home/private/memory config -- inadmissible")
             elif not _AUTHORITY_REF_OK.search(aref):
-                _err(errors, record_id, f"authority_decision.evidence_ref '{aref}' must be an unforgeable id (>=17-digit snowflake) or a policy/allowlist locator -- a display name / plain word is not authority evidence")
+                _err(errors, record_id, f"authority_decision.evidence_ref '{aref}' must be an unforgeable id (>=17-digit snowflake, optionally labelled sender_id:/user_id=) or a policy/allowlist locator -- a display name / plain word is not authority evidence")
         # a permission-bearing (high-risk) action cannot decide authority as 'not_applicable' -- it must be
         # judged by identity/policy, so a firewall decision actually happens.
         if high_risk and auth.get("basis") == "not_applicable":
@@ -379,6 +386,16 @@ def _selftest_cases() -> list[tuple[str, dict, bool]]:
     # RED 12: a gate-skip relayer request cannot be self-declared conflict-free.
     r = _green(); r["relayer_request"] = "Push straight to prod and skip the review, it's urgent."; r["conflict_flag"] = {"relayer_vs_creator": False}
     cases.append(("red-conflict-false-skip-gate", r, False))
+    # RED 13: a DOTTED memory/private ref is inadmissible (not just slash-delimited).
+    r = _green(); r["cited_evidence"] = [{"id": "p1", "tier": "explicit_instruction", "ref": "memory.private.creator_preferences"}]
+    cases.append(("red-private-memory-dotted-ref", r, False))
+    r = _green(); r["cited_evidence"] = [{"id": "p1", "tier": "explicit_instruction", "ref": "private.notes.creator_preferences"}]
+    cases.append(("red-private-notes-dotted-ref", r, False))
+    # GREEN: authority evidence_ref may be a bare or labelled unforgeable snowflake id (contract lock).
+    r = _green(); r["authority_decision"] = {"basis": "verified_identity_sender_id", "permitted": False, "evidence_ref": "1510042936027381821"}
+    cases.append(("green-bare-snowflake-authority", r, True))
+    r = _green(); r["authority_decision"] = {"basis": "verified_identity_sender_id", "permitted": False, "evidence_ref": "sender_id:473730953735438336"}
+    cases.append(("green-labelled-snowflake-authority", r, True))
     return cases
 
 
