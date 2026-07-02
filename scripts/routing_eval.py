@@ -66,7 +66,16 @@ MIN_SINGLE_CARD = 8
 MIN_MULTI_CARD = 1
 
 # Substrings that must never appear in a case prompt (answer leakage).
-LEAK_MARKERS = ("expected_cards", "references/cards/", "risk_tag", "negative_control")
+# All schema field names are markers: a prompt carrying "category:" or
+# "rationale:" style labels would hand the solver judge-side metadata.
+LEAK_MARKERS = (
+    "expected_cards",
+    "references/cards/",
+    "risk_tag",
+    "negative_control",
+    "category",
+    "rationale",
+)
 
 ROUTER_INSTRUCTION = (
     "You are the routing layer for the Fairy Tale skill. The full skill text "
@@ -383,9 +392,41 @@ def git_head(path: Path) -> str:
     return completed.stdout.strip() if completed.returncode == 0 else "unavailable"
 
 
+def eval_inputs_dirty() -> list[str]:
+    """Uncommitted changes to eval-relevant files; ledger provenance would lie."""
+    completed = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(REPO_ROOT),
+            "status",
+            "--porcelain",
+            "--",
+            "fixtures/routing-eval",
+            "scripts/routing_eval.py",
+            "skills/fairy-tale/SKILL.md",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+        timeout=10,
+    )
+    return [line for line in completed.stdout.splitlines() if line.strip()]
+
+
 def run_eval(args: argparse.Namespace) -> int:
     if not os.environ.get("CLAUDE_CODE_OAUTH_TOKEN", "").strip():
         print("RED: CLAUDE_CODE_OAUTH_TOKEN is required for --run", file=sys.stderr)
+        return 1
+    dirty = eval_inputs_dirty()
+    if dirty:
+        print(
+            "RED: eval inputs have uncommitted changes; the ledger's repo_commit "
+            "would not contain what actually ran. Commit first:",
+            file=sys.stderr,
+        )
+        for line in dirty:
+            print(f"  {line}", file=sys.stderr)
         return 1
     raw = CASES_PATH.read_text(encoding="utf-8")
     cases, errors = validate_cases(raw.splitlines(), SKILL_DIR)
@@ -436,6 +477,7 @@ def run_eval(args: argparse.Namespace) -> int:
             "skill_md_sha256": sha256_bytes(skill_bytes),
             "cases_sha256": sha256_bytes(raw.encode("utf-8")),
             "repo_commit": git_head(REPO_ROOT),
+            "eval_inputs_committed_at_repo_commit": True,
             "isolation": {
                 "setting_sources": "",
                 "tools": "",
@@ -535,6 +577,14 @@ def selftest() -> int:
         [case(prompt="Review this. review routes to a card")], SKILL_DIR
     )
     check("rationale leakage in prompt is RED", bool(errs))
+    _, errs = validate_cases(
+        [case(prompt="Review this diff. category: review_refactor")], SKILL_DIR
+    )
+    check("category label leakage in prompt is RED", bool(errs))
+    _, errs = validate_cases(
+        [case(prompt="Review this diff. rationale: it should route somewhere")], SKILL_DIR
+    )
+    check("rationale label leakage in prompt is RED", bool(errs))
     line = json.loads(case())
     line["hint"] = "extra"
     _, errs = validate_cases([json.dumps(line)], SKILL_DIR)
