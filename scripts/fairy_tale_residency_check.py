@@ -29,7 +29,9 @@ SKILL_MARKERS = {
         "spiral engineering",
         "double-helix learning loops",
         "evolutionary spiral operators",
-        "cross-channel loop command",
+        # "cross-channel loop command" lived only in the pre-#58 description;
+        # the loop-command surface is asserted via the card's own wording.
+        "coordinate multiple loops across channels",
         "silent-loop auto-resume",
         "Do Not Disturb",
         "Usage-Aware Multi-Agent Load Balancer",
@@ -469,21 +471,11 @@ def compare_tree(canonical: Path, copy: Path) -> str | None:
 
 
 def check_skill_file(checks: list[Check], root: Path, skill: str) -> None:
-    path = ROOT / root / skill / "SKILL.md"
-    text = read_text(path)
+    text = skill_text_with_cards(ROOT / root / skill)
     label = f"{root}/{skill}"
     if text is None:
         add(checks, "FAIL", label, "missing SKILL.md")
         return
-
-    # Mode-pattern harness bodies live in router-referenced cards since the
-    # #57 restructure; markers are checked across SKILL.md + its cards.
-    cards_dir = ROOT / root / skill / "references" / "cards"
-    if cards_dir.is_dir():
-        for card in sorted(cards_dir.glob("*.md")):
-            card_text = read_text(card)
-            if card_text:
-                text += "\n" + card_text
 
     markers = SKILL_MARKERS[skill]
     missing = [marker for marker in markers if marker not in text]
@@ -578,11 +570,26 @@ def check_standing_instruction(checks: list[Check]) -> None:
         )
 
 
+def skill_text_with_cards(skill_dir: Path) -> str | None:
+    """SKILL.md text plus its router-referenced card bodies. Mode-pattern
+    harness bodies live in references/cards/ since the #57 restructure, so
+    marker checks must scan SKILL.md + cards together."""
+    text = read_text(skill_dir / "SKILL.md")
+    if text is None:
+        return None
+    cards_dir = skill_dir / "references" / "cards"
+    if cards_dir.is_dir():
+        for card in sorted(cards_dir.glob("*.md")):
+            card_text = read_text(card)
+            if card_text:
+                text += "\n" + card_text
+    return text
+
+
 def check_installed_root(checks: list[Check], root: Path, strict: bool) -> None:
     status_if_missing = "FAIL" if strict else "WARN"
     for skill in REQUIRED_SKILLS:
-        path = root / skill / "SKILL.md"
-        text = read_text(path)
+        text = skill_text_with_cards(root / skill)
         label = f"installed {root}/{skill}"
         if text is None:
             add(checks, status_if_missing, label, "not installed")
@@ -665,7 +672,7 @@ def inject_residency() -> int:
     skills_root = ROOT / "skills"
     degraded: list[str] = []
     for skill in REQUIRED_SKILLS:
-        text = read_text(skills_root / skill / "SKILL.md")
+        text = skill_text_with_cards(skills_root / skill)
         if text is None:
             degraded.append(f"{skill}: missing")
             continue

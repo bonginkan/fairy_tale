@@ -1,6 +1,6 @@
 ---
 name: fairy-tale-benchmark-feedback
-description: Apply evaluated feedback from SWE-Bench Pro, HLE-style closed-ended tasks, and defensive ExploitBench sandbox runs by classifying measured misses and observed success practices, adding narrow reusable rules, pruning contradictions, and retrying held-out samples without benchmark-specific hardcoding.
+description: Apply measured benchmark feedback from SWE-Bench Pro, HLE-style closed-ended tasks, and defensive ExploitBench runs: classify misses, add narrow reusable rules, prune contradictions, and retry held-out samples without benchmark-specific hardcoding.
 ---
 
 # Fairy Tale Benchmark Feedback
