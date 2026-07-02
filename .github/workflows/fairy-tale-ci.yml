@@ -41,6 +41,12 @@ jobs:
         run: python3 scripts/skill_listing_overhead_check.py --selftest
       - name: Skill listing overhead gate (budgets + recall floor + hook floor)
         run: python3 scripts/skill_listing_overhead_check.py --enforce
+      - name: Routing eval judge/validator gate (self-controls)
+        # LLM runs stay manual (nondeterministic + credentialed); CI pins the
+        # fixture schema/distribution/leakage checks and judge red-locks only.
+        run: python3 scripts/routing_eval.py --selftest
+      - name: Routing eval fixture validation
+        run: python3 scripts/routing_eval.py --validate
       - name: Spiral revolution exercise gate (self-controls)
         run: python3 scripts/spiral_revolution_check.py --selftest
       - name: Spiral revolution exercise gate (records)
