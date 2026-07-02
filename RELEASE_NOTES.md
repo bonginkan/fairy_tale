@@ -1,5 +1,18 @@
 # Release Notes
 
+## 0.2.19
+
+- **process.md per-record split (#57 WI3)**: the 49 record templates in
+  `references/process.md` moved byte-identically into
+  `references/process/<slug>.md`; process.md is now a 7.5KB index (was
+  55.8KB), so a task loads only the record it needs. Shares the
+  byte-preserving extraction/verify core with the mode-pattern split
+  (snapshot + byte-range/sha256 manifest, repo-relative paths, `--verify`
+  in CI); mode-card guarantees unchanged (28/28). New `process_index`
+  gate (dangling/orphan/duplicate RED), process records in the two-way
+  inventory parity, and residency markers scanned across the index +
+  records.
+
 ## 0.2.18
 
 - **Listing-overhead reduction (#58 Increment 3)**: skill descriptions slimmed

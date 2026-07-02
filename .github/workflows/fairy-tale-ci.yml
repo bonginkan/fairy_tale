@@ -35,6 +35,8 @@ jobs:
           --enforce
       - name: Card extraction byte-parity verify
         run: python3 scripts/extract_mode_pattern_cards.py --verify
+      - name: Process record byte-parity verify
+        run: python3 scripts/extract_process_records.py --verify
       - name: Skill listing overhead gate (self-controls)
         run: python3 scripts/skill_listing_overhead_check.py --selftest
       - name: Skill listing overhead gate (budgets + recall floor + hook floor)
