@@ -476,6 +476,15 @@ def check_skill_file(checks: list[Check], root: Path, skill: str) -> None:
         add(checks, "FAIL", label, "missing SKILL.md")
         return
 
+    # Mode-pattern harness bodies live in router-referenced cards since the
+    # #57 restructure; markers are checked across SKILL.md + its cards.
+    cards_dir = ROOT / root / skill / "references" / "cards"
+    if cards_dir.is_dir():
+        for card in sorted(cards_dir.glob("*.md")):
+            card_text = read_text(card)
+            if card_text:
+                text += "\n" + card_text
+
     markers = SKILL_MARKERS[skill]
     missing = [marker for marker in markers if marker not in text]
     if missing:

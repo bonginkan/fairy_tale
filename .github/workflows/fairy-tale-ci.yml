@@ -25,14 +25,16 @@ jobs:
         run: python3 scripts/install_smoke_test.py
       - name: Skill token budget gate (self-controls)
         run: python3 scripts/skill_token_budget_check.py --selftest
-      - name: Skill token budget baseline + section-inventory parity
-        # Full --enforce turns on after the #57 router restructure lands; until
-        # then the 500-line breach is the documented baseline RED and only the
-        # inventory-parity gate (silent section drops) fails the build.
+      - name: Skill token budget full enforcement (post-#57 restructure)
+        # All gates fail-closed: line budget, compaction-safe head anchors,
+        # router-table containment, router/card integrity, and two-way
+        # section+card inventory parity.
         run: >-
           python3 scripts/skill_token_budget_check.py
           --inventory-compare docs/skill-budget/skill-section-inventory.json
-          --enforce-checks inventory_parity
+          --enforce
+      - name: Card extraction byte-parity verify
+        run: python3 scripts/extract_mode_pattern_cards.py --verify
       - name: Spiral revolution exercise gate (self-controls)
         run: python3 scripts/spiral_revolution_check.py --selftest
       - name: Spiral revolution exercise gate (records)

@@ -83,6 +83,7 @@ ROUTER_SECTION_CANDIDATES = (
 )
 
 HEADING_RE = re.compile(r"^(#{2,3})\s+(.*)$")
+CARD_REF_RE = re.compile(r"`(references/cards/[a-z0-9\-]+\.md)`")
 
 
 @dataclass
@@ -170,11 +171,23 @@ def router_table_end(sections: list[Section], router: Section) -> int:
     return router.byte_end
 
 
+def card_titles(cards_dir: Path | None) -> dict[str, str]:
+    """Map card relative path -> card h1 title for every *.md in cards_dir."""
+    titles: dict[str, str] = {}
+    if cards_dir and cards_dir.is_dir():
+        for card in sorted(cards_dir.glob("*.md")):
+            first_line = card.read_text(encoding="utf-8").split("\n", 1)[0]
+            if first_line.startswith("# "):
+                titles[f"references/cards/{card.name}"] = first_line[2:].strip()
+    return titles
+
+
 def build_report(
     skill_md: Path,
     max_lines: int,
     head_token_budget: int,
     inventory_compare: Path | None,
+    cards_dir: Path | None = None,
 ) -> Report:
     data = skill_md.read_bytes()
     text = data.decode("utf-8", errors="replace")
@@ -270,6 +283,35 @@ def build_report(
                 )
             )
 
+    # C5 router/card integrity (active when a cards dir or card refs exist)
+    refs = CARD_REF_RE.findall(text)
+    known_cards = card_titles(cards_dir)
+    if refs or known_cards:
+        problems5: list[str] = []
+        dangling = [r for r in sorted(set(refs)) if r not in known_cards]
+        if dangling:
+            problems5.append("dangling router ref (no card file): " + "; ".join(dangling))
+        orphaned = [c for c in sorted(known_cards) if c not in set(refs)]
+        if orphaned:
+            problems5.append("orphan card (not referenced from SKILL.md): " + "; ".join(orphaned))
+        duplicates = sorted({r for r in refs if refs.count(r) > 1})
+        if duplicates:
+            problems5.append("card referenced more than once: " + "; ".join(duplicates))
+        if problems5:
+            report.checks.append(CheckResult("router_cards", "red", " | ".join(problems5)))
+        else:
+            report.checks.append(
+                CheckResult(
+                    "router_cards",
+                    "green",
+                    f"{len(set(refs))} router refs == {len(known_cards)} cards, no dangling/orphan/duplicate",
+                )
+            )
+    else:
+        report.checks.append(
+            CheckResult("router_cards", "skipped", "no cards dir and no card refs found")
+        )
+
     # C4 inventory parity
     if inventory_compare is None:
         report.checks.append(
@@ -283,26 +325,49 @@ def build_report(
         stored = json.loads(inventory_compare.read_text(encoding="utf-8"))
         stored_titles = [s["title"] for s in stored.get("sections", [])]
         current_titles = [s.title for s in sections]
-        dropped = [t for t in stored_titles if t not in set(current_titles)]
+        referenced_card_titles = {
+            title for path, title in card_titles(cards_dir).items() if path in set(refs)
+        } if (refs or known_cards) else set()
+        dropped = [
+            t
+            for t in stored_titles
+            if t not in set(current_titles) and t not in referenced_card_titles
+        ]
+        card_resolved = [
+            t for t in stored_titles if t not in set(current_titles) and t in referenced_card_titles
+        ]
         untracked = [t for t in current_titles if t not in set(stored_titles)]
         problems: list[str] = []
         if dropped:
-            problems.append("dropped vs stored inventory: " + "; ".join(dropped))
+            problems.append(
+                "dropped vs stored inventory (no SKILL.md heading, no router-referenced card): "
+                + "; ".join(dropped)
+            )
         if untracked:
             problems.append(
                 "present but not in stored inventory (regenerate with --write-inventory): "
                 + "; ".join(untracked)
             )
+        stored_cards = [c["path"] for c in stored.get("cards", [])]
+        if stored_cards:
+            disk_cards = sorted(card_titles(cards_dir))
+            missing_cards = [c for c in stored_cards if c not in set(disk_cards)]
+            new_cards = [c for c in disk_cards if c not in set(stored_cards)]
+            if missing_cards:
+                problems.append("stored cards missing on disk: " + "; ".join(missing_cards))
+            if new_cards:
+                problems.append(
+                    "cards on disk not in stored inventory: " + "; ".join(new_cards)
+                )
         if problems:
             report.checks.append(CheckResult("inventory_parity", "red", " | ".join(problems)))
         else:
-            report.checks.append(
-                CheckResult(
-                    "inventory_parity",
-                    "green",
-                    f"exact two-way parity: {len(stored_titles)} stored == {len(current_titles)} current",
-                )
-            )
+            detail = f"two-way parity: {len(stored_titles)} stored sections resolved"
+            if card_resolved:
+                detail += f" ({len(card_resolved)} via router-referenced cards)"
+            if stored_cards:
+                detail += f"; {len(stored_cards)} cards two-way"
+            report.checks.append(CheckResult("inventory_parity", "green", detail))
     return report
 
 
@@ -322,7 +387,22 @@ def reference_inventory() -> list[dict]:
     return refs
 
 
-def write_inventory(report: Report, out_path: Path) -> None:
+def cards_inventory(cards_dir: Path | None) -> list[dict]:
+    rows = []
+    for path, title in sorted(card_titles(cards_dir).items()):
+        data = (DEFAULT_SKILL_MD.parent / path).read_bytes()
+        rows.append(
+            {
+                "path": path,
+                "title": title,
+                "bytes": len(data),
+                "est_tokens": round(len(data) / BYTES_PER_TOKEN),
+            }
+        )
+    return rows
+
+
+def write_inventory(report: Report, out_path: Path, cards_dir: Path | None = None) -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "purpose": (
@@ -342,6 +422,7 @@ def write_inventory(report: Report, out_path: Path) -> None:
             "head_token_budget": report.head_token_budget,
         },
         "sections": [asdict(s) for s in report.sections],
+        "cards": cards_inventory(cards_dir),
         "references": reference_inventory(),
     }
     out_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -439,7 +520,9 @@ def selftest() -> int:
 
         g = build_report(green, DEFAULT_MAX_LINES, DEFAULT_HEAD_TOKEN_BUDGET, None)
         for check in g.checks:
-            if check.check != "inventory_parity" and check.status != "green":
+            if check.check in {"inventory_parity", "router_cards"}:
+                continue  # skipped without compare path / cards dir in this fixture
+            if check.status != "green":
                 failures.append(f"green fixture: {check.check} = {check.status} ({check.detail})")
 
         r = build_report(red, DEFAULT_MAX_LINES, DEFAULT_HEAD_TOKEN_BUDGET, None)
@@ -494,6 +577,88 @@ def selftest() -> int:
         if not enforcement_failures(p_skip, False, "no_such_check"):
             failures.append("enforcement fixture: unknown check name did not fail")
 
+        # card-aware fixtures: router refs + cards dir
+        routed = Path(tmp) / "routed.md"
+        routed.write_text(
+            "## Non-negotiables\n\n- a\n\n## Residency Guard\n\n- b\n\n## Default workflow\n\n1. x\n\n"
+            "## Mode-pattern router\n\n| p | hint | `references/cards/alpha-harness.md` |\n\n"
+            "## Supporting references\n\n- refs\n",
+            encoding="utf-8",
+        )
+        cards = Path(tmp) / "cards"
+        cards.mkdir()
+        (cards / "alpha-harness.md").write_text("# Alpha Harness\n\n- body\n", encoding="utf-8")
+
+        # green: ref <-> card matched; old-section title resolves via card
+        inv_cardaware = Path(tmp) / "inv_cards.json"
+        inv_cardaware.write_text(
+            json.dumps(
+                {
+                    "sections": [
+                        {"title": t}
+                        for t in [
+                            "Non-negotiables",
+                            "Residency Guard",
+                            "Default workflow",
+                            "Mode-pattern router",
+                            "Supporting references",
+                            "Alpha Harness",  # moved section: resolves via router-referenced card
+                        ]
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+        rc_g = build_report(routed, DEFAULT_MAX_LINES, DEFAULT_HEAD_TOKEN_BUDGET, inv_cardaware, cards)
+        rc_map = {c.check: c for c in rc_g.checks}
+        if rc_map["router_cards"].status != "green":
+            failures.append(f"card fixture: matched ref/card not green ({rc_map['router_cards'].detail})")
+        if rc_map["inventory_parity"].status != "green":
+            failures.append(
+                f"card fixture: card-resolved section not green ({rc_map['inventory_parity'].detail})"
+            )
+
+        # red: dropped section with NO card
+        inv_dropped = Path(tmp) / "inv_dropped.json"
+        inv_dropped.write_text(
+            json.dumps({"sections": [{"title": "Non-negotiables"}, {"title": "Beta Harness"}]}),
+            encoding="utf-8",
+        )
+        rc_d = build_report(routed, DEFAULT_MAX_LINES, DEFAULT_HEAD_TOKEN_BUDGET, inv_dropped, cards)
+        parity_d = {c.check: c for c in rc_d.checks}["inventory_parity"]
+        if parity_d.status != "red" or "Beta Harness" not in parity_d.detail:
+            failures.append("card fixture: dropped section without card did not go red")
+
+        # red: dangling router ref
+        dangling_skill = Path(tmp) / "dangling.md"
+        dangling_skill.write_text(
+            routed.read_text(encoding="utf-8").replace("alpha-harness", "ghost-harness"),
+            encoding="utf-8",
+        )
+        rc_x = build_report(dangling_skill, DEFAULT_MAX_LINES, DEFAULT_HEAD_TOKEN_BUDGET, None, cards)
+        rx = {c.check: c for c in rc_x.checks}["router_cards"]
+        if rx.status != "red" or "dangling" not in rx.detail or "orphan" not in rx.detail:
+            failures.append("card fixture: dangling ref + orphan card did not go red")
+
+        # red: stored cards vs disk (card deleted later)
+        inv_with_cards = Path(tmp) / "inv_with_cards.json"
+        inv_with_cards.write_text(
+            json.dumps(
+                {
+                    "sections": [{"title": "Non-negotiables"}],
+                    "cards": [
+                        {"path": "references/cards/alpha-harness.md"},
+                        {"path": "references/cards/vanished-card.md"},
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        rc_v = build_report(routed, DEFAULT_MAX_LINES, DEFAULT_HEAD_TOKEN_BUDGET, inv_with_cards, cards)
+        pv = {c.check: c for c in rc_v.checks}["inventory_parity"]
+        if pv.status != "red" or "vanished-card" not in pv.detail:
+            failures.append("card fixture: stored card missing on disk did not go red")
+
         # head-window boundary: router table ending inside the 17,500-20,000
         # byte band (green under a 4.0 B/tok window, RED under the enforced
         # conservative 3.5 B/tok window)
@@ -544,6 +709,12 @@ def selftest() -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--skill-md", type=Path, default=DEFAULT_SKILL_MD)
+    parser.add_argument(
+        "--cards-dir",
+        type=Path,
+        default=DEFAULT_REFERENCES_DIR / "cards",
+        help="mode-pattern card directory for card-aware parity and router checks",
+    )
     parser.add_argument("--max-lines", type=int, default=DEFAULT_MAX_LINES)
     parser.add_argument("--head-token-budget", type=int, default=DEFAULT_HEAD_TOKEN_BUDGET)
     parser.add_argument("--enforce", action="store_true", help="exit 1 if any check is red")
@@ -568,10 +739,14 @@ def main() -> int:
         return 1
 
     report = build_report(
-        args.skill_md, args.max_lines, args.head_token_budget, args.inventory_compare
+        args.skill_md,
+        args.max_lines,
+        args.head_token_budget,
+        args.inventory_compare,
+        cards_dir=args.cards_dir,
     )
     if args.write_inventory:
-        write_inventory(report, args.write_inventory)
+        write_inventory(report, args.write_inventory, cards_dir=args.cards_dir)
         print(f"inventory written: {args.write_inventory} (+ .md)")
     if args.json:
         print(
