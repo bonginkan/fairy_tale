@@ -32,6 +32,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import re
 import sys
 import tempfile
@@ -166,6 +167,32 @@ def check_descriptions(skills_root: Path, results: list[tuple[str, str, str]]) -
             )
 
 
+VERSION_DIR_RE = re.compile(r"^\d+(\.\d+)*$")
+
+
+def plugin_version_key(path: Path) -> tuple[int, ...]:
+    """Semantic-version key from the version directory in a plugin cache path
+    (lexicographic path sort would rank 0.2.8 above 0.2.17). The LAST
+    version-shaped path part is the plugin version dir."""
+    key: tuple[int, ...] = ()
+    for part in path.parts:
+        if VERSION_DIR_RE.match(part):
+            key = tuple(int(x) for x in part.split("."))
+    return key
+
+
+def tree_digest(root: Path) -> dict[str, str]:
+    """Relative path -> sha256 for every file in the skill tree. Duplicates are
+    compared on the WHOLE tree (SKILL.md alone would misclassify a cards/
+    references divergence as stale)."""
+    digest: dict[str, str] = {}
+    for path in sorted(root.rglob("*")):
+        if not path.is_file() or path.name == ".local-override":
+            continue
+        digest[str(path.relative_to(root))] = hashlib.sha256(path.read_bytes()).hexdigest()
+    return digest
+
+
 def classify_duplicate(local_dir: Path, plugin_dir: Path) -> tuple[str, str]:
     """Returns (classification, detail). Never 'unclassified': any state that
     does not match a known classification is itself RED."""
@@ -174,21 +201,19 @@ def classify_duplicate(local_dir: Path, plugin_dir: Path) -> tuple[str, str]:
             "intentional-override",
             f"{local_dir} marked .local-override (allowed; plugin copy shadowed deliberately)",
         )
-    local_skill = local_dir / "SKILL.md"
-    plugin_skill = plugin_dir / "SKILL.md"
-    if not local_skill.exists() or not plugin_skill.exists():
+    if not (local_dir / "SKILL.md").exists() or not (plugin_dir / "SKILL.md").exists():
         return ("broken-duplicate", f"{local_dir} vs {plugin_dir}: SKILL.md missing on one side")
-    if local_skill.read_bytes() == plugin_skill.read_bytes():
+    if tree_digest(local_dir) == tree_digest(plugin_dir):
         return (
             "stale-duplicate",
-            f"{local_dir} byte-identical to plugin copy {plugin_dir}: keep exactly ONE "
+            f"{local_dir} tree-identical to plugin copy {plugin_dir}: keep exactly ONE "
             "registration (remove whichever install is not maintained on this host); the "
             "duplicate double-pays the skill-listing budget",
         )
     return (
         "diverged-duplicate",
-        f"{local_dir} differs from plugin copy {plugin_dir}: reconcile -- align both to the "
-        "current release and keep exactly one registration, or mark the local dir with "
+        f"{local_dir} tree differs from plugin copy {plugin_dir}: reconcile -- align both to "
+        "the current release and keep exactly one registration, or mark the local dir with "
         ".local-override if the divergence is deliberate",
     )
 
@@ -206,8 +231,9 @@ def check_duplicates(agent_homes: list[Path], results: list[tuple[str, str, str]
                 found_any = True
                 # Only the newest cached plugin version can be the live
                 # registration; older version dirs in the cache are not
-                # loaded and would only produce noise.
-                plugin_dir = plugin_dirs[-1]
+                # loaded and would only produce noise. Newest is selected by
+                # SEMANTIC version (0.2.17 > 0.2.8), never path sort.
+                plugin_dir = max(plugin_dirs, key=lambda p: (plugin_version_key(p), str(p)))
                 classification, detail = classify_duplicate(local_dir, plugin_dir)
                 status = "green" if classification == "intentional-override" else "red"
                 results.append(
@@ -321,6 +347,49 @@ def selftest() -> int:
             s == "red" for c, s, _ in r5 if c == "duplicate_registration"
         ):
             failures.append("intentional override not classified as allowed")
+
+        # RED (review round 1): semver selection — 0.2.17 must beat 0.2.8 even
+        # though lexicographic path sort ranks 0.2.8 higher. Local matches the
+        # OLD 0.2.8 copy, so comparing against the true newest (0.2.17, which
+        # differs) must classify DIVERGED, not stale.
+        semver_home = tmp_root / "semver-home"
+        make_skill(semver_home / "skills", "fairy-tale", "x")
+        old_plugin = semver_home / "plugins" / "cache" / "mp" / "ft" / "0.2.8" / "skills" / "fairy-tale"
+        new_plugin = semver_home / "plugins" / "cache" / "mp" / "ft" / "0.2.17" / "skills" / "fairy-tale"
+        old_plugin.mkdir(parents=True)
+        new_plugin.mkdir(parents=True)
+        (old_plugin / "SKILL.md").write_bytes(
+            (semver_home / "skills" / "fairy-tale" / "SKILL.md").read_bytes()
+        )
+        (new_plugin / "SKILL.md").write_text(
+            "---\nname: fairy-tale\ndescription: newer\n---\n", encoding="utf-8"
+        )
+        r_sv: list[tuple[str, str, str]] = []
+        check_duplicates([semver_home], r_sv)
+        sv = [d for c, s, d in r_sv if c == "duplicate_registration"]
+        if len(sv) != 1 or "diverged-duplicate" not in sv[0] or "0.2.17" not in sv[0]:
+            failures.append(
+                f"semver fixture: expected single diverged vs 0.2.17, got: {sv}"
+            )
+
+        # RED (review round 1): cards-tree divergence with identical SKILL.md
+        # must classify DIVERGED (whole-tree comparison), not stale.
+        cards_home = tmp_root / "cards-home"
+        make_skill(cards_home / "skills", "fairy-tale", "x")
+        cd_local = cards_home / "skills" / "fairy-tale"
+        (cd_local / "references" / "cards").mkdir(parents=True)
+        (cd_local / "references" / "cards" / "a.md").write_text("# A\n\nlocal\n", encoding="utf-8")
+        cd_plugin = cards_home / "plugins" / "cache" / "mp" / "ft" / "0.3.0" / "skills" / "fairy-tale"
+        (cd_plugin / "references" / "cards").mkdir(parents=True)
+        (cd_plugin / "SKILL.md").write_bytes((cd_local / "SKILL.md").read_bytes())
+        (cd_plugin / "references" / "cards" / "a.md").write_text(
+            "# A\n\nplugin\n", encoding="utf-8"
+        )
+        r_ct: list[tuple[str, str, str]] = []
+        check_duplicates([cards_home], r_ct)
+        ct = [d for c, s, d in r_ct if c == "duplicate_registration"]
+        if not ct or "diverged-duplicate" not in ct[0]:
+            failures.append("cards-tree fixture: cards divergence not classified diverged")
 
         # control: unrelated agent home is NOT scanned (no 3-host false positive)
         other_home = tmp_root / "other-home"
