@@ -1,6 +1,6 @@
 {
   "purpose": "Byte-preserving extraction manifest: each card body must equal the original SKILL.md byte range. Verify with --verify against the committed pre-extraction snapshot.",
-  "original_skill_md_snapshot": "/Users/thepioneer/Documents/GitHub/fairy_tale/docs/skill-budget/skill-md-pre-extraction-snapshot.md",
+  "original_skill_md_snapshot": "docs/skill-budget/skill-md-pre-extraction-snapshot.md",
   "skill_md_sha256": "562723a75e37f106aba573752bbfd0c4fc0f3712c7fa490ac0d8fca394b4f2a7",
   "new_skill_md_sha256": "60e4e4b4e16387c7e20fae1da202d3b71eb301ce671b7cd046d1046d73d514de",
   "router_preamble": "Route with the table below and read the linked card before applying a pattern; the cards are the canonical harness bodies.\n",

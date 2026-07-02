@@ -162,8 +162,12 @@ def build_outputs(data: bytes, extraction: dict) -> tuple[bytes, dict[str, bytes
 
 def do_verify(skill_md: Path, manifest_path: Path) -> int:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    original = Path(manifest["original_skill_md_snapshot"]).read_bytes()
     failures = []
+    snapshot_ref = Path(manifest["original_skill_md_snapshot"])
+    if snapshot_ref.is_absolute():
+        print(f"[VERIFY RED] manifest snapshot ref is an absolute local path: {snapshot_ref}")
+        return 1
+    original = (ROOT / snapshot_ref).read_bytes()
     if hashlib.sha256(original).hexdigest() != manifest["skill_md_sha256"]:
         failures.append("original snapshot sha mismatch vs manifest")
     for card in manifest["cards"]:
@@ -226,7 +230,7 @@ def main() -> int:
             "original SKILL.md byte range. Verify with --verify against the "
             "committed pre-extraction snapshot."
         ),
-        "original_skill_md_snapshot": str(snapshot),
+        "original_skill_md_snapshot": str(snapshot.relative_to(ROOT)),
         "skill_md_sha256": extraction["skill_md_sha256"],
         "new_skill_md_sha256": hashlib.sha256(new_skill).hexdigest(),
         "router_preamble": ROUTER_PREAMBLE,
