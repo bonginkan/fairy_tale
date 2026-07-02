@@ -194,7 +194,8 @@ def check_process_index(
     records_dir = records_dir or DEFAULT_PROCESS_DIR
     if not process_md.exists():
         return CheckResult("process_index", "red", f"missing index file: {process_md}")
-    refs = PROCESS_REF_RE.findall(process_md.read_text(encoding="utf-8"))
+    index_text = process_md.read_text(encoding="utf-8")
+    refs = PROCESS_REF_RE.findall(index_text)
     records = card_titles(records_dir, prefix="references/process")
     if not refs and not records:
         return CheckResult("process_index", "skipped", "no process records or index refs")
@@ -208,6 +209,28 @@ def check_process_index(
     duplicates = sorted({r for r in refs if refs.count(r) > 1})
     if duplicates:
         problems.append("record referenced more than once: " + "; ".join(duplicates))
+
+    # Index-row contract (review gate): the title column is the record's
+    # verbatim h1 title and the hint column is the MECHANICAL first body line
+    # -- drift in either means the index no longer reflects its records.
+    from extract_mode_pattern_cards import first_route_hint  # shared mechanical rule
+
+    row_re = re.compile(r"^\|\s*(.+?)\s*\|\s*(.*?)\s*\|\s*`(references/process/[a-z0-9\-]+\.md)`\s*\|\s*$")
+    for line in index_text.splitlines():
+        match = row_re.match(line)
+        if not match:
+            continue
+        row_title, row_hint, ref = match.group(1), match.group(2), match.group(3)
+        if ref not in records:
+            continue  # already reported as dangling
+        actual_title = records[ref]
+        if row_title != actual_title:
+            problems.append(f"index title drift for {ref}: row '{row_title}' != record '{actual_title}'")
+        record_bytes = (records_dir / Path(ref).name).read_bytes()
+        body = record_bytes.split(b"\n", 1)[1] if b"\n" in record_bytes else b""
+        expected_hint = first_route_hint(body)
+        if row_hint != expected_hint:
+            problems.append(f"index hint drift for {ref} (hint must be the mechanical first body line)")
     if problems:
         return CheckResult("process_index", "red", " | ".join(problems))
     return CheckResult(
@@ -719,25 +742,37 @@ def selftest() -> int:
         precs.mkdir(parents=True)
         (precs / "alpha-record.md").write_text("# Alpha Record\n\n- body\n", encoding="utf-8")
         pmd = pidx / "process.md"
-        pmd.write_text(
-            "# T\n\n| r | h | `references/process/alpha-record.md` |\n", encoding="utf-8"
-        )
+        good_row = "| Alpha Record | body | `references/process/alpha-record.md` |\n"
+        pmd.write_text("# T\n\n" + good_row, encoding="utf-8")
         if check_process_index(pmd, precs).status != "green":
-            failures.append("process fixture: matched index/record not green")
+            failures.append(
+                f"process fixture: matched index/record not green ({check_process_index(pmd, precs).detail})"
+            )
         pmd.write_text(
             "# T\n\n| r | h | `references/process/ghost-record.md` |\n", encoding="utf-8"
         )
         pi_red = check_process_index(pmd, precs)
         if pi_red.status != "red" or "dangling" not in pi_red.detail or "orphan" not in pi_red.detail:
             failures.append("process fixture: dangling ref + orphan record did not go red")
-        pmd.write_text(
-            "# T\n\n| r | h | `references/process/alpha-record.md` |\n"
-            "| r2 | h | `references/process/alpha-record.md` |\n",
-            encoding="utf-8",
-        )
+        pmd.write_text("# T\n\n" + good_row + good_row, encoding="utf-8")
         pi_dup = check_process_index(pmd, precs)
         if pi_dup.status != "red" or "more than once" not in pi_dup.detail:
             failures.append("process fixture: duplicate index ref did not go red")
+        # RED (review round 1): title drift and hint drift in index rows
+        pmd.write_text(
+            "# T\n\n| Renamed Record | body | `references/process/alpha-record.md` |\n",
+            encoding="utf-8",
+        )
+        pi_title = check_process_index(pmd, precs)
+        if pi_title.status != "red" or "title drift" not in pi_title.detail:
+            failures.append("process fixture: title drift did not go red")
+        pmd.write_text(
+            "# T\n\n| Alpha Record | authored prose hint | `references/process/alpha-record.md` |\n",
+            encoding="utf-8",
+        )
+        pi_hint = check_process_index(pmd, precs)
+        if pi_hint.status != "red" or "hint drift" not in pi_hint.detail:
+            failures.append("process fixture: hint drift did not go red")
         # real-repo control: the actual split index must be green
         if DEFAULT_PROCESS_DIR.is_dir() and check_process_index().status != "green":
             failures.append("process control: repo process index not green")

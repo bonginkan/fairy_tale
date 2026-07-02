@@ -171,6 +171,12 @@ def do_verify(skill_md: Path, manifest_path: Path) -> int:
     if hashlib.sha256(original).hexdigest() != manifest["skill_md_sha256"]:
         failures.append("original snapshot sha mismatch vs manifest")
     for card in manifest["cards"]:
+        # Manifest hygiene: every path is repo-relative with no traversal; an
+        # absolute or ..-escaping card path fails closed (review gate).
+        card_path = Path(card["card_path"])
+        if card_path.is_absolute() or ".." in card_path.parts:
+            failures.append(f"non-repo-relative card path in manifest: {card['card_path']}")
+            continue
         card_file = skill_md.parent / card["card_path"]
         if not card_file.exists():
             failures.append(f"missing card: {card['card_path']}")
