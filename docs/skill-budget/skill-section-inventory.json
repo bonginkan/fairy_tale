@@ -222,6 +222,204 @@
       "est_tokens": 130
     }
   ],
+  "process_records": [
+    {
+      "path": "references/process/3d-validation-checklist.md",
+      "title": "3D validation checklist"
+    },
+    {
+      "path": "references/process/accessible-genius-method-record.md",
+      "title": "Accessible genius method record"
+    },
+    {
+      "path": "references/process/benchmark-delta-record.md",
+      "title": "Benchmark delta record"
+    },
+    {
+      "path": "references/process/best-practice-gate.md",
+      "title": "Best-practice gate"
+    },
+    {
+      "path": "references/process/bio-health-safety-record.md",
+      "title": "Bio/health safety record"
+    },
+    {
+      "path": "references/process/closure-check-record.md",
+      "title": "Closure check record"
+    },
+    {
+      "path": "references/process/context-and-memory-recovery-note.md",
+      "title": "Context and memory recovery note"
+    },
+    {
+      "path": "references/process/cross-channel-loop-command-record.md",
+      "title": "Cross-channel loop command record"
+    },
+    {
+      "path": "references/process/cyber-frontier-defense-record.md",
+      "title": "Cyber frontier defense record"
+    },
+    {
+      "path": "references/process/defensive-security-finding.md",
+      "title": "Defensive security finding"
+    },
+    {
+      "path": "references/process/do-not-disturb-operating-window-record.md",
+      "title": "Do Not Disturb operating-window record"
+    },
+    {
+      "path": "references/process/domain-router-card.md",
+      "title": "Domain router card"
+    },
+    {
+      "path": "references/process/effort-inversion-record.md",
+      "title": "Effort inversion record"
+    },
+    {
+      "path": "references/process/eval-card.md",
+      "title": "Eval card"
+    },
+    {
+      "path": "references/process/evaluated-feedback-record.md",
+      "title": "Evaluated feedback record"
+    },
+    {
+      "path": "references/process/evidence-map.md",
+      "title": "Evidence map"
+    },
+    {
+      "path": "references/process/evidence-table-record.md",
+      "title": "Evidence table record"
+    },
+    {
+      "path": "references/process/evolutionary-mutation-selection-record.md",
+      "title": "Evolutionary mutation / selection record"
+    },
+    {
+      "path": "references/process/excess-redundancy-legacy-surface-discovery-record.md",
+      "title": "Excess / redundancy / legacy-surface discovery record"
+    },
+    {
+      "path": "references/process/external-channel-ingestion-record.md",
+      "title": "External-channel ingestion record"
+    },
+    {
+      "path": "references/process/external-reconstruction-adapter-record.md",
+      "title": "External reconstruction adapter record"
+    },
+    {
+      "path": "references/process/feedback-pruning-record.md",
+      "title": "Feedback pruning record"
+    },
+    {
+      "path": "references/process/fusion-review-card.md",
+      "title": "Fusion review card"
+    },
+    {
+      "path": "references/process/generalization-audit-record.md",
+      "title": "Generalization audit record"
+    },
+    {
+      "path": "references/process/glass-slipper-gate.md",
+      "title": "Glass Slipper Gate"
+    },
+    {
+      "path": "references/process/implicit-contract-discovery-family-router.md",
+      "title": "Implicit-contract discovery family router"
+    },
+    {
+      "path": "references/process/job-automation-delegation-record.md",
+      "title": "Job automation delegation record"
+    },
+    {
+      "path": "references/process/knowledge-crystallization-record.md",
+      "title": "Knowledge crystallization record"
+    },
+    {
+      "path": "references/process/legal-reasoning-record.md",
+      "title": "Legal reasoning record"
+    },
+    {
+      "path": "references/process/llm-application-security-checklist.md",
+      "title": "LLM application security checklist"
+    },
+    {
+      "path": "references/process/loop-engineering-operating-record.md",
+      "title": "Loop engineering operating record"
+    },
+    {
+      "path": "references/process/mechanism-grammar-record.md",
+      "title": "Mechanism grammar record"
+    },
+    {
+      "path": "references/process/meeting-proxy-setup-record.md",
+      "title": "Meeting proxy setup record"
+    },
+    {
+      "path": "references/process/migration-checkpoint.md",
+      "title": "Migration checkpoint"
+    },
+    {
+      "path": "references/process/narrative-empathy-brief.md",
+      "title": "Narrative empathy brief"
+    },
+    {
+      "path": "references/process/negative-space-discovery-record.md",
+      "title": "Negative-space discovery record"
+    },
+    {
+      "path": "references/process/oss-release-gate.md",
+      "title": "OSS release gate"
+    },
+    {
+      "path": "references/process/problem-finding-cards.md",
+      "title": "Problem-finding cards"
+    },
+    {
+      "path": "references/process/refactoring-similarity-record.md",
+      "title": "Refactoring similarity record"
+    },
+    {
+      "path": "references/process/scout-report.md",
+      "title": "Scout report"
+    },
+    {
+      "path": "references/process/silent-loop-auto-resume-watchdog-record.md",
+      "title": "Silent-loop auto-resume watchdog record"
+    },
+    {
+      "path": "references/process/spatial-forge-brief.md",
+      "title": "Spatial forge brief"
+    },
+    {
+      "path": "references/process/spiral-engineering-revolution-record.md",
+      "title": "Spiral engineering revolution record"
+    },
+    {
+      "path": "references/process/step-level-skill-adaptation-record.md",
+      "title": "Step-level skill adaptation record"
+    },
+    {
+      "path": "references/process/tacit-intent-recovery-record.md",
+      "title": "Tacit intent recovery record"
+    },
+    {
+      "path": "references/process/tool-contract-card.md",
+      "title": "Tool contract card"
+    },
+    {
+      "path": "references/process/ui-affect-checklist.md",
+      "title": "UI affect checklist"
+    },
+    {
+      "path": "references/process/usage-aware-multi-agent-load-balancer-record.md",
+      "title": "Usage-aware multi-agent load balancer record"
+    },
+    {
+      "path": "references/process/voice-profile-card.md",
+      "title": "Voice profile card"
+    }
+  ],
   "references": [
     {
       "path": "skills/fairy-tale/references/best-practices.md",
@@ -452,10 +650,304 @@
       "est_tokens": 738
     },
     {
+      "path": "skills/fairy-tale/references/process/3d-validation-checklist.md",
+      "bytes": 376,
+      "lines": 15,
+      "est_tokens": 94
+    },
+    {
+      "path": "skills/fairy-tale/references/process/accessible-genius-method-record.md",
+      "bytes": 351,
+      "lines": 16,
+      "est_tokens": 88
+    },
+    {
+      "path": "skills/fairy-tale/references/process/benchmark-delta-record.md",
+      "bytes": 383,
+      "lines": 21,
+      "est_tokens": 96
+    },
+    {
+      "path": "skills/fairy-tale/references/process/best-practice-gate.md",
+      "bytes": 363,
+      "lines": 17,
+      "est_tokens": 91
+    },
+    {
+      "path": "skills/fairy-tale/references/process/bio-health-safety-record.md",
+      "bytes": 416,
+      "lines": 16,
+      "est_tokens": 104
+    },
+    {
+      "path": "skills/fairy-tale/references/process/closure-check-record.md",
+      "bytes": 1605,
+      "lines": 39,
+      "est_tokens": 401
+    },
+    {
+      "path": "skills/fairy-tale/references/process/context-and-memory-recovery-note.md",
+      "bytes": 242,
+      "lines": 15,
+      "est_tokens": 60
+    },
+    {
+      "path": "skills/fairy-tale/references/process/cross-channel-loop-command-record.md",
+      "bytes": 4684,
+      "lines": 98,
+      "est_tokens": 1171
+    },
+    {
+      "path": "skills/fairy-tale/references/process/cyber-frontier-defense-record.md",
+      "bytes": 870,
+      "lines": 34,
+      "est_tokens": 218
+    },
+    {
+      "path": "skills/fairy-tale/references/process/defensive-security-finding.md",
+      "bytes": 199,
+      "lines": 13,
+      "est_tokens": 50
+    },
+    {
+      "path": "skills/fairy-tale/references/process/do-not-disturb-operating-window-record.md",
+      "bytes": 2856,
+      "lines": 67,
+      "est_tokens": 714
+    },
+    {
+      "path": "skills/fairy-tale/references/process/domain-router-card.md",
+      "bytes": 495,
+      "lines": 17,
+      "est_tokens": 124
+    },
+    {
+      "path": "skills/fairy-tale/references/process/effort-inversion-record.md",
+      "bytes": 464,
+      "lines": 26,
+      "est_tokens": 116
+    },
+    {
+      "path": "skills/fairy-tale/references/process/eval-card.md",
+      "bytes": 356,
+      "lines": 20,
+      "est_tokens": 89
+    },
+    {
+      "path": "skills/fairy-tale/references/process/evaluated-feedback-record.md",
+      "bytes": 314,
+      "lines": 19,
+      "est_tokens": 78
+    },
+    {
+      "path": "skills/fairy-tale/references/process/evidence-map.md",
+      "bytes": 172,
+      "lines": 12,
+      "est_tokens": 43
+    },
+    {
+      "path": "skills/fairy-tale/references/process/evidence-table-record.md",
+      "bytes": 285,
+      "lines": 16,
+      "est_tokens": 71
+    },
+    {
+      "path": "skills/fairy-tale/references/process/evolutionary-mutation-selection-record.md",
+      "bytes": 2657,
+      "lines": 60,
+      "est_tokens": 664
+    },
+    {
+      "path": "skills/fairy-tale/references/process/excess-redundancy-legacy-surface-discovery-record.md",
+      "bytes": 3919,
+      "lines": 96,
+      "est_tokens": 980
+    },
+    {
+      "path": "skills/fairy-tale/references/process/external-channel-ingestion-record.md",
+      "bytes": 1230,
+      "lines": 38,
+      "est_tokens": 308
+    },
+    {
+      "path": "skills/fairy-tale/references/process/external-reconstruction-adapter-record.md",
+      "bytes": 533,
+      "lines": 25,
+      "est_tokens": 133
+    },
+    {
+      "path": "skills/fairy-tale/references/process/feedback-pruning-record.md",
+      "bytes": 337,
+      "lines": 20,
+      "est_tokens": 84
+    },
+    {
+      "path": "skills/fairy-tale/references/process/fusion-review-card.md",
+      "bytes": 448,
+      "lines": 23,
+      "est_tokens": 112
+    },
+    {
+      "path": "skills/fairy-tale/references/process/generalization-audit-record.md",
+      "bytes": 560,
+      "lines": 21,
+      "est_tokens": 140
+    },
+    {
+      "path": "skills/fairy-tale/references/process/glass-slipper-gate.md",
+      "bytes": 244,
+      "lines": 18,
+      "est_tokens": 61
+    },
+    {
+      "path": "skills/fairy-tale/references/process/implicit-contract-discovery-family-router.md",
+      "bytes": 1652,
+      "lines": 39,
+      "est_tokens": 413
+    },
+    {
+      "path": "skills/fairy-tale/references/process/job-automation-delegation-record.md",
+      "bytes": 1260,
+      "lines": 37,
+      "est_tokens": 315
+    },
+    {
+      "path": "skills/fairy-tale/references/process/knowledge-crystallization-record.md",
+      "bytes": 312,
+      "lines": 16,
+      "est_tokens": 78
+    },
+    {
+      "path": "skills/fairy-tale/references/process/legal-reasoning-record.md",
+      "bytes": 351,
+      "lines": 21,
+      "est_tokens": 88
+    },
+    {
+      "path": "skills/fairy-tale/references/process/llm-application-security-checklist.md",
+      "bytes": 526,
+      "lines": 19,
+      "est_tokens": 132
+    },
+    {
+      "path": "skills/fairy-tale/references/process/loop-engineering-operating-record.md",
+      "bytes": 3496,
+      "lines": 78,
+      "est_tokens": 874
+    },
+    {
+      "path": "skills/fairy-tale/references/process/mechanism-grammar-record.md",
+      "bytes": 525,
+      "lines": 23,
+      "est_tokens": 131
+    },
+    {
+      "path": "skills/fairy-tale/references/process/meeting-proxy-setup-record.md",
+      "bytes": 1466,
+      "lines": 43,
+      "est_tokens": 366
+    },
+    {
+      "path": "skills/fairy-tale/references/process/migration-checkpoint.md",
+      "bytes": 141,
+      "lines": 11,
+      "est_tokens": 35
+    },
+    {
+      "path": "skills/fairy-tale/references/process/narrative-empathy-brief.md",
+      "bytes": 392,
+      "lines": 22,
+      "est_tokens": 98
+    },
+    {
+      "path": "skills/fairy-tale/references/process/negative-space-discovery-record.md",
+      "bytes": 4394,
+      "lines": 120,
+      "est_tokens": 1098
+    },
+    {
+      "path": "skills/fairy-tale/references/process/oss-release-gate.md",
+      "bytes": 352,
+      "lines": 17,
+      "est_tokens": 88
+    },
+    {
+      "path": "skills/fairy-tale/references/process/problem-finding-cards.md",
+      "bytes": 614,
+      "lines": 29,
+      "est_tokens": 154
+    },
+    {
+      "path": "skills/fairy-tale/references/process/refactoring-similarity-record.md",
+      "bytes": 383,
+      "lines": 21,
+      "est_tokens": 96
+    },
+    {
+      "path": "skills/fairy-tale/references/process/scout-report.md",
+      "bytes": 118,
+      "lines": 11,
+      "est_tokens": 30
+    },
+    {
+      "path": "skills/fairy-tale/references/process/silent-loop-auto-resume-watchdog-record.md",
+      "bytes": 3084,
+      "lines": 70,
+      "est_tokens": 771
+    },
+    {
+      "path": "skills/fairy-tale/references/process/spatial-forge-brief.md",
+      "bytes": 459,
+      "lines": 20,
+      "est_tokens": 115
+    },
+    {
+      "path": "skills/fairy-tale/references/process/spiral-engineering-revolution-record.md",
+      "bytes": 4833,
+      "lines": 108,
+      "est_tokens": 1208
+    },
+    {
+      "path": "skills/fairy-tale/references/process/step-level-skill-adaptation-record.md",
+      "bytes": 619,
+      "lines": 26,
+      "est_tokens": 155
+    },
+    {
+      "path": "skills/fairy-tale/references/process/tacit-intent-recovery-record.md",
+      "bytes": 479,
+      "lines": 19,
+      "est_tokens": 120
+    },
+    {
+      "path": "skills/fairy-tale/references/process/tool-contract-card.md",
+      "bytes": 284,
+      "lines": 20,
+      "est_tokens": 71
+    },
+    {
+      "path": "skills/fairy-tale/references/process/ui-affect-checklist.md",
+      "bytes": 287,
+      "lines": 17,
+      "est_tokens": 72
+    },
+    {
+      "path": "skills/fairy-tale/references/process/usage-aware-multi-agent-load-balancer-record.md",
+      "bytes": 5075,
+      "lines": 113,
+      "est_tokens": 1269
+    },
+    {
+      "path": "skills/fairy-tale/references/process/voice-profile-card.md",
+      "bytes": 237,
+      "lines": 16,
+      "est_tokens": 59
+    },
+    {
       "path": "skills/fairy-tale/references/process.md",
-      "bytes": 55779,
-      "lines": 1680,
-      "est_tokens": 13945
+      "bytes": 7490,
+      "lines": 56,
+      "est_tokens": 1872
     },
     {
       "path": "skills/fairy-tale/references/similarity-refactoring-adapter.md",

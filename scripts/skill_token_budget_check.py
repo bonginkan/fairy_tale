@@ -84,6 +84,9 @@ ROUTER_SECTION_CANDIDATES = (
 
 HEADING_RE = re.compile(r"^(#{2,3})\s+(.*)$")
 CARD_REF_RE = re.compile(r"`(references/cards/[a-z0-9\-]+\.md)`")
+PROCESS_REF_RE = re.compile(r"`(references/process/[a-z0-9\-]+\.md)`")
+DEFAULT_PROCESS_MD = DEFAULT_REFERENCES_DIR / "process.md"
+DEFAULT_PROCESS_DIR = DEFAULT_REFERENCES_DIR / "process"
 
 
 @dataclass
@@ -171,15 +174,47 @@ def router_table_end(sections: list[Section], router: Section) -> int:
     return router.byte_end
 
 
-def card_titles(cards_dir: Path | None) -> dict[str, str]:
+def card_titles(cards_dir: Path | None, prefix: str = "references/cards") -> dict[str, str]:
     """Map card relative path -> card h1 title for every *.md in cards_dir."""
     titles: dict[str, str] = {}
     if cards_dir and cards_dir.is_dir():
         for card in sorted(cards_dir.glob("*.md")):
             first_line = card.read_text(encoding="utf-8").split("\n", 1)[0]
             if first_line.startswith("# "):
-                titles[f"references/cards/{card.name}"] = first_line[2:].strip()
+                titles[f"{prefix}/{card.name}"] = first_line[2:].strip()
     return titles
+
+
+def check_process_index(
+    process_md: Path | None = None, records_dir: Path | None = None
+) -> CheckResult:
+    """Index integrity for the split process.md: every index ref resolves to a
+    record file, every record file is referenced exactly once."""
+    process_md = process_md or DEFAULT_PROCESS_MD
+    records_dir = records_dir or DEFAULT_PROCESS_DIR
+    if not process_md.exists():
+        return CheckResult("process_index", "red", f"missing index file: {process_md}")
+    refs = PROCESS_REF_RE.findall(process_md.read_text(encoding="utf-8"))
+    records = card_titles(records_dir, prefix="references/process")
+    if not refs and not records:
+        return CheckResult("process_index", "skipped", "no process records or index refs")
+    problems: list[str] = []
+    dangling = [r for r in sorted(set(refs)) if r not in records]
+    if dangling:
+        problems.append("dangling index ref (no record file): " + "; ".join(dangling))
+    orphaned = [r for r in sorted(records) if r not in set(refs)]
+    if orphaned:
+        problems.append("orphan record file (not in index): " + "; ".join(orphaned))
+    duplicates = sorted({r for r in refs if refs.count(r) > 1})
+    if duplicates:
+        problems.append("record referenced more than once: " + "; ".join(duplicates))
+    if problems:
+        return CheckResult("process_index", "red", " | ".join(problems))
+    return CheckResult(
+        "process_index",
+        "green",
+        f"{len(set(refs))} index refs == {len(records)} record files, no dangling/orphan/duplicate",
+    )
 
 
 def build_report(
@@ -359,6 +394,19 @@ def build_report(
                 problems.append(
                     "cards on disk not in stored inventory: " + "; ".join(new_cards)
                 )
+        stored_records = [c["path"] for c in stored.get("process_records", [])]
+        if stored_records:
+            disk_records = sorted(card_titles(DEFAULT_PROCESS_DIR, prefix="references/process"))
+            missing_records = [c for c in stored_records if c not in set(disk_records)]
+            new_records = [c for c in disk_records if c not in set(stored_records)]
+            if missing_records:
+                problems.append(
+                    "stored process records missing on disk: " + "; ".join(missing_records)
+                )
+            if new_records:
+                problems.append(
+                    "process records on disk not in stored inventory: " + "; ".join(new_records)
+                )
         if problems:
             report.checks.append(CheckResult("inventory_parity", "red", " | ".join(problems)))
         else:
@@ -423,6 +471,12 @@ def write_inventory(report: Report, out_path: Path, cards_dir: Path | None = Non
         },
         "sections": [asdict(s) for s in report.sections],
         "cards": cards_inventory(cards_dir),
+        "process_records": [
+            {"path": path, "title": title}
+            for path, title in sorted(
+                card_titles(DEFAULT_PROCESS_DIR, prefix="references/process").items()
+            )
+        ],
         "references": reference_inventory(),
     }
     out_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -659,6 +713,56 @@ def selftest() -> int:
         if pv.status != "red" or "vanished-card" not in pv.detail:
             failures.append("card fixture: stored card missing on disk did not go red")
 
+        # process index fixtures (Increment 4): green / dangling+orphan / duplicate
+        pidx = Path(tmp) / "pindex"
+        precs = pidx / "process"
+        precs.mkdir(parents=True)
+        (precs / "alpha-record.md").write_text("# Alpha Record\n\n- body\n", encoding="utf-8")
+        pmd = pidx / "process.md"
+        pmd.write_text(
+            "# T\n\n| r | h | `references/process/alpha-record.md` |\n", encoding="utf-8"
+        )
+        if check_process_index(pmd, precs).status != "green":
+            failures.append("process fixture: matched index/record not green")
+        pmd.write_text(
+            "# T\n\n| r | h | `references/process/ghost-record.md` |\n", encoding="utf-8"
+        )
+        pi_red = check_process_index(pmd, precs)
+        if pi_red.status != "red" or "dangling" not in pi_red.detail or "orphan" not in pi_red.detail:
+            failures.append("process fixture: dangling ref + orphan record did not go red")
+        pmd.write_text(
+            "# T\n\n| r | h | `references/process/alpha-record.md` |\n"
+            "| r2 | h | `references/process/alpha-record.md` |\n",
+            encoding="utf-8",
+        )
+        pi_dup = check_process_index(pmd, precs)
+        if pi_dup.status != "red" or "more than once" not in pi_dup.detail:
+            failures.append("process fixture: duplicate index ref did not go red")
+        # real-repo control: the actual split index must be green
+        if DEFAULT_PROCESS_DIR.is_dir() and check_process_index().status != "green":
+            failures.append("process control: repo process index not green")
+        # stored process record vanished from disk -> inventory parity red
+        if DEFAULT_PROCESS_DIR.is_dir():
+            real_records = [
+                {"path": p}
+                for p in sorted(card_titles(DEFAULT_PROCESS_DIR, prefix="references/process"))
+            ]
+            inv_proc = Path(tmp) / "inv_proc.json"
+            inv_proc.write_text(
+                json.dumps(
+                    {
+                        "sections": [{"title": "Non-negotiables"}],
+                        "process_records": real_records
+                        + [{"path": "references/process/vanished-record.md"}],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            rp = build_report(green, DEFAULT_MAX_LINES, DEFAULT_HEAD_TOKEN_BUDGET, inv_proc, None)
+            pp = {c.check: c for c in rp.checks}["inventory_parity"]
+            if pp.status != "red" or "vanished-record" not in pp.detail:
+                failures.append("process fixture: stored record missing on disk did not go red")
+
         # head-window boundary: router table ending inside the 17,500-20,000
         # byte band (green under a 4.0 B/tok window, RED under the enforced
         # conservative 3.5 B/tok window)
@@ -745,6 +849,8 @@ def main() -> int:
         args.inventory_compare,
         cards_dir=args.cards_dir,
     )
+    if args.skill_md == DEFAULT_SKILL_MD:
+        report.checks.append(check_process_index())
     if args.write_inventory:
         write_inventory(report, args.write_inventory, cards_dir=args.cards_dir)
         print(f"inventory written: {args.write_inventory} (+ .md)")

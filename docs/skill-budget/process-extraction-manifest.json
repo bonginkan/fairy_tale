@@ -1,0 +1,450 @@
+{
+  "purpose": "Byte-preserving extraction manifest for process.md records; verify with extract_process_records.py --verify against the committed pre-extraction snapshot.",
+  "original_skill_md_snapshot": "docs/skill-budget/process-md-pre-extraction-snapshot.md",
+  "skill_md_sha256": "3606c508012001a80d7291043174f414c9df22447e93c1c33b5f7dc00179f5db",
+  "new_skill_md_sha256": "cc9f2c03a71bb0371820b0afa4aad15a6ca894dc872d5043687b53d70fd1ff4f",
+  "index_preamble": "Each record template lives in its own card under `references/process/`; read only the record the current task needs.\n",
+  "cards": [
+    {
+      "title": "Glass Slipper Gate",
+      "slug": "glass-slipper-gate",
+      "card_path": "references/process/glass-slipper-gate.md",
+      "old_body_start": 54,
+      "old_body_end": 277,
+      "body_sha256": "0b6cc282fddc93079aff9f83fe8614a3a93e429aa318bd755709512a8dc3ae5c",
+      "route_hint": "Define before long execution:"
+    },
+    {
+      "title": "Evidence map",
+      "slug": "evidence-map",
+      "card_path": "references/process/evidence-map.md",
+      "old_body_start": 293,
+      "old_body_end": 450,
+      "body_sha256": "34abad4ff5f56e54960ba08b96a55e04bbf65b421137865f81cb66961ffe3de5",
+      "route_hint": "```text"
+    },
+    {
+      "title": "Best-practice gate",
+      "slug": "best-practice-gate",
+      "card_path": "references/process/best-practice-gate.md",
+      "old_body_start": 472,
+      "old_body_end": 814,
+      "body_sha256": "cd908c8dbdaca22e53bbc72cc15f6b7c22de36923aadcf75796a6f5740b63aa8",
+      "route_hint": "Use this before changing the skill, plugin, adapter, memory, hook, eval, or OSS"
+    },
+    {
+      "title": "Eval card",
+      "slug": "eval-card",
+      "card_path": "references/process/eval-card.md",
+      "old_body_start": 827,
+      "old_body_end": 1171,
+      "body_sha256": "b668c751bfd15c9bfad78282ed08daf6b6c9ddfaced282e9b658fff8f9f9c512",
+      "route_hint": "Use this before claiming a process advantage or benchmark-style improvement."
+    },
+    {
+      "title": "Tool contract card",
+      "slug": "tool-contract-card",
+      "card_path": "references/process/tool-contract-card.md",
+      "old_body_start": 1193,
+      "old_body_end": 1456,
+      "body_sha256": "8963292e9347970a21f105e04073391a797c278d53c2f5198f0349b04152fe10",
+      "route_hint": "Use this before exposing a tool, adapter, hook, MCP, or external runtime."
+    },
+    {
+      "title": "Context and memory recovery note",
+      "slug": "context-and-memory-recovery-note",
+      "card_path": "references/process/context-and-memory-recovery-note.md",
+      "old_body_start": 1492,
+      "old_body_end": 1699,
+      "body_sha256": "7baaaba209d7030f536f0a5c7d14d03a9daefd3883e3d31f5ba5b13b3cd2d234",
+      "route_hint": "Use this after long-running work or before compaction."
+    },
+    {
+      "title": "OSS release gate",
+      "slug": "oss-release-gate",
+      "card_path": "references/process/oss-release-gate.md",
+      "old_body_start": 1719,
+      "old_body_end": 2052,
+      "body_sha256": "c723c9e9e2a305c142395e25d8e1329c2cd21e275ad01f7aa08685b2c2a8e104",
+      "route_hint": "Use this before making the repository public or publishing the plugin."
+    },
+    {
+      "title": "Scout report",
+      "slug": "scout-report",
+      "card_path": "references/process/scout-report.md",
+      "old_body_start": 2068,
+      "old_body_end": 2171,
+      "body_sha256": "f1023f9488818dc3e0d6f4b29f344bf55de928bc872681742c779ee37ed5d78b",
+      "route_hint": "```text"
+    },
+    {
+      "title": "Migration checkpoint",
+      "slug": "migration-checkpoint",
+      "card_path": "references/process/migration-checkpoint.md",
+      "old_body_start": 2195,
+      "old_body_end": 2313,
+      "body_sha256": "b49a2b26615e56099381ee5f3931339bdefcf1170a84ddfdd0b0c6bce0d9192e",
+      "route_hint": "```text"
+    },
+    {
+      "title": "Defensive security finding",
+      "slug": "defensive-security-finding",
+      "card_path": "references/process/defensive-security-finding.md",
+      "old_body_start": 2343,
+      "old_body_end": 2513,
+      "body_sha256": "4385750ee6e43b1774c95b07f72be23318f91ad2f367acfde0db2a6a81de5e39",
+      "route_hint": "```text"
+    },
+    {
+      "title": "Cyber frontier defense record",
+      "slug": "cyber-frontier-defense-record",
+      "card_path": "references/process/cyber-frontier-defense-record.md",
+      "old_body_start": 2546,
+      "old_body_end": 3384,
+      "body_sha256": "3869ab4fda87cc5ab134402c3b92d303975749c1aac8384cd151270d0496b381",
+      "route_hint": "Use this for authorized vulnerability triage, LLM app security review, secure"
+    },
+    {
+      "title": "LLM application security checklist",
+      "slug": "llm-application-security-checklist",
+      "card_path": "references/process/llm-application-security-checklist.md",
+      "old_body_start": 3422,
+      "old_body_end": 3911,
+      "body_sha256": "d6f98afa1e3c3b1b89e8cd24212a216970d48c74d9b6a1da83aa0539042da9b4",
+      "route_hint": "```text"
+    },
+    {
+      "title": "Benchmark delta record",
+      "slug": "benchmark-delta-record",
+      "card_path": "references/process/benchmark-delta-record.md",
+      "old_body_start": 3937,
+      "old_body_end": 4295,
+      "body_sha256": "1fa8a72d24f853c0602e187580d5c55cf67320f364056042c81995af67b39ddc",
+      "route_hint": "Use this when trying to reproduce reported benchmark-style advantages."
+    },
+    {
+      "title": "Evaluated feedback record",
+      "slug": "evaluated-feedback-record",
+      "card_path": "references/process/evaluated-feedback-record.md",
+      "old_body_start": 4324,
+      "old_body_end": 4610,
+      "body_sha256": "63918323a6b8f209ce7181153bbb07a5366a52d8b6704f11d39cd7e9eb619da8",
+      "route_hint": "Use this after a benchmark miss or work-product failure."
+    },
+    {
+      "title": "Step-level skill adaptation record",
+      "slug": "step-level-skill-adaptation-record",
+      "card_path": "references/process/step-level-skill-adaptation-record.md",
+      "old_body_start": 4648,
+      "old_body_end": 5230,
+      "body_sha256": "95b3088ce24b2bfc74ff37e6dfd0182a376a55f5445f7e8c7e91659391369518",
+      "route_hint": "Use this when a failed trajectory or repeated work-product miss may justify a"
+    },
+    {
+      "title": "Implicit-contract discovery family router",
+      "slug": "implicit-contract-discovery-family-router",
+      "card_path": "references/process/implicit-contract-discovery-family-router.md",
+      "old_body_start": 5275,
+      "old_body_end": 6883,
+      "body_sha256": "0725863f4cadf45ad302094615fac23bb6a91b8a08ce5644be488c03e4988841",
+      "route_hint": "Use this before choosing one of the overlapping discovery records. The goal is"
+    },
+    {
+      "title": "Generalization audit record",
+      "slug": "generalization-audit-record",
+      "card_path": "references/process/generalization-audit-record.md",
+      "old_body_start": 6914,
+      "old_body_end": 7444,
+      "body_sha256": "ccfc4dd5482338ab3444840676925134bb7c055b410ac5bc1851b5bd1430bc18",
+      "route_hint": "Use this when a miss suggests poor generalization, false analogy, unlucky"
+    },
+    {
+      "title": "Tacit intent recovery record",
+      "slug": "tacit-intent-recovery-record",
+      "card_path": "references/process/tacit-intent-recovery-record.md",
+      "old_body_start": 7476,
+      "old_body_end": 7924,
+      "body_sha256": "f420d74b81bfd6f4e69966cb1a3f80c3795e28df40cbcd29747e3104367ebd03",
+      "route_hint": "Use this before acting on an underspecified user request, issue, ticket, or"
+    },
+    {
+      "title": "Closure check record",
+      "slug": "closure-check-record",
+      "card_path": "references/process/closure-check-record.md",
+      "old_body_start": 7948,
+      "old_body_end": 9530,
+      "body_sha256": "9fe41a735ebded151bf76ce29e11cf90b20cba9b71d87b6d23b062c49f3001f2",
+      "route_hint": "Use this before answering from a visible set of artifacts, numbered items,"
+    },
+    {
+      "title": "Negative-space discovery record",
+      "slug": "negative-space-discovery-record",
+      "card_path": "references/process/negative-space-discovery-record.md",
+      "old_body_start": 9565,
+      "old_body_end": 13925,
+      "body_sha256": "d72f660e1b5f840db84807d17f5b28e0b8222bf60324395a9c17d5481761d8d9",
+      "route_hint": "Use this during review, product/UX work, requirements discovery,"
+    },
+    {
+      "title": "Excess / redundancy / legacy-surface discovery record",
+      "slug": "excess-redundancy-legacy-surface-discovery-record",
+      "card_path": "references/process/excess-redundancy-legacy-surface-discovery-record.md",
+      "old_body_start": 13982,
+      "old_body_end": 17845,
+      "body_sha256": "dda44ff05158f8b6583005f324ca75f5180ff5f66b34bc8991df0436092d6772",
+      "route_hint": "Use this during review, refactoring, deprecation, skill/policy updates, and"
+    },
+    {
+      "title": "Loop engineering operating record",
+      "slug": "loop-engineering-operating-record",
+      "card_path": "references/process/loop-engineering-operating-record.md",
+      "old_body_start": 17882,
+      "old_body_end": 21342,
+      "body_sha256": "a78eb3044755ebdf35ff0b91f414ec27f8b11fd8ecc3dd015be116972cbf98f8",
+      "route_hint": "Use this before starting or modifying any persistent agent loop, scheduled"
+    },
+    {
+      "title": "Spiral engineering revolution record",
+      "slug": "spiral-engineering-revolution-record",
+      "card_path": "references/process/spiral-engineering-revolution-record.md",
+      "old_body_start": 21382,
+      "old_body_end": 26176,
+      "body_sha256": "3cdbe786f327bda8ae3b6fdb701d67bd71d5946b7cafed5c326f435c0840a361",
+      "route_hint": "Use this when a loop should climb rather than merely repeat. A spiral"
+    },
+    {
+      "title": "Evolutionary mutation / selection record",
+      "slug": "evolutionary-mutation-selection-record",
+      "card_path": "references/process/evolutionary-mutation-selection-record.md",
+      "old_body_start": 26220,
+      "old_body_end": 28834,
+      "body_sha256": "1da698ad1623d69d563d2a86b031c16967bdadd20bf497d4085c8f589c1fe109",
+      "route_hint": "Use this when a spiral revolution should evolve a bounded variant rather than"
+    },
+    {
+      "title": "Cross-channel loop command record",
+      "slug": "cross-channel-loop-command-record",
+      "card_path": "references/process/cross-channel-loop-command-record.md",
+      "old_body_start": 28871,
+      "old_body_end": 33519,
+      "body_sha256": "38d0a252a61bcc7d968f6caab262378cfacb764211283ae1724ccef68cde4f30",
+      "route_hint": "Use this when a session owner or commander coordinates more than one loop,"
+    },
+    {
+      "title": "Silent-loop auto-resume watchdog record",
+      "slug": "silent-loop-auto-resume-watchdog-record",
+      "card_path": "references/process/silent-loop-auto-resume-watchdog-record.md",
+      "old_body_start": 33562,
+      "old_body_end": 36604,
+      "body_sha256": "910bd51fee0fc33e4a7810214cdb9b41d1e98e152f946353066e00afed10f442",
+      "route_hint": "Use this when an active loop can stall because the next agent was not"
+    },
+    {
+      "title": "Do Not Disturb operating-window record",
+      "slug": "do-not-disturb-operating-window-record",
+      "card_path": "references/process/do-not-disturb-operating-window-record.md",
+      "old_body_start": 36646,
+      "old_body_end": 39461,
+      "body_sha256": "6c4625e9f4f16e89efe63134ce5caed541e2b63e7982f08a8da3642c44f57e75",
+      "route_hint": "Use this when a human sets, clears, or updates quiet hours for an agent inside a"
+    },
+    {
+      "title": "Usage-aware multi-agent load balancer record",
+      "slug": "usage-aware-multi-agent-load-balancer-record",
+      "card_path": "references/process/usage-aware-multi-agent-load-balancer-record.md",
+      "old_body_start": 39509,
+      "old_body_end": 44537,
+      "body_sha256": "f69587a53c7b120211147c43fa650c4ec158aaa24e3baa1fbc03af24f47f46be",
+      "route_hint": "Use this at loop increment boundaries before assigning implementation,"
+    },
+    {
+      "title": "External-channel ingestion record",
+      "slug": "external-channel-ingestion-record",
+      "card_path": "references/process/external-channel-ingestion-record.md",
+      "old_body_start": 44574,
+      "old_body_end": 45768,
+      "body_sha256": "9944e54d510746308b0107c9acffb8895dc5e55bc09a784062aa1fdf0f91df19",
+      "route_hint": "Use this when the loop periodically reads GitHub, project channels, Discord,"
+    },
+    {
+      "title": "Job automation delegation record",
+      "slug": "job-automation-delegation-record",
+      "card_path": "references/process/job-automation-delegation-record.md",
+      "old_body_start": 45804,
+      "old_body_end": 47029,
+      "body_sha256": "f7be7821032ed5291312c17bd8452402f1b290d3ced32c6020be5e7e9c4dfbe7",
+      "route_hint": "Use this for email drafting, Google Drive/Docs/Sheets edits, calendar actions,"
+    },
+    {
+      "title": "Meeting proxy setup record",
+      "slug": "meeting-proxy-setup-record",
+      "card_path": "references/process/meeting-proxy-setup-record.md",
+      "old_body_start": 47059,
+      "old_body_end": 48496,
+      "body_sha256": "0dcbd9697a4cbe8af8ca88b2f9f427f4a79ae7aadb5f5e2e6cd958f1d018cc69",
+      "route_hint": "Use this before building or running any meeting attendance proxy. This card is"
+    },
+    {
+      "title": "Problem-finding cards",
+      "slug": "problem-finding-cards",
+      "card_path": "references/process/problem-finding-cards.md",
+      "old_body_start": 48521,
+      "old_body_end": 49111,
+      "body_sha256": "c0512bf4403006361175a220eef629f5571047cc7fd28a29967f245fc2a425b3",
+      "route_hint": "Use these when a request, complaint, or product/review finding may be framed too"
+    },
+    {
+      "title": "Feedback pruning record",
+      "slug": "feedback-pruning-record",
+      "card_path": "references/process/feedback-pruning-record.md",
+      "old_body_start": 49138,
+      "old_body_end": 49449,
+      "body_sha256": "7f6d1250ac15fd7b67821aad88916df4b672e227720fba18060f0dde97a30487",
+      "route_hint": "Use this before promoting, merging, or keeping accumulated feedback rules."
+    },
+    {
+      "title": "Fusion review card",
+      "slug": "fusion-review-card",
+      "card_path": "references/process/fusion-review-card.md",
+      "old_body_start": 49471,
+      "old_body_end": 49898,
+      "body_sha256": "0d34e94633356553436457e6e4b82d1b96b3bae36b05af8a54d4dabd3716c272",
+      "route_hint": "Use this before launching multi-reviewer or multi-model deliberation."
+    },
+    {
+      "title": "Domain router card",
+      "slug": "domain-router-card",
+      "card_path": "references/process/domain-router-card.md",
+      "old_body_start": 49920,
+      "old_body_end": 50394,
+      "body_sha256": "3bd24cf4913657ed80375071e78622c2096f77063f1e5beb5a2fe031d79f535e",
+      "route_hint": "Use this before applying a Fairy Tale harness to a benchmark or unfamiliar"
+    },
+    {
+      "title": "Effort inversion record",
+      "slug": "effort-inversion-record",
+      "card_path": "references/process/effort-inversion-record.md",
+      "old_body_start": 50421,
+      "old_body_end": 50859,
+      "body_sha256": "bd11a866f1c8d56628dedee566159922319cbe12947fdde4c7f746960ef62973",
+      "route_hint": "Use this when tuning `medium`, `high`, `xhigh`, max effort, or any provider"
+    },
+    {
+      "title": "Knowledge crystallization record",
+      "slug": "knowledge-crystallization-record",
+      "card_path": "references/process/knowledge-crystallization-record.md",
+      "old_body_start": 50895,
+      "old_body_end": 51172,
+      "body_sha256": "8cc19f7db1dda82ada06347c60c4deeba257075cde6dffc4d8c9275899f7f1a3",
+      "route_hint": "Use this for HLE-style closed-ended academic or expert-knowledge tasks."
+    },
+    {
+      "title": "Legal reasoning record",
+      "slug": "legal-reasoning-record",
+      "card_path": "references/process/legal-reasoning-record.md",
+      "old_body_start": 51198,
+      "old_body_end": 51524,
+      "body_sha256": "3035040aa608bec400da82a9bd1ee89f7f392e6216fcbc6a3fcc5343ad071691",
+      "route_hint": "Use this for legal benchmarks, contract review, redlines, legal summaries, or"
+    },
+    {
+      "title": "Bio/health safety record",
+      "slug": "bio-health-safety-record",
+      "card_path": "references/process/bio-health-safety-record.md",
+      "old_body_start": 51552,
+      "old_body_end": 51941,
+      "body_sha256": "00dda4b2e3d46ae07ba6b9c87f4b6cdcee47a832e22e4d0255f2113fad2dca23",
+      "route_hint": "Use this for biology, medicine, health, chemistry-adjacent, or life-science"
+    },
+    {
+      "title": "Evidence table record",
+      "slug": "evidence-table-record",
+      "card_path": "references/process/evidence-table-record.md",
+      "old_body_start": 51966,
+      "old_body_end": 52227,
+      "body_sha256": "421aad16d1964185ee6ae3f0584c8102787c89c03708a70322ef83dfef42fcf0",
+      "route_hint": "Use this for finance, documents, charts, tables, spreadsheets, and enterprise"
+    },
+    {
+      "title": "Spatial forge brief",
+      "slug": "spatial-forge-brief",
+      "card_path": "references/process/spatial-forge-brief.md",
+      "old_body_start": 52250,
+      "old_body_end": 52687,
+      "body_sha256": "3fd6623c7431b1aa0065c642610f6c2f3fc64b3ca84de6f253edecebaef8f8b0",
+      "route_hint": "Use this before 3D, CAD, simulation, or game-scene work."
+    },
+    {
+      "title": "3D validation checklist",
+      "slug": "3d-validation-checklist",
+      "card_path": "references/process/3d-validation-checklist.md",
+      "old_body_start": 52714,
+      "old_body_end": 53064,
+      "body_sha256": "51ef151b95a6526751ce7446f24f151f50bfa764b3e8180df1a9ff1fb3bd0949",
+      "route_hint": "```text"
+    },
+    {
+      "title": "Narrative empathy brief",
+      "slug": "narrative-empathy-brief",
+      "card_path": "references/process/narrative-empathy-brief.md",
+      "old_body_start": 53091,
+      "old_body_end": 53457,
+      "body_sha256": "868fecbd978331d653a82be138dd98ad80f0647e6988ce41051c93108360a559",
+      "route_hint": "Use this for prose, daily conversation, brand voice, emotionally sensitive"
+    },
+    {
+      "title": "Voice profile card",
+      "slug": "voice-profile-card",
+      "card_path": "references/process/voice-profile-card.md",
+      "old_body_start": 53479,
+      "old_body_end": 53695,
+      "body_sha256": "b5e0a8151e990ccfc8efcbdcc0a4e1a766b90d95a170b1e3632f8ea7c402b609",
+      "route_hint": "```text"
+    },
+    {
+      "title": "UI affect checklist",
+      "slug": "ui-affect-checklist",
+      "card_path": "references/process/ui-affect-checklist.md",
+      "old_body_start": 53718,
+      "old_body_end": 53983,
+      "body_sha256": "c39cea7c8a411768d9d7b3bbb13ab7326414f85dbfe99ef07a85d4a2ed4445c3",
+      "route_hint": "```text"
+    },
+    {
+      "title": "Mechanism grammar record",
+      "slug": "mechanism-grammar-record",
+      "card_path": "references/process/mechanism-grammar-record.md",
+      "old_body_start": 54011,
+      "old_body_end": 54509,
+      "body_sha256": "48fe242dab7ce498af0768265da3509e1ac4ce13d9d6058609c1f862ae954c3b",
+      "route_hint": "Use this for ARC-style hidden-rule games, unfamiliar tools, simulations, or"
+    },
+    {
+      "title": "External reconstruction adapter record",
+      "slug": "external-reconstruction-adapter-record",
+      "card_path": "references/process/external-reconstruction-adapter-record.md",
+      "old_body_start": 54551,
+      "old_body_end": 55043,
+      "body_sha256": "8c2daa91a5afc019548d42931c6d677c11fc391f8e236ba2f9da9053ca6324b2",
+      "route_hint": "Use this when connecting an outside reconstruction project such as OpenMythos."
+    },
+    {
+      "title": "Refactoring similarity record",
+      "slug": "refactoring-similarity-record",
+      "card_path": "references/process/refactoring-similarity-record.md",
+      "old_body_start": 55076,
+      "old_body_end": 55427,
+      "body_sha256": "eb67e9d636b0b65352f3c1708f18d28169649b6962a126a053f718dc25661586",
+      "route_hint": "Use this before broad TypeScript refactors."
+    },
+    {
+      "title": "Accessible genius method record",
+      "slug": "accessible-genius-method-record",
+      "card_path": "references/process/accessible-genius-method-record.md",
+      "old_body_start": 55462,
+      "old_body_end": 55779,
+      "body_sha256": "61fddac9631326f2e842783e79ba9ecf05b0380e2857985229ca9190eda7a261",
+      "route_hint": "Use this when applying a method from `references/genius-methods.md`. Record the"
+    }
+  ]
+}
