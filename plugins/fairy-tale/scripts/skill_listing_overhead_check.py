@@ -167,17 +167,24 @@ def check_descriptions(skills_root: Path, results: list[tuple[str, str, str]]) -
             )
 
 
-VERSION_DIR_RE = re.compile(r"^\d+(\.\d+)*$")
+VERSION_DIR_RE = re.compile(r"^(\d+(?:\.\d+)*)([+-].*)?$")
 
 
-def plugin_version_key(path: Path) -> tuple[int, ...]:
+def plugin_version_key(path: Path) -> tuple:
     """Semantic-version key from the version directory in a plugin cache path
-    (lexicographic path sort would rank 0.2.8 above 0.2.17). The LAST
+    (lexicographic path sort would rank 0.2.8 above 0.2.17). Real cache dirs
+    also carry suffixes like `0.2.10+codex.2`, which MUST parse on their
+    numeric core (an unparsed suffix silently fell back to path sort -- PR #62
+    review round 2). Ordering: numeric core, then plain release above
+    suffixed builds of the same core, then the suffix text. The LAST
     version-shaped path part is the plugin version dir."""
-    key: tuple[int, ...] = ()
+    key: tuple = ()
     for part in path.parts:
-        if VERSION_DIR_RE.match(part):
-            key = tuple(int(x) for x in part.split("."))
+        match = VERSION_DIR_RE.match(part)
+        if match:
+            nums = tuple(int(x) for x in match.group(1).split("."))
+            suffix = match.group(2) or ""
+            key = (nums, 1 if not suffix else 0, suffix)
     return key
 
 
@@ -371,6 +378,33 @@ def selftest() -> int:
             failures.append(
                 f"semver fixture: expected single diverged vs 0.2.17, got: {sv}"
             )
+
+        # RED (review round 2): REAL cache dir names carry suffixes
+        # (`0.2.10+codex.2`); the numeric core must order them, never a
+        # lexicographic fallback. Local matches the OLD 0.2.9+codex.1 copy;
+        # newest is 0.2.10+codex.2 (differs) -> diverged.
+        sfx_home = tmp_root / "suffix-home"
+        make_skill(sfx_home / "skills", "fairy-tale", "x")
+        sfx_old = sfx_home / "plugins" / "cache" / "mp" / "ft" / "0.2.9+codex.1" / "skills" / "fairy-tale"
+        sfx_new = sfx_home / "plugins" / "cache" / "mp" / "ft" / "0.2.10+codex.2" / "skills" / "fairy-tale"
+        sfx_old.mkdir(parents=True)
+        sfx_new.mkdir(parents=True)
+        (sfx_old / "SKILL.md").write_bytes(
+            (sfx_home / "skills" / "fairy-tale" / "SKILL.md").read_bytes()
+        )
+        (sfx_new / "SKILL.md").write_text(
+            "---\nname: fairy-tale\ndescription: newer suffixed\n---\n", encoding="utf-8"
+        )
+        r_sfx: list[tuple[str, str, str]] = []
+        check_duplicates([sfx_home], r_sfx)
+        sfx = [d for c, s, d in r_sfx if c == "duplicate_registration"]
+        if len(sfx) != 1 or "diverged-duplicate" not in sfx[0] or "0.2.10+codex.2" not in sfx[0]:
+            failures.append(
+                f"suffixed-semver fixture: expected diverged vs 0.2.10+codex.2, got: {sfx}"
+            )
+        # plain release outranks a suffixed build of the same numeric core
+        if not (plugin_version_key(Path("a/1.2.3/b")) > plugin_version_key(Path("a/1.2.3+x/b"))):
+            failures.append("version ordering: plain release must outrank suffixed same-core")
 
         # RED (review round 1): cards-tree divergence with identical SKILL.md
         # must classify DIVERGED (whole-tree comparison), not stale.
