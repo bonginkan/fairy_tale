@@ -1,5 +1,19 @@
 # Release Notes
 
+## 0.2.18
+
+- **Listing-overhead reduction (#58 Increment 3)**: skill descriptions slimmed
+  recall-first (fairy-tale ~250 -> ~154 est tokens; total listing cost -25%)
+  with a machine-enforced trigger-recall floor; new
+  `skill_listing_overhead_check.py` gates description budgets, required
+  triggers, same-home local+plugin double registration (classified
+  stale / diverged / intentional-override), and the SessionStart hook's
+  essential-marker floor (in CI). Residency `--inject` and installed-root
+  checks now aggregate `references/cards/`, fixing the false
+  "residency degraded" warning on post-#57 installs. Secondary-skill
+  name-only override documented; standing instruction kept intentionally
+  (all lines are protected safety/routing markers).
+
 ## 0.2.17
 
 - **SKILL.md router restructure (#57 Increment 2)**: the 28 mode-pattern harness
