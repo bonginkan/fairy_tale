@@ -1,14 +1,15 @@
 {
   "schema_version": 1,
   "issue": "#59 routing-precision eval (parity evidence for #57)",
-  "generated_at_utc": "2026-07-02T05:00:06+00:00",
+  "generated_at_utc": "2026-07-02T05:06:29+00:00",
   "model": "claude-fable-5",
   "claude_cli_version": "2.1.198 (Claude Code)",
   "command": "claude -p --model claude-fable-5 --setting-sources '' --tools '' --output-format json --append-system-prompt-file <router-prompt>",
   "system_prompt_sha256": "9d3947a5e4dcbfbc9c12498dbcc4162f9ee54594124a7344079fd982ff63b568",
   "skill_md_sha256": "c6613c760f2a65f8bb0ab8ba462791af125baee01c1e6c63d258cf6d9730927e",
   "cases_sha256": "9c3fc48b0ebcf3f3beba7f364db4d915bccb17cd7d601d05e9046292cdb5a3a3",
-  "repo_commit": "07322e83af634c16b653af0bbb1c4c9beb3a7bfb",
+  "repo_commit": "1f00e0b210dd0ebfcabaaf0c175daedd5eee7380",
+  "eval_inputs_committed_at_repo_commit": true,
   "isolation": {
     "setting_sources": "",
     "tools": "",
@@ -37,11 +38,11 @@
       "exit_code": 0,
       "tokens": {
         "input_tokens": 2,
-        "output_tokens": 30,
-        "cache_creation_input_tokens": 9270,
+        "output_tokens": 32,
+        "cache_creation_input_tokens": 9195,
         "cache_read_input_tokens": 0
       },
-      "cost_usd": 0.187576,
+      "cost_usd": 0.186181,
       "pass": true,
       "classification": "pass",
       "overfire": false,
@@ -59,11 +60,11 @@
       "exit_code": 0,
       "tokens": {
         "input_tokens": 2,
-        "output_tokens": 42,
-        "cache_creation_input_tokens": 9276,
+        "output_tokens": 106,
+        "cache_creation_input_tokens": 9201,
         "cache_read_input_tokens": 0
       },
-      "cost_usd": 0.188246,
+      "cost_usd": 0.189946,
       "pass": true,
       "classification": "pass",
       "overfire": false,
@@ -81,11 +82,11 @@
       "exit_code": 0,
       "tokens": {
         "input_tokens": 2,
-        "output_tokens": 58,
-        "cache_creation_input_tokens": 9286,
+        "output_tokens": 50,
+        "cache_creation_input_tokens": 9211,
         "cache_read_input_tokens": 0
       },
-      "cost_usd": 0.06016450000000001,
+      "cost_usd": 0.18740199999999999,
       "pass": true,
       "classification": "pass",
       "overfire": false,
@@ -103,11 +104,11 @@
       "exit_code": 0,
       "tokens": {
         "input_tokens": 2,
-        "output_tokens": 31,
-        "cache_creation_input_tokens": 9276,
+        "output_tokens": 28,
+        "cache_creation_input_tokens": 9201,
         "cache_read_input_tokens": 0
       },
-      "cost_usd": 0.18769799999999998,
+      "cost_usd": 0.18605300000000002,
       "pass": true,
       "classification": "pass",
       "overfire": false,
@@ -127,11 +128,11 @@
       "exit_code": 0,
       "tokens": {
         "input_tokens": 2,
-        "output_tokens": 198,
+        "output_tokens": 187,
         "cache_creation_input_tokens": 173,
-        "cache_read_input_tokens": 9123
+        "cache_read_input_tokens": 9048
       },
-      "cost_usd": 0.023215,
+      "cost_usd": 0.022564999999999998,
       "pass": true,
       "classification": "pass",
       "overfire": false,
@@ -153,11 +154,11 @@
       "exit_code": 0,
       "tokens": {
         "input_tokens": 2,
-        "output_tokens": 149,
+        "output_tokens": 281,
         "cache_creation_input_tokens": 160,
-        "cache_read_input_tokens": 9123
+        "cache_read_input_tokens": 9048
       },
-      "cost_usd": 0.020398,
+      "cost_usd": 0.026923000000000002,
       "pass": true,
       "classification": "pass",
       "overfire": false,
@@ -177,11 +178,11 @@
       "exit_code": 0,
       "tokens": {
         "input_tokens": 2,
-        "output_tokens": 37,
+        "output_tokens": 36,
         "cache_creation_input_tokens": 145,
-        "cache_read_input_tokens": 9123
+        "cache_read_input_tokens": 9048
       },
-      "cost_usd": 0.014502,
+      "cost_usd": 0.014382,
       "pass": true,
       "classification": "pass",
       "overfire": false,
@@ -199,11 +200,11 @@
       "exit_code": 0,
       "tokens": {
         "input_tokens": 2,
-        "output_tokens": 42,
+        "output_tokens": 23,
         "cache_creation_input_tokens": 149,
-        "cache_read_input_tokens": 9123
+        "cache_read_input_tokens": 9048
       },
-      "cost_usd": 0.014818999999999999,
+      "cost_usd": 0.0066412500000000005,
       "pass": true,
       "classification": "pass",
       "overfire": false,
@@ -221,11 +222,11 @@
       "exit_code": 0,
       "tokens": {
         "input_tokens": 2,
-        "output_tokens": 30,
+        "output_tokens": 21,
         "cache_creation_input_tokens": 147,
-        "cache_read_input_tokens": 9123
+        "cache_read_input_tokens": 9048
       },
-      "cost_usd": 0.014218999999999999,
+      "cost_usd": 0.013669,
       "pass": true,
       "classification": "pass",
       "overfire": false,
@@ -245,11 +246,11 @@
       "exit_code": 0,
       "tokens": {
         "input_tokens": 2,
-        "output_tokens": 599,
+        "output_tokens": 383,
         "cache_creation_input_tokens": 162,
-        "cache_read_input_tokens": 9123
+        "cache_read_input_tokens": 9048
       },
-      "cost_usd": 0.042972,
+      "cost_usd": 0.032102,
       "pass": true,
       "classification": "pass",
       "overfire": false,
@@ -270,12 +271,12 @@
       ],
       "exit_code": 0,
       "tokens": {
-        "input_tokens": 7,
-        "output_tokens": 32,
-        "cache_creation_input_tokens": 0,
-        "cache_read_input_tokens": 9275
+        "input_tokens": 2,
+        "output_tokens": 143,
+        "cache_creation_input_tokens": 152,
+        "cache_read_input_tokens": 9048
       },
-      "cost_usd": 0.0060795,
+      "cost_usd": 0.019865,
       "pass": true,
       "classification": "pass",
       "overfire": false,
@@ -297,11 +298,11 @@
       "exit_code": 0,
       "tokens": {
         "input_tokens": 2,
-        "output_tokens": 57,
+        "output_tokens": 30,
         "cache_creation_input_tokens": 161,
-        "cache_read_input_tokens": 9123
+        "cache_read_input_tokens": 9048
       },
-      "cost_usd": 0.0159,
+      "cost_usd": 0.014465000000000002,
       "pass": true,
       "classification": "pass",
       "overfire": false,
@@ -323,11 +324,11 @@
       "exit_code": 0,
       "tokens": {
         "input_tokens": 2,
-        "output_tokens": 231,
+        "output_tokens": 197,
         "cache_creation_input_tokens": 162,
-        "cache_read_input_tokens": 9123
+        "cache_read_input_tokens": 9048
       },
-      "cost_usd": 0.024546999999999996,
+      "cost_usd": 0.022777,
       "pass": true,
       "classification": "pass",
       "overfire": false,
@@ -349,11 +350,11 @@
       "exit_code": 0,
       "tokens": {
         "input_tokens": 2,
-        "output_tokens": 105,
+        "output_tokens": 115,
         "cache_creation_input_tokens": 167,
-        "cache_read_input_tokens": 9123
+        "cache_read_input_tokens": 9048
       },
-      "cost_usd": 0.018421,
+      "cost_usd": 0.018816,
       "pass": true,
       "classification": "pass",
       "overfire": false,
@@ -375,11 +376,11 @@
       "exit_code": 0,
       "tokens": {
         "input_tokens": 2,
-        "output_tokens": 210,
+        "output_tokens": 359,
         "cache_creation_input_tokens": 160,
-        "cache_read_input_tokens": 9123
+        "cache_read_input_tokens": 9048
       },
-      "cost_usd": 0.023468000000000003,
+      "cost_usd": 0.030838,
       "pass": true,
       "classification": "pass",
       "overfire": false,
@@ -401,11 +402,11 @@
       "exit_code": 0,
       "tokens": {
         "input_tokens": 2,
-        "output_tokens": 357,
+        "output_tokens": 259,
         "cache_creation_input_tokens": 163,
-        "cache_read_input_tokens": 9123
+        "cache_read_input_tokens": 9048
       },
-      "cost_usd": 0.030934,
+      "cost_usd": 0.025969,
       "pass": true,
       "classification": "pass",
       "overfire": false,
@@ -427,21 +428,24 @@
       "exit_code": 0,
       "tokens": {
         "input_tokens": 2,
-        "output_tokens": 192,
-        "cache_creation_input_tokens": 175,
-        "cache_read_input_tokens": 9123
+        "output_tokens": 49,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 9223
       },
-      "cost_usd": 0.022926,
-      "pass": true,
-      "classification": "pass",
-      "overfire": false,
+      "cost_usd": 0.0065095000000000005,
+      "pass": false,
+      "classification": "overfire",
+      "overfire": true,
       "underfire": false,
-      "extra_cards": [],
+      "extra_cards": [
+        "references/cards/gui-dogfood-qa.md"
+      ],
       "missing_cards": [],
       "invalid_paths": [],
       "parse_error": null,
       "got_cards": [
-        "references/cards/general-e2e-completion-harness.md"
+        "references/cards/general-e2e-completion-harness.md",
+        "references/cards/gui-dogfood-qa.md"
       ]
     },
     {
@@ -453,11 +457,11 @@
       "exit_code": 0,
       "tokens": {
         "input_tokens": 2,
-        "output_tokens": 137,
+        "output_tokens": 146,
         "cache_creation_input_tokens": 161,
-        "cache_read_input_tokens": 9123
+        "cache_read_input_tokens": 9048
       },
-      "cost_usd": 0.019844,
+      "cost_usd": 0.020219,
       "pass": true,
       "classification": "pass",
       "overfire": false,
@@ -478,12 +482,12 @@
       ],
       "exit_code": 0,
       "tokens": {
-        "input_tokens": 2,
-        "output_tokens": 409,
-        "cache_creation_input_tokens": 166,
-        "cache_read_input_tokens": 9123
+        "input_tokens": 3,
+        "output_tokens": 56,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 9214
       },
-      "cost_usd": 0.033588,
+      "cost_usd": 0.006702,
       "pass": false,
       "classification": "overfire",
       "overfire": true,
@@ -508,11 +512,11 @@
       "exit_code": 0,
       "tokens": {
         "input_tokens": 2,
-        "output_tokens": 67,
+        "output_tokens": 140,
         "cache_creation_input_tokens": 171,
-        "cache_read_input_tokens": 9123
+        "cache_read_input_tokens": 9048
       },
-      "cost_usd": 0.016539,
+      "cost_usd": 0.020114,
       "pass": true,
       "classification": "pass",
       "overfire": false,
@@ -534,11 +538,11 @@
       "exit_code": 0,
       "tokens": {
         "input_tokens": 2,
-        "output_tokens": 77,
+        "output_tokens": 139,
         "cache_creation_input_tokens": 193,
-        "cache_read_input_tokens": 9123
+        "cache_read_input_tokens": 9048
       },
-      "cost_usd": 0.017555,
+      "cost_usd": 0.02059,
       "pass": true,
       "classification": "pass",
       "overfire": false,
@@ -561,11 +565,11 @@
       "exit_code": 0,
       "tokens": {
         "input_tokens": 2,
-        "output_tokens": 316,
-        "cache_creation_input_tokens": 0,
-        "cache_read_input_tokens": 9297
+        "output_tokens": 172,
+        "cache_creation_input_tokens": 174,
+        "cache_read_input_tokens": 9048
       },
-      "cost_usd": 0.013179499999999999,
+      "cost_usd": 0.021769,
       "pass": true,
       "classification": "pass",
       "overfire": false,
@@ -589,20 +593,23 @@
       "exit_code": 0,
       "tokens": {
         "input_tokens": 2,
-        "output_tokens": 423,
+        "output_tokens": 475,
         "cache_creation_input_tokens": 178,
-        "cache_read_input_tokens": 9123
+        "cache_read_input_tokens": 9048
       },
-      "cost_usd": 0.034546999999999994,
-      "pass": true,
-      "classification": "pass",
-      "overfire": false,
+      "cost_usd": 0.037072,
+      "pass": false,
+      "classification": "overfire",
+      "overfire": true,
       "underfire": false,
-      "extra_cards": [],
+      "extra_cards": [
+        "references/cards/domain-router.md"
+      ],
       "missing_cards": [],
       "invalid_paths": [],
       "parse_error": null,
       "got_cards": [
+        "references/cards/domain-router.md",
         "references/cards/benchmark-delta-harness.md",
         "references/cards/evaluated-feedback-loop.md"
       ]
@@ -616,11 +623,11 @@
       "exit_code": 0,
       "tokens": {
         "input_tokens": 2,
-        "output_tokens": 29,
-        "cache_creation_input_tokens": 0,
-        "cache_read_input_tokens": 9295
+        "output_tokens": 283,
+        "cache_creation_input_tokens": 172,
+        "cache_read_input_tokens": 9048
       },
-      "cost_usd": 0.0060685,
+      "cost_usd": 0.027344,
       "pass": false,
       "classification": "overfire+underfire",
       "overfire": true,
@@ -646,11 +653,11 @@
       "exit_code": 0,
       "tokens": {
         "input_tokens": 2,
-        "output_tokens": 58,
+        "output_tokens": 260,
         "cache_creation_input_tokens": 165,
-        "cache_read_input_tokens": 9123
+        "cache_read_input_tokens": 9048
       },
-      "cost_usd": 0.016002,
+      "cost_usd": 0.026026999999999998,
       "pass": false,
       "classification": "overfire",
       "overfire": true,
@@ -675,11 +682,11 @@
       "exit_code": 0,
       "tokens": {
         "input_tokens": 2,
-        "output_tokens": 30,
+        "output_tokens": 162,
         "cache_creation_input_tokens": 0,
-        "cache_read_input_tokens": 9292
+        "cache_read_input_tokens": 9217
       },
-      "cost_usd": 0.00609,
+      "cost_usd": 0.0093575,
       "pass": true,
       "classification": "pass",
       "overfire": false,
@@ -701,32 +708,29 @@
       "exit_code": 0,
       "tokens": {
         "input_tokens": 2,
-        "output_tokens": 494,
+        "output_tokens": 384,
         "cache_creation_input_tokens": 166,
-        "cache_read_input_tokens": 9123
+        "cache_read_input_tokens": 9048
       },
-      "cost_usd": 0.037843,
-      "pass": false,
-      "classification": "overfire",
-      "overfire": true,
+      "cost_usd": 0.032268000000000005,
+      "pass": true,
+      "classification": "pass",
+      "overfire": false,
       "underfire": false,
-      "extra_cards": [
-        "references/cards/generalization-and-latent-structure-harness-hidden-rules-executable-models-and-tacit-intent.md"
-      ],
+      "extra_cards": [],
       "missing_cards": [],
       "invalid_paths": [],
       "parse_error": null,
       "got_cards": [
-        "references/cards/mechanism-grammar-harness-arc-style-hidden-rule-discovery.md",
-        "references/cards/generalization-and-latent-structure-harness-hidden-rules-executable-models-and-tacit-intent.md"
+        "references/cards/mechanism-grammar-harness-arc-style-hidden-rule-discovery.md"
       ]
     }
   ],
   "summary": {
     "total": 27,
-    "passed": 23,
-    "accuracy": 0.8519,
-    "overfire": 4,
+    "passed": 22,
+    "accuracy": 0.8148,
+    "overfire": 5,
     "underfire": 1,
     "invalid_output": 0,
     "per_category": {
@@ -757,8 +761,8 @@
       },
       "e2e_gui": {
         "total": 2,
-        "passed": 2,
-        "accuracy": 1.0
+        "passed": 1,
+        "accuracy": 0.5
       },
       "legal_closed": {
         "total": 2,
@@ -772,8 +776,8 @@
       },
       "benchmark": {
         "total": 1,
-        "passed": 1,
-        "accuracy": 1.0
+        "passed": 0,
+        "accuracy": 0.0
       },
       "security": {
         "total": 1,
@@ -792,18 +796,19 @@
       },
       "mechanism": {
         "total": 1,
-        "passed": 0,
-        "accuracy": 0.0
+        "passed": 1,
+        "accuracy": 1.0
       }
     },
     "per_card_utilization": {
       "references/cards/benchmark-delta-harness.md": 1,
       "references/cards/closure-negative-space-and-excess-discovery-harness.md": 5,
       "references/cards/creator-proxy-elaboration-harness-wwcd.md": 2,
+      "references/cards/domain-router.md": 1,
       "references/cards/evaluated-feedback-loop.md": 1,
       "references/cards/fable-harness-long-coding-or-migration-tasks.md": 1,
       "references/cards/general-e2e-completion-harness.md": 2,
-      "references/cards/generalization-and-latent-structure-harness-hidden-rules-executable-models-and-tacit-intent.md": 1,
+      "references/cards/gui-dogfood-qa.md": 1,
       "references/cards/high-signal-research-synthesis.md": 1,
       "references/cards/implementation-validation-gate.md": 1,
       "references/cards/knowledge-crystallization-harness.md": 1,
