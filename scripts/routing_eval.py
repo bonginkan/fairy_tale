@@ -253,12 +253,20 @@ def judge_case(expected: list[str], cards: list[str] | None, parse_error: str | 
     assert cards is not None
     got = set(cards)
     want = set(expected)
-    invalid_paths = sorted(c for c in got if not CARD_PATH_RE.match(c))
-    extra = sorted(got - want)
-    missing = sorted(want - got)
+    # A card path is invalid if it has the wrong shape OR does not exist in
+    # the skill tree — a shape-valid hallucinated card must never be scored
+    # as an ordinary card (it would pollute per-card utilization).
+    invalid_paths = sorted(
+        c for c in got if not CARD_PATH_RE.match(c) or not (SKILL_DIR / c).is_file()
+    )
+    valid_got = got - set(invalid_paths)
+    extra = sorted(valid_got - want)
+    missing = sorted(want - valid_got)
     passed = not extra and not missing and not invalid_paths
     if passed:
         classification = "pass"
+    elif invalid_paths:
+        classification = "invalid_card_path"
     elif extra and missing:
         classification = "overfire+underfire"
     elif extra:
@@ -270,7 +278,7 @@ def judge_case(expected: list[str], cards: list[str] | None, parse_error: str | 
     return {
         "pass": passed,
         "classification": classification,
-        "overfire": bool(extra),
+        "overfire": bool(extra) or bool(invalid_paths),
         "underfire": bool(missing),
         "extra_cards": extra,
         "missing_cards": missing,
@@ -350,9 +358,14 @@ def summarize(results: list[dict], cases: list[dict]) -> dict:
     for slot in by_cat.values():
         slot["accuracy"] = round(slot["passed"] / slot["total"], 4) if slot["total"] else None
     utilization: dict[str, int] = {}
+    invalid_path_outputs: dict[str, int] = {}
     for row in results:
+        invalid = set(row.get("invalid_paths") or [])
         for card in row.get("got_cards") or []:
-            utilization[card] = utilization.get(card, 0) + 1
+            if card in invalid:
+                invalid_path_outputs[card] = invalid_path_outputs.get(card, 0) + 1
+            else:
+                utilization[card] = utilization.get(card, 0) + 1
     negatives = [r for r in results if not r["expected_cards"]]
     contrast_ids = {c["id"] for c in cases if c["category"] == "review_contrast"}
     scope_gate = {
@@ -368,8 +381,12 @@ def summarize(results: list[dict], cases: list[dict]) -> dict:
         "overfire": sum(1 for r in results if r["overfire"]),
         "underfire": sum(1 for r in results if r["underfire"]),
         "invalid_output": sum(1 for r in results if r["classification"] == "invalid_output"),
+        "invalid_card_path": sum(
+            1 for r in results if r["classification"] == "invalid_card_path"
+        ),
         "per_category": by_cat,
         "per_card_utilization": dict(sorted(utilization.items())),
+        "invalid_path_outputs": dict(sorted(invalid_path_outputs.items())),
         "scope_gate_54_regression": scope_gate,
     }
 
@@ -628,6 +645,34 @@ def selftest() -> int:
     check("multi-card order-insensitive exact match passes", v["pass"])
     v = judge_case([real_card], ["/etc/passwd"], None)
     check("invalid card path in output is flagged, not pass", not v["pass"] and v["invalid_paths"])
+    ghost = "references/cards/does-not-exist-anywhere.md"
+    v = judge_case([real_card], [real_card, ghost], None)
+    check(
+        "shape-valid NONEXISTENT card output is invalid_card_path, not ordinary overfire",
+        not v["pass"]
+        and v["classification"] == "invalid_card_path"
+        and ghost in v["invalid_paths"],
+    )
+    rows = [
+        {
+            "id": "u-1",
+            "category": "x",
+            "expected_cards": [real_card],
+            "pass": False,
+            "classification": "invalid_card_path",
+            "overfire": True,
+            "underfire": False,
+            "got_cards": [real_card, ghost],
+            "invalid_paths": [ghost],
+        }
+    ]
+    s = summarize(rows, [])
+    check(
+        "nonexistent card never enters per_card_utilization",
+        ghost not in s["per_card_utilization"]
+        and s["invalid_path_outputs"].get(ghost) == 1
+        and s["per_card_utilization"].get(real_card) == 1,
+    )
     v = judge_case([real_card], None, "malformed JSON: x")
     check("malformed output judged invalid_output", not v["pass"] and v["classification"] == "invalid_output")
 
