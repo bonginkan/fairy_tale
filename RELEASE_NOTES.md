@@ -1,5 +1,18 @@
 # Release Notes
 
+## 0.2.17
+
+- **SKILL.md router restructure (#57 Increment 2)**: the 28 mode-pattern harness
+  bodies moved byte-identically into `references/cards/<slug>.md`; SKILL.md is now
+  a 215-line compaction-safe router (was 765 lines), so the whole body — including
+  the routing table — survives the 5,000-token post-compaction re-attach window.
+  Verbatim move, no semantic edits. Ships the deterministic extractor with
+  committed pre-extraction snapshot + byte-range manifest and a `--verify`
+  byte-parity gate (in CI), a `router_cards` integrity gate (dangling / orphan /
+  duplicate refs RED), card-aware two-way inventory parity, residency markers
+  checked across SKILL.md + cards, and the token/line budget checker enforced
+  fully in CI.
+
 ## 0.2.16
 
 - Added the **Creator-Proxy Elaboration (WWCD)** harness: acting as a relayed
