@@ -541,6 +541,15 @@ def check_contains(checks: list[Check], path: Path, markers: Iterable[str], name
     if text is None:
         add(checks, "FAIL", label, f"missing {path}")
         return
+    # A reference file split into per-record cards keeps its markers in the
+    # sibling directory named after its stem (process.md -> process/); marker
+    # checks scan the index and its records together (#57 Increment 4).
+    sibling_dir = (ROOT / path).parent / (ROOT / path).stem
+    if sibling_dir.is_dir():
+        for record in sorted(sibling_dir.glob("*.md")):
+            record_text = read_text(record)
+            if record_text:
+                text += "\n" + record_text
     missing = [marker for marker in markers if marker not in text]
     if missing:
         add(checks, "FAIL", label, f"missing markers: {', '.join(missing)}")
