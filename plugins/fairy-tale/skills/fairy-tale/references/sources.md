@@ -446,13 +446,20 @@ Checked: 2026-06-18 (UTC).
 
 ## UI/UX design canon (checked 2026-07-07)
 
-- NN/g, Jakob Nielsen's 10 usability heuristics:
-  https://www.nngroup.com/articles/ten-usability-heuristics/
+Primary / near-primary:
+
 - W3C WAI, WCAG 2 at a glance (current version 2.2):
   https://www.w3.org/WAI/standards-guidelines/wcag/glance/
 - W3C, Understanding SC 1.4.3 Contrast (Minimum) — 4.5:1, 3:1 large text:
   https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html
 - W3C, Understanding SC 2.5.8 Target Size (Minimum) — 24x24 CSS px, AA:
   https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html
-- Laws of UX (Fitts / Hick / Jakob and named interaction laws):
+- NN/g, Jakob Nielsen's 10 usability heuristics:
+  https://www.nngroup.com/articles/ten-usability-heuristics/
+
+Secondary field reference:
+
+- Laws of UX — curated collection naming the interaction laws; NOT the
+  original Fitts / Hick / Jakob literature (cite the originals for
+  law-specific claims):
   https://lawsofux.com/
