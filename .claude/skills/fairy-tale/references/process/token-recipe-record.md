@@ -10,6 +10,8 @@ goal (one line):
 trigger (when to replay this):
 preconditions (paths / versions / gates that must still hold):
 steps (exact commands, tools, files, in order):
+authority / safety gates in this process (position only; outcome re-judged
+  on every replay, never memoized):
 verification (how success is checked; run in full on every replay):
 gotchas (what went wrong first time -> fix):
 baseline cost (first run: tool calls / time / tokens if visible):

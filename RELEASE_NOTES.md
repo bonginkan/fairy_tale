@@ -11,7 +11,9 @@
   matching task, replay the recipe instead of re-deriving the process
   (replay-before-re-derive), with a staleness guard on preconditions,
   full-strength validation on every replay (verification is never memoized),
-  judgment/process separation (memoize procedures, never conclusions), and
+  judgment/process separation (memoize procedures, never conclusions),
+  authority/permission/approval and production safety gates re-judged on
+  every replay (a recipe records a gate's position, never its outcome), and
   measured suppression against the first-run baseline (unproductive recipes
   get pruned via the excess pass). Hot recipes promote to skills or utility
   scripts; composes with API-level prompt caching. Router row +

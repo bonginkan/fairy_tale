@@ -12,10 +12,17 @@ narrow rules; this is its dual — it turns *successes* into replayable process.
   first-run cost as baseline. A success that is not captured will be re-derived
   at full price next time.
 - **Memoize processes, not judgments.** Deterministic, repeatable operations
-  (release/version bump, mirror sync, gate battery, deploy, fix patterns)
-  are recipe material. Reviews, design decisions, and verdicts must be
-  re-derived each run — only their *procedure* (which gates to run, in what
+  (release/version bump, mirror sync, gate battery, deploy *procedure*, fix
+  patterns) are recipe material. Reviews, design decisions, and verdicts must
+  be re-derived each run — only their *procedure* (which gates to run, in what
   order) may be memoized, never their conclusions.
+- **Authority and safety gates are never memoized.** Permission grants,
+  owner/approval decisions, production/deploy go-ahead, and every safety-floor
+  gate are re-judged on EVERY replay at full strength. A recipe records THAT a
+  gate exists and where it sits in the sequence — never its outcome. "The
+  owner approved this last run" or "prod was in scope last time" is not
+  authorization for this run; replaying a permission is a security failure,
+  not an optimization.
 - **Recipe store.** Repo-scoped processes live in the repo (the project's
   docs/process convention); cross-repo or user-level processes live in agent
   memory. One recipe = one process; supersede in place instead of appending
