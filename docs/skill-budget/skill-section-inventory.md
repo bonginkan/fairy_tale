@@ -1,7 +1,7 @@
 # SKILL.md section inventory (parity checklist)
 
 - Source: `skills/fairy-tale/SKILL.md`
-- Measured: 14846 bytes / 215 lines / ~3712 est tokens
+- Measured: 15316 bytes / 220 lines / ~3829 est tokens
 - Estimation basis: est tokens = UTF-8 bytes / 4.0 (reporting only); head window enforced at 3.5 bytes/token (densest plausible tokenization); line budget uses exact lines
 - Head window: first 5000 est tokens (= 17500 bytes)
 
@@ -10,11 +10,11 @@ in SKILL.md itself or as an extracted card reachable from the router.
 
 | # | level | section | line | byte offset | est tokens | in head window |
 |---|-------|---------|------|-------------|------------|----------------|
-| 1 | h2 | Non-negotiables | 11 | 811 | 185 | yes |
-| 2 | h2 | Residency Guard | 26 | 1552 | 174 | yes |
-| 3 | h2 | Default workflow | 45 | 2249 | 1560 | yes |
-| 4 | h2 | Mode patterns | 155 | 8488 | 1218 | yes |
-| 5 | h2 | Supporting references | 191 | 13358 | 372 | yes |
+| 1 | h2 | Non-negotiables | 11 | 837 | 185 | yes |
+| 2 | h2 | Residency Guard | 26 | 1578 | 174 | yes |
+| 3 | h2 | Default workflow | 45 | 2275 | 1627 | yes |
+| 4 | h2 | Mode patterns | 159 | 8782 | 1262 | yes |
+| 5 | h2 | Supporting references | 196 | 13828 | 372 | yes |
 
 ## References inventory
 
@@ -49,6 +49,7 @@ in SKILL.md itself or as an extracted card reachable from the router.
 | skills/fairy-tale/references/cards/refactoring-similarity-harness.md | 515 | 12 | 129 |
 | skills/fairy-tale/references/cards/spatial-forge-harness-3d-cad-and-simulation-work.md | 932 | 16 | 233 |
 | skills/fairy-tale/references/cards/steady-behavior-harness.md | 761 | 14 | 190 |
+| skills/fairy-tale/references/cards/ui-design-best-practices-harness.md | 3523 | 53 | 881 |
 | skills/fairy-tale/references/cards/workflow-self-improvement.md | 521 | 11 | 130 |
 | skills/fairy-tale/references/creator-proxy-elaboration.md | 5082 | 78 | 1270 |
 | skills/fairy-tale/references/feedback-governance.md | 4515 | 123 | 1129 |
@@ -109,4 +110,4 @@ in SKILL.md itself or as an extracted card reachable from the router.
 | skills/fairy-tale/references/process/voice-profile-card.md | 237 | 16 | 59 |
 | skills/fairy-tale/references/process.md | 7490 | 56 | 1872 |
 | skills/fairy-tale/references/similarity-refactoring-adapter.md | 2360 | 76 | 590 |
-| skills/fairy-tale/references/sources.md | 21911 | 445 | 5478 |
+| skills/fairy-tale/references/sources.md | 22555 | 458 | 5639 |

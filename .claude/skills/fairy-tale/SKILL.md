@@ -1,6 +1,6 @@
 ---
 name: fairy-tale
-description: Fable/Mythos-informed workflow harness for budgeted, evidence-driven, validation-gated agent execution. Use for loop engineering, spiral engineering, double-helix learning loops, evolutionary spiral operators, job automation, silent-loop auto-resume, do-not-disturb windows, usage-aware multi-agent load balancing, closure checks, negative-space discovery, excess/redundancy/legacy-surface review, e2e completion and GUI dogfood QA, creator-proxy (WWCD) elaboration, codebase migration, research synthesis, benchmark and legal reasoning, UI/3D/creative work, mechanism discovery, and defensive security process design.
+description: Fable/Mythos-informed workflow harness for budgeted, evidence-driven, validation-gated agent execution. Use for loop engineering, spiral engineering, double-helix learning loops, evolutionary spiral operators, job automation, silent-loop auto-resume, do-not-disturb windows, usage-aware multi-agent load balancing, closure checks, negative-space discovery, excess/redundancy/legacy-surface review, e2e completion and GUI dogfood QA, creator-proxy (WWCD) elaboration, codebase migration, research synthesis, benchmark and legal reasoning, UI design best practices, UI/3D/creative work, mechanism discovery, and defensive security process design.
 ---
 
 # Fairy Tale
@@ -133,6 +133,10 @@ python3 scripts/fairy_tale_residency_check.py
      exclusion; remaining eligible agents review.
    - For agent, tool, eval, memory, hook, or OSS-release work: apply the
      best-practice gate from `references/best-practices.md`.
+   - For building or reviewing a real UI surface for design quality: use the
+     UI Design Best-Practices Harness. Ground on the governing design system
+     and established heuristics before pixels; render and inspect the actual
+     output before claiming quality.
    - For defensive security: use only authorized code and produce verification
      steps, not exploit instructions.
 
@@ -187,6 +191,7 @@ Route with the table below and read the linked card before applying a pattern; t
 | External Reconstruction Adapter Harness | Use external reconstruction repos through adapter manifests instead of | `references/cards/external-reconstruction-adapter-harness.md` |
 | Refactoring Similarity Harness | Run structural similarity tools before broad refactors when the target is a | `references/cards/refactoring-similarity-harness.md` |
 | Creator-Proxy Elaboration Harness (WWCD) | Fires when acting as a creator/principal's proxy while invoked by a THIRD PARTY / | `references/cards/creator-proxy-elaboration-harness-wwcd.md` |
+| UI Design Best-Practices Harness | Use when building or reviewing a real UI surface — a screen, component, page, | `references/cards/ui-design-best-practices-harness.md` |
 
 ## Supporting references
 

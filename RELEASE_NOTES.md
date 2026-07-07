@@ -1,5 +1,22 @@
 # Release Notes
 
+## 0.2.20
+
+- **UI Design Best-Practices Harness (new card)**: adds
+  `references/cards/ui-design-best-practices-harness.md` — the design-side
+  counterpart to GUI Dogfood QA. Design brief before pixels; canon
+  compliance / anti-reinvention (reuse existing tokens and the governing
+  design system); NN/g's ten usability heuristics as the review lens;
+  measurable simplicity metrics (clicks-to-action, time-on-task, task
+  success); WCAG 2.2 numeric floors (SC 1.4.3 contrast 4.5:1 / 3:1 large,
+  SC 2.5.8 target 24x24 CSS px); full state coverage as Tier A entailed
+  companions; rendered-artifact validation with a "visual not measured"
+  disclosure for code-only review. Router row + Choose-a-route bullet +
+  description trigger wired in SKILL.md, UI/UX design canon section in
+  sources.md (primary/near-primary vs. secondary field reference tiers),
+  and two routing-eval fixtures (ui-01 build / ui-02 design review) paired
+  against the "propose N layouts" negative control.
+
 ## 0.2.19
 
 - **process.md per-record split (#57 WI3)**: the 49 record templates in
