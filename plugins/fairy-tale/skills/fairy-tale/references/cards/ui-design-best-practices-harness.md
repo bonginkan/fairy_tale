@@ -44,7 +44,10 @@ Dogfood QA; this harness governs how the UI is *designed and built*.
   pass. Hand the finished surface to GUI Dogfood QA for the black-box pass;
   hand 3D/spatial work to Spatial Forge.
 
-Primary sources (checked 2026-07-07): NN/g ten usability heuristics
-(nngroup.com/articles/ten-usability-heuristics/); WCAG 2.2 Understanding SC
-1.4.3 Contrast (Minimum) and SC 2.5.8 Target Size (Minimum) (w3.org/WAI);
-Laws of UX (lawsofux.com) for the named interaction laws.
+Primary and near-primary sources (checked 2026-07-07): W3C WCAG 2.2
+Understanding SC 1.4.3 Contrast (Minimum) and SC 2.5.8 Target Size (Minimum)
+(w3.org/WAI); NN/g ten usability heuristics
+(nngroup.com/articles/ten-usability-heuristics/). Secondary field reference:
+Laws of UX (lawsofux.com) — a curated collection naming the interaction laws,
+not the original Fitts / Hick / Jakob literature; cite the originals when a
+claim leans on a specific law.
