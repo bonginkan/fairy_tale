@@ -17,6 +17,8 @@
   and two routing-eval fixtures (ui-01 build / ui-02 design review) paired
   against the "propose N layouts" negative control.
 
+## 0.2.19
+
 - **process.md per-record split (#57 WI3)**: the 49 record templates in
   `references/process.md` moved byte-identically into
   `references/process/<slug>.md`; process.md is now a 7.5KB index (was
