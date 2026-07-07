@@ -1,5 +1,27 @@
 # Release Notes
 
+## 0.2.21
+
+- **Token Consumption Optimizer Harness (new card + record)**: adds
+  `references/cards/token-consumption-optimizer-harness.md` and the
+  `references/process/token-recipe-record.md` template — the success-side
+  dual of the Evaluated Feedback Loop. After a validated success likely to
+  recur, capture the exact working process as a recipe (goal, trigger,
+  preconditions, steps, verification, gotchas, baseline cost); on the next
+  matching task, replay the recipe instead of re-deriving the process
+  (replay-before-re-derive), with a staleness guard on preconditions,
+  full-strength validation on every replay (verification is never memoized),
+  judgment/process separation (memoize procedures, never conclusions),
+  authority/permission/approval and production safety gates re-judged on
+  every replay (a recipe records a gate's position, never its outcome), and
+  measured suppression against the first-run baseline (unproductive recipes
+  get pruned via the excess pass). Hot recipes promote to skills or utility
+  scripts; composes with API-level prompt caching. Router row +
+  Choose-a-route bullet + description trigger wired in SKILL.md, process.md
+  index row, sources grounded in Anthropic agent-skills best practices and
+  prompt-caching docs (checked 2026-07-07), and two routing-eval fixtures
+  (tok-01/tok-02).
+
 ## 0.2.20
 
 - **UI Design Best-Practices Harness (new card)**: adds
