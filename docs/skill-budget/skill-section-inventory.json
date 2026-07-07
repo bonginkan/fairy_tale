@@ -218,8 +218,8 @@
     {
       "path": "references/cards/ui-design-best-practices-harness.md",
       "title": "UI Design Best-Practices Harness",
-      "bytes": 3346,
-      "est_tokens": 836
+      "bytes": 3523,
+      "est_tokens": 881
     },
     {
       "path": "references/cards/workflow-self-improvement.md",
@@ -603,9 +603,9 @@
     },
     {
       "path": "skills/fairy-tale/references/cards/ui-design-best-practices-harness.md",
-      "bytes": 3346,
-      "lines": 50,
-      "est_tokens": 836
+      "bytes": 3523,
+      "lines": 53,
+      "est_tokens": 881
     },
     {
       "path": "skills/fairy-tale/references/cards/workflow-self-improvement.md",

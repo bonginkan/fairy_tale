@@ -49,7 +49,7 @@ in SKILL.md itself or as an extracted card reachable from the router.
 | skills/fairy-tale/references/cards/refactoring-similarity-harness.md | 515 | 12 | 129 |
 | skills/fairy-tale/references/cards/spatial-forge-harness-3d-cad-and-simulation-work.md | 932 | 16 | 233 |
 | skills/fairy-tale/references/cards/steady-behavior-harness.md | 761 | 14 | 190 |
-| skills/fairy-tale/references/cards/ui-design-best-practices-harness.md | 3346 | 50 | 836 |
+| skills/fairy-tale/references/cards/ui-design-best-practices-harness.md | 3523 | 53 | 881 |
 | skills/fairy-tale/references/cards/workflow-self-improvement.md | 521 | 11 | 130 |
 | skills/fairy-tale/references/creator-proxy-elaboration.md | 5082 | 78 | 1270 |
 | skills/fairy-tale/references/feedback-governance.md | 4515 | 123 | 1129 |
