@@ -38,6 +38,7 @@ Each record template lives in its own card under `references/process/`; read onl
 | Meeting proxy setup record | Use this before building or running any meeting attendance proxy. This card is | `references/process/meeting-proxy-setup-record.md` |
 | Problem-finding cards | Use these when a request, complaint, or product/review finding may be framed too | `references/process/problem-finding-cards.md` |
 | Feedback pruning record | Use this before promoting, merging, or keeping accumulated feedback rules. | `references/process/feedback-pruning-record.md` |
+| Token recipe record | Use this at consolidation after a validated success that is likely to recur. | `references/process/token-recipe-record.md` |
 | Fusion review card | Use this before launching multi-reviewer or multi-model deliberation. | `references/process/fusion-review-card.md` |
 | Domain router card | Use this before applying a Fairy Tale harness to a benchmark or unfamiliar | `references/process/domain-router-card.md` |
 | Effort inversion record | Use this when tuning `medium`, `high`, `xhigh`, max effort, or any provider | `references/process/effort-inversion-record.md` |
