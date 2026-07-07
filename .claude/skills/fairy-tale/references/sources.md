@@ -16,6 +16,11 @@
   https://www.anthropic.com/news/fable-mythos-access
 - System card PDF:
   https://www-cdn.anthropic.com/d00db56fa754a1b115b6dd7cb2e3c342ee809620.pdf
+- Prompt caching docs (cost model, TTL; checked 2026-07-07):
+  https://platform.claude.com/docs/en/build-with-claude/prompt-caching
+- Agent-skills authoring best practices (progressive disclosure, utility
+  scripts save tokens; checked 2026-07-07):
+  https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices
 
 ## Public reports and field observations
 
