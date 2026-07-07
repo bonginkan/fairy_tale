@@ -1,5 +1,17 @@
 # Release Notes
 
+## 0.2.22
+
+- **Structured SessionStart residency injection**: `fairy_tale_residency_check.py --inject`
+  now emits a `hookSpecificOutput.hookEventName=SessionStart` JSON payload with
+  the residency standing instruction in `additionalContext`. Degraded residency
+  warnings are preserved in `additionalContext` and still mirrored to stderr, so
+  the assistant sees stale-install warnings while operator logs remain useful.
+- Added a `SessionStart inject contract` self-check that executes the real
+  `inject_residency()` path, parses stdout as JSON, validates the expected
+  hook fields, and covers both healthy and degraded paths for the root script
+  and the plugin-bundled copy.
+
 ## 0.2.21
 
 - **Token Consumption Optimizer Harness (new card + record)**: adds

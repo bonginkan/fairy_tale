@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
+import io
 import json
 import sys
 from dataclasses import dataclass
@@ -579,6 +581,72 @@ def check_standing_instruction(checks: list[Check]) -> None:
         )
 
 
+def build_inject_payload(additional_context: str) -> dict:
+    return {
+        "hookSpecificOutput": {
+            "hookEventName": "SessionStart",
+            "additionalContext": additional_context,
+        }
+    }
+
+
+def check_inject_contract(checks: list[Check]) -> None:
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+        rc = inject_residency()
+    try:
+        decoded = json.loads(stdout.getvalue())
+    except json.JSONDecodeError as exc:
+        add(checks, "FAIL", "SessionStart inject contract", f"--inject stdout is not JSON: {exc}")
+        return
+
+    if rc != 0:
+        add(checks, "FAIL", "SessionStart inject contract", f"--inject returned {rc}")
+        return
+    hook_output = decoded.get("hookSpecificOutput")
+    if not isinstance(hook_output, dict):
+        add(checks, "FAIL", "SessionStart inject contract", "missing hookSpecificOutput object")
+        return
+    if hook_output.get("hookEventName") != "SessionStart":
+        add(checks, "FAIL", "SessionStart inject contract", "hookEventName must be SessionStart")
+        return
+    context = hook_output.get("additionalContext")
+    if not isinstance(context, str) or "[fairy-tale] Residency active:" not in context:
+        add(checks, "FAIL", "SessionStart inject contract", "additionalContext missing residency instruction")
+        return
+    if stderr.getvalue():
+        add(checks, "FAIL", "SessionStart inject contract", "healthy --inject wrote stderr")
+        return
+
+    original_markers = SKILL_MARKERS["fairy-tale"]
+    try:
+        SKILL_MARKERS["fairy-tale"] = original_markers + ("__missing_marker_for_contract_check__",)
+        degraded_stdout = io.StringIO()
+        degraded_stderr = io.StringIO()
+        with contextlib.redirect_stdout(degraded_stdout), contextlib.redirect_stderr(degraded_stderr):
+            degraded_rc = inject_residency()
+    finally:
+        SKILL_MARKERS["fairy-tale"] = original_markers
+
+    if degraded_rc != 0:
+        add(checks, "FAIL", "SessionStart inject contract", f"degraded --inject returned {degraded_rc}")
+        return
+    try:
+        degraded_payload = json.loads(degraded_stdout.getvalue())
+    except json.JSONDecodeError as exc:
+        add(checks, "FAIL", "SessionStart inject contract", f"degraded --inject stdout is not JSON: {exc}")
+        return
+    degraded_context = degraded_payload.get("hookSpecificOutput", {}).get("additionalContext")
+    if not isinstance(degraded_context, str) or "[fairy-tale] residency degraded:" not in degraded_context:
+        add(checks, "FAIL", "SessionStart inject contract", "degraded additionalContext missing warning")
+        return
+    if "[fairy-tale] residency degraded:" not in degraded_stderr.getvalue():
+        add(checks, "FAIL", "SessionStart inject contract", "degraded --inject did not warn on stderr")
+        return
+    add(checks, "OK", "SessionStart inject contract", "emits structured SessionStart hook JSON")
+
+
 def skill_text_with_cards(skill_dir: Path) -> str | None:
     """SKILL.md text plus its router-referenced card bodies. Mode-pattern
     harness bodies live in references/cards/ since the #57 restructure, so
@@ -664,6 +732,7 @@ def collect_checks(args: argparse.Namespace) -> list[Check]:
         check_contains(checks, path, markers, f"{path} install smoke artifact")
 
     check_standing_instruction(checks)
+    check_inject_contract(checks)
 
     if args.check_installed:
         home = Path.home()
@@ -688,9 +757,12 @@ def inject_residency() -> int:
         gaps = [marker for marker in SKILL_MARKERS[skill] if marker not in text]
         if gaps:
             degraded.append(f"{skill}: stale ({', '.join(gaps)})")
-    print(STANDING_INSTRUCTION)
+    additional_context = STANDING_INSTRUCTION
     if degraded:
-        print("[fairy-tale] residency degraded: " + "; ".join(degraded), file=sys.stderr)
+        degraded_message = "[fairy-tale] residency degraded: " + "; ".join(degraded)
+        additional_context += "\n" + degraded_message
+        print(degraded_message, file=sys.stderr)
+    print(json.dumps(build_inject_payload(additional_context)))
     return 0
 
 
