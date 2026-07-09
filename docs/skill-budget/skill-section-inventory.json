@@ -2,10 +2,10 @@
   "purpose": "Parity checklist for the SKILL.md router/per-card restructure: every section listed here must remain reachable (in SKILL.md or via an extracted card referenced from the router). Compare with --inventory-compare to fail closed on silent drops.",
   "skill_md": "skills/fairy-tale/SKILL.md",
   "measured": {
-    "bytes": 15829,
-    "lines": 225,
-    "chars": 15775,
-    "est_tokens": 3957,
+    "bytes": 16346,
+    "lines": 230,
+    "chars": 16286,
+    "est_tokens": 4086,
     "estimation_basis": "est tokens = UTF-8 bytes / 4.0 (reporting only); head window enforced at 3.5 bytes/token (densest plausible tokenization); line budget uses exact lines",
     "head_window_bytes": 17500,
     "head_token_budget": 5000
@@ -15,40 +15,40 @@
       "level": 2,
       "title": "Non-negotiables",
       "line": 11,
-      "byte_offset": 891,
-      "byte_end": 1632,
+      "byte_offset": 890,
+      "byte_end": 1631,
       "est_tokens": 185
     },
     {
       "level": 2,
       "title": "Residency Guard",
       "line": 26,
-      "byte_offset": 1632,
-      "byte_end": 2329,
+      "byte_offset": 1631,
+      "byte_end": 2328,
       "est_tokens": 174
     },
     {
       "level": 2,
       "title": "Default workflow",
       "line": 45,
-      "byte_offset": 2329,
-      "byte_end": 9099,
-      "est_tokens": 1692
+      "byte_offset": 2328,
+      "byte_end": 9401,
+      "est_tokens": 1768
     },
     {
       "level": 2,
       "title": "Mode patterns",
-      "line": 163,
-      "byte_offset": 9099,
-      "byte_end": 14341,
-      "est_tokens": 1310
+      "line": 167,
+      "byte_offset": 9401,
+      "byte_end": 14858,
+      "est_tokens": 1364
     },
     {
       "level": 2,
       "title": "Supporting references",
-      "line": 201,
-      "byte_offset": 14341,
-      "byte_end": 15829,
+      "line": 206,
+      "byte_offset": 14858,
+      "byte_end": 16346,
       "est_tokens": 372
     }
   ],
@@ -150,6 +150,12 @@
       "est_tokens": 838
     },
     {
+      "path": "references/cards/helix-loop-communication-harness.md",
+      "title": "Helix Loop Communication Harness: agent-to-agent handoff, mentions, and ho-ren-so",
+      "bytes": 3923,
+      "est_tokens": 981
+    },
+    {
       "path": "references/cards/high-signal-research-synthesis.md",
       "title": "High-signal research synthesis",
       "bytes": 238,
@@ -218,8 +224,8 @@
     {
       "path": "references/cards/token-consumption-optimizer-harness.md",
       "title": "Token Consumption Optimizer Harness: process memoization",
-      "bytes": 3139,
-      "est_tokens": 785
+      "bytes": 3628,
+      "est_tokens": 907
     },
     {
       "path": "references/cards/ui-design-best-practices-harness.md",
@@ -546,6 +552,12 @@
       "est_tokens": 838
     },
     {
+      "path": "skills/fairy-tale/references/cards/helix-loop-communication-harness.md",
+      "bytes": 3923,
+      "lines": 59,
+      "est_tokens": 981
+    },
+    {
       "path": "skills/fairy-tale/references/cards/high-signal-research-synthesis.md",
       "bytes": 238,
       "lines": 7,
@@ -613,9 +625,9 @@
     },
     {
       "path": "skills/fairy-tale/references/cards/token-consumption-optimizer-harness.md",
-      "bytes": 3139,
-      "lines": 48,
-      "est_tokens": 785
+      "bytes": 3628,
+      "lines": 55,
+      "est_tokens": 907
     },
     {
       "path": "skills/fairy-tale/references/cards/ui-design-best-practices-harness.md",
@@ -949,9 +961,9 @@
     },
     {
       "path": "skills/fairy-tale/references/process/token-recipe-record.md",
-      "bytes": 692,
-      "lines": 19,
-      "est_tokens": 173
+      "bytes": 803,
+      "lines": 21,
+      "est_tokens": 201
     },
     {
       "path": "skills/fairy-tale/references/process/tool-contract-card.md",
@@ -991,9 +1003,9 @@
     },
     {
       "path": "skills/fairy-tale/references/sources.md",
-      "bytes": 23041,
-      "lines": 470,
-      "est_tokens": 5760
+      "bytes": 23827,
+      "lines": 488,
+      "est_tokens": 5957
     }
   ]
 }

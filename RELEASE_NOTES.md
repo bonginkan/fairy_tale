@@ -1,5 +1,24 @@
 # Release Notes
 
+## 0.2.22
+
+- **Helix Loop Communication Harness (new card)**: adds
+  `references/cards/helix-loop-communication-harness.md` — the agent-to-agent
+  loop-development communication discipline for Discord/OpenAB (canonical
+  spec: bonginkan/north-star-os#45 / #46; field evidence from B&Co
+  loop-development threads). Fixed roles (reviewer/merge = MARIA,
+  implementation/PR = マリアル; same-account PR+review acceptable by Owner
+  decision), mention-first-at-head with `<@id> 名前`, short one-line required
+  fields per turn (issue/PR, branch/head, checks, blocker, next action,
+  owner needed), repo-qualified references (never bare issue numbers),
+  ho-ren-so shapes with counterpart-mentioned state-change notices, mandatory
+  one-line acks (silence is indistinguishable from routing failure), receipt
+  confirmation with one re-mention then Owner escalation, 30-minute cadence
+  with 20/45-minute stall thresholds, mention-only context recovery, and
+  untrusted-draft verification. Router row + Choose-a-route bullet +
+  description trigger wired in SKILL.md; routing fixtures hlx-01/hlx-02;
+  description slimmed to stay within the 700-char listing budget.
+
 ## 0.2.21
 
 - **Token Consumption Optimizer Harness (new card + record)**: adds
