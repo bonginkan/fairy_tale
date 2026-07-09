@@ -1,0 +1,72 @@
+{
+  "schema_version": "1.0",
+  "revolution_id": "0003-loopandloop-turtle-apr-risk",
+  "altitude": {
+    "current": "The Turtle/NLM/APR work existed as a LoopAndLoop delivery artifact: a ready loop, eval packs, APR round notes, and local validation, but Fairy Tale had no spiral ledger tying that execution to a double-helix governance strand.",
+    "target": "Promote the LoopAndLoop Turtle risk loop into a Fairy Tale spiral record: execution evidence and learning/governance evidence must be paired before any helix/evolution claim is inherited.",
+    "axis": "abstraction"
+  },
+  "execution_strand": {
+    "objective": "Connect applego/loopandloop's Turtle/NLM/APR risk loop to bonginkan/fairy_tale's Loop -> Spiral -> Double-Helix operating model without changing runtime behavior or expanding trading authority.",
+    "engineer_target": "applego/loopandloop commit 34df521 adds examples/turtle-apr-risk-loop.yaml, eval-packs/turtle-apr-risk-visible.jsonl, eval-packs/turtle-apr-risk-hidden.jsonl, .apr/workflows/turtle-apr-risk.yaml, .apr/rounds/turtle-apr-risk/round_1.md, and docs/skillops/apr/turtle-apr-risk-loop-2026-07-09.md.",
+    "validation_reviews": [
+      "https://github.com/applego/loopandloop/commit/34df521",
+      "https://chatgpt.com/c/6a4f9286-3540-83ee-8a1b-e8d861a270e6",
+      "https://notebooklm.google.com/notebook/3b704b0c-026e-474c-ad36-98dd732780f2"
+    ]
+  },
+  "learning_governance_strand": {
+    "double_loop_evaluation": "The APR/NLM review attacked the first loop as too prose-driven: trade permissions, verifier ownership, external review, copyright boundaries, claim lifecycle, and pilot-before-scale were not typed strongly enough to prevent a confident but ungoverned loop from masquerading as a reusable trading template.",
+    "governing_variable_change": "A LoopAndLoop artifact may be referenced by Fairy Tale as helix-ready only when it carries a structured riskContract, explicit authority boundary, typed verifiers, hidden eval coverage, externalReviewPolicy, artifact hash/event envelope rules, and a pilot-before-scale constraint.",
+    "next_altitude": "A future evolution variant may mutate the risk-loop template only after this spiral ledger plus LoopAndLoop status/list/typecheck/test evidence remain green and a new variant record declares the safety floor immutable.",
+    "stop_or_descend": "Do not treat NLM book capture, APR approval, or a ready LoopAndLoop YAML as trading authority. Descend to a docs/eval-only loop unless live broker credentials, deployment, and human approval gates are explicitly present and verified."
+  },
+  "strand_pairing_evidence": [
+    "https://github.com/applego/loopandloop/commit/34df521",
+    "https://chatgpt.com/c/6a4f9286-3540-83ee-8a1b-e8d861a270e6",
+    "https://notebooklm.google.com/notebook/3b704b0c-026e-474c-ad36-98dd732780f2",
+    "spiral-revolutions/0003-loopandloop-turtle-apr-risk.json"
+  ],
+  "risk": {
+    "highest_uncertainty": "A market-strategy source can be over-abstracted into automation authority: a readable NLM/PDF insight or APR no-block can be mistaken for permission to run capital-bearing trades.",
+    "spike": "Constrain the integration to evidence-carrying docs/YAML/eval artifacts and validate the loop externally through LoopAndLoop CLI plus Fairy Tale spiral checks before inheriting the governance template.",
+    "burn_down_evidence": [
+      "https://github.com/applego/loopandloop/commit/34df521",
+      "https://chatgpt.com/c/6a4f9286-3540-83ee-8a1b-e8d861a270e6",
+      "https://notebooklm.google.com/notebook/3b704b0c-026e-474c-ad36-98dd732780f2"
+    ]
+  },
+  "mismatch_repair": {
+    "mismatches": [
+      "The initial LoopAndLoop design could pass as a ready loop while leaving risk authority and external review as prose rather than typed contract surfaces.",
+      "NLM source evidence was advisory and could not itself distinguish training, evaluation, and live execution authority.",
+      "Fairy Tale had no local spiral receipt for the LoopAndLoop artifact, so the helix claim was only conversational."
+    ],
+    "repair_action": "APR feedback was folded into LoopAndLoop as riskContract, authority, typed verifiers, externalReviewPolicy, claim lifecycle/domain transfer guardrails, hidden eval, event envelope/artifact hash policy, and pilot-before-scale constraints; this record adds the Fairy Tale spiral receipt without adding runtime, broker, credential, or deploy authority."
+  },
+  "validated_governance_template": "Carry forward only the double-helix governance shape: pair a concrete delivery artifact with a concrete learning/governance artifact; preserve riskContract, authority, typed verifier, external review, hidden eval, artifact hash, and pilot-before-scale gates; re-synthesize strategy-specific delivery details per loop.",
+  "win_condition": "The LoopAndLoop Turtle loop remains ready by its CLI/status tests, Fairy Tale spiral_revolution_check.py accepts this 0003 record, and no record claims live trading/deploy authority from NLM or APR alone.",
+  "budget_radius": "Bounded: one Fairy Tale spiral ledger record referencing an already-pushed LoopAndLoop docs/YAML/eval change; no runtime code, no broker connection, no credential handling, no deployment, no agent fan-out.",
+  "safety_floor": "Unchanged: security, credential, broker, deploy, main-release, copyright, external publication, and human approval gates outrank spiral altitude; NLM/PDF/APR evidence is advisory until explicit authority gates are satisfied.",
+  "ledger_receipt": [
+    "run-20260709T1235Z-codex-loopandloop-turtle-apr-risk",
+    "trace-20260709-loopandloop-turtle-apr-risk",
+    "https://github.com/applego/loopandloop/commit/34df521"
+  ],
+  "implementer": "CC MISA",
+  "implementer_id": "1510042936027381821",
+  "reviews": [
+    {
+      "reviewer": "Codex MISA",
+      "reviewer_id": "1510912873981804627",
+      "verdict": "no_block",
+      "refute_pass": "https://chatgpt.com/c/6a4f9286-3540-83ee-8a1b-e8d861a270e6"
+    },
+    {
+      "reviewer": "Jun (owner)",
+      "reviewer_id": "473730953735438336",
+      "verdict": "no_block",
+      "refute_pass": "https://notebooklm.google.com/notebook/3b704b0c-026e-474c-ad36-98dd732780f2"
+    }
+  ]
+}
