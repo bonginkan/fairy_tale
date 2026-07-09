@@ -1,6 +1,6 @@
 ---
 name: fairy-tale
-description: Fable/Mythos-informed workflow harness for budgeted, evidence-driven, validation-gated agent execution. Use for loop engineering, spiral engineering, double-helix learning loops, evolutionary spiral operators, job automation, silent-loop auto-resume, do-not-disturb windows, usage-aware multi-agent load balancing, closure checks, negative-space discovery, excess/redundancy/legacy-surface review, e2e completion and GUI dogfood QA, creator-proxy (WWCD) elaboration, codebase migration, research synthesis, benchmark and legal reasoning, UI design best practices, UI/3D/creative work, token consumption optimization (process memoization), mechanism discovery, and defensive security process design.
+description: Fable/Mythos-informed workflow harness for budgeted, evidence-driven, validation-gated agent execution. Use for loop engineering, spiral engineering, double-helix learning loops/evolutionary spiral operators, job automation, silent-loop auto-resume/do-not-disturb windows, usage-aware multi-agent load balancing, agent handoff/mention/ho-ren-so (Helix), closure/negative-space discovery, excess/redundancy/legacy-surface review, e2e completion/GUI dogfood QA, creator-proxy (WWCD), codebase migration, research synthesis, benchmark/legal reasoning, UI design best practices, UI/3D/creative work, token optimization (process memoization), mechanism discovery, and defensive security process design.
 ---
 
 # Fairy Tale
@@ -141,6 +141,10 @@ python3 scripts/fairy_tale_residency_check.py
      Consumption Optimizer Harness — replay the captured recipe instead of
      re-deriving the process, and capture a recipe at consolidation after any
      validated success likely to recur.
+   - For loop development with another agent over Discord/OpenAB (handoff,
+     review request, progress report, blocker escalation): use the Helix Loop
+     Communication Harness — mention first with `<@id> 名前`, one-line
+     required fields, repo-qualified references, ack every mentioned post.
    - For defensive security: use only authorized code and produce verification
      steps, not exploit instructions.
 
@@ -197,6 +201,7 @@ Route with the table below and read the linked card before applying a pattern; t
 | Creator-Proxy Elaboration Harness (WWCD) | Fires when acting as a creator/principal's proxy while invoked by a THIRD PARTY / | `references/cards/creator-proxy-elaboration-harness-wwcd.md` |
 | UI Design Best-Practices Harness | Use when building or reviewing a real UI surface — a screen, component, page, | `references/cards/ui-design-best-practices-harness.md` |
 | Token Consumption Optimizer Harness: process memoization | Use when an operation succeeded once and is likely to recur: distill the | `references/cards/token-consumption-optimizer-harness.md` |
+| Helix Loop Communication Harness: agent-to-agent handoff, mentions, and ho-ren-so | Use when coordinating loop development (implement -> review -> fix -> | `references/cards/helix-loop-communication-harness.md` |
 
 ## Supporting references
 

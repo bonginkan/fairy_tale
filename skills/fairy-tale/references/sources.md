@@ -468,3 +468,21 @@ Secondary field reference:
   original Fitts / Hick / Jakob literature (cite the originals for
   law-specific claims):
   https://lawsofux.com/
+
+## Helix loop communication (checked 2026-07-09)
+
+Primary / near-primary:
+
+- bonginkan/north-star-os#45 — Spec: 8-hour Discord Helix for MARIA and
+  マリアル collaboration (operating model, cadence, stop conditions):
+  https://github.com/bonginkan/north-star-os/issues/45
+- bonginkan/north-star-os#46 — Helix Discord turn protocol and run ledger
+  (required one-line fields, handoff rules, mention-only recovery):
+  https://github.com/bonginkan/north-star-os/issues/46
+
+Field evidence:
+
+- B&Co Discord loop-development threads (2026-07): missed mid-text mentions,
+  bare issue numbers resolving to the wrong repo after session expiry, and
+  silent "no response requested" turns indistinguishable from routing
+  failures. Private threads; described as observations, not quoted.
