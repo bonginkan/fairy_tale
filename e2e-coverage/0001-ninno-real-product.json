@@ -125,8 +125,17 @@
   "gui": {
     "has_gui": true,
     "dogfood": {
-      "performed": false,
-      "outstanding_ref": "https://github.com/bonginkan/NINNO-real-product/issues/45"
+      "performed": true,
+      "console_checked": true,
+      "issue_taxonomy_applied": true,
+      "issues_found": 3,
+      "evidence": [
+        "e2e-coverage/artifacts/ninno-dogfood-anon-annotated-20260710.png (annotated live dev evidence: anon /login, UTC, 390x844 viewport, console/network/overflow result)",
+        "e2e-coverage/artifacts/ninno-dogfood-member-annotated-20260710.png (annotated live dev evidence: member /member, UTC, 390x844 viewport, console/network/overflow result)",
+        "e2e-coverage/artifacts/ninno-dogfood-admin-annotated-20260710.png (annotated live dev evidence: admin /manage/analytics, UTC, 1440x900 viewport, console/network/overflow result)",
+        "Full 3-role x 6-surface dogfood report, per-interaction console/network sweep, repro steps, and severity/category taxonomy: https://github.com/bonginkan/NINNO-real-product/issues/45",
+        "All three GUI REDs fixed in PR #64 and re-verified on dev: https://github.com/bonginkan/NINNO-real-product/pull/64"
+      ]
     }
   },
   "red_findings": [
@@ -135,6 +144,24 @@
       "summary": "Member first-time event registration without a tenant link returned an unhandled 500 (undefined tenantId/note written to Firestore .set, no route try/catch).",
       "repro": "POST /api/event-registrations without tenantId (first time) -> 500; with tenantId or existing registration -> 201 (app/api/event-registrations/route.ts:30)",
       "issue_ref": "https://github.com/bonginkan/NINNO-real-product/issues/43"
+    },
+    {
+      "id": "GUI-061",
+      "summary": "The login page prefetched the Slack OAuth redirect as a fetch and emitted net::ERR_INVALID_REDIRECT on load (medium, console/errors).",
+      "repro": "GET /login in an isolated unauthenticated browser context; the console/network recorded the failed OAuth-authorize fetch while top-level sign-in navigation still worked (https://github.com/bonginkan/NINNO-real-product/issues/61).",
+      "issue_ref": "https://github.com/bonginkan/NINNO-real-product/issues/61"
+    },
+    {
+      "id": "GUI-062",
+      "summary": "A member could mount the management dashboard shell, triggering admin-only API requests that returned 403 (medium, ux/console-errors).",
+      "repro": "GET /dashboard with a member session; the dogfood pass recorded GET /api/admin-analytics and GET /api/support-tickets returning 403 before the render-time role clamp was added.",
+      "issue_ref": "https://github.com/bonginkan/NINNO-real-product/issues/62"
+    },
+    {
+      "id": "GUI-063",
+      "summary": "The deployed application returned 404 for /favicon.ico (low, content/polish).",
+      "repro": "GET /favicon.ico on the pre-fix dev deployment returned 404; PR #64 added the literal icon route and the post-fix probe returned 200.",
+      "issue_ref": "https://github.com/bonginkan/NINNO-real-product/issues/63"
     }
   ],
   "residue": {
@@ -144,6 +171,11 @@
   "evidence_refs": [
     "https://github.com/bonginkan/NINNO-real-product/pull/44",
     "https://github.com/bonginkan/NINNO-real-product/issues/43",
+    "https://github.com/bonginkan/NINNO-real-product/issues/45",
+    "https://github.com/bonginkan/NINNO-real-product/pull/64",
+    "e2e-coverage/artifacts/ninno-dogfood-anon-annotated-20260710.png",
+    "e2e-coverage/artifacts/ninno-dogfood-member-annotated-20260710.png",
+    "e2e-coverage/artifacts/ninno-dogfood-admin-annotated-20260710.png",
     "admin dashboard screenshots: openab-consultation-panel.png, openab-outcome-panel.png, openab-decision-panel.png"
   ],
   "safety": {
