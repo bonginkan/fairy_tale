@@ -130,8 +130,9 @@
       "issue_taxonomy_applied": true,
       "issues_found": 3,
       "evidence": [
-        "e2e-coverage/artifacts/ninno-public-top-20260710.png (fresh deployed public-route browser screenshot after the UI-1 through UI-5 migration)",
-        "e2e-coverage/artifacts/ninno-login-20260710.png (fresh deployed login-route browser screenshot with the Slack sign-in control)",
+        "e2e-coverage/artifacts/ninno-dogfood-anon-annotated-20260710.png (annotated live dev evidence: anon /login, UTC, 390x844 viewport, console/network/overflow result)",
+        "e2e-coverage/artifacts/ninno-dogfood-member-annotated-20260710.png (annotated live dev evidence: member /member, UTC, 390x844 viewport, console/network/overflow result)",
+        "e2e-coverage/artifacts/ninno-dogfood-admin-annotated-20260710.png (annotated live dev evidence: admin /manage/analytics, UTC, 1440x900 viewport, console/network/overflow result)",
         "Full 3-role x 6-surface dogfood report, per-interaction console/network sweep, repro steps, and severity/category taxonomy: https://github.com/bonginkan/NINNO-real-product/issues/45",
         "All three GUI REDs fixed in PR #64 and re-verified on dev: https://github.com/bonginkan/NINNO-real-product/pull/64"
       ]
@@ -172,8 +173,9 @@
     "https://github.com/bonginkan/NINNO-real-product/issues/43",
     "https://github.com/bonginkan/NINNO-real-product/issues/45",
     "https://github.com/bonginkan/NINNO-real-product/pull/64",
-    "e2e-coverage/artifacts/ninno-public-top-20260710.png",
-    "e2e-coverage/artifacts/ninno-login-20260710.png",
+    "e2e-coverage/artifacts/ninno-dogfood-anon-annotated-20260710.png",
+    "e2e-coverage/artifacts/ninno-dogfood-member-annotated-20260710.png",
+    "e2e-coverage/artifacts/ninno-dogfood-admin-annotated-20260710.png",
     "admin dashboard screenshots: openab-consultation-panel.png, openab-outcome-panel.png, openab-decision-panel.png"
   ],
   "safety": {
