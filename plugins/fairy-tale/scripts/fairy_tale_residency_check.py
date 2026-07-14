@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -482,10 +483,34 @@ def compare_tree(canonical: Path, copy: Path) -> str | None:
 
 
 def check_skill_file(checks: list[Check], root: Path, skill: str) -> None:
-    text = skill_text_with_cards(ROOT / root / skill)
+    skill_dir = ROOT / root / skill
+    skill_file = skill_dir / "SKILL.md"
+    raw_text = read_text(skill_file)
+    text = skill_text_with_cards(skill_dir)
     label = f"{root}/{skill}"
     if text is None:
         add(checks, "FAIL", label, "missing SKILL.md")
+        return
+
+    if raw_text is None or not raw_text.startswith("---\n"):
+        add(checks, "FAIL", label, "missing YAML frontmatter")
+        return
+    frontmatter_end = raw_text.find("\n---\n", 4)
+    if frontmatter_end < 0:
+        add(checks, "FAIL", label, "unterminated YAML frontmatter")
+        return
+    unsafe_scalars = [
+        line
+        for line in raw_text[4:frontmatter_end].splitlines()
+        if re.match(r"^[A-Za-z_][A-Za-z0-9_-]*:\s+[^'\"|>].*:\s", line)
+    ]
+    if unsafe_scalars:
+        add(
+            checks,
+            "FAIL",
+            label,
+            "unsafe unquoted YAML scalar containing ': ': " + unsafe_scalars[0],
+        )
         return
 
     markers = SKILL_MARKERS[skill]
