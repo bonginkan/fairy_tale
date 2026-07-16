@@ -82,7 +82,7 @@ CLAIM_KEYS = {
     "rounding_rule", "revenue_drivers", "cost_drivers", "assumptions",
     "evidence_status", "sensitivity", "depends_on", "components", "weights",
 }
-DRIVER_KEYS = {"name", "entailed_class", "disposition", "value", "included_in", "allocation_basis", "covered_scope", "source", "period", "evidence"}
+DRIVER_KEYS = {"name", "entailed_class", "disposition", "value", "basis", "included_in", "allocation_basis", "covered_scope", "source", "period", "evidence"}
 ASSUMPTION_KEYS = {"id", "text", "evidence_status", "value"}
 UNCERTAINTY_KEYS = {"id", "text", "impact_bound", "decision_reversing"}
 SIGNOFF_KEYS = {"role", "reviewer", "artifact_sha256", "verdict", "coverage"}
@@ -145,6 +145,10 @@ REASON_CLASSES = (
     "assumption_unused", "amount_without_source", "amount_period_mismatch",
     "included_in_without_scope", "included_in_host_unresolved",
     "uncertainty_malformed", "uncertainty_unbounded", "uncertainty_decision_reversing",
+    # fix-5 (PR #75 round 5): economic effect (not mere reference), acyclic
+    # dependency graphs, and fully fail-closed nested records.
+    "formula_input_ineffective", "cost_sign_inverted", "depends_on_cycle",
+    "component_duplicate", "amount_without_basis",
 )
 
 # NOTE (PR #75 round 3): coverage of REASON_CLASSES is judged against the
@@ -388,6 +392,7 @@ def check_claim_arithmetic(claim: dict, claims_by_id: dict, reasons: list[str]) 
             return
         check_input_bindings(claim, inputs, reasons)
         check_cost_consumption(claim, reasons)
+        check_economic_effect(claim, formula, inputs, recomputed, reasons)
     if "recomputed_value" not in claim:
         reasons.append(f"recomputed_value_missing:{cid}")
     else:
@@ -407,6 +412,37 @@ def binding_referenced_names(claim: dict) -> set[str]:
             if found:
                 names.update(found)
     return names
+
+
+def check_economic_effect(claim: dict, formula: str, inputs: dict, baseline: float, reasons: list[str]) -> None:
+    """Reference is not effect (PR #75 round 5): a `*0` coefficient can name a
+    factor without letting it move the result. Perturb each input and demand a
+    response; on margin/profit claims, an input bound to an amount cost driver
+    must move the result DOWN when the cost goes up."""
+    cid = claim.get("claim_id", "?")
+    metric = claim.get("metric")
+    cost_driver_names = {
+        (d.get("name") or "").strip()
+        for d in claim.get("cost_drivers", []) or []
+        if isinstance(d, dict) and d.get("disposition") == "amount"
+    } - {""}
+    bindings = claim.get("input_bindings") or {}
+    for key, value in inputs.items():
+        if not is_finite_number(value):
+            return  # non_finite_value already reported
+        perturbed_value = float(value) * 1.01 if float(value) != 0 else 0.01
+        perturbed = safe_eval_formula(formula, {**inputs, key: perturbed_value})
+        if perturbed is None:
+            continue  # division-by-zero style edge; executability already gated
+        if abs(perturbed - baseline) < 1e-12:
+            reasons.append(f"formula_input_ineffective:{cid}:{key}")
+            continue
+        binding = bindings.get(key)
+        if metric in (MARGIN_METRICS | {"operating_profit"}) and isinstance(binding, str) \
+                and not binding.strip().startswith("assumption:"):
+            binding_names = formula_names(binding.strip()) or set()
+            if binding_names and binding_names <= cost_driver_names and perturbed > baseline + 1e-12:
+                reasons.append(f"cost_sign_inverted:{cid}:{key}")
 
 
 def check_cost_consumption(claim: dict, reasons: list[str]) -> None:
@@ -510,8 +546,11 @@ def check_driver(driver: dict, claim: dict, valid_targets: set[str], reasons: li
     if disposition == "amount":
         if not is_finite_number(driver.get("value")):
             reasons.append(f"amount_without_value:{claim_id}:{name}")
-        # An amount is a number ON A STATED BASIS: it carries its own
-        # anchored source and sits on the claim's period.
+        # An amount is a number ON A STATED BASIS: an explicit basis record
+        # (per-unit/monthly/percent-of-revenue, tax treatment), its own
+        # anchored source, and the claim's period.
+        if len((driver.get("basis") or "").strip()) < 10:
+            reasons.append(f"amount_without_basis:{claim_id}:{name}")
         if not has_anchor(driver.get("source")) and not is_locator(driver.get("source")):
             reasons.append(f"amount_without_source:{claim_id}:{name}")
         period = (driver.get("period") or "").strip()
@@ -601,12 +640,44 @@ def evaluate(ledger: dict) -> tuple[str, list[str]]:
             if check_driver(driver, claim, valid_targets - {name}, reasons):
                 open_tbd += 1
                 reasons.append(f"tbd_open:{cid}:{name or '?'}")
-        for component_id in claim.get("components", []) or []:
+        components_list = claim.get("components", []) or []
+        for component_id in {c for c in components_list if components_list.count(c) > 1}:
+            reasons.append(f"component_duplicate:{cid}:{component_id}")
+        for component_id in components_list:
             component = claims_by_id.get(component_id)
             if component is None:
                 reasons.append(f"component_missing:{cid}:{component_id}")
             elif claim_has_open_coverage(component):
                 reasons.append(f"aggregate_incomplete_component:{cid}:{component_id}")
+
+    # Dependency/aggregate graph must be a DAG: self-references and cycles
+    # make "component coverage" and recomputation ill-founded.
+    graph: dict[str, set[str]] = {}
+    for claim in claims:
+        cid = claim.get("claim_id")
+        edges = set()
+        for field in ("depends_on", "components"):
+            for target in claim.get(field, []) or []:
+                if isinstance(target, str):
+                    edges.add(target)
+        graph[cid] = edges
+        if cid in edges:
+            reasons.append(f"depends_on_cycle:{cid}:self")
+    WHITE, GRAY, BLACK = 0, 1, 2
+    color = {node: WHITE for node in graph}
+    def _visit(node: str, path: list[str]) -> None:
+        color[node] = GRAY
+        for neighbor in graph.get(node, ()):  # missing targets reported elsewhere
+            if neighbor not in graph:
+                continue
+            if color[neighbor] == GRAY:
+                reasons.append(f"depends_on_cycle:{neighbor}:{'->'.join(path + [node, neighbor])}")
+            elif color[neighbor] == WHITE:
+                _visit(neighbor, path + [node])
+        color[node] = BLACK
+    for node in graph:
+        if color[node] == WHITE:
+            _visit(node, [])
 
     models_raw = ledger.get("business_model")
     if not isinstance(models_raw, list) or not models_raw or not all(isinstance(m, str) for m in models_raw):
@@ -688,7 +759,11 @@ def evaluate(ledger: dict) -> tuple[str, list[str]]:
                 reasons.append("uncertainty_malformed")
                 continue
             check_unknown_keys(entry, UNCERTAINTY_KEYS, f"uncertainty:{entry['id']}", reasons)
-            if entry.get("decision_reversing") is True:
+            if not isinstance(entry.get("decision_reversing"), bool):
+                # The reversal flag is a required boolean: leaving it out (or
+                # stringly-typing it) must never read as "not reversing".
+                reasons.append(f"uncertainty_malformed:{entry['id']}:decision_reversing")
+            elif entry["decision_reversing"]:
                 reasons.append(f"uncertainty_decision_reversing:{entry['id']}")
             if len(str(entry.get("impact_bound") or "").strip()) < 10:
                 reasons.append(f"uncertainty_unbounded:{entry['id']}")
@@ -706,6 +781,11 @@ def evaluate(ledger: dict) -> tuple[str, list[str]]:
         if entry.get("role") not in SIGNOFF_ROLES:
             reasons.append(f"signoff_role_unknown:{entry.get('role', '?')}")
             continue
+        # Every accepted entry is individually complete: a blank entry can
+        # never ride along beside a valid one (PR #75 round 5).
+        if not str(entry.get("reviewer") or "").strip() or not isinstance(entry.get("coverage"), list) \
+                or not str(entry.get("artifact_sha256") or "").strip():
+            reasons.append(f"signoff_malformed:{entry.get('role', '?')}")
         verdict_value = entry.get("verdict")
         if verdict_value not in SIGNOFF_VERDICTS:
             reasons.append(f"signoff_verdict_missing:{entry.get('role', '?')}")
@@ -841,6 +921,7 @@ def _green_ledger() -> dict:
             "cost_drivers": [{
                 "name": "partner_fee", "entailed_class": "channel_economics",
                 "disposition": "amount", "value": 15.0,
+                "basis": "flat fee per period, tax-exclusive",
                 "source": "partner agreement p3 clause 2", "period": "FY1",
             }],
         }],
@@ -1159,6 +1240,48 @@ def _selftest() -> int:
           lambda l: l.update(uncertainties=[{"id": "u1", "text": "churn could exceed the modeled rate",
                                              "impact_bound": "up to 3pt margin impact per p7", "decision_reversing": True}]),
           "uncertainty_decision_reversing")
+
+    # --- fix-5 probes (PR #75 round 5: effect, DAG, fail-closed nested records) ---
+    def zero_coefficient(l):
+        l["claims"][0].update(formula="(rev-cogs-fee*0)/rev", displayed_value=0.75, recomputed_value=0.75)
+    probe("a *0 coefficient references without effect and blocks", zero_coefficient, "formula_input_ineffective")
+
+    def cost_added(l):
+        l["claims"][0].update(formula="(rev-cogs+fee)/rev", displayed_value=0.90, recomputed_value=0.90)
+    probe("a cost that INCREASES a margin blocks (sign inversion)", cost_added, "cost_sign_inverted")
+    probe("self-dependency blocks", lambda l: l["claims"][0].update(depends_on=["C1"]), "depends_on_cycle")
+
+    def cycle(l):
+        second = copy.deepcopy(l["claims"][0])
+        second["claim_id"] = "C2"
+        second["depends_on"] = ["C1"]
+        l["claims"][0]["depends_on"] = ["C2"]
+        l["claims"].append(second)
+        for s in l["signoffs"]:
+            s["coverage"] = ["C1", "C2"]
+    probe("a dependency cycle across claims blocks", cycle, "depends_on_cycle")
+
+    def dup_component(l):
+        second = copy.deepcopy(l["claims"][0]); second["claim_id"] = "C2"
+        agg = {"claim_id": "C0", "source": "p9:agg", "metric": "gross_margin", "period": "FY1",
+               "currency": "USD", "unit": "ratio", "tax_basis": "excl", "displayed_value": 0.6,
+               "recomputed_value": 0.6, "rounding_rule": "2dp", "components": ["C1", "C1"],
+               "weights": {"C1": 1.0}, "revenue_drivers": {"price": 10.0, "volume": 20, "start_month": 1, "active_months": 12},
+               "assumptions": [], "evidence_status": "cited",
+               "sensitivity": "tracks component margins one-for-one", "depends_on": ["C1"]}
+        l["claims"] = [agg, l["claims"][0], second]
+        for s in l["signoffs"]:
+            s["coverage"] = ["C0", "C1", "C2"]
+    probe("duplicate aggregate components block", dup_component, "component_duplicate")
+    probe("an amount without an explicit basis blocks",
+          lambda l: l["claims"][0]["cost_drivers"][0].pop("basis"), "amount_without_basis")
+    probe("an uncertainty without the boolean reversal flag blocks",
+          lambda l: l.update(uncertainties=[{"id": "u1", "text": "churn could exceed the modeled rate",
+                                             "impact_bound": "up to 3pt margin impact per p7"}]),
+          "uncertainty_malformed")
+    def blank_signoff_rider(l):
+        l["signoffs"].append({"role": "arithmetic_reconciliation"})
+    probe("a blank sign-off entry cannot ride beside a valid one", blank_signoff_rider, "signoff_malformed")
 
     if failures:
         print("finance completeness selftest FAILED.")

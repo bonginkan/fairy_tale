@@ -84,8 +84,12 @@ gate → Closure / Negative-Space Check → reviewer sign-off.
   must use conversion and active-months wherever volume enters the bound
   arithmetic; conversion/churn domains are validated; margins must be
   ratio-unit quotients over a revenue-bound denominator with a numerator
-  derived from it, in plausible range. Constant formulas, non-executable
-  formulas, missing inputs, and non-finite values block. A strict schema rejects unknown keys
+  derived from it, in plausible range. Reference is not effect: every input
+  is perturbation-tested (a `*0` coefficient blocks) and a cost-bound input
+  that moves a margin/profit UP is a sign inversion. Dependency and
+  aggregate graphs must be acyclic with no self/duplicate references.
+  Constant formulas, non-executable formulas, missing inputs, and
+  non-finite values block. A strict schema rejects unknown keys
   anywhere in the record so a typo can never weaken a rule, while requiring
   every #74 record field (recomputed value, assumptions with values,
   evidence status, sensitivity, cross-claim dependencies, closure state).
