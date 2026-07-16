@@ -73,12 +73,19 @@
   conversion/churn required, cross-page conflict records with anchored
   resolutions, evidence-anchored numeric impacts (default cap 10%),
   string-typed coverage, and the issue-canonical PASS /
-  PASS_WITH_WARNINGS / BLOCK verdict enum. Selftest carries 120+
-  red/green/hostile controls (every PR #75 round-1..8 review probe and an
-  add/remove metamorphic flip); one hundred twenty-six sanitized
-  cross-industry acceptance fixtures (positive controls for bounded
-  uncertainties, per-unit recurring margins, amount-only included-in,
-  pass-with-warnings, resolved conflicts, and correct recurring margins) in
+  PASS_WITH_WARNINGS / BLOCK verdict enum. Round 9: cohort compounding is
+  caught across alias boundaries (multiplicative composition of
+  factor-bearing branches) while additive streams stay green; executed
+  revenue dedupes aliased streams so weights cannot be faked; materiality
+  caps restored to the #74 defaults (5 margin points / relative 10%); a
+  `segment` identity axis keeps legitimate cross-segment differences from
+  false-blocking as conflicts. Selftest carries 125+ red/green/hostile
+  controls (every PR #75 round-1..9 review probe and an add/remove
+  metamorphic flip); one hundred thirty sanitized cross-industry
+  acceptance fixtures (positive controls for bounded uncertainties,
+  per-unit recurring margins, amount-only included-in, pass-with-warnings,
+  resolved conflicts, correct recurring margins, and segment-differentiated
+  margins) in
   `fixtures/finance-completeness/cases.jsonl` (agency, SaaS, marketplace,
   managed service, hardware, channel sales), all wired into CI. `redundancy`
   added to the listing recall-floor triggers. Router row +

@@ -91,24 +91,28 @@ gate → Closure / Negative-Space Check → reviewer sign-off.
   perturbation-tested end-to-end through bindings + formula — a `*0` hidden
   inside a binding blocks; a cost anchor that moves a margin/profit UP and
   a revenue anchor that moves revenue/forecast/operating-profit DOWN are
-  sign inversions; a cohort factor divided or repeated within one
-  expression is inverse/compounded semantics (a revenue denominator that
-  MULTIPLIES cohort factors is correct margin math); one binding never
-  mixes revenue and cost anchors. Dependency and aggregate graphs must be
+  sign inversions; a cohort factor divided anywhere, repeated within one
+  expression, or multiplied across alias boundaries is inverse/compounded
+  semantics — while additive revenue streams each using a factor once, and
+  a revenue denominator that MULTIPLIES cohort factors, are correct margin
+  math; one binding never mixes revenue and cost anchors. Dependency and aggregate graphs must be
   acyclic with no self/duplicate references; aggregate weights live in
-  (0,1], must match the components' EXECUTED revenue (their revenue-bound
-  input values, setup fees and cohort factors included — never a bare
-  price*volume shortcut, never self-declared), and components share the
+  (0,1], must match the components' EXECUTED revenue (their UNIQUE
+  revenue-bound input values, setup fees and cohort factors included,
+  duplicate aliases deduped — never a bare price*volume shortcut, never
+  self-declared), and components share the
   claim's period, metric, currency, unit, and tax basis. The ledger
   records its observed frame, a central-claim inventory naming the exact
   claim IDs (identity, not just count), an artifact verdict (PASS /
   PASS_WITH_WARNINGS / BLOCK, the issue-canonical enum), explicit minimum
   closure conditions (any unsatisfied one blocks), and cross-page
   conflicts: same-basis claims with diverging values must carry a recorded
-  conflict with a locator-anchored resolution. Recurring claims must
+  conflict with a locator-anchored resolution, while a `segment` identity
+  axis keeps legitimately different segments from false-blocking. Recurring claims must
   record conversion and churn. Uncertainty impact bounds are numeric with
   locator-anchored evidence in a CLOSED, capped unit registry (#74
-  default: relative 10%; stricter task-supplied thresholds accepted), and
+  defaults: 5 margin points / relative 10% of revenue; stricter
+  task-supplied thresholds accepted), and
   cumulative absolute impact must stay under the threshold. Constant
   formulas, non-executable formulas, missing inputs, and non-finite
   values block. A strict schema rejects unknown keys

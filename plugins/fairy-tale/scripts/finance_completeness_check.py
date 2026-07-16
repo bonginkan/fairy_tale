@@ -81,16 +81,18 @@ LEDGER_KEYS = {
 CONFLICT_KEYS = {"id", "claim_ids", "description", "resolution"}
 INVENTORY_KEYS = {"count", "claim_ids", "enumeration_basis"}
 MATERIALITY_KEYS = {"value", "unit", "basis"}
-# Closed unit registry with DEFAULT CAPS (#74 default: relative 10%): a
-# self-set "1000 bananas" threshold can never launder material uncertainty;
-# a task-supplied STRICTER (smaller) threshold is always accepted.
-MATERIALITY_UNIT_CAPS = {"margin_pt": 10.0, "revenue_pct": 10.0}
+# Closed unit registry with DEFAULT CAPS (#74 defaults: 5 margin points,
+# relative 10% of revenue): a self-set "1000 bananas" threshold can never
+# launder material uncertainty; a task-supplied STRICTER (smaller) threshold
+# is always accepted. (Round-9 fix: round 8 wrongly relaxed margin_pt to 10.)
+MATERIALITY_UNIT_CAPS = {"margin_pt": 5.0, "revenue_pct": 10.0}
 CLOSURE_CONDITION_KEYS = {"id", "text", "satisfied"}
 CLAIM_KEYS = {
     "claim_id", "source", "metric", "period", "currency", "unit", "tax_basis",
-    "displayed_value", "formula", "inputs", "input_bindings", "recomputed_value",
-    "rounding_rule", "revenue_drivers", "cost_drivers", "assumptions",
-    "evidence_status", "sensitivity", "depends_on", "components", "weights",
+    "segment", "displayed_value", "formula", "inputs", "input_bindings",
+    "recomputed_value", "rounding_rule", "revenue_drivers", "cost_drivers",
+    "assumptions", "evidence_status", "sensitivity", "depends_on",
+    "components", "weights",
 }
 DRIVER_KEYS = {"name", "entailed_class", "disposition", "value", "basis", "included_in", "allocation_basis", "covered_scope", "source", "period", "evidence"}
 ASSUMPTION_KEYS = {"id", "text", "evidence_status", "value"}
@@ -663,11 +665,19 @@ def executed_revenue(component: dict) -> float | None:
     total = 0.0
     found = False
     inputs = component.get("inputs") or {}
+    seen_streams: set[tuple] = set()
     for key, binding in (component.get("input_bindings") or {}).items():
         if not isinstance(binding, str) or binding.strip().startswith("assumption:"):
             continue
         names = formula_names(binding.strip()) or set()
         if names and names <= REVENUE_DRIVER_KEYS and is_finite_number(inputs.get(key)):
+            # Dedupe by (anchor set, value): the SAME revenue stream aliased
+            # into several inputs counts once — duplicate aliases can never
+            # inflate executed revenue to fake a weight (round 9).
+            stream = (frozenset(names), round(float(inputs[key]), 9))
+            if stream in seen_streams:
+                continue
+            seen_streams.add(stream)
             total += float(inputs[key])
             found = True
     return total if found else None
@@ -919,6 +929,32 @@ def evaluate(ledger: dict) -> tuple[str, list[str]]:
                 # expression compounds growth and blocks too.
                 cohort_factors = {"conversion", "active_months"}
                 claim_bindings = claim.get("input_bindings") or {}
+
+                def transitive_cohort(node) -> set[str]:
+                    names = {n.id for n in ast.walk(node) if isinstance(n, ast.Name)}
+                    out = names & cohort_factors
+                    for name in names:
+                        b = claim_bindings.get(name)
+                        if isinstance(b, str) and not b.strip().startswith("assumption:"):
+                            out |= (formula_names(b.strip()) or set()) & cohort_factors
+                    return out
+
+                # Alias-split compounding (round 9): a Mult node whose BOTH
+                # sides carry the same cohort factor (directly or through
+                # bindings) squares growth; additive branches (separate
+                # revenue streams) each using a factor once stay GREEN.
+                formula_text2 = claim.get("formula")
+                if isinstance(formula_text2, str):
+                    try:
+                        formula_tree = ast.parse(formula_text2, mode="eval")
+                    except (SyntaxError, ValueError):
+                        formula_tree = None
+                    if formula_tree is not None:
+                        for node in ast.walk(formula_tree):
+                            if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Mult):
+                                shared = transitive_cohort(node.left) & transitive_cohort(node.right)
+                                for factor in sorted(shared):
+                                    reasons.append(f"cohort_factor_duplicated:{cid}:{factor}")
                 # An input ALIAS in the formula's divisor whose binding is a
                 # PURE cohort expression is inverse too; a revenue denominator
                 # that merely CONTAINS cohort factors alongside price/volume
@@ -1055,7 +1091,10 @@ def evaluate(ledger: dict) -> tuple[str, list[str]]:
             recorded_pairs.add(frozenset(entry["claim_ids"]))
         basis_groups: dict[tuple, list] = {}
         for claim in claims:
-            key = tuple(str(claim.get(f) or "").strip() for f in ("metric", "period", "currency", "unit", "tax_basis"))
+            # segment/subject identity: two lines about DIFFERENT segments are
+            # legitimately different numbers, never a conflict (round 9).
+            key = tuple(str(claim.get(f) or "").strip()
+                        for f in ("metric", "period", "currency", "unit", "tax_basis", "segment"))
             basis_groups.setdefault(key, []).append(claim)
         for group in basis_groups.values():
             candidates = [c for c in group if c.get("claim_id") not in component_ids and not c.get("components")]
@@ -1559,7 +1598,7 @@ def _selftest() -> int:
     probe("absorbing into an unresolved host blocks", unresolved_host, "included_in_host_unresolved")
 
     def with_threshold(l):
-        l["materiality_threshold"] = {"value": 10.0, "unit": "margin_pt", "basis": "board materiality policy p1"}
+        l["materiality_threshold"] = {"value": 5.0, "unit": "margin_pt", "basis": "board materiality policy p1"}
     probe("a malformed uncertainty entry blocks",
           lambda l: (with_threshold(l), l.update(uncertainties=["it might rain"]))[-1], "uncertainty_malformed")
     probe("an uncertainty without a numeric impact blocks",
@@ -1659,9 +1698,9 @@ def _selftest() -> int:
     def cumulative_materiality(l):
         with_threshold(l)
         l["uncertainties"] = [
-            {"id": "u1", "text": "churn could exceed the modeled rate", "impact_value": 6.0,
+            {"id": "u1", "text": "churn could exceed the modeled rate", "impact_value": 3.0,
              "impact_unit": "margin_pt", "evidence": "sensitivity table p7 row 3", "decision_reversing": False},
-            {"id": "u2", "text": "hosting price increase at renewal window", "impact_value": 5.5,
+            {"id": "u2", "text": "hosting price increase at renewal window", "impact_value": 2.5,
              "impact_unit": "margin_pt", "evidence": "vendor notice appendix C", "decision_reversing": False},
         ]
     probe("correlated uncertainties exceeding the materiality threshold block",
@@ -1741,6 +1780,43 @@ def _selftest() -> int:
         l["signoffs"].append({"role": "arithmetic_reconciliation", "reviewer": "r3",
                               "artifact_sha256": l["artifact_sha256"], "verdict": "PASS", "coverage": []})
     probe("an empty-coverage sign-off rider blocks", empty_coverage_rider, "signoff_malformed")
+
+    # --- fix-9 probes (PR #75 round 9) ---
+    def alias_split_conversion(l):
+        recurring_forecast_no_cohort_math(l)
+        l["claims"][0]["revenue_drivers"].update(conversion=0.3, churn_monthly=0.05)
+        l["claims"][0].update(formula="a*b", displayed_value=32.4, recomputed_value=32.4, rounding_rule="1dp")
+        l["claims"][0]["inputs"] = {"a": 0.3, "b": 108.0}
+        l["claims"][0]["input_bindings"] = {"a": "conversion", "b": "price*volume*conversion*active_months*0.3"}
+    probe("conversion split across a formula alias and a binding still compounds and blocks",
+          alias_split_conversion, "cohort_factor_duplicated")
+
+    def cap_violation(l):
+        with_threshold(l)
+        l["materiality_threshold"]["value"] = 7.0
+        l["uncertainties"] = [{"id": "u1", "text": "churn could exceed the modeled rate",
+                               "impact_value": 6.5, "impact_unit": "margin_pt",
+                               "evidence": "sensitivity table p7 row 3", "decision_reversing": False}]
+    probe("a 7pt margin threshold exceeds the #74 5pt default and blocks", cap_violation, "materiality_threshold_unanchored")
+
+    def segment_positive(l):
+        second = copy.deepcopy(l["claims"][0])
+        second["claim_id"] = "C2"
+        second["source"] = "p8:segment-table"
+        second["segment"] = "enterprise"
+        second["displayed_value"] = 0.55
+        second["recomputed_value"] = 0.55
+        second["inputs"] = {"rev": 100.0, "cogs": 30.0, "fee": 15.0}
+        second["assumptions"] = [{"id": "a1", "text": "COGS from enterprise sheet p8 line 2",
+                                  "evidence_status": "cited", "value": 30.0}]
+        l["claims"][0]["segment"] = "self_serve"
+        l["claims"].append(second)
+        for s in l["signoffs"]:
+            s["coverage"] = ["C1", "C2"]
+        l["central_claim_inventory"] = {"count": 2, "claim_ids": ["C1", "C2"],
+                                        "enumeration_basis": "every margin figure p1-p8 tables"}
+    check_positive("different-segment margins with diverging values pass without a conflict record",
+                   segment_positive)
 
     def revenue_inverted(l):
         recurring_forecast_no_cohort_math(l)
