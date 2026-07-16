@@ -210,6 +210,19 @@ def validate_check(check: Any, index: int, findings: list[Finding]) -> None:
         add(findings, f"{prefix}.artifact_paths", "artifact_paths must be a string list")
     if not isinstance(check.get("notes"), str):
         add(findings, f"{prefix}.notes", "notes must be a string")
+    if check.get("result") == "pass" and not (
+        has_text(check.get("command"))
+        or (
+            isinstance(check.get("artifact_paths"), list)
+            and any(has_text(item) for item in check["artifact_paths"])
+        )
+        or has_text(check.get("notes"))
+    ):
+        add(
+            findings,
+            f"{prefix}.evidence",
+            "pass check must record a command, artifact path, or manual observation in notes",
+        )
 
 
 def validate_validation_ledger(
@@ -217,6 +230,7 @@ def validate_validation_ledger(
     *,
     ledger_path: Path | None = None,
     verify_link: bool = False,
+    allow_missing_ledger: bool = False,
 ) -> list[Finding]:
     findings: list[Finding] = []
     if not isinstance(ledger, dict):
@@ -272,42 +286,59 @@ def validate_validation_ledger(
     if verify_link:
         if ledger_path is None:
             add(findings, "validation_ledger.link", "ledger path is required for link verification")
-        elif portable_filename(ledger.get("task_card_path")):
+        else:
             try:
-                card_path = resolve_path(
-                    ledger_path.parent / str(ledger["task_card_path"])
+                resolved_ledger = canonical_artifact_path(
+                    ledger_path,
+                    "validation ledger",
+                    allow_missing=allow_missing_ledger,
                 )
-                loaded = load_json(card_path)
-            except (ArtifactError, OSError) as exc:
-                add(findings, "validation_ledger.link.task_card", str(exc))
-            else:
-                card_findings = validate_task_card(loaded)
-                findings.extend(
-                    Finding(f"validation_ledger.link.{item.code}", item.message)
-                    for item in card_findings
-                )
-                if not card_findings:
-                    card = loaded
-                    if card.get("task_id") != ledger.get("task_id"):
-                        add(findings, "validation_ledger.link.task_id", "task ids do not match")
-                    try:
-                        linked_ledger = resolve_path(
-                            card_path.parent / str(card["ledger_path"])
-                        )
-                        resolved_ledger = resolve_path(ledger_path)
-                    except ArtifactError as exc:
-                        add(
-                            findings,
-                            "validation_ledger.link.ledger_path",
-                            str(exc),
-                        )
-                    else:
-                        if linked_ledger != resolved_ledger:
+            except ArtifactError as exc:
+                add(findings, "validation_ledger.link.ledger_path", str(exc))
+                resolved_ledger = None
+
+            if portable_filename(ledger.get("task_card_path")):
+                stored_card_path = ledger_path.parent / str(ledger["task_card_path"])
+                try:
+                    card_path = canonical_artifact_path(stored_card_path, "Task Card")
+                    loaded = load_json(card_path)
+                except (ArtifactError, OSError) as exc:
+                    add(findings, "validation_ledger.link.task_card", str(exc))
+                else:
+                    card_findings = validate_task_card(loaded)
+                    findings.extend(
+                        Finding(f"validation_ledger.link.{item.code}", item.message)
+                        for item in card_findings
+                    )
+                    if not card_findings:
+                        card = loaded
+                        if card.get("task_id") != ledger.get("task_id"):
+                            add(findings, "validation_ledger.link.task_id", "task ids do not match")
+                        if card.get("ledger_path") != ledger_path.name:
                             add(
                                 findings,
                                 "validation_ledger.link.ledger_path",
-                                "task card does not point back to this ledger",
+                                "Task Card ledger_path must exactly match the validation ledger filename",
                             )
+                        try:
+                            linked_ledger = canonical_artifact_path(
+                                card_path.parent / str(card["ledger_path"]),
+                                "validation ledger",
+                                allow_missing=allow_missing_ledger,
+                            )
+                        except ArtifactError as exc:
+                            add(
+                                findings,
+                                "validation_ledger.link.ledger_path",
+                                str(exc),
+                            )
+                        else:
+                            if resolved_ledger is not None and linked_ledger != resolved_ledger:
+                                add(
+                                    findings,
+                                    "validation_ledger.link.ledger_path",
+                                    "Task Card does not point back to this validation ledger",
+                                )
 
     status = ledger.get("status")
     blockers = ledger.get("blockers") if isinstance(ledger.get("blockers"), list) else []
@@ -362,6 +393,23 @@ def validate_artifact(
     return [Finding("artifact.type", "artifact_type must be task_card or validation_ledger")]
 
 
+def validate_cli_artifact(
+    artifact: Any, *, path: Path, verify_link: bool = False
+) -> list[Finding]:
+    effective_verify_link = (
+        verify_link
+        or (
+            isinstance(artifact, dict)
+            and artifact.get("artifact_type") == "validation_ledger"
+        )
+    )
+    return validate_artifact(
+        artifact,
+        path=path,
+        verify_link=effective_verify_link,
+    )
+
+
 def read_utf8(path: Path, label: str) -> str:
     try:
         return path.read_text(encoding="utf-8")
@@ -414,11 +462,38 @@ def resolve_path(path: Path) -> Path:
         raise ArtifactError(f"cannot resolve path {path}: {exc}") from exc
 
 
+def portable_name_identity(value: str) -> str:
+    return unicodedata.normalize("NFC", value).casefold()
+
+
 def portable_path_identity(path: Path) -> tuple[str, ...]:
-    return tuple(
-        unicodedata.normalize("NFKC", part).casefold()
-        for part in resolve_path(path).parts
-    )
+    return tuple(portable_name_identity(part) for part in resolve_path(path).parts)
+
+
+def canonical_artifact_path(
+    path: Path, label: str, *, allow_missing: bool = False
+) -> Path:
+    try:
+        directory_entries = os.listdir(path.parent)
+    except OSError as exc:
+        raise ArtifactError(f"cannot inspect {label} directory {path.parent}: {exc}") from exc
+
+    if path.name not in directory_entries:
+        aliases = [
+            name
+            for name in directory_entries
+            if portable_name_identity(name) == portable_name_identity(path.name)
+        ]
+        if aliases:
+            raise ArtifactError(
+                f"{label} filename must match exactly: stored {path.name}, found {aliases[0]}"
+            )
+        if allow_missing:
+            return resolve_path(path)
+        raise ArtifactError(f"{label} not found under its exact stored filename: {path.name}")
+    if path.is_symlink():
+        raise ArtifactError(f"{label} must be a regular file in the artifact directory")
+    return resolve_path(path)
 
 
 def require_distinct_paths(first: Path, second: Path, message: str) -> None:
@@ -593,7 +668,14 @@ def command_ledger_init(args: argparse.Namespace) -> int:
     if resolve_path(output) != expected:
         raise ArtifactError("ledger output must match the task card ledger_path")
     ledger = empty_validation_ledger(card, args.task_card, output)
-    require_valid(validate_validation_ledger(ledger, ledger_path=output, verify_link=True))
+    require_valid(
+        validate_validation_ledger(
+            ledger,
+            ledger_path=output,
+            verify_link=True,
+            allow_missing_ledger=True,
+        )
+    )
     write_json(output, ledger)
     print(f"wrote validation ledger: {output}")
     return 0
@@ -642,7 +724,11 @@ def command_ledger_finalize(args: argparse.Namespace) -> int:
 
 def command_validate(args: argparse.Namespace) -> int:
     artifact = load_json(args.artifact)
-    findings = validate_artifact(artifact, path=args.artifact, verify_link=args.verify_link)
+    findings = validate_cli_artifact(
+        artifact,
+        path=args.artifact,
+        verify_link=args.verify_link,
+    )
     if args.json:
         print(
             json.dumps(
@@ -783,6 +869,12 @@ def command_selftest(_args: argparse.Namespace) -> int:
     check(set(task_schema["properties"]["budget"]["required"]) == BUDGET_KEYS, "task budget schema sync")
     check(set(ledger_schema["required"]) == LEDGER_KEYS, "ledger schema top-level sync")
     check(set(ledger_schema["$defs"]["check"]["required"]) == CHECK_KEYS, "check schema sync")
+    pass_evidence = ledger_schema["$defs"]["check"]["allOf"][0]["then"]["anyOf"]
+    check(
+        {next(iter(item["properties"])) for item in pass_evidence}
+        == {"command", "artifact_paths", "notes"},
+        "pass evidence schema sync",
+    )
     check(tuple(task_schema["properties"]["mode"]["enum"]) == MODES, "task schema mode sync")
     check(
         tuple(ledger_schema["$defs"]["check"]["properties"]["result"]["enum"]) == RESULTS,
@@ -841,6 +933,16 @@ def command_selftest(_args: argparse.Namespace) -> int:
                 )
             ),
             "case-only path aliases collide across supported filesystems",
+        )
+        check(
+            portable_path_identity(root / "Cafe\u0301" / "task.json")
+            == portable_path_identity(root / "Caf\u00e9" / "task.json"),
+            "canonically equivalent path names collide",
+        )
+        check(
+            portable_path_identity(root / "\u2460" / "task.json")
+            != portable_path_identity(root / "1" / "task.json"),
+            "compatibility characters remain distinct path names",
         )
 
         loop_path = root / "loop.json"
@@ -954,6 +1056,104 @@ def command_selftest(_args: argparse.Namespace) -> int:
             )
         ledger.update(status="complete", summary="All planned validation passed.")
         check(not validate_validation_ledger(ledger, ledger_path=ledger_path, verify_link=True), "complete linked ledger")
+        evidenceless = json.loads(json.dumps(ledger))
+        evidenceless["checks"][0].update(command="", artifact_paths=[], notes="")
+        check(
+            any(
+                item.code == "validation_ledger.checks[0].evidence"
+                for item in validate_validation_ledger(evidenceless)
+            ),
+            "pass check needs command or manual evidence",
+        )
+        manual_evidence = json.loads(json.dumps(ledger))
+        manual_evidence["checks"][0].update(
+            command="", artifact_paths=[], notes="Observed the expected result in the rendered output."
+        )
+        check(
+            not any(
+                item.code == "validation_ledger.checks[0].evidence"
+                for item in validate_validation_ledger(manual_evidence)
+            ),
+            "manual observation can evidence a pass check",
+        )
+        artifact_evidence = json.loads(json.dumps(ledger))
+        artifact_evidence["checks"][0].update(
+            command="", artifact_paths=["artifacts/manual-check.txt"], notes=""
+        )
+        check(
+            not any(
+                item.code == "validation_ledger.checks[0].evidence"
+                for item in validate_validation_ledger(artifact_evidence)
+            ),
+            "artifact path can evidence a pass check",
+        )
+
+        write_json(ledger_path, ledger)
+        orphan_dir = root / "orphan"
+        orphan_dir.mkdir()
+        orphan_ledger = orphan_dir / ledger_path.name
+        write_json(orphan_ledger, ledger)
+        check(
+            any(
+                item.code == "validation_ledger.link.task_card"
+                for item in validate_cli_artifact(
+                    ledger,
+                    path=orphan_ledger,
+                )
+            ),
+            "ledger validation verifies the Task Card link by default",
+        )
+
+        case_dir = root / "case-alias"
+        case_dir.mkdir()
+        case_card_path = case_dir / "TASK-CARD.JSON"
+        case_ledger_path = case_dir / "validation-ledger.json"
+        write_json(case_card_path, card)
+        case_ledger = empty_validation_ledger(card, case_card_path, case_ledger_path)
+        case_ledger["task_card_path"] = "task-card.json"
+        write_json(case_ledger_path, case_ledger)
+        check(
+            any(
+                item.code == "validation_ledger.link.task_card"
+                for item in validate_validation_ledger(
+                    case_ledger,
+                    ledger_path=case_ledger_path,
+                    verify_link=True,
+                )
+            ),
+            "stored Task Card filename must match its directory entry exactly",
+        )
+
+        split_card_dir = root / "split-card"
+        split_ledger_dir = root / "split-ledger"
+        split_card_dir.mkdir()
+        split_ledger_dir.mkdir()
+        split_card_path = split_card_dir / "task-card.json"
+        split_ledger_path = split_ledger_dir / "validation-ledger.json"
+        write_json(split_card_path, card)
+        split_ledger = empty_validation_ledger(
+            card,
+            split_ledger_dir / "task-card.json",
+            split_ledger_path,
+        )
+        write_json(split_ledger_path, split_ledger)
+        try:
+            (split_card_dir / "validation-ledger.json").symlink_to(split_ledger_path)
+            (split_ledger_dir / "task-card.json").symlink_to(split_card_path)
+        except (NotImplementedError, OSError):
+            pass
+        else:
+            check(
+                any(
+                    item.code == "validation_ledger.link.task_card"
+                    for item in validate_validation_ledger(
+                        split_ledger,
+                        ledger_path=split_ledger_path,
+                        verify_link=True,
+                    )
+                ),
+                "canonical Task Card and ledger cannot be cross-directory symlink aliases",
+            )
         check("# Task Card" in task_card_markdown(card), "task card markdown")
         check("# Validation Ledger" in ledger_markdown(ledger), "ledger markdown")
         escaped = json.loads(json.dumps(ledger))

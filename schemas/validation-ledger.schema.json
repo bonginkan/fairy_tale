@@ -110,7 +110,31 @@
           "items": { "$ref": "#/$defs/text" }
         },
         "notes": { "type": "string" }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "result": { "const": "pass" } },
+            "required": ["result"]
+          },
+          "then": {
+            "anyOf": [
+              {
+                "properties": { "command": { "$ref": "#/$defs/text" } },
+                "required": ["command"]
+              },
+              {
+                "properties": { "artifact_paths": { "minItems": 1 } },
+                "required": ["artifact_paths"]
+              },
+              {
+                "properties": { "notes": { "$ref": "#/$defs/text" } },
+                "required": ["notes"]
+              }
+            ]
+          }
+        }
+      ]
     }
   }
 }

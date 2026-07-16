@@ -66,6 +66,8 @@ a two-way path link; an explicit `--output` must match the card's `ledger_path`.
 Stored links are portable filenames and reject absolute, nested, or parent
 (`..`) traversal references. Keep the canonical pair in one artifact directory;
 that directory itself may be anywhere the surrounding workflow allows.
+The stored filenames must exactly match regular directory entries; case aliases
+and file-level symlinks cannot stand in for either canonical artifact.
 Canonical JSON, its derived Markdown view, and the linked counterpart must use
 distinct paths; commands reject collisions before writing either artifact.
 
@@ -79,6 +81,8 @@ python3 scripts/task_artifacts.py render --artifact validation-ledger.json --ver
 
 Each check records a plan item, command or manual check, result, artifact paths,
 and notes. Results are exactly `pass`, `fail`, `blocked`, or `not_run`.
+Every `pass` must carry evidence: a non-empty command, at least one artifact
+path, or a concrete manual observation in notes. An all-empty pass is invalid.
 `ledger-add --replace` updates an existing check explicitly.
 
 A ledger cannot finalize as `complete` while any check is not `pass`, a blocker
@@ -90,7 +94,7 @@ Remaining non-blocking risk stays explicit in either final state.
 
 ```powershell
 python3 scripts/task_artifacts.py validate --artifact task-card.json;
-python3 scripts/task_artifacts.py validate --artifact validation-ledger.json --verify-link;
+python3 scripts/task_artifacts.py validate --artifact validation-ledger.json;
 python3 scripts/task_artifacts.py selftest;
 python3 scripts/task_artifacts.py cases --cases fixtures/task-artifacts/cases.jsonl;
 ```
@@ -100,5 +104,7 @@ The JSON schemas are `schemas/task-card.schema.json` and
 Markdown together only when the surrounding repository wants durable task
 artifacts; otherwise place them in an ignored or external run directory.
 Schemas enforce each document's closed shape and final-state floor. Use the
-built-in `--verify-link` validation for cross-file task-ID, back-reference, and
+built-in validator for cross-file task-ID, back-reference, exact-name, and
 validation-plan coverage checks that JSON Schema cannot resolve by itself.
+Ledger validation performs those link checks by default; `--verify-link` remains
+accepted for explicit invocations and scripts.
