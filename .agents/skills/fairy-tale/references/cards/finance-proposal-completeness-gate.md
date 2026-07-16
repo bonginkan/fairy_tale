@@ -100,17 +100,23 @@ gate → Closure / Negative-Space Check → reviewer sign-off.
   and revenue denominators that multiply cohort factors, stay green.
   A cohort factor multiplies revenue exactly ONCE at coefficient one — an
   integer coefficient (2*conversion) or a repeated occurrence blocks, while
-  fractional rate constants (<=1) stay green. Stream identity is DECLARED,
-  never inferred: every revenue-role input maps to a stream id from an
-  anchored `revenue_streams` registry; the same declared id, or the same
-  canonical expression at the same value, is one stream counted twice and
-  blocks — while distinct declared streams over any anchors pass. One
+  fractional rate constants (<=1) stay green; an explicit reducing divisor
+  may balance numerator constants (`100/200` is the same share as `/2`), but
+  numerator growth without that divisor remains an inflation. Stream identity
+  is DECLARED, never inferred: every revenue-role input maps to a stream id
+  from an anchored `revenue_streams` registry, and `stream_ids` contains no
+  keys outside those executed revenue inputs. The same declared id, or the
+  same canonical expression at the same value, is one stream counted twice
+  and blocks; canonicalization folds finite constant subexpressions and the
+  arithmetic identities `+0`, `-0`, `*1`, and `/1` — while distinct declared
+  streams over any anchors pass. One
   binding never mixes revenue and cost anchors. Dependency and aggregate graphs must be
   acyclic with no self/duplicate references; aggregate weights live in
-  (0,1], must match the components' EXECUTED revenue (their UNIQUE
-  revenue-bound input values, setup fees and cohort factors included,
-  duplicate aliases deduped — never a bare price*volume shortcut, never
-  self-declared), and components share the
+  (0,1], must match the components' transitively resolved EXECUTED revenue
+  (their UNIQUE leaf revenue-bound input values, setup fees and cohort factors
+  included, duplicate leaf stream ids and aliases blocked across nested
+  aggregates — never a bare price*volume shortcut, never self-declared), and
+  components share the
   claim's period, metric, currency, unit, and tax basis. The ledger
   records its observed frame, a central-claim inventory naming the exact
   claim IDs (identity, not just count), an artifact verdict (PASS /

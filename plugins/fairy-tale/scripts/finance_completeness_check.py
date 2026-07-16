@@ -262,12 +262,56 @@ def canonical_identity(value: str) -> str:
     return " ".join(unicodedata.normalize("NFKC", value).split()).casefold()
 
 
+def constant_expr_value(node: ast.AST) -> float | None:
+    """Evaluate a finite, name-free arithmetic subtree for canonicalization."""
+    if isinstance(node, ast.Expression):
+        return constant_expr_value(node.body)
+    if isinstance(node, ast.Constant) and is_finite_number(node.value):
+        return float(node.value)
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.UAdd, ast.USub)):
+        value = constant_expr_value(node.operand)
+        if value is None:
+            return None
+        return value if isinstance(node.op, ast.UAdd) else -value
+    if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Add, ast.Sub, ast.Mult, ast.Div)):
+        left = constant_expr_value(node.left)
+        right = constant_expr_value(node.right)
+        if left is None or right is None:
+            return None
+        try:
+            if isinstance(node.op, ast.Add):
+                result = left + right
+            elif isinstance(node.op, ast.Sub):
+                result = left - right
+            elif isinstance(node.op, ast.Mult):
+                result = left * right
+            else:
+                result = left / right
+        except ZeroDivisionError:
+            return None
+        return result if math.isfinite(result) else None
+    return None
+
+
+def canonical_number(value: float) -> str:
+    rounded = round(float(value), 12)
+    if rounded == 0:
+        rounded = 0.0
+    if rounded.is_integer():
+        return str(int(rounded))
+    return repr(rounded)
+
+
 def canonical_expr(node: ast.AST) -> str:
     """Order-independent canonical form: commutative chains sort their
     operands, so `price*volume` and `volume*price` are the SAME expression.
-    An exact contract, not a proximity heuristic."""
+    Finite constant subtrees and arithmetic identity elements are folded, so
+    syntactic padding (`*1`, `/1`, `+0`, `-0`) cannot mint a new stream."""
     if isinstance(node, ast.Expression):
         return canonical_expr(node.body)
+    constant_value = constant_expr_value(node)
+    if constant_value is not None:
+        return canonical_number(constant_value)
     if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Add, ast.Mult)):
         op_type = type(node.op)
         raw_operands: list[ast.AST] = []
@@ -284,25 +328,33 @@ def canonical_expr(node: ast.AST) -> str:
         constant_sum = 0.0
         operands: list[str] = []
         for operand in raw_operands:
-            if isinstance(operand, ast.Constant) and is_finite_number(operand.value):
+            value = constant_expr_value(operand)
+            if value is not None:
                 if op_type is ast.Mult:
-                    constant_product *= float(operand.value)
+                    constant_product *= value
                 else:
-                    constant_sum += float(operand.value)
+                    constant_sum += value
             else:
                 operands.append(canonical_expr(operand))
         if op_type is ast.Mult and abs(constant_product - 1.0) > 1e-12:
-            operands.append(repr(round(constant_product, 12)))
+            operands.append(canonical_number(constant_product))
         if op_type is ast.Add and abs(constant_sum) > 1e-12:
-            operands.append(repr(round(constant_sum, 12)))
+            operands.append(canonical_number(constant_sum))
         if len(operands) == 1:
             return operands[0]
         symbol = "+" if op_type is ast.Add else "*"
         return "(" + symbol.join(sorted(operands)) + ")"
     if isinstance(node, ast.BinOp):
+        right_value = constant_expr_value(node.right)
+        if isinstance(node.op, ast.Sub) and right_value is not None and abs(right_value) <= 1e-12:
+            return canonical_expr(node.left)
+        if isinstance(node.op, ast.Div) and right_value is not None and abs(right_value - 1.0) <= 1e-12:
+            return canonical_expr(node.left)
         symbol = "-" if isinstance(node.op, ast.Sub) else "/"
         return f"({canonical_expr(node.left)}{symbol}{canonical_expr(node.right)})"
     if isinstance(node, ast.UnaryOp):
+        if isinstance(node.op, ast.UAdd):
+            return canonical_expr(node.operand)
         sign = "-" if isinstance(node.op, ast.USub) else "+"
         return f"({sign}{canonical_expr(node.operand)})"
     if isinstance(node, ast.Name):
@@ -525,6 +577,12 @@ def check_claim_arithmetic(claim: dict, claims_by_id: dict, reasons: list[str]) 
         return
     components = claim.get("components")
     if components:
+        aggregate_stream_ids = claim.get("stream_ids")
+        if aggregate_stream_ids is not None:
+            if not isinstance(aggregate_stream_ids, dict):
+                reasons.append(f"stream_undeclared:{cid}:stream_ids_malformed")
+            else:
+                check_unknown_keys(aggregate_stream_ids, set(), f"{cid}:stream_ids", reasons)
         weights = claim.get("weights")
         if not isinstance(weights, dict) or set(weights) != set(components):
             reasons.append(f"aggregate_weights_missing:{cid}")
@@ -542,6 +600,7 @@ def check_claim_arithmetic(claim: dict, claims_by_id: dict, reasons: list[str]) 
             return
         total = 0.0
         component_revenues: dict[str, float] = {}
+        component_streams: dict[str, list[str]] = {}
         for component_id in components:
             component = claims_by_id.get(component_id)
             if component is None:
@@ -558,23 +617,24 @@ def check_claim_arithmetic(claim: dict, claims_by_id: dict, reasons: list[str]) 
             for basis_field in ("metric", "currency", "unit", "tax_basis"):
                 if str(component.get(basis_field) or "").strip() != str(claim.get(basis_field) or "").strip():
                     reasons.append(f"component_basis_mismatch:{cid}:{component_id}:{basis_field}")
-            executed = executed_revenue(component)
-            if executed is not None:
-                component_revenues[component_id] = executed
+            summary = resolved_revenue_summary(component, claims_by_id)
+            if summary is None:
+                # Never silently skip revenue anchoring for a nested or
+                # malformed component. The component/graph checks report the
+                # structural cause; this reason closes the weight gate.
+                reasons.append(f"aggregate_weight_unanchored:{cid}:{component_id}:revenue_unresolved")
+            else:
+                component_revenues[component_id], component_streams[component_id] = summary
             total += float(weights[component_id]) * float(component_value)
-        # The same declared stream may never feed two components: that is
-        # one revenue counted twice in the blend (round 13).
+        # The same declared leaf stream may never feed the aggregate twice,
+        # including through nested component aggregates.
         stream_owners: dict[str, str] = {}
         for component_id in components:
-            component = claims_by_id.get(component_id)
-            if component is None:
-                continue
-            comp_streams = component.get("stream_ids")
-            if isinstance(comp_streams, dict):
-                for stream_id in {v for v in comp_streams.values() if isinstance(v, str) and v.strip()}:
-                    if stream_id in stream_owners and stream_owners[stream_id] != component_id:
-                        reasons.append(f"duplicate_revenue_stream:{cid}:{stream_id}")
-                    stream_owners.setdefault(stream_id, component_id)
+            for stream_id in component_streams.get(component_id, []):
+                if stream_id in stream_owners:
+                    reasons.append(f"duplicate_revenue_stream:{cid}:{stream_id}")
+                else:
+                    stream_owners[stream_id] = component_id
         # Weights are ANCHORED to component revenue shares, never self-declared.
         if len(component_revenues) == len(components) and sum(component_revenues.values()) > 0:
             revenue_total = sum(component_revenues.values())
@@ -790,6 +850,14 @@ def check_input_bindings(claim: dict, inputs: dict, reasons: list[str]) -> None:
         # A truthy non-object must be a REASONED block, never an exception.
         reasons.append(f"stream_undeclared:{cid}:stream_ids_malformed")
         stream_ids = {}
+    revenue_input_keys = {
+        key
+        for key, binding in bindings.items()
+        if key in inputs and isinstance(binding, str) and not binding.strip().startswith("assumption:")
+        and (formula_names(binding.strip()) or set())
+        and (formula_names(binding.strip()) or set()) <= REVENUE_DRIVER_KEYS
+    }
+    check_unknown_keys(stream_ids, revenue_input_keys, f"{cid}:stream_ids", reasons)
     seen_stream_ids: dict[str, str] = {}
     seen_canonical: dict[tuple, str] = {}
     for key in sorted(inputs):
@@ -883,6 +951,52 @@ def executed_revenue(component: dict) -> float | None:
             total += float(inputs[key])
             found = True
     return total if found else None
+
+
+def direct_revenue_stream_ids(component: dict) -> list[str]:
+    """Declared stream ids for executed revenue-role inputs on one leaf claim."""
+    inputs = component.get("inputs") or {}
+    stream_ids = component.get("stream_ids")
+    if not isinstance(stream_ids, dict):
+        return []
+    result: list[str] = []
+    for key, binding in (component.get("input_bindings") or {}).items():
+        if not isinstance(binding, str) or binding.strip().startswith("assumption:"):
+            continue
+        names = formula_names(binding.strip()) or set()
+        stream_id = stream_ids.get(key)
+        if names and names <= REVENUE_DRIVER_KEYS and is_finite_number(inputs.get(key)) \
+                and isinstance(stream_id, str) and stream_id.strip():
+            result.append(stream_id)
+    return result
+
+
+def resolved_revenue_summary(component: dict, claims_by_id: dict,
+                             visiting: set[str] | None = None) -> tuple[float, list[str]] | None:
+    """Resolve revenue and leaf stream ids through an aggregate component DAG."""
+    components = component.get("components") or []
+    if not components:
+        revenue = executed_revenue(component)
+        return (revenue, direct_revenue_stream_ids(component)) if revenue is not None else None
+
+    cid = component.get("claim_id")
+    active = set(visiting or ())
+    if not isinstance(cid, str) or cid in active:
+        return None
+    active.add(cid)
+    total = 0.0
+    streams: list[str] = []
+    for component_id in components:
+        child = claims_by_id.get(component_id)
+        if child is None:
+            return None
+        summary = resolved_revenue_summary(child, claims_by_id, active)
+        if summary is None:
+            return None
+        child_revenue, child_streams = summary
+        total += child_revenue
+        streams.extend(child_streams)
+    return total, streams
 
 
 def check_revenue_drivers(claim: dict, reasons: list[str]) -> None:
@@ -1222,22 +1336,46 @@ def evaluate(ledger: dict) -> tuple[str, list[str]]:
                         term_names = {n.id for n in ast.walk(term) if isinstance(n, ast.Name)}
                         if not (term_names & cohort_factors):
                             continue
-                        # Share-like constants only (round 13): a numerator
-                        # constant > 1 inflates, a divisor constant < 1
-                        # inflates; /2 (a 0.5 rate) is green. Position-aware
-                        # so a masking share (2*x*0.3) cannot hide the 2x.
-                        def constant_growth(node, inverted=False) -> bool:
-                            if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
-                                return constant_growth(node.left, inverted) or constant_growth(node.right, not inverted)
-                            if isinstance(node, ast.BinOp):
-                                return constant_growth(node.left, inverted) or constant_growth(node.right, inverted)
-                            if isinstance(node, ast.UnaryOp):
-                                return constant_growth(node.operand, inverted)
-                            if isinstance(node, ast.Constant) and is_finite_number(node.value):
-                                value = abs(float(node.value))
-                                return (value > 1 + 1e-9) if not inverted else (value < 1 - 1e-9)
-                            return False
-                        if constant_growth(term):
+                        # Share-like constants only (rounds 13-14). Evaluate
+                        # the multiplicative constant ratio as a unit, so
+                        # `x*100/200` is the same 0.5 share as `x/2`. Explicit
+                        # numerator growth must be balanced by at least as much
+                        # divisor reduction; `2*x*0.3` therefore remains a
+                        # masked 2x and `/0.5` remains inflationary.
+                        def coefficient_invalid(node: ast.AST) -> bool:
+                            numerator_growth = 1.0
+                            denominator_reduction = 1.0
+                            denominator_share = False
+
+                            def collect_constants(current: ast.AST, inverted: bool = False) -> None:
+                                nonlocal numerator_growth, denominator_reduction, denominator_share
+                                if isinstance(current, ast.BinOp) and isinstance(current.op, ast.Div):
+                                    collect_constants(current.left, inverted)
+                                    collect_constants(current.right, not inverted)
+                                    return
+                                if isinstance(current, ast.BinOp) and isinstance(current.op, ast.Mult):
+                                    collect_constants(current.left, inverted)
+                                    collect_constants(current.right, inverted)
+                                    return
+                                if isinstance(current, ast.UnaryOp):
+                                    collect_constants(current.operand, inverted)
+                                    return
+                                value = constant_expr_value(current)
+                                if value is None:
+                                    return
+                                magnitude = abs(value)
+                                if inverted:
+                                    if magnitude < 1 - 1e-9:
+                                        denominator_share = True
+                                    elif magnitude > 1 + 1e-9:
+                                        denominator_reduction *= magnitude
+                                elif magnitude > 1 + 1e-9:
+                                    numerator_growth *= magnitude
+
+                            collect_constants(node)
+                            return denominator_share or numerator_growth > denominator_reduction + 1e-9
+
+                        if coefficient_invalid(term):
                             reasons.append(f"cohort_factor_duplicated:{cid}:coefficient")
                         # non-multiplicative use: the factor under an Add/Sub
                         # nested INSIDE the term (the term itself is not an
@@ -2205,6 +2343,15 @@ def _selftest() -> int:
         c["input_bindings"] = {"rev": "price*volume*conversion*active_months/2/10"}
     check_positive("a 0.5 rate written as /2 passes (share-like divisor)", half_rate)
 
+    def normalized_half_rate(l):
+        recurring_stream_base(l)
+        c = l["claims"][0]
+        c.update(formula="rev", displayed_value=180.0, recomputed_value=180.0, rounding_rule="1dp")
+        c["inputs"] = {"rev": 180.0}
+        c["input_bindings"] = {"rev": "price*volume*conversion*active_months*100/200"}
+    check_positive("a 100/200 constant ratio is the same valid 0.5 share as /2",
+                   normalized_half_rate)
+
     def inflating_divisor(l):
         recurring_stream_base(l)
         c = l["claims"][0]
@@ -2242,11 +2389,26 @@ def _selftest() -> int:
         l["revenue_streams"].append({"id": "s2", "description": "allegedly different stream",
                                      "source": "revenue model p9 table 2"})
     probe("the *1 neutral element cannot mint a different stream", neutral_element, "duplicate_revenue_stream")
+
+    def neutral_divisor(l):
+        c = l["claims"][0]
+        c.update(formula="(rev+rev2-cogs-fee)/rev", displayed_value=1.6, recomputed_value=1.6)
+        c["inputs"] = {"rev": 100.0, "rev2": 100.0, "cogs": 25.0, "fee": 15.0}
+        c["input_bindings"] = {"rev": "price*volume", "rev2": "price*volume/1",
+                               "cogs": "assumption:a1", "fee": "partner_fee"}
+        c["stream_ids"] = {"rev": "core_subscription", "rev2": "s2"}
+        l["revenue_streams"].append({"id": "s2", "description": "allegedly different stream",
+                                     "source": "revenue model p9 table 2"})
+    probe("the /1 neutral element cannot mint a different stream",
+          neutral_divisor, "duplicate_revenue_stream")
     probe("an empty stream id blocks",
           lambda l: (l["claims"][0].update(stream_ids={"rev": " "}),)[0] or None
           if False else l["claims"][0].update(stream_ids={"rev": " "}), "stream_undeclared")
     probe("a truthy non-object stream_ids is a reasoned block, never an exception",
           lambda l: l["claims"][0].update(stream_ids=["oops"]), "stream_undeclared")
+    probe("a typo key in stream_ids is rejected by the nested strict schema",
+          lambda l: l["claims"][0]["stream_ids"].update(reveneu="core_subscription"),
+          "schema_unknown_keys")
 
     def cross_component_stream(l):
         aggregate_base(l)
@@ -2256,6 +2418,21 @@ def _selftest() -> int:
         l["central_claim_inventory"]["count"] = 3
     probe("the same declared stream feeding two aggregate components blocks",
           cross_component_stream, "duplicate_revenue_stream")
+
+    def nested_cross_component_stream(l):
+        cross_component_stream(l)
+        top, first, second = l["claims"]
+        middle = copy.deepcopy(top)
+        middle.update(claim_id="Cmid", components=["C1"], weights={"C1": 1.0}, depends_on=["C1"])
+        top.update(components=["Cmid", "C2"], weights={"Cmid": 0.5, "C2": 0.5},
+                   depends_on=["Cmid", "C2"])
+        l["claims"] = [top, middle, first, second]
+        claim_ids = ["C0", "Cmid", "C1", "C2"]
+        l["central_claim_inventory"].update(count=4, claim_ids=claim_ids)
+        for signoff in l["signoffs"]:
+            signoff["coverage"] = claim_ids
+    probe("duplicate leaf streams cannot be laundered through a nested aggregate",
+          nested_cross_component_stream, "duplicate_revenue_stream")
 
     def nfkc_grouping(l):
         segment_positive(l)
@@ -2318,7 +2495,7 @@ def _selftest() -> int:
     if failures:
         print("finance completeness selftest FAILED.")
         return 1
-    print("finance completeness selftest passed (green->pass; every PR #75 round-1/2/3 hostile probe blocks). "
+    print("finance completeness selftest passed (green->pass; PR #75 round-1..14 hostile probes block). "
           "NOTE: coverage proof lives in the fixtures run, not here.")
     return 0
 

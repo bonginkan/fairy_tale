@@ -101,10 +101,15 @@
   stream ids are non-empty, unique across aggregate components, and
   malformed stream_ids maps are reasoned blocks (never exceptions); ONE
   canonical-identity normalizer (NFKC + whitespace + casefold) serves
-  registry, membership, and conflict grouping. Selftest carries 150+
-  red/green/hostile controls (every PR #75 round-1..13 review probe and an
-  add/remove metamorphic flip); one hundred fifty sanitized cross-industry
-  acceptance fixtures
+  registry, membership, and conflict grouping. Round 14: finite constant
+  subexpressions and arithmetic identity elements (`+0`, `-0`, `*1`, `/1`)
+  share one canonical expression, constant ratios such as `100/200` retain
+  valid fractional-share semantics, `stream_ids` is closed over executed
+  revenue inputs, and aggregate revenue plus leaf stream identity resolve
+  transitively so a nested aggregate cannot launder duplicate revenue or
+  bypass weight anchoring. Selftest carries 142 red/green/hostile controls
+  (every PR #75 round-1..14 review probe and an add/remove metamorphic flip);
+  one hundred fifty-four sanitized cross-industry acceptance fixtures
   (positive controls for bounded uncertainties, per-unit recurring margins,
   amount-only included-in, pass-with-warnings, resolved conflicts, correct
   recurring margins, segment-differentiated margins, and additive cohort
