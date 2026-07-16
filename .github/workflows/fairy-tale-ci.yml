@@ -80,3 +80,16 @@ jobs:
       - name: Adapter manifest validation
         # Rust stable is pre-installed on ubuntu-latest runners.
         run: cargo run --manifest-path crates/fairy-adapter-runner/Cargo.toml -- validate
+
+  task-artifact-python-compatibility:
+    name: task artifacts (Python 3.13 compatibility)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Task artifact gate (self-controls)
+        run: python3 scripts/task_artifacts.py selftest
+      - name: Task artifact acceptance cases
+        run: python3 scripts/task_artifacts.py cases --cases fixtures/task-artifacts/cases.jsonl

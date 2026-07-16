@@ -402,7 +402,14 @@ def write_json(path: Path, payload: Any) -> None:
 
 def resolve_path(path: Path) -> Path:
     try:
-        return path.resolve()
+        resolved = path.resolve()
+        try:
+            path.stat()
+        except FileNotFoundError:
+            # A not-yet-created output path is valid. Other resolution errors,
+            # including symlink loops on Python 3.13+, must fail closed.
+            pass
+        return resolved
     except (OSError, RuntimeError) as exc:
         raise ArtifactError(f"cannot resolve path {path}: {exc}") from exc
 
@@ -582,8 +589,8 @@ def command_ledger_init(args: argparse.Namespace) -> int:
         output,
         "validation ledger cannot replace its linked Task Card",
     )
-    expected = (args.task_card.parent / str(card["ledger_path"])).resolve()
-    if output.resolve() != expected:
+    expected = resolve_path(args.task_card.parent / str(card["ledger_path"]))
+    if resolve_path(output) != expected:
         raise ArtifactError("ledger output must match the task card ledger_path")
     ledger = empty_validation_ledger(card, args.task_card, output)
     require_valid(validate_validation_ledger(ledger, ledger_path=output, verify_link=True))
