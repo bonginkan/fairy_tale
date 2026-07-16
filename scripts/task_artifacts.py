@@ -357,7 +357,7 @@ def load_json(path: Path) -> Any:
         raise ArtifactError(f"invalid JSON in {path}: {exc.msg}") from exc
 
 
-def write_json(path: Path, payload: Any) -> None:
+def write_text_atomic(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     handle = tempfile.NamedTemporaryFile(
         mode="w", encoding="utf-8", dir=path.parent, prefix=f".{path.name}.", delete=False
@@ -365,12 +365,23 @@ def write_json(path: Path, payload: Any) -> None:
     temporary = Path(handle.name)
     try:
         with handle:
-            json.dump(payload, handle, indent=2, sort_keys=True, ensure_ascii=False)
-            handle.write("\n")
+            handle.write(text)
         os.replace(temporary, path)
     finally:
         if temporary.exists():
             temporary.unlink()
+
+
+def write_json(path: Path, payload: Any) -> None:
+    write_text_atomic(
+        path,
+        json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False) + "\n",
+    )
+
+
+def require_distinct_paths(first: Path, second: Path, message: str) -> None:
+    if first.resolve() == second.resolve():
+        raise ArtifactError(message)
 
 
 def relative_path(target: Path, base: Path) -> str:
@@ -501,10 +512,26 @@ def command_task_card(args: argparse.Namespace) -> int:
         raise ArtifactError("Task Card output must use a portable filename")
     card = make_task_card(args)
     require_valid(validate_task_card(card))
+    linked_ledger = args.output.parent / str(card["ledger_path"])
+    require_distinct_paths(
+        args.output,
+        linked_ledger,
+        "Task Card output and linked ledger must be different files",
+    )
+    if args.markdown_output:
+        require_distinct_paths(
+            args.output,
+            args.markdown_output,
+            "Markdown output cannot replace the canonical Task Card JSON",
+        )
+        require_distinct_paths(
+            linked_ledger,
+            args.markdown_output,
+            "Markdown output cannot replace the linked validation ledger",
+        )
     write_json(args.output, card)
     if args.markdown_output:
-        args.markdown_output.parent.mkdir(parents=True, exist_ok=True)
-        args.markdown_output.write_text(task_card_markdown(card), encoding="utf-8")
+        write_text_atomic(args.markdown_output, task_card_markdown(card))
     print(f"wrote task card: {args.output}")
     return 0
 
@@ -515,6 +542,11 @@ def command_ledger_init(args: argparse.Namespace) -> int:
     card = load_json(args.task_card)
     require_valid(validate_task_card(card))
     output = args.output or (args.task_card.parent / str(card["ledger_path"]))
+    require_distinct_paths(
+        args.task_card,
+        output,
+        "validation ledger cannot replace its linked Task Card",
+    )
     expected = (args.task_card.parent / str(card["ledger_path"])).resolve()
     if output.resolve() != expected:
         raise ArtifactError("ledger output must match the task card ledger_path")
@@ -594,8 +626,22 @@ def command_render(args: argparse.Namespace) -> int:
         else ledger_markdown(artifact)
     )
     if args.output:
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(rendered, encoding="utf-8")
+        require_distinct_paths(
+            args.artifact,
+            args.output,
+            "Markdown output cannot replace the canonical JSON artifact",
+        )
+        linked_filename = (
+            artifact["ledger_path"]
+            if artifact["artifact_type"] == "task_card"
+            else artifact["task_card_path"]
+        )
+        require_distinct_paths(
+            args.artifact.parent / str(linked_filename),
+            args.output,
+            "Markdown output cannot replace the linked artifact",
+        )
+        write_text_atomic(args.output, rendered)
         print(f"wrote markdown view: {args.output}")
     else:
         print(rendered, end="")
@@ -705,7 +751,95 @@ def command_selftest(_args: argparse.Namespace) -> int:
         root = Path(raw_dir)
         card_path = root / "task-card.json"
         ledger_path = root / "validation-ledger.json"
+
+        def rejected(operation: Any) -> bool:
+            try:
+                operation()
+            except ArtifactError:
+                return True
+            return False
+
+        def card_args(
+            output: Path, *, ledger_name: str = "validation-ledger.json", markdown: Path | None = None
+        ) -> argparse.Namespace:
+            return argparse.Namespace(
+                task_id=card["task_id"],
+                mode=card["mode"],
+                objective=card["objective"],
+                success=card["success_criteria"],
+                target=card["allowed_targets"],
+                constraint=card["constraints"],
+                max_elapsed_minutes=card["budget"]["max_elapsed_minutes"],
+                max_tool_calls=card["budget"]["max_tool_calls"],
+                max_subagents=card["budget"]["max_subagents"],
+                max_searches=card["budget"]["max_searches"],
+                token_or_cost_limit=card["budget"]["token_or_cost_limit"],
+                stop=card["stop_conditions"],
+                validation=card["validation_plan"],
+                ledger_path=ledger_name,
+                output=output,
+                markdown_output=markdown,
+            )
+
+        collision_path = root / "collision.json"
+        check(
+            rejected(
+                lambda: command_task_card(
+                    card_args(collision_path, ledger_name=collision_path.name)
+                )
+            ),
+            "Task Card cannot replace itself with its linked ledger",
+        )
+        check(
+            rejected(
+                lambda: command_task_card(
+                    card_args(collision_path, markdown=collision_path)
+                )
+            ),
+            "Task Card Markdown cannot replace canonical JSON",
+        )
+
+        self_linked_card = dict(card, ledger_path="self-linked-card.json")
+        self_linked_path = root / "self-linked-card.json"
+        write_json(self_linked_path, self_linked_card)
+        check(
+            rejected(
+                lambda: command_ledger_init(
+                    argparse.Namespace(task_card=self_linked_path, output=None)
+                )
+            ),
+            "ledger init cannot replace its Task Card",
+        )
+        check(
+            load_json(self_linked_path).get("artifact_type") == "task_card",
+            "rejected ledger collision preserves the Task Card",
+        )
+
         write_json(card_path, card)
+        check(
+            rejected(
+                lambda: command_render(
+                    argparse.Namespace(
+                        artifact=card_path,
+                        output=card_path,
+                        verify_link=False,
+                    )
+                )
+            ),
+            "render cannot replace canonical JSON",
+        )
+        check(
+            rejected(
+                lambda: command_render(
+                    argparse.Namespace(
+                        artifact=card_path,
+                        output=ledger_path,
+                        verify_link=False,
+                    )
+                )
+            ),
+            "render cannot replace the linked artifact",
+        )
         ledger = empty_validation_ledger(card, card_path, ledger_path)
         write_json(ledger_path, ledger)
         check(not validate_validation_ledger(ledger, ledger_path=ledger_path, verify_link=True), "linked active ledger")

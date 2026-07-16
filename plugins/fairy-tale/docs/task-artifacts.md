@@ -66,6 +66,8 @@ a two-way path link; an explicit `--output` must match the card's `ledger_path`.
 Stored links are portable filenames and reject absolute, nested, or parent
 (`..`) traversal references. Keep the canonical pair in one artifact directory;
 that directory itself may be anywhere the surrounding workflow allows.
+Canonical JSON, its derived Markdown view, and the linked counterpart must use
+distinct paths; commands reject collisions before writing either artifact.
 
 ```powershell
 python3 scripts/task_artifacts.py ledger-init --task-card task-card.json;
