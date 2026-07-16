@@ -31,18 +31,24 @@
   reconciliation; `included-in` requires an in-ledger target, allocation
   basis, anchored source, and matching period; claims require assumptions,
   evidence status, sensitivity, and cross-claim dependencies; cohort
-  schedules must be complete and numerically consistent with the claims'
-  revenue drivers; sign-offs reject malformed entries, unknown roles, and
-  role substitution. Coverage is refutable: the checker's canonical
-  REASON_CLASSES list (54 classes) must be fully covered by fixtures plus
-  selftest probes, enforced by the case runner. Selftest carries 50+
-  red/green/hostile controls (including every PR #75 round-1/round-2 review
-  probe and an add/remove metamorphic flip); thirty-four sanitized
+  schedules must be complete, domain-valid, and numerically consistent with
+  the claims' revenue drivers, and recurring revenue/forecast claims must
+  use conversion/active-months in their bound arithmetic; assumptions that
+  feed arithmetic record their numbers and are reconciled; amount costs must
+  be consumed by the bound math on margin/profit claims; margins must be
+  ratio-shaped and ratio-unit; sign-offs record verdict + per-claim coverage
+  per required role and reject malformed entries, unknown roles, and role
+  substitution; closure state (blockers/uncertainties) is explicit and open
+  blockers can never pass. Coverage is refutable by execution: every class
+  in the checker's canonical REASON_CLASSES list (69 classes) must be
+  covered by an executed RED fixture in the acceptance run — deleting a rule
+  or its fixture turns CI red; no hand-maintained coverage claims. Selftest
+  carries 70+ red/green/hostile controls (every PR #75 round-1/2/3 review
+  probe and an add/remove metamorphic flip); seventy-four sanitized
   cross-industry acceptance fixtures in
   `fixtures/finance-completeness/cases.jsonl` (agency, SaaS, marketplace,
-  managed service, hardware, channel sales) include one RED fixture per
-  bypass class, all wired into CI. `redundancy` added to the listing
-  recall-floor triggers. Router row +
+  managed service, hardware, channel sales), all wired into CI. `redundancy`
+  added to the listing recall-floor triggers. Router row +
   Choose-a-route bullet + description trigger wired in SKILL.md, and three
   routing-eval fixtures (finance-01/02 + OCR-only negative control
   finance-03). Vocabulary is standard managerial-accounting usage; the gate

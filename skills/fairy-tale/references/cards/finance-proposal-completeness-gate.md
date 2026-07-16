@@ -50,12 +50,19 @@ gate → Closure / Negative-Space Check → reviewer sign-off.
   margin computed from component margins is only as complete as its weakest
   component: if any component has unresolved cost coverage, the aggregate is
   BLOCK even when its arithmetic reconciles.
-- **Heterogeneous reviewer roles.** Same-rubric sign-offs share blind spots.
-  Require two roles over the SAME immutable artifact, inspected
-  independently: an arithmetic/reconciliation reviewer (recomputation,
-  units, periods, rounding) and a business-model-completeness/negative-space
-  reviewer (entailed rows, dispositions, cohort feasibility). Any change to
-  the ledger or artifact invalidates both sign-offs.
+- **Heterogeneous reviewer roles with recorded verdict and coverage.**
+  Same-rubric sign-offs share blind spots. Require two roles over the SAME
+  immutable artifact, inspected independently: an arithmetic/reconciliation
+  reviewer (recomputation, units, periods, rounding, sign conventions inside
+  numerators) and a business-model-completeness/negative-space reviewer
+  (entailed rows, dispositions, cohort feasibility). Each sign-off records
+  an explicit verdict and the claim IDs it covered; every required role must
+  cover every claim (an extra role never substitutes), a reviewer `block`
+  verdict blocks the gate, and any change to the ledger or artifact
+  invalidates both sign-offs.
+- **Closure state is explicit.** The ledger records `blockers` and
+  `uncertainties` lists; every open `TBD` must be enumerated in `blockers`,
+  and a ledger that declares open blockers can never pass.
 - **Deterministic validation — nothing is self-attested.**
   `scripts/finance_completeness_check.py` RE-EXECUTES each claim's formula
   over its stated `inputs` (restricted arithmetic evaluator) and recomputes
@@ -63,13 +70,19 @@ gate → Closure / Negative-Space Check → reviewer sign-off.
   recorded `recomputed_value` must equal the checker's own execution. Every
   formula input must be BOUND to the ledger via `input_bindings` — a cost
   driver, a revenue driver, an expression over those, or a declared
-  assumption — and numeric bindings must reconcile, so the arithmetic can
-  never float free of the recorded economics. Constant formulas,
-  non-executable formulas, missing inputs, non-finite values, and margins
-  outside plausible range block. A strict schema rejects unknown keys
+  assumption — and ALL numeric anchors must reconcile: bindings against
+  input values, assumption entries against their recorded `value`, and
+  amount cost drivers must actually be consumed by the bound math on
+  margin/profit claims. Recurring-model revenue/forecast claims must use
+  conversion and active-months in their bound arithmetic; conversion/churn
+  domains are validated; margins must be ratios (unit and formula shape) in
+  plausible range. Constant formulas, non-executable formulas, missing
+  inputs, and non-finite values block. A strict schema rejects unknown keys
   anywhere in the record so a typo can never weaken a rule, while requiring
-  every #74 record field (assumptions, evidence status, sensitivity,
-  cross-claim dependencies included).
+  every #74 record field (recomputed value, assumptions with values,
+  evidence status, sensitivity, cross-claim dependencies, closure state).
+  Coverage of the checker's canonical reason-class list is proven by
+  executed RED fixtures alone — never by a hand-maintained claim.
   Sanitized cross-industry fixtures live in
   `fixtures/finance-completeness/cases.jsonl` (agency, SaaS, marketplace,
   managed service, hardware, channel sales), including one RED fixture per

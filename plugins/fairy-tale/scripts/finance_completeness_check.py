@@ -83,7 +83,9 @@ CLAIM_KEYS = {
     "evidence_status", "sensitivity", "depends_on", "components", "weights",
 }
 DRIVER_KEYS = {"name", "entailed_class", "disposition", "value", "included_in", "allocation_basis", "source", "period", "evidence"}
-SIGNOFF_KEYS = {"role", "reviewer", "artifact_sha256"}
+ASSUMPTION_KEYS = {"id", "text", "evidence_status", "value"}
+SIGNOFF_KEYS = {"role", "reviewer", "artifact_sha256", "verdict", "coverage"}
+SIGNOFF_VERDICTS = {"approve", "block"}
 COHORT_REQUIRED = ("conversion", "churn_monthly", "active_months")
 COHORT_KEYS = set(COHORT_REQUIRED) | {"feasible_evidence"}
 REVENUE_DRIVER_REQUIRED = ("price", "volume", "start_month", "active_months")
@@ -128,35 +130,19 @@ REASON_CLASSES = (
     "unresolved_count_mismatch", "artifact_hash_invalid", "signoff_malformed",
     "signoff_role_unknown", "signoff_reviewer_missing", "signoff_roles_incomplete",
     "signoff_reviewers_not_distinct", "signoff_stale_artifact",
+    # fix-3 (PR #75 round 3): ledger-anchored assumptions, consumed costs,
+    # cohort math, and the remaining #74 required record fields.
+    "assumption_value_missing", "assumption_value_mismatch", "cost_driver_unbound",
+    "cohort_math_missing", "recomputed_value_missing", "signoff_verdict_missing",
+    "signoff_blocked", "signoff_coverage_incomplete", "closure_state_missing",
+    "blockers_not_recorded", "blockers_open", "unit_metric_mismatch",
+    "margin_formula_shape", "cohort_domain_invalid", "revenue_driver_domain_invalid",
 )
 
-# Classes exercised by the built-in selftest probes (the case runner unions
-# these with fixture-declared expected reasons when judging coverage; both the
-# selftest and the case run execute in CI, so the union is honest).
-SELFTEST_COVERED = {
-    "ledger_not_object", "no_claims_recorded", "duplicate_claim_id",
-    "missing_ledger_field", "metric_undefined", "claim_context_missing",
-    "assumption_malformed", "evidence_status_invalid", "depends_on_dangling",
-    "rounding_rule_missing", "aggregate_weights_missing",
-    "aggregate_weights_unnormalized", "arithmetic_unverified",
-    "formula_constant", "formula_underspecified", "formula_input_unbound",
-    "formula_input_mismatch", "assumption_missing",
-    "recomputed_value_inconsistent", "margin_out_of_range",
-    "revenue_drivers_missing", "revenue_driver_missing", "driver_unnamed",
-    "disposition_invalid", "amount_without_value", "included_in_without_source",
-    "included_in_period_mismatch", "component_missing",
-    "cohort_schedule_infeasible", "cohort_inconsistent_active_months",
-    "cohort_inconsistent_conversion", "cohort_inconsistent_churn",
-    "unresolved_count_mismatch", "signoff_malformed", "signoff_role_unknown",
-    "signoff_reviewer_missing", "signoff_roles_incomplete",
-    "signoff_reviewers_not_distinct", "signoff_stale_artifact",
-    "non_finite_value", "formula_not_executable", "schema_unknown_keys",
-    "business_model_malformed", "business_model_unrecognized",
-    "entailed_cost_undispositioned", "tbd_open", "duplicate_cost_driver",
-    "included_in_dangling", "included_in_without_allocation_basis",
-    "unsupported_not_applicable", "artifact_hash_invalid", "arithmetic_mismatch",
-    "cohort_schedule_missing",
-}
+# NOTE (PR #75 round 3): coverage of REASON_CLASSES is judged against the
+# acceptance FIXTURES ONLY — a hand-maintained "the selftest covers X" set is
+# itself self-attestation, so it was removed. The selftest remains a fast
+# red/green control layer but proves nothing about coverage.
 
 
 def is_finite_number(value: object) -> bool:
@@ -263,11 +249,16 @@ def check_claim_context(claim: dict, claim_ids: set[str], reasons: list[str]) ->
         if not isinstance(assumptions, list):
             reasons.append(f"assumption_malformed:{cid}")
         else:
+            seen_ids: set[str] = set()
             for entry in assumptions:
                 if not isinstance(entry, dict) or not isinstance(entry.get("id"), str) \
                         or len(str(entry.get("text") or "").strip()) < 10:
                     reasons.append(f"assumption_malformed:{cid}")
                     break
+                check_unknown_keys(entry, ASSUMPTION_KEYS, f"{cid}:assumption:{entry['id']}", reasons)
+                if entry["id"] in seen_ids:
+                    reasons.append(f"assumption_malformed:{cid}:duplicate:{entry['id']}")
+                seen_ids.add(entry["id"])
     if "evidence_status" in claim and claim.get("evidence_status") not in EVIDENCE_STATUSES:
         reasons.append(f"evidence_status_invalid:{cid}")
     if "sensitivity" in claim and len(str(claim.get("sensitivity") or "").strip()) < 10:
@@ -289,8 +280,22 @@ def check_claim_arithmetic(claim: dict, claims_by_id: dict, reasons: list[str]) 
         reasons.append(f"non_finite_value:{cid}:displayed_value")
         return
     metric = claim.get("metric")
-    if metric in MARGIN_METRICS and not (-10.0 <= float(displayed) <= 1.0):
-        reasons.append(f"margin_out_of_range:{cid}")
+    if metric in MARGIN_METRICS:
+        if not (-10.0 <= float(displayed) <= 1.0):
+            reasons.append(f"margin_out_of_range:{cid}")
+        # A margin is a ratio: its unit must say so, and its formula must be a
+        # quotient at the top level. Sign conventions inside the numerator stay
+        # the arithmetic reviewer's charge (verdict + coverage are required).
+        if str(claim.get("unit") or "").strip().lower() != "ratio":
+            reasons.append(f"unit_metric_mismatch:{cid}")
+        formula = claim.get("formula")
+        if isinstance(formula, str) and formula.strip():
+            try:
+                root = ast.parse(formula, mode="eval").body
+                if not (isinstance(root, ast.BinOp) and isinstance(root.op, ast.Div)):
+                    reasons.append(f"margin_formula_shape:{cid}")
+            except (SyntaxError, ValueError):
+                pass  # formula_not_executable is reported downstream
     tol = rounding_tolerance(claim.get("rounding_rule"))
     if tol is None:
         reasons.append(f"rounding_rule_missing:{cid}")
@@ -340,11 +345,41 @@ def check_claim_arithmetic(claim: dict, claims_by_id: dict, reasons: list[str]) 
             reasons.append(f"formula_not_executable:{cid}")
             return
         check_input_bindings(claim, inputs, reasons)
-    recorded = claim.get("recomputed_value")
-    if recorded is not None and (not is_finite_number(recorded) or abs(float(recorded) - recomputed) > tol):
-        reasons.append(f"recomputed_value_inconsistent:{cid}")
+        check_cost_consumption(claim, reasons)
+    if "recomputed_value" not in claim:
+        reasons.append(f"recomputed_value_missing:{cid}")
+    else:
+        recorded = claim.get("recomputed_value")
+        if not is_finite_number(recorded) or abs(float(recorded) - recomputed) > tol:
+            reasons.append(f"recomputed_value_inconsistent:{cid}")
     if abs(float(displayed) - recomputed) > tol:
         reasons.append(f"arithmetic_mismatch:{cid}")
+
+
+def binding_referenced_names(claim: dict) -> set[str]:
+    """Names consumed by this claim's non-assumption binding expressions."""
+    names: set[str] = set()
+    for binding in (claim.get("input_bindings") or {}).values():
+        if isinstance(binding, str) and not binding.strip().startswith("assumption:"):
+            found = formula_names(binding.strip())
+            if found:
+                names.update(found)
+    return names
+
+
+def check_cost_consumption(claim: dict, reasons: list[str]) -> None:
+    """On margin/profit claims, every amount cost driver must be consumed by
+    the bound arithmetic — a recorded cost that never enters the math is a
+    silent omission, not bookkeeping."""
+    if claim.get("metric") not in (MARGIN_METRICS | {"operating_profit"}):
+        return
+    cid = claim.get("claim_id", "?")
+    consumed = binding_referenced_names(claim)
+    for driver in claim.get("cost_drivers", []) or []:
+        if isinstance(driver, dict) and driver.get("disposition") == "amount":
+            name = (driver.get("name") or "").strip()
+            if name and name not in consumed:
+                reasons.append(f"cost_driver_unbound:{cid}:{name}")
 
 
 def check_input_bindings(claim: dict, inputs: dict, reasons: list[str]) -> None:
@@ -358,7 +393,11 @@ def check_input_bindings(claim: dict, inputs: dict, reasons: list[str]) -> None:
             reasons.append(f"formula_input_unbound:{cid}:{key}")
         return
     namespace = binding_namespace(claim)
-    declared_assumptions = assumption_ids(claim)
+    assumptions_by_id = {
+        entry["id"]: entry
+        for entry in (claim.get("assumptions") or [])
+        if isinstance(entry, dict) and isinstance(entry.get("id"), str)
+    }
     for key, value in inputs.items():
         binding = bindings.get(key)
         if not isinstance(binding, str) or not binding.strip():
@@ -366,8 +405,15 @@ def check_input_bindings(claim: dict, inputs: dict, reasons: list[str]) -> None:
             continue
         binding = binding.strip()
         if binding.startswith("assumption:"):
-            if binding.split(":", 1)[1] not in declared_assumptions:
+            entry = assumptions_by_id.get(binding.split(":", 1)[1])
+            if entry is None:
                 reasons.append(f"assumption_missing:{cid}:{key}")
+            elif not is_finite_number(entry.get("value")):
+                # An assumption feeding arithmetic must RECORD its number —
+                # otherwise the input value is self-attested (PR #75 round 3).
+                reasons.append(f"assumption_value_missing:{cid}:{key}")
+            elif not math.isclose(float(entry["value"]), float(value), rel_tol=1e-6, abs_tol=1e-9):
+                reasons.append(f"assumption_value_mismatch:{cid}:{key}")
             continue
         resolved = safe_eval_formula(binding, namespace)
         if resolved is None:
@@ -386,6 +432,18 @@ def check_revenue_drivers(claim: dict, reasons: list[str]) -> None:
     for key in REVENUE_DRIVER_REQUIRED:
         if not is_finite_number(drivers.get(key)):
             reasons.append(f"revenue_driver_missing:{cid}:{key}")
+    for key, value in drivers.items():
+        if not is_finite_number(value):
+            continue  # missing/malformed handled above or by schema
+        value = float(value)
+        if key in ("price", "volume", "active_months") and value <= 0:
+            reasons.append(f"revenue_driver_domain_invalid:{cid}:{key}")
+        if key == "start_month" and value < 1:
+            reasons.append(f"revenue_driver_domain_invalid:{cid}:{key}")
+        if key == "conversion" and not (0 < value <= 1):
+            reasons.append(f"revenue_driver_domain_invalid:{cid}:{key}")
+        if key == "churn_monthly" and not (0 <= value < 1):
+            reasons.append(f"revenue_driver_domain_invalid:{cid}:{key}")
 
 
 def check_driver(driver: dict, claim: dict, valid_targets: set[str], reasons: list[str]) -> bool:
@@ -515,6 +573,9 @@ def evaluate(ledger: dict) -> tuple[str, list[str]]:
             check_unknown_keys(schedule, COHORT_KEYS, "cohort_schedule", reasons)
             churn = float(schedule["churn_monthly"])
             active = float(schedule["active_months"])
+            conversion = float(schedule["conversion"])
+            if not (0 < conversion <= 1) or not (0 <= churn < 1) or active <= 0:
+                reasons.append("cohort_domain_invalid")
             if churn > 0 and active > 1.5 * (1.0 / churn):
                 reasons.append("cohort_schedule_infeasible")
             for claim in claims:
@@ -529,10 +590,28 @@ def evaluate(ledger: dict) -> tuple[str, list[str]]:
                     if is_finite_number(claimed) and not math.isclose(
                             float(claimed), float(schedule[key]), rel_tol=1e-6, abs_tol=1e-9):
                         reasons.append(f"{reason}:{cid}")
+                # Recurring revenue/forecast claims must actually USE the
+                # cohort math: bare price*volume is a completeness bypass.
+                if claim.get("metric") in ("revenue", "forecast"):
+                    used = binding_referenced_names(claim)
+                    if not {"conversion", "active_months"} <= used:
+                        reasons.append(f"cohort_math_missing:{cid}")
 
     declared = ledger.get("unresolved_count")
     if not isinstance(declared, int) or isinstance(declared, bool) or declared != open_tbd:
         reasons.append(f"unresolved_count_mismatch:declared={declared!r}:actual={open_tbd}")
+
+    # Closure state is an explicit, required record: open blockers must be
+    # enumerated, and a ledger that DECLARES open blockers can never pass.
+    blockers = ledger.get("blockers")
+    uncertainties = ledger.get("uncertainties")
+    if not isinstance(blockers, list) or not isinstance(uncertainties, list):
+        reasons.append("closure_state_missing")
+    else:
+        if open_tbd > len(blockers):
+            reasons.append(f"blockers_not_recorded:open={open_tbd}:recorded={len(blockers)}")
+        if blockers:
+            reasons.append("blockers_open")
 
     artifact = str(ledger.get("artifact_sha256") or "").strip()
     if not ARTIFACT_HASH_RE.match(artifact):
@@ -547,6 +626,11 @@ def evaluate(ledger: dict) -> tuple[str, list[str]]:
         if entry.get("role") not in SIGNOFF_ROLES:
             reasons.append(f"signoff_role_unknown:{entry.get('role', '?')}")
             continue
+        verdict_value = entry.get("verdict")
+        if verdict_value not in SIGNOFF_VERDICTS:
+            reasons.append(f"signoff_verdict_missing:{entry.get('role', '?')}")
+        elif verdict_value == "block":
+            reasons.append(f"signoff_blocked:{entry.get('role', '?')}")
         signoffs.append(entry)
     reviewers_by_role: dict[str, set[str]] = {}
     for role in sorted(SIGNOFF_ROLES):
@@ -558,6 +642,15 @@ def evaluate(ledger: dict) -> tuple[str, list[str]]:
         if not named:
             reasons.append(f"signoff_reviewer_missing:{role}")
         reviewers_by_role[role] = named
+        # Reviewer-specific coverage: each required role must have inspected
+        # every claim; an extra role's coverage never substitutes.
+        covered_claims: set[str] = set()
+        for s in entries:
+            coverage = s.get("coverage")
+            if isinstance(coverage, list):
+                covered_claims.update(c for c in coverage if isinstance(c, str))
+        if claim_ids - covered_claims:
+            reasons.append(f"signoff_coverage_incomplete:{role}")
     role_sets = list(reviewers_by_role.values())
     if len(role_sets) == len(SIGNOFF_ROLES) and all(role_sets):
         if set.union(*role_sets) and len(set.union(*role_sets)) < 2:
@@ -607,26 +700,27 @@ def run_cases(path: Path, as_json: bool) -> int:
     )
     if not flip_ok:
         failures.append("no add/remove metamorphic pair with a pass/block flip found")
-    # Coverage is judged against the checker's canonical REASON_CLASSES list:
-    # every emittable class needs a RED fixture or a selftest probe (both run
-    # in CI). The fixture set can never quietly validate a shrunken contract.
-    covered = set(SELFTEST_COVERED)
-    for case in cases:
-        if case.get("expected") == "block":
-            for reason in case.get("expected_reasons", []) or []:
-                covered.add(reason.split(":", 1)[0])
+    # Coverage is judged against the checker's canonical REASON_CLASSES list
+    # using the FIXTURES ALONE (PR #75 round 3): every emittable class needs a
+    # RED fixture whose expected reason was actually produced by evaluate() in
+    # THIS run — deleting a rule (or its fixture) turns the run RED. A
+    # hand-maintained "the selftest covers X" set would be self-attestation.
+    executed_covered: set[str] = set()
+    for result in results:
+        if result["expected"] == "block" and result["ok"]:
+            declared = {r.split(":", 1)[0] for r in next(
+                (case.get("expected_reasons") or [] for case in cases if case.get("id") == result["id"]), [])}
+            produced = {r.split(":", 1)[0] for r in result["reasons"]}
+            executed_covered.update(declared & produced)
     unknown_declared = {
         reason.split(":", 1)[0]
         for case in cases for reason in (case.get("expected_reasons") or [])
     } - set(REASON_CLASSES)
     if unknown_declared:
         failures.append(f"fixtures declare unknown reason classes: {sorted(unknown_declared)}")
-    missing_classes = set(REASON_CLASSES) - covered
+    missing_classes = set(REASON_CLASSES) - executed_covered
     if missing_classes:
-        failures.append(f"REASON_CLASSES without fixture/selftest coverage: {sorted(missing_classes)}")
-    stale_selftest = SELFTEST_COVERED - set(REASON_CLASSES)
-    if stale_selftest:
-        failures.append(f"selftest claims coverage of unknown classes: {sorted(stale_selftest)}")
+        failures.append(f"REASON_CLASSES without an executed RED fixture: {sorted(missing_classes)}")
     if as_json:
         print(json.dumps({"results": results, "failures": failures}, ensure_ascii=False, indent=2))
     else:
@@ -649,15 +743,18 @@ def _green_ledger() -> dict:
         "artifact_sha256": hash_value,
         "business_model": ["partner_led_sales"],
         "unresolved_count": 0,
+        "blockers": [],
+        "uncertainties": [],
         "claims": [{
             "claim_id": "C1", "source": "p2:table1", "metric": "gross_margin",
             "period": "FY1", "currency": "USD", "unit": "ratio", "tax_basis": "excl",
             "displayed_value": 0.60, "formula": "(rev-cogs-fee)/rev",
             "inputs": {"rev": 100.0, "cogs": 25.0, "fee": 15.0},
             "input_bindings": {"rev": "price*volume", "cogs": "assumption:a1", "fee": "partner_fee"},
+            "recomputed_value": 0.60,
             "rounding_rule": "2dp",
             "revenue_drivers": {"price": 10.0, "volume": 10, "start_month": 1, "active_months": 12},
-            "assumptions": [{"id": "a1", "text": "COGS from supplier quote p2 line 4", "evidence_status": "cited"}],
+            "assumptions": [{"id": "a1", "text": "COGS from supplier quote p2 line 4", "evidence_status": "cited", "value": 25.0}],
             "evidence_status": "cited",
             "sensitivity": "margin moves 5pt per 10% COGS swing",
             "depends_on": [],
@@ -667,8 +764,10 @@ def _green_ledger() -> dict:
             }],
         }],
         "signoffs": [
-            {"role": "arithmetic_reconciliation", "reviewer": "r1", "artifact_sha256": hash_value},
-            {"role": "completeness_negative_space", "reviewer": "r2", "artifact_sha256": hash_value},
+            {"role": "arithmetic_reconciliation", "reviewer": "r1", "artifact_sha256": hash_value,
+             "verdict": "approve", "coverage": ["C1"]},
+            {"role": "completeness_negative_space", "reviewer": "r2", "artifact_sha256": hash_value,
+             "verdict": "approve", "coverage": ["C1"]},
         ],
     }
 
@@ -878,11 +977,55 @@ def _selftest() -> int:
         l["signoffs"][1]["artifact_sha256"] = "sha256:" + "b" * 64
     probe("changed artifact invalidates sign-off", stale_signoff, "signoff_stale_artifact")
 
+    # --- fix-3 probes (PR #75 round 3: ledger-anchored numbers + record fields) ---
+    probe("assumption feeding arithmetic must record its number",
+          lambda l: l["claims"][0]["assumptions"][0].pop("value"), "assumption_value_missing")
+    probe("assumption value diverging from the bound input blocks",
+          lambda l: l["claims"][0]["assumptions"][0].update(value=0.0), "assumption_value_mismatch")
+    probe("duplicate assumption ids block",
+          lambda l: l["claims"][0]["assumptions"].append(dict(l["claims"][0]["assumptions"][0])), "assumption_malformed")
+    probe("an amount cost never consumed by the bound math blocks",
+          lambda l: l["claims"][0]["cost_drivers"].append({"name": "mystery_cost", "disposition": "amount", "value": 7.0}),
+          "cost_driver_unbound")
+    probe("missing recomputed_value blocks (it is a required #74 record field)",
+          lambda l: l["claims"][0].pop("recomputed_value"), "recomputed_value_missing")
+    probe("missing closure state (blockers/uncertainties) blocks",
+          lambda l: l.pop("blockers"), "closure_state_missing")
+    probe("a ledger declaring open blockers can never pass",
+          lambda l: l.update(blockers=["channel fee treatment disputed"]), "blockers_open")
+    probe("missing sign-off verdict blocks",
+          lambda l: l["signoffs"][0].pop("verdict"), "signoff_verdict_missing")
+    probe("a reviewer block verdict blocks the gate",
+          lambda l: l["signoffs"][1].update(verdict="block"), "signoff_blocked")
+    probe("reviewer coverage must span every claim per required role",
+          lambda l: l["signoffs"][1].update(coverage=[]), "signoff_coverage_incomplete")
+    probe("margin unit must be a ratio", lambda l: l["claims"][0].update(unit="USD"), "unit_metric_mismatch")
+
+    def not_a_ratio(l):
+        l["claims"][0].update(formula="rev-cogs-fee", displayed_value=60.0, recomputed_value=60.0)
+    probe("margin formula must be a quotient", not_a_ratio, "margin_formula_shape")
+    probe("revenue driver domain violations block",
+          lambda l: l["claims"][0]["revenue_drivers"].update(conversion=3.0), "revenue_driver_domain_invalid")
+
+    def recurring_forecast_no_cohort_math(l):
+        l["business_model"] = ["subscription", "partner_led_sales"]
+        l["cohort_schedule"] = {"conversion": 0.3, "churn_monthly": 0.05, "active_months": 12,
+                                "feasible_evidence": "cohort table p7 supports 12 active months"}
+        l["claims"][0].update(metric="forecast", displayed_value=100.0, recomputed_value=100.0,
+                              formula="rev", unit="USD_thousand")
+    probe("recurring forecast that ignores conversion/active-months blocks",
+          recurring_forecast_no_cohort_math, "cohort_math_missing")
+
+    def bad_cohort_domain(l):
+        recurring_forecast_no_cohort_math(l)
+        l["cohort_schedule"]["conversion"] = 0.0
+    probe("cohort domain violations block", bad_cohort_domain, "cohort_domain_invalid")
+
     if failures:
         print("finance completeness selftest FAILED.")
         return 1
-    print(f"finance completeness selftest passed ({len(SELFTEST_COVERED)} reason classes probed; "
-          "green->pass; every PR #75 round-1/round-2 hostile probe blocks).")
+    print("finance completeness selftest passed (green->pass; every PR #75 round-1/2/3 hostile probe blocks). "
+          "NOTE: coverage proof lives in the fixtures run, not here.")
     return 0
 
 
