@@ -82,8 +82,9 @@ CLAIM_KEYS = {
     "rounding_rule", "revenue_drivers", "cost_drivers", "assumptions",
     "evidence_status", "sensitivity", "depends_on", "components", "weights",
 }
-DRIVER_KEYS = {"name", "entailed_class", "disposition", "value", "included_in", "allocation_basis", "source", "period", "evidence"}
+DRIVER_KEYS = {"name", "entailed_class", "disposition", "value", "included_in", "allocation_basis", "covered_scope", "source", "period", "evidence"}
 ASSUMPTION_KEYS = {"id", "text", "evidence_status", "value"}
+UNCERTAINTY_KEYS = {"id", "text", "impact_bound", "decision_reversing"}
 SIGNOFF_KEYS = {"role", "reviewer", "artifact_sha256", "verdict", "coverage"}
 SIGNOFF_VERDICTS = {"approve", "block"}
 COHORT_REQUIRED = ("conversion", "churn_monthly", "active_months")
@@ -137,6 +138,13 @@ REASON_CLASSES = (
     "signoff_blocked", "signoff_coverage_incomplete", "closure_state_missing",
     "blockers_not_recorded", "blockers_open", "unit_metric_mismatch",
     "margin_formula_shape", "cohort_domain_invalid", "revenue_driver_domain_invalid",
+    # fix-4 (PR #75 round 4): the binding space is CLOSED over the executed
+    # formula, margins keep revenue shape, and claim sources are locators.
+    "formula_input_unused", "binding_unused", "margin_numerator_shape",
+    "margin_denominator_not_revenue", "source_not_locator",
+    "assumption_unused", "amount_without_source", "amount_period_mismatch",
+    "included_in_without_scope", "included_in_host_unresolved",
+    "uncertainty_malformed", "uncertainty_unbounded", "uncertainty_decision_reversing",
 )
 
 # NOTE (PR #75 round 3): coverage of REASON_CLASSES is judged against the
@@ -212,6 +220,11 @@ def has_anchor(text: object) -> bool:
     return isinstance(text, str) and len(text.strip()) >= 25 and bool(EVIDENCE_ANCHOR_RE.search(text))
 
 
+def is_locator(text: object) -> bool:
+    """A claim source must be a locator (page/cell/section/URL), not a token."""
+    return isinstance(text, str) and len(text.strip()) >= 5 and bool(EVIDENCE_ANCHOR_RE.search(text))
+
+
 def check_unknown_keys(obj: dict, allowed: set[str], where: str, reasons: list[str]) -> None:
     unknown = sorted(set(obj) - allowed)
     if unknown:
@@ -250,6 +263,11 @@ def check_claim_context(claim: dict, claim_ids: set[str], reasons: list[str]) ->
             reasons.append(f"assumption_malformed:{cid}")
         else:
             seen_ids: set[str] = set()
+            bound_ids = {
+                b.strip().split(":", 1)[1]
+                for b in (claim.get("input_bindings") or {}).values()
+                if isinstance(b, str) and b.strip().startswith("assumption:")
+            }
             for entry in assumptions:
                 if not isinstance(entry, dict) or not isinstance(entry.get("id"), str) \
                         or len(str(entry.get("text") or "").strip()) < 10:
@@ -259,6 +277,12 @@ def check_claim_context(claim: dict, claim_ids: set[str], reasons: list[str]) ->
                 if entry["id"] in seen_ids:
                     reasons.append(f"assumption_malformed:{cid}:duplicate:{entry['id']}")
                 seen_ids.add(entry["id"])
+                if entry.get("evidence_status") not in EVIDENCE_STATUSES:
+                    reasons.append(f"evidence_status_invalid:{cid}:assumption:{entry['id']}")
+                # Assumptions ARE the arithmetic contract: an entry no binding
+                # consumes is unvalidated context posing as evidence.
+                if entry["id"] not in bound_ids:
+                    reasons.append(f"assumption_unused:{cid}:{entry['id']}")
     if "evidence_status" in claim and claim.get("evidence_status") not in EVIDENCE_STATUSES:
         reasons.append(f"evidence_status_invalid:{cid}")
     if "sensitivity" in claim and len(str(claim.get("sensitivity") or "").strip()) < 10:
@@ -283,19 +307,32 @@ def check_claim_arithmetic(claim: dict, claims_by_id: dict, reasons: list[str]) 
     if metric in MARGIN_METRICS:
         if not (-10.0 <= float(displayed) <= 1.0):
             reasons.append(f"margin_out_of_range:{cid}")
-        # A margin is a ratio: its unit must say so, and its formula must be a
-        # quotient at the top level. Sign conventions inside the numerator stay
-        # the arithmetic reviewer's charge (verdict + coverage are required).
+        # A margin is a ratio over revenue: ratio unit, top-level quotient,
+        # a revenue-bound denominator, and a numerator derived from it. Sign
+        # conventions inside the numerator stay the arithmetic reviewer's
+        # charge (verdict + coverage are required).
         if str(claim.get("unit") or "").strip().lower() != "ratio":
             reasons.append(f"unit_metric_mismatch:{cid}")
         formula = claim.get("formula")
         if isinstance(formula, str) and formula.strip():
             try:
                 root = ast.parse(formula, mode="eval").body
-                if not (isinstance(root, ast.BinOp) and isinstance(root.op, ast.Div)):
-                    reasons.append(f"margin_formula_shape:{cid}")
             except (SyntaxError, ValueError):
-                pass  # formula_not_executable is reported downstream
+                root = None  # formula_not_executable is reported downstream
+            if root is not None:
+                if not (isinstance(root, ast.BinOp) and isinstance(root.op, ast.Div)
+                        and isinstance(root.right, ast.Name)):
+                    reasons.append(f"margin_formula_shape:{cid}")
+                else:
+                    denominator = root.right.id
+                    numerator_names = {n.id for n in ast.walk(root.left) if isinstance(n, ast.Name)}
+                    if denominator not in numerator_names:
+                        reasons.append(f"margin_numerator_shape:{cid}")
+                    binding = (claim.get("input_bindings") or {}).get(denominator)
+                    if not isinstance(binding, str) or binding.strip().startswith("assumption:") \
+                            or not (formula_names(binding.strip()) or set()) \
+                            or not (formula_names(binding.strip()) or set()) <= REVENUE_DRIVER_KEYS:
+                        reasons.append(f"margin_denominator_not_revenue:{cid}")
     tol = rounding_tolerance(claim.get("rounding_rule"))
     if tol is None:
         reasons.append(f"rounding_rule_missing:{cid}")
@@ -340,6 +377,11 @@ def check_claim_arithmetic(claim: dict, claims_by_id: dict, reasons: list[str]) 
                 return
             if metric in MARGIN_METRICS and len(names) < 2:
                 reasons.append(f"formula_underspecified:{cid}")
+            # The input space is CLOSED over the executed formula: an input
+            # the formula never reads is a smuggling surface for fake
+            # consumption/cohort bindings (PR #75 round 4).
+            for key in sorted(set(inputs) - names):
+                reasons.append(f"formula_input_unused:{cid}:{key}")
         recomputed = safe_eval_formula(formula, inputs)
         if recomputed is None:
             reasons.append(f"formula_not_executable:{cid}")
@@ -398,6 +440,10 @@ def check_input_bindings(claim: dict, inputs: dict, reasons: list[str]) -> None:
         for entry in (claim.get("assumptions") or [])
         if isinstance(entry, dict) and isinstance(entry.get("id"), str)
     }
+    # Bindings are closed over the inputs (which are closed over the formula):
+    # a binding for a key the formula never consumes is a smuggling surface.
+    for key in sorted(set(bindings) - set(inputs)):
+        reasons.append(f"binding_unused:{cid}:{key}")
     for key, value in inputs.items():
         binding = bindings.get(key)
         if not isinstance(binding, str) or not binding.strip():
@@ -460,18 +506,36 @@ def check_driver(driver: dict, claim: dict, valid_targets: set[str], reasons: li
         return False
     if disposition == "TBD":
         return True
-    if disposition == "amount" and not is_finite_number(driver.get("value")):
-        reasons.append(f"amount_without_value:{claim_id}:{name}")
+    claim_period = str(claim.get("period") or "").strip()
+    if disposition == "amount":
+        if not is_finite_number(driver.get("value")):
+            reasons.append(f"amount_without_value:{claim_id}:{name}")
+        # An amount is a number ON A STATED BASIS: it carries its own
+        # anchored source and sits on the claim's period.
+        if not has_anchor(driver.get("source")) and not is_locator(driver.get("source")):
+            reasons.append(f"amount_without_source:{claim_id}:{name}")
+        period = (driver.get("period") or "").strip()
+        if not period or (claim_period and period != claim_period):
+            reasons.append(f"amount_period_mismatch:{claim_id}:{name}")
     if disposition == "included-in":
         target = (driver.get("included_in") or "").strip()
         if not target or target == name or target not in valid_targets:
             reasons.append(f"included_in_dangling:{claim_id}:{name}")
+        else:
+            # When the host is another cost driver, that host must itself be
+            # a resolved amount — absorbing into an unresolved line is a
+            # laundering path for TBD.
+            host = next((d for d in claim.get("cost_drivers", []) or []
+                         if isinstance(d, dict) and (d.get("name") or "").strip() == target), None)
+            if host is not None and not (host.get("disposition") == "amount" and is_finite_number(host.get("value"))):
+                reasons.append(f"included_in_host_unresolved:{claim_id}:{name}")
         if len((driver.get("allocation_basis") or "").strip()) < 15:
             reasons.append(f"included_in_without_allocation_basis:{claim_id}:{name}")
+        if len((driver.get("covered_scope") or "").strip()) < 10:
+            reasons.append(f"included_in_without_scope:{claim_id}:{name}")
         if not has_anchor(driver.get("source")):
             reasons.append(f"included_in_without_source:{claim_id}:{name}")
         period = (driver.get("period") or "").strip()
-        claim_period = str(claim.get("period") or "").strip()
         if not period or (claim_period and period != claim_period):
             reasons.append(f"included_in_period_mismatch:{claim_id}:{name}")
     if disposition == "not-applicable-with-evidence" and not has_anchor(driver.get("evidence")):
@@ -517,6 +581,8 @@ def evaluate(ledger: dict) -> tuple[str, list[str]]:
         for field in REQUIRED_CLAIM_FIELDS:
             if not str(claim.get(field) or "").strip():
                 reasons.append(f"missing_ledger_field:{cid}:{field}")
+        if str(claim.get("source") or "").strip() and not is_locator(claim.get("source")):
+            reasons.append(f"source_not_locator:{cid}")
         if claim.get("metric") not in METRICS:
             reasons.append(f"metric_undefined:{cid}")
         check_claim_context(claim, claim_ids, reasons)
@@ -590,10 +656,12 @@ def evaluate(ledger: dict) -> tuple[str, list[str]]:
                     if is_finite_number(claimed) and not math.isclose(
                             float(claimed), float(schedule[key]), rel_tol=1e-6, abs_tol=1e-9):
                         reasons.append(f"{reason}:{cid}")
-                # Recurring revenue/forecast claims must actually USE the
-                # cohort math: bare price*volume is a completeness bypass.
-                if claim.get("metric") in ("revenue", "forecast"):
-                    used = binding_referenced_names(claim)
+                # Recurring claims must actually USE the cohort math: a bare
+                # price*volume revenue side (in a forecast OR inside a margin
+                # denominator) is a completeness bypass. Per-unit claims that
+                # never touch volume are exempt.
+                used = binding_referenced_names(claim)
+                if claim.get("metric") in ("revenue", "forecast") or "volume" in used:
                     if not {"conversion", "active_months"} <= used:
                         reasons.append(f"cohort_math_missing:{cid}")
 
@@ -612,6 +680,18 @@ def evaluate(ledger: dict) -> tuple[str, list[str]]:
             reasons.append(f"blockers_not_recorded:open={open_tbd}:recorded={len(blockers)}")
         if blockers:
             reasons.append("blockers_open")
+        # Uncertainties are structured: each must state a bounded impact, and
+        # one that could reverse the decision blocks outright.
+        for entry in uncertainties:
+            if not isinstance(entry, dict) or not isinstance(entry.get("id"), str) \
+                    or len(str(entry.get("text") or "").strip()) < 10:
+                reasons.append("uncertainty_malformed")
+                continue
+            check_unknown_keys(entry, UNCERTAINTY_KEYS, f"uncertainty:{entry['id']}", reasons)
+            if entry.get("decision_reversing") is True:
+                reasons.append(f"uncertainty_decision_reversing:{entry['id']}")
+            if len(str(entry.get("impact_bound") or "").strip()) < 10:
+                reasons.append(f"uncertainty_unbounded:{entry['id']}")
 
     artifact = str(ledger.get("artifact_sha256") or "").strip()
     if not ARTIFACT_HASH_RE.match(artifact):
@@ -761,6 +841,7 @@ def _green_ledger() -> dict:
             "cost_drivers": [{
                 "name": "partner_fee", "entailed_class": "channel_economics",
                 "disposition": "amount", "value": 15.0,
+                "source": "partner agreement p3 clause 2", "period": "FY1",
             }],
         }],
         "signoffs": [
@@ -1020,6 +1101,64 @@ def _selftest() -> int:
         recurring_forecast_no_cohort_math(l)
         l["cohort_schedule"]["conversion"] = 0.0
     probe("cohort domain violations block", bad_cohort_domain, "cohort_domain_invalid")
+
+    # --- fix-4 probes (PR #75 round 4: closed binding space + nested evidence) ---
+    def phantom_input(l):
+        l["claims"][0]["inputs"]["ghost"] = 1.0
+        l["claims"][0]["input_bindings"]["ghost"] = "conversion*active_months"
+    probe("an input the formula never reads blocks (phantom consumption surface)",
+          phantom_input, "formula_input_unused")
+    probe("a binding for a key outside the inputs blocks",
+          lambda l: l["claims"][0]["input_bindings"].update(ghost="partner_fee"), "binding_unused")
+    def swapped_numerator(l):
+        l["claims"][0].update(formula="(cogs+fee)/rev", displayed_value=0.40, recomputed_value=0.40)
+    probe("a margin numerator not derived from its denominator blocks", swapped_numerator, "margin_numerator_shape")
+    def cost_denominator(l):
+        l["claims"][0].update(formula="(rev-cogs-fee)/cogs", displayed_value=2.4, recomputed_value=2.4)
+    probe("a margin denominator not bound to revenue drivers blocks", cost_denominator, "margin_denominator_not_revenue")
+    probe("a token claim source is not a locator",
+          lambda l: l["claims"][0].update(source="x"), "source_not_locator")
+    def unused_assumption(l):
+        l["claims"][0]["assumptions"].append(A2 := {"id": "a9", "text": "context nobody's arithmetic consumes here",
+                                                    "evidence_status": "assumed", "value": 1.0})
+    probe("an assumption no binding consumes blocks", unused_assumption, "assumption_unused")
+    probe("an assumption with an out-of-enum evidence status blocks",
+          lambda l: l["claims"][0]["assumptions"][0].update(evidence_status="vibes"), "evidence_status_invalid")
+    probe("an amount without its own anchored source blocks",
+          lambda l: l["claims"][0]["cost_drivers"][0].pop("source"), "amount_without_source")
+    probe("an amount on a different period than the claim blocks",
+          lambda l: l["claims"][0]["cost_drivers"][0].update(period="FY9"), "amount_period_mismatch")
+
+    def include_no_scope(l):
+        l["claims"][0]["cost_drivers"][0] = {
+            "name": "partner_fee", "entailed_class": "channel_economics",
+            "disposition": "included-in", "included_in": "cogs",
+            "allocation_basis": "fee absorbed into supplier COGS per agreement",
+            "source": "contract schedule B p3", "period": "FY1",
+        }
+        l["claims"][0]["input_bindings"]["fee"] = "assumption:a2"
+        l["claims"][0]["assumptions"].append({"id": "a2", "text": "partner fee estimate from agreement p9",
+                                              "evidence_status": "cited", "value": 15.0})
+    probe("included-in without a covered scope blocks", include_no_scope, "included_in_without_scope")
+
+    def unresolved_host(l):
+        include_no_scope(l)
+        l["claims"][0]["cost_drivers"][0]["covered_scope"] = "partner fee line in full"
+        l["claims"][0]["cost_drivers"][0]["included_in"] = "host_line"
+        l["claims"][0]["cost_drivers"].append({"name": "host_line", "disposition": "TBD"})
+        l["unresolved_count"] = 1
+        l["blockers"] = ["host line pending"]
+    probe("absorbing into an unresolved host blocks", unresolved_host, "included_in_host_unresolved")
+
+    probe("a malformed uncertainty entry blocks",
+          lambda l: l.update(uncertainties=["it might rain"]), "uncertainty_malformed")
+    probe("an unbounded uncertainty blocks",
+          lambda l: l.update(uncertainties=[{"id": "u1", "text": "churn could exceed the modeled rate"}]),
+          "uncertainty_unbounded")
+    probe("a decision-reversing uncertainty blocks",
+          lambda l: l.update(uncertainties=[{"id": "u1", "text": "churn could exceed the modeled rate",
+                                             "impact_bound": "up to 3pt margin impact per p7", "decision_reversing": True}]),
+          "uncertainty_decision_reversing")
 
     if failures:
         print("finance completeness selftest FAILED.")

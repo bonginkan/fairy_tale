@@ -24,16 +24,19 @@ gate → Closure / Negative-Space Check → reviewer sign-off.
   unresolved counts. A central claim without a ledger record is a BLOCK.
 - **Cost disposition is a closed enum, fail-closed.** Every evidenced or
   entailed cost driver carries exactly one disposition: `amount` (a finite
-  number on a stated basis), `included-in` (must reference a cost line,
-  claim, or formula input that EXISTS in the same ledger, plus a substantive
-  allocation basis — a bare host name is an unsubstantiated absorption
-  claim), `not-applicable-with-evidence` (requires a citable, locator-shaped
-  anchor — page/section/contract/URL — not prose length), or `TBD`. A `TBD`
-  on an entailed driver is an open blocker: it must surface in the
-  unresolved count and BLOCK promotion — it is never silently priced at
-  zero. A generic "all figures are assumptions" disclaimer does not convert
-  a missing cost treatment into an accepted zero. Duplicate or unnamed
-  driver rows block.
+  number with its own anchored source, on the claim's period), `included-in`
+  (must reference a cost line, claim, or formula input that EXISTS in the
+  same ledger — and a host driver must itself be a resolved amount — plus a
+  substantive allocation basis, a covered scope, an anchored source, and the
+  claim's period), `not-applicable-with-evidence` (requires a citable,
+  identifier-bearing anchor — not prose length), or `TBD`. A `TBD` on an
+  entailed driver is an open blocker: it must surface in the unresolved
+  count, be enumerated in `blockers`, and BLOCK promotion — it is never
+  silently priced at zero. A generic "all figures are assumptions"
+  disclaimer does not convert a missing cost treatment into an accepted
+  zero. Duplicate or unnamed driver rows block. Uncertainties are
+  structured records with a bounded impact; a decision-reversing
+  uncertainty blocks outright.
 - **Unit Economics Assumption Closure (required sub-gate).** The stated
   business model entails cost rows whether or not the artifact mentions
   them: partner- or channel-led sales entails channel economics (fees,
@@ -73,11 +76,16 @@ gate → Closure / Negative-Space Check → reviewer sign-off.
   assumption — and ALL numeric anchors must reconcile: bindings against
   input values, assumption entries against their recorded `value`, and
   amount cost drivers must actually be consumed by the bound math on
-  margin/profit claims. Recurring-model revenue/forecast claims must use
-  conversion and active-months in their bound arithmetic; conversion/churn
-  domains are validated; margins must be ratios (unit and formula shape) in
-  plausible range. Constant formulas, non-executable formulas, missing
-  inputs, and non-finite values block. A strict schema rejects unknown keys
+  margin/profit claims. The binding space is CLOSED over the executed
+  formula: inputs the formula never reads and bindings for keys outside the
+  inputs both block, so consumption can never be faked through phantom
+  bindings; assumptions no binding consumes block too. Claim sources must be
+  locators (page/cell/section/URL), never tokens. Recurring-model claims
+  must use conversion and active-months wherever volume enters the bound
+  arithmetic; conversion/churn domains are validated; margins must be
+  ratio-unit quotients over a revenue-bound denominator with a numerator
+  derived from it, in plausible range. Constant formulas, non-executable
+  formulas, missing inputs, and non-finite values block. A strict schema rejects unknown keys
   anywhere in the record so a typo can never weaken a rule, while requiring
   every #74 record field (recomputed value, assumptions with values,
   evidence status, sensitivity, cross-claim dependencies, closure state).

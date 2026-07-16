@@ -39,12 +39,18 @@
   ratio-shaped and ratio-unit; sign-offs record verdict + per-claim coverage
   per required role and reject malformed entries, unknown roles, and role
   substitution; closure state (blockers/uncertainties) is explicit and open
-  blockers can never pass. Coverage is refutable by execution: every class
-  in the checker's canonical REASON_CLASSES list (69 classes) must be
+  blockers can never pass; uncertainties are structured, impact-bounded
+  records and a decision-reversing uncertainty blocks outright. The binding
+  space is closed over the executed formula (phantom inputs/bindings and
+  unconsumed assumptions block); claim sources must be locators; amounts
+  carry their own anchored source and period; included-in requires a covered
+  scope and a resolved host; margins are ratio-unit quotients over a
+  revenue-bound denominator. Coverage is refutable by execution: every class
+  in the checker's canonical REASON_CLASSES list (82 classes) must be
   covered by an executed RED fixture in the acceptance run — deleting a rule
   or its fixture turns CI red; no hand-maintained coverage claims. Selftest
-  carries 70+ red/green/hostile controls (every PR #75 round-1/2/3 review
-  probe and an add/remove metamorphic flip); seventy-four sanitized
+  carries 85+ red/green/hostile controls (every PR #75 round-1/2/3/4 review
+  probe and an add/remove metamorphic flip); eighty-eight sanitized
   cross-industry acceptance fixtures in
   `fixtures/finance-completeness/cases.jsonl` (agency, SaaS, marketplace,
   managed service, hardware, channel sales), all wired into CI. `redundancy`

@@ -36,7 +36,7 @@ in SKILL.md itself or as an extracted card reachable from the router.
 | skills/fairy-tale/references/cards/external-reconstruction-adapter-harness.md | 572 | 12 | 143 |
 | skills/fairy-tale/references/cards/fable-harness-long-coding-or-migration-tasks.md | 264 | 8 | 66 |
 | skills/fairy-tale/references/cards/fairy-fusion-harness.md | 1685 | 28 | 421 |
-| skills/fairy-tale/references/cards/finance-proposal-completeness-gate.md | 6663 | 98 | 1666 |
+| skills/fairy-tale/references/cards/finance-proposal-completeness-gate.md | 7255 | 106 | 1814 |
 | skills/fairy-tale/references/cards/general-e2e-completion-harness.md | 2030 | 30 | 508 |
 | skills/fairy-tale/references/cards/generalization-and-latent-structure-harness-hidden-rules-executable-models-and-tacit-intent.md | 3350 | 50 | 838 |
 | skills/fairy-tale/references/cards/high-signal-research-synthesis.md | 238 | 7 | 60 |
