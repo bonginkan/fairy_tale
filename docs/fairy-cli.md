@@ -1,0 +1,37 @@
+# Fairy CLI
+
+`fairy` is the repository-level entrypoint for common Fairy Tale workflow
+operations. It is a thin dispatcher: validation logic remains in the existing
+scripts and Rust adapter runner, which stay directly executable.
+
+```bash
+./fairy --help
+./fairy doctor
+./fairy validate
+```
+
+`doctor` runs the residency check and adapter manifest validator, continuing
+through both so one failure does not hide the other. `validate` runs the
+deterministic repository suite used by CI. Use `validate --list`, `--dry-run`,
+or repeated `--only STEP` options to inspect or select registered checks.
+The command exits non-zero when any selected check fails or cannot execute.
+
+Task Card and Validation Ledger commands delegate to the canonical artifact
+engine without copying its schemas or lifecycle rules:
+
+```bash
+./fairy task-card --help
+./fairy ledger --help
+./fairy ledger init --help
+./fairy ledger validate --artifact validation-ledger.json
+```
+
+The CLI resolves repository tooling relative to its own executable, so
+`doctor` and `validate` do not depend on the caller's current directory. Task
+artifact paths remain relative to the caller, matching direct
+`scripts/task_artifacts.py` use.
+
+The existing `install.sh` remains intentionally skill-only: it installs no host
+executable and does not mutate `PATH`. Use `fairy` from a source checkout. This
+keeps skill installation portable across Codex, Claude Code, and generic agent
+homes while leaving host-level command installation explicit.

@@ -53,6 +53,23 @@ Use `--agent claude` for `~/.claude/skills`, `--agent agents` for
 The installer fails closed if the target directory is missing unless `--create`
 is supplied.
 
+From a source checkout, use the unified repository CLI to discover and run the
+same workflow checks without memorizing individual script paths:
+
+```bash
+./fairy --help
+./fairy doctor
+./fairy validate
+./fairy task-card --help
+./fairy ledger --help
+```
+
+`doctor` runs residency and adapter health checks. `validate` runs the
+deterministic CI suite, while Task Card and Validation Ledger operations remain
+thin delegates to `scripts/task_artifacts.py`. See [Fairy CLI](docs/fairy-cli.md).
+The skill-only installer intentionally does not install a host executable or
+modify `PATH`; use the CLI from a source checkout.
+
 Before publishing benchmark claims or making the repository public, read
 [SECURITY.md](SECURITY.md), [CONTRIBUTING.md](CONTRIBUTING.md), and
 [Feedback governance](docs/feedback-governance.md).

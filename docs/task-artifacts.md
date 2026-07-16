@@ -4,9 +4,9 @@ Use a Task Card before long or tightly scoped work, then record validation in
 the linked ledger. JSON is canonical. Markdown is a rendered view for reviews,
 handoffs, and completion reports.
 
-`scripts/task_artifacts.py` owns the artifact contract. A unified `fairy` CLI
-may delegate to it later; wrappers must not reimplement the schemas or closure
-rules.
+`scripts/task_artifacts.py` owns the artifact contract. The repository-level
+`fairy task-card` and `fairy ledger` commands delegate to it; wrappers must not
+reimplement the schemas or closure rules.
 
 ## Create a Task Card
 

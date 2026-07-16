@@ -1,0 +1,314 @@
+#!/usr/bin/env python3
+"""Unified entrypoint for Fairy Tale repository workflows."""
+
+from __future__ import annotations
+
+import argparse
+import contextlib
+import io
+import shlex
+import subprocess
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Callable, Sequence
+
+
+ROOT = Path(__file__).resolve().parent
+PYTHON = sys.executable
+
+
+@dataclass(frozen=True)
+class Step:
+    step_id: str
+    label: str
+    command: tuple[str, ...]
+
+
+def python_step(step_id: str, label: str, script: str, *args: str) -> Step:
+    return Step(step_id, label, (PYTHON, str(ROOT / "scripts" / script), *args))
+
+
+DOCTOR_STEPS = (
+    python_step("residency", "Residency check", "fairy_tale_residency_check.py"),
+    Step(
+        "adapters",
+        "Adapter manifest validation",
+        (
+            "cargo",
+            "run",
+            "--manifest-path",
+            str(ROOT / "crates" / "fairy-adapter-runner" / "Cargo.toml"),
+            "--",
+            "validate",
+        ),
+    ),
+)
+
+
+VALIDATION_STEPS = (
+    python_step("parity", "Distribution parity", "check_distribution_parity.py"),
+    python_step("residency", "Residency check", "fairy_tale_residency_check.py"),
+    python_step("install-smoke", "Install smoke test", "install_smoke_test.py"),
+    python_step("task-selftest", "Task artifact self-controls", "task_artifacts.py", "selftest"),
+    python_step(
+        "task-cases",
+        "Task artifact acceptance cases",
+        "task_artifacts.py",
+        "cases",
+        "--cases",
+        str(ROOT / "fixtures" / "task-artifacts" / "cases.jsonl"),
+    ),
+    python_step("budget-selftest", "Skill budget self-controls", "skill_token_budget_check.py", "--selftest"),
+    python_step(
+        "budget",
+        "Skill budget enforcement",
+        "skill_token_budget_check.py",
+        "--inventory-compare",
+        str(ROOT / "docs" / "skill-budget" / "skill-section-inventory.json"),
+        "--enforce",
+    ),
+    python_step(
+        "card-provenance-selftest",
+        "Card provenance self-controls",
+        "extract_mode_pattern_cards.py",
+        "--selftest",
+    ),
+    python_step("card-provenance", "Card extraction parity", "extract_mode_pattern_cards.py", "--verify"),
+    python_step("process-provenance", "Process extraction parity", "extract_process_records.py", "--verify"),
+    python_step("listing-selftest", "Listing overhead self-controls", "skill_listing_overhead_check.py", "--selftest"),
+    python_step("listing", "Listing overhead enforcement", "skill_listing_overhead_check.py", "--enforce"),
+    python_step("routing-selftest", "Routing evaluator self-controls", "routing_eval.py", "--selftest"),
+    python_step("routing", "Routing fixture validation", "routing_eval.py", "--validate"),
+    python_step("spiral-selftest", "Spiral exercise self-controls", "spiral_revolution_check.py", "--selftest"),
+    python_step("spiral", "Spiral exercise records", "spiral_revolution_check.py"),
+    python_step("evolution-selftest", "Evolution exercise self-controls", "evolution_variant_check.py", "--selftest"),
+    python_step("evolution", "Evolution exercise records", "evolution_variant_check.py"),
+    python_step("e2e-selftest", "E2E coverage self-controls", "e2e_coverage_check.py", "--selftest"),
+    python_step(
+        "finance-selftest",
+        "Finance completeness self-controls",
+        "finance_completeness_check.py",
+        "--selftest",
+    ),
+    python_step("finance", "Finance completeness cases", "finance_completeness_check.py"),
+)
+
+
+LEDGER_COMMANDS = {
+    "init": "ledger-init",
+    "add": "ledger-add",
+    "finalize": "ledger-finalize",
+    "validate": "validate",
+    "render": "render",
+}
+
+
+Runner = Callable[..., subprocess.CompletedProcess[str]]
+
+
+def display_command(command: Sequence[str]) -> str:
+    return shlex.join(command)
+
+
+def select_steps(steps: Sequence[Step], selected: Sequence[str] | None) -> tuple[Step, ...]:
+    if not selected:
+        return tuple(steps)
+    wanted = set(selected)
+    return tuple(step for step in steps if step.step_id in wanted)
+
+
+def run_steps(
+    steps: Sequence[Step],
+    *,
+    dry_run: bool = False,
+    runner: Runner = subprocess.run,
+) -> int:
+    failures: list[tuple[str, int]] = []
+    for step in steps:
+        print(f"==> {step.step_id}: {step.label}", flush=True)
+        print(f"    {display_command(step.command)}", flush=True)
+        if dry_run:
+            continue
+        try:
+            completed = runner(step.command, cwd=ROOT, check=False, text=True)
+            returncode = completed.returncode
+        except OSError as exc:
+            print(f"FAIL {step.step_id}: cannot execute command: {exc}", file=sys.stderr)
+            returncode = 127
+        if returncode != 0:
+            failures.append((step.step_id, returncode))
+            print(f"FAIL {step.step_id}: exit {returncode}", file=sys.stderr)
+    if dry_run:
+        print(f"Fairy Tale plan: {len(steps)} step(s)")
+        return 0
+    if failures:
+        detail = ", ".join(f"{step_id}=rc{returncode}" for step_id, returncode in failures)
+        print(f"Fairy Tale checks failed: {detail}", file=sys.stderr)
+        return 1
+    print(f"Fairy Tale checks passed: {len(steps)} step(s)")
+    return 0
+
+
+def list_steps(steps: Sequence[Step]) -> None:
+    for step in steps:
+        print(f"{step.step_id}\t{step.label}\t{display_command(step.command)}")
+
+
+def task_artifact_command(command: str, args: Sequence[str]) -> tuple[str, ...]:
+    return (PYTHON, str(ROOT / "scripts" / "task_artifacts.py"), command, *args)
+
+
+def delegate_task_artifact(command: str, args: Sequence[str]) -> int:
+    try:
+        return subprocess.run(task_artifact_command(command, args), check=False).returncode
+    except OSError as exc:
+        print(f"fairy: cannot execute task artifact command: {exc}", file=sys.stderr)
+        return 127
+
+
+def ledger_help() -> str:
+    return """usage: fairy ledger {init,add,finalize,validate,render} [args ...]
+
+Delegate Validation Ledger operations to the canonical task artifact engine.
+Use `fairy ledger OPERATION --help` for operation-specific options.
+"""
+
+
+def selftest() -> int:
+    controls = 0
+
+    def check(condition: bool, label: str) -> None:
+        nonlocal controls
+        controls += 1
+        if not condition:
+            raise AssertionError(label)
+
+    for registry_name, steps in (("doctor", DOCTOR_STEPS), ("validate", VALIDATION_STEPS)):
+        ids = [step.step_id for step in steps]
+        check(len(ids) == len(set(ids)), f"{registry_name} step ids are unique")
+        check(all(step.command for step in steps), f"{registry_name} commands are non-empty")
+
+    repository_paths = {
+        Path(step.command[1])
+        for step in (*DOCTOR_STEPS, *VALIDATION_STEPS)
+        if step.command[0] == PYTHON
+    }
+    repository_paths.update(
+        {
+            ROOT / "scripts" / "task_artifacts.py",
+            ROOT / "crates" / "fairy-adapter-runner" / "Cargo.toml",
+        }
+    )
+    check(all(path.is_file() for path in repository_paths), "delegated entrypoints exist")
+    check(
+        task_artifact_command("task-card", ("--help",))[-2:] == ("task-card", "--help"),
+        "task-card delegation preserves arguments",
+    )
+    check(LEDGER_COMMANDS["finalize"] == "ledger-finalize", "ledger operation mapping")
+
+    calls: list[tuple[str, ...]] = []
+
+    def fake_runner(
+        command: Sequence[str], *, cwd: Path, check: bool, text: bool
+    ) -> subprocess.CompletedProcess[str]:
+        del cwd, check, text
+        calls.append(tuple(command))
+        returncode = 3 if command[-1] == "fail" else 0
+        return subprocess.CompletedProcess(command, returncode)
+
+    fake_steps = (
+        Step("green", "green", (PYTHON, "green")),
+        Step("red", "red", (PYTHON, "fail")),
+        Step("after-red", "after red", (PYTHON, "green-again")),
+    )
+    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+        aggregate_result = run_steps(fake_steps, runner=fake_runner)
+    check(aggregate_result == 1, "aggregate failure is non-zero")
+    check(len(calls) == 3, "runner continues through all checks")
+    missing_output = io.StringIO()
+
+    def missing_runner(
+        command: Sequence[str], *, cwd: Path, check: bool, text: bool
+    ) -> subprocess.CompletedProcess[str]:
+        del command, cwd, check, text
+        raise FileNotFoundError("missing test executable")
+
+    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(missing_output):
+        missing_result = run_steps((fake_steps[0],), runner=missing_runner)
+    check(missing_result == 1, "missing executable is non-zero")
+    check("cannot execute command" in missing_output.getvalue(), "missing executable is reasoned")
+    calls.clear()
+    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+        dry_run_result = run_steps(fake_steps, dry_run=True, runner=fake_runner)
+    check(dry_run_result == 0, "dry-run succeeds")
+    check(not calls, "dry-run executes nothing")
+    check(
+        [step.step_id for step in select_steps(VALIDATION_STEPS, ("parity", "finance"))]
+        == ["parity", "finance"],
+        "validation subset preserves registry order",
+    )
+
+    print(f"fairy CLI selftest OK: {controls} controls")
+    return 0
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="fairy",
+        description="Run Fairy Tale workflow checks through one stable entrypoint.",
+    )
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    doctor = subparsers.add_parser("doctor", help="check residency and adapter manifests")
+    doctor.add_argument("--dry-run", action="store_true", help="show commands without executing")
+
+    validate = subparsers.add_parser("validate", help="run the deterministic repository validation suite")
+    validate.add_argument("--dry-run", action="store_true", help="show commands without executing")
+    validate.add_argument("--list", action="store_true", help="list registered validation steps")
+    validate.add_argument(
+        "--only",
+        action="append",
+        choices=[step.step_id for step in VALIDATION_STEPS],
+        help="run only the named step; repeat to select multiple steps",
+    )
+
+    subparsers.add_parser("task-card", help="delegate Task Card creation to task_artifacts.py")
+    subparsers.add_parser("ledger", help="delegate Validation Ledger lifecycle operations")
+    subparsers.add_parser("selftest", help="run deterministic CLI self-controls")
+    return parser
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    raw = list(sys.argv[1:] if argv is None else argv)
+    if raw and raw[0] == "task-card":
+        return delegate_task_artifact("task-card", raw[1:])
+    if raw and raw[0] == "ledger":
+        if len(raw) == 1 or raw[1] in {"-h", "--help"}:
+            print(ledger_help(), end="")
+            return 0
+        operation = LEDGER_COMMANDS.get(raw[1])
+        if operation is None:
+            print(f"fairy ledger: unknown operation: {raw[1]}", file=sys.stderr)
+            print(ledger_help(), file=sys.stderr, end="")
+            return 2
+        return delegate_task_artifact(operation, raw[2:])
+
+    parser = build_parser()
+    args = parser.parse_args(raw)
+    if args.command == "doctor":
+        return run_steps(DOCTOR_STEPS, dry_run=args.dry_run)
+    if args.command == "validate":
+        steps = select_steps(VALIDATION_STEPS, args.only)
+        if args.list:
+            list_steps(steps)
+            return 0
+        return run_steps(steps, dry_run=args.dry_run)
+    if args.command == "selftest":
+        return selftest()
+    parser.error(f"unsupported command: {args.command}")
+    return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
