@@ -14,6 +14,7 @@ import os
 import re
 import sys
 import tempfile
+import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -380,7 +381,13 @@ def write_json(path: Path, payload: Any) -> None:
 
 
 def require_distinct_paths(first: Path, second: Path, message: str) -> None:
-    if first.resolve() == second.resolve():
+    def portable_identity(path: Path) -> tuple[str, ...]:
+        return tuple(
+            unicodedata.normalize("NFKC", part).casefold()
+            for part in path.resolve().parts
+        )
+
+    if portable_identity(first) == portable_identity(second):
         raise ArtifactError(message)
 
 
@@ -780,6 +787,17 @@ def command_selftest(_args: argparse.Namespace) -> int:
                 output=output,
                 markdown_output=markdown,
             )
+
+        check(
+            rejected(
+                lambda: require_distinct_paths(
+                    root / "Task.json",
+                    root / "task.json",
+                    "portable path aliases must differ",
+                )
+            ),
+            "case-only path aliases collide across supported filesystems",
+        )
 
         collision_path = root / "collision.json"
         check(
