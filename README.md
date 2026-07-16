@@ -105,6 +105,12 @@ artifacts preserve the objective, allowed targets, explicit budget, stop
 conditions, planned checks, results, blockers, evidence paths, and remaining
 risk across handoffs and context resumes.
 
+Use the [Workflow Impact Scoreboard](docs/workflow-impact-scoreboard.md) to
+compare isolated baseline and Fairy Tale runs across benchmarks and ordinary
+tasks. It records validation, elapsed time, cost, tokens, regressions, artifact
+identity, and per-card contribution without treating examples or unpaired runs
+as uplift evidence.
+
 ## Goals
 
 - Describe the strongest reported Fable 5 / Mythos 5 capabilities in operational terms.
@@ -289,6 +295,7 @@ Notes:
 - [Similarity refactoring adapter](docs/similarity-refactoring-adapter.md)
 - [Legal feedback analysis](docs/legal-feedback-analysis.md)
 - [Feedback governance](docs/feedback-governance.md)
+- [Workflow impact scoreboard](docs/workflow-impact-scoreboard.md)
 - [Fairy Tale residency harness](docs/fairy-tale-residency-harness.md)
 - [OSS watch](docs/oss-watch.md)
 - [Core Fairy Tale skill](skills/fairy-tale/SKILL.md)
@@ -297,6 +304,7 @@ Notes:
 - [Fairy Fusion adapter](adapters/fairy-fusion.adapter.json)
 - [Fairy Fusion automatic trigger decisions](docs/fairy-fusion-auto-trigger.md)
 - [Feedback pruning adapter](adapters/feedback-pruning.adapter.json)
+- [Workflow impact scoreboard adapter](adapters/workflow-scoreboard.adapter.json)
 - [Fairy adapter runner](crates/fairy-adapter-runner/)
 - [BioMystery runner](scripts/biomystery_runner.py)
 - [SWE-Bench Pro preparer](scripts/swebench_pro_prepare.py)

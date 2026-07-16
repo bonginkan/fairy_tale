@@ -1,0 +1,6 @@
+{
+  "example": true,
+  "condition": "baseline",
+  "task_kind": "benchmark",
+  "result": "illustrative-pass"
+}

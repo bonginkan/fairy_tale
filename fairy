@@ -121,6 +121,18 @@ VALIDATION_STEPS = (
     python_step("listing", "Listing overhead enforcement", "skill_listing_overhead_check.py", "--enforce"),
     python_step("routing-selftest", "Routing evaluator self-controls", "routing_eval.py", "--selftest"),
     python_step("routing", "Routing fixture validation", "routing_eval.py", "--validate"),
+    python_step(
+        "scoreboard-selftest",
+        "Workflow impact scoreboard self-controls",
+        "workflow_scoreboard.py",
+        "selftest",
+    ),
+    python_step(
+        "scoreboard",
+        "Workflow impact scoreboard sample",
+        "workflow_scoreboard.py",
+        "validate",
+    ),
     python_step("spiral-selftest", "Spiral exercise self-controls", "spiral_revolution_check.py", "--selftest"),
     python_step("spiral", "Spiral exercise records", "spiral_revolution_check.py"),
     python_step("evolution-selftest", "Evolution exercise self-controls", "evolution_variant_check.py", "--selftest"),
@@ -234,6 +246,18 @@ def delegate_fusion(args: Sequence[str]) -> int:
         return 127
 
 
+def scoreboard_command(args: Sequence[str]) -> tuple[str, ...]:
+    return (PYTHON, str(ROOT / "scripts" / "workflow_scoreboard.py"), *args)
+
+
+def delegate_scoreboard(args: Sequence[str]) -> int:
+    try:
+        return subprocess.run(scoreboard_command(args), check=False).returncode
+    except OSError as exc:
+        print(f"fairy: cannot execute workflow scoreboard command: {exc}", file=sys.stderr)
+        return 127
+
+
 def ledger_help() -> str:
     return """usage: fairy ledger {init,add,finalize,validate,render} [args ...]
 
@@ -269,10 +293,10 @@ def selftest() -> int:
         DOCTOR_STEPS[0].command[-2:] == ("--start", str(CALLER_CWD)),
         "doctor validates the caller repository profile",
     )
-    check(len(VALIDATION_STEPS) == 22, "validation registry remains complete")
+    check(len(VALIDATION_STEPS) == 24, "validation registry remains complete")
     check(
-        sum(not step.credential_keys for step in VALIDATION_STEPS) == 20,
-        "twenty ordinary validation steps receive no credentials",
+        sum(not step.credential_keys for step in VALIDATION_STEPS) == 22,
+        "twenty-two ordinary validation steps receive no credentials",
     )
 
     repository_paths = {
@@ -295,6 +319,11 @@ def selftest() -> int:
         fusion_command(("--auto-check", "--state-json", "state.json"))[-3:]
         == ("--auto-check", "--state-json", "state.json"),
         "fusion delegation preserves arguments",
+    )
+    check(
+        scoreboard_command(("validate", "--scoreboard", "scoreboard.json"))[-3:]
+        == ("validate", "--scoreboard", "scoreboard.json"),
+        "scoreboard delegation preserves arguments",
     )
     check(LEDGER_COMMANDS["finalize"] == "ledger-finalize", "ledger operation mapping")
 
@@ -428,6 +457,7 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("task-card", help="delegate Task Card creation to task_artifacts.py")
     subparsers.add_parser("ledger", help="delegate Validation Ledger lifecycle operations")
     subparsers.add_parser("fusion", help="delegate Fairy Fusion review and trigger decisions")
+    subparsers.add_parser("scoreboard", help="delegate workflow impact scoreboard operations")
     subparsers.add_parser("selftest", help="run deterministic CLI self-controls")
     return parser
 
@@ -438,6 +468,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return delegate_task_artifact("task-card", raw[1:])
     if raw and raw[0] == "fusion":
         return delegate_fusion(raw[1:])
+    if raw and raw[0] == "scoreboard":
+        return delegate_scoreboard(raw[1:])
     if raw and raw[0] == "ledger":
         if len(raw) == 1 or raw[1] in {"-h", "--help"}:
             print(ledger_help(), end="")

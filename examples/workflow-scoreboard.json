@@ -1,0 +1,377 @@
+{
+  "schema_version": "1.0",
+  "artifact_type": "workflow_impact_scoreboard",
+  "scoreboard_id": "fairy-tale-workflow-impact-sample",
+  "generated_at_utc": "2026-07-17T00:00:00Z",
+  "source_refs": [
+    {
+      "url": "https://code.claude.com/docs/en/skills",
+      "checked_at": "2026-07-17",
+      "source_type": "official",
+      "note": "Official skill evaluation guidance: isolate each case in a fresh session, compare with-skill and without-skill conditions, and record pass rate, duration, and tokens."
+    },
+    {
+      "url": "https://github.com/bonginkan/fairy_tale/blob/main/docs/benchmark-validation-plan.md",
+      "checked_at": "2026-07-17",
+      "source_type": "repository",
+      "note": "Repository comparison contract for model, prompt, scorer, budget, retries, and safety parity."
+    },
+    {
+      "url": "https://github.com/bonginkan/fairy_tale/blob/main/docs/feedback-governance.md",
+      "checked_at": "2026-07-17",
+      "source_type": "repository",
+      "note": "Measured outcomes and regressions govern feedback promotion and pruning."
+    }
+  ],
+  "entries": [
+    {
+      "entry_id": "example-benchmark-pair",
+      "task_kind": "benchmark",
+      "task_family": "illustrative closed benchmark",
+      "task_id": "benchmark-example-01",
+      "comparison_mode": "paired_local",
+      "comparison_contract": {
+        "model": "example-model",
+        "effort": "example-medium",
+        "prompt_version": "example-prompt-v1",
+        "scorer_version": "example-scorer-v1",
+        "sample_ids": ["sample-a", "sample-b"],
+        "max_output_tokens": 1024,
+        "wall_clock_budget_seconds": 300,
+        "tool_budget": 0,
+        "budget_unavailable_reason": null,
+        "retry_policy": "No retries.",
+        "safety_policy": "Same benchmark safety policy in both conditions."
+      },
+      "runs": [
+        {
+          "run_id": "example-benchmark-baseline",
+          "condition": "baseline",
+          "source_kind": "example",
+          "isolation": {
+            "fresh_session": true,
+            "skill_state": "disabled",
+            "note": "Illustrative fresh session with Fairy Tale unavailable."
+          },
+          "metrics": {
+            "pass_count": 1,
+            "total_count": 2,
+            "validation_result": "fail",
+            "score": 0.5,
+            "score_unit": "pass_rate",
+            "score_unavailable_reason": null,
+            "elapsed_seconds": 42.0,
+            "elapsed_unavailable_reason": null,
+            "cost_usd": 0.02,
+            "cost_unavailable_reason": null,
+            "tokens": {
+              "input_tokens": 100,
+              "output_tokens": 200,
+              "cache_creation_input_tokens": 0,
+              "cache_read_input_tokens": 0,
+              "total_tokens": 300
+            },
+            "token_unavailable_reason": null
+          },
+          "regression": {
+            "status": "unknown",
+            "note": "Example-only baseline; no measured regression claim."
+          },
+          "artifact": {
+            "path": "examples/workflow-scoreboard/benchmark-baseline.json",
+            "visibility": "repository",
+            "disclosure": "full",
+            "sha256": "sha256:d9fff8cc261dd2ca837a6d9e145113d2a07be528830e62c08bb9b0a4e7cb9024"
+          },
+          "card_telemetry": [],
+          "validation_evidence": ["Illustrative artifact; excluded from measured aggregates by source_kind=example."]
+        },
+        {
+          "run_id": "example-benchmark-fairy-tale",
+          "condition": "fairy_tale",
+          "source_kind": "example",
+          "isolation": {
+            "fresh_session": true,
+            "skill_state": "enabled",
+            "note": "Illustrative fresh session with the Fairy Tale skill available."
+          },
+          "metrics": {
+            "pass_count": 2,
+            "total_count": 2,
+            "validation_result": "pass",
+            "score": 1.0,
+            "score_unit": "pass_rate",
+            "score_unavailable_reason": null,
+            "elapsed_seconds": 48.0,
+            "elapsed_unavailable_reason": null,
+            "cost_usd": 0.025,
+            "cost_unavailable_reason": null,
+            "tokens": {
+              "input_tokens": 150,
+              "output_tokens": 240,
+              "cache_creation_input_tokens": 50,
+              "cache_read_input_tokens": 0,
+              "total_tokens": 440
+            },
+            "token_unavailable_reason": null
+          },
+          "regression": {
+            "status": "none",
+            "note": "Illustrative result only; no real benchmark claim."
+          },
+          "artifact": {
+            "path": "examples/workflow-scoreboard/benchmark-fairy-tale.json",
+            "visibility": "repository",
+            "disclosure": "full",
+            "sha256": "sha256:856ed25bf0d43e4954df2b288a8aec4c48a0f74d25cd19dde0b40a061fa220bc"
+          },
+          "card_telemetry": [
+            {
+              "card_path": "references/cards/benchmark-delta-harness.md",
+              "fired_count": 1,
+              "contribution": "helpful",
+              "attributed_tokens": 140,
+              "token_unavailable_reason": null,
+              "evidence_refs": ["Illustrative card attribution for schema demonstration only."]
+            }
+          ],
+          "validation_evidence": ["Illustrative artifact; excluded from measured aggregates by source_kind=example."]
+        }
+      ],
+      "comparison_note": "Schema example only. The numbers are illustrative and are not a benchmark claim."
+    },
+    {
+      "entry_id": "example-normal-pair",
+      "task_kind": "normal",
+      "task_family": "illustrative code review",
+      "task_id": "normal-example-01",
+      "comparison_mode": "paired_local",
+      "comparison_contract": {
+        "model": "example-model",
+        "effort": "example-medium",
+        "prompt_version": "example-review-prompt-v1",
+        "scorer_version": "example-review-rubric-v1",
+        "sample_ids": ["review-a"],
+        "max_output_tokens": 1024,
+        "wall_clock_budget_seconds": 180,
+        "tool_budget": 5,
+        "budget_unavailable_reason": null,
+        "retry_policy": "No retries.",
+        "safety_policy": "Read-only review in both conditions."
+      },
+      "runs": [
+        {
+          "run_id": "example-normal-baseline",
+          "condition": "baseline",
+          "source_kind": "example",
+          "isolation": {
+            "fresh_session": true,
+            "skill_state": "disabled",
+            "note": "Illustrative fresh review session without Fairy Tale."
+          },
+          "metrics": {
+            "pass_count": 0,
+            "total_count": 1,
+            "validation_result": "fail",
+            "score": 0.0,
+            "score_unit": "rubric_fraction",
+            "score_unavailable_reason": null,
+            "elapsed_seconds": 25.0,
+            "elapsed_unavailable_reason": null,
+            "cost_usd": 0.01,
+            "cost_unavailable_reason": null,
+            "tokens": {
+              "input_tokens": 80,
+              "output_tokens": 120,
+              "cache_creation_input_tokens": 0,
+              "cache_read_input_tokens": 0,
+              "total_tokens": 200
+            },
+            "token_unavailable_reason": null
+          },
+          "regression": {
+            "status": "unknown",
+            "note": "Example-only baseline; no measured regression claim."
+          },
+          "artifact": {
+            "path": "examples/workflow-scoreboard/normal-baseline.json",
+            "visibility": "repository",
+            "disclosure": "full",
+            "sha256": "sha256:763334e621eb3fb3bf723a91628a4c33190eadc344f78fe45194e5ba9f9140f9"
+          },
+          "card_telemetry": [],
+          "validation_evidence": ["Illustrative artifact; excluded from measured aggregates by source_kind=example."]
+        },
+        {
+          "run_id": "example-normal-fairy-tale",
+          "condition": "fairy_tale",
+          "source_kind": "example",
+          "isolation": {
+            "fresh_session": true,
+            "skill_state": "enabled",
+            "note": "Illustrative fresh review session with Fairy Tale available."
+          },
+          "metrics": {
+            "pass_count": 1,
+            "total_count": 1,
+            "validation_result": "pass",
+            "score": 1.0,
+            "score_unit": "rubric_fraction",
+            "score_unavailable_reason": null,
+            "elapsed_seconds": 31.0,
+            "elapsed_unavailable_reason": null,
+            "cost_usd": 0.014,
+            "cost_unavailable_reason": null,
+            "tokens": {
+              "input_tokens": 120,
+              "output_tokens": 170,
+              "cache_creation_input_tokens": 30,
+              "cache_read_input_tokens": 0,
+              "total_tokens": 320
+            },
+            "token_unavailable_reason": null
+          },
+          "regression": {
+            "status": "none",
+            "note": "Illustrative result only; no real workflow claim."
+          },
+          "artifact": {
+            "path": "examples/workflow-scoreboard/normal-fairy-tale.json",
+            "visibility": "repository",
+            "disclosure": "full",
+            "sha256": "sha256:38ea9355396897680d6187319d5114014263e209211e840c3cab44a3708ad0f4"
+          },
+          "card_telemetry": [
+            {
+              "card_path": "references/cards/closure-negative-space-and-excess-discovery-harness.md",
+              "fired_count": 1,
+              "contribution": "helpful",
+              "attributed_tokens": 120,
+              "token_unavailable_reason": null,
+              "evidence_refs": ["Illustrative card attribution for schema demonstration only."]
+            }
+          ],
+          "validation_evidence": ["Illustrative artifact; excluded from measured aggregates by source_kind=example."]
+        }
+      ],
+      "comparison_note": "Normal-task example showing the same comparison contract outside benchmarks."
+    },
+    {
+      "entry_id": "routing-eval-20260702",
+      "task_kind": "normal",
+      "task_family": "mode-pattern routing evaluation",
+      "task_id": "routing-eval-20260702",
+      "comparison_mode": "unpaired",
+      "comparison_contract": {
+        "model": "claude-fable-5",
+        "effort": "provider default",
+        "prompt_version": "skill_sha256:c6613c760f2a65f8bb0ab8ba462791af125baee01c1e6c63d258cf6d9730927e;system_prompt_sha256:9d3947a5e4dcbfbc9c12498dbcc4162f9ee54594124a7344079fd982ff63b568;cases_sha256:9c3fc48b0ebcf3f3beba7f364db4d915bccb17cd7d601d05e9046292cdb5a3a3",
+        "scorer_version": "scripts/routing_eval.py@8c5179be2eca041bccd14b2b8dda0abb14c5be91",
+        "sample_ids": [
+          "gen-01",
+          "gen-02",
+          "gen-03",
+          "gen-04",
+          "gen-01-review",
+          "gen-02-review",
+          "chat-01",
+          "chat-02",
+          "chat-03",
+          "rev-01",
+          "rev-02",
+          "rev-03",
+          "rev-04",
+          "loop-01",
+          "loop-02",
+          "loop-03",
+          "e2e-01",
+          "e2e-02",
+          "legal-01",
+          "closed-01",
+          "wwcd-01",
+          "wwcd-02",
+          "bench-01",
+          "sec-01",
+          "mig-01",
+          "res-01",
+          "mech-01"
+        ],
+        "max_output_tokens": null,
+        "wall_clock_budget_seconds": null,
+        "tool_budget": null,
+        "budget_unavailable_reason": "The legacy routing ledger predates scoreboard budget fields and does not record these limits.",
+        "retry_policy": "One run per case; no retry.",
+        "safety_policy": "No tools; routing output only; expected labels remain judge-side."
+      },
+      "runs": [
+        {
+          "run_id": "routing-eval-20260702-fairy-tale",
+          "condition": "fairy_tale",
+          "source_kind": "measured_local",
+          "isolation": {
+            "fresh_session": true,
+            "skill_state": "enabled",
+            "note": "Each case ran through claude -p with empty setting sources, no tools, and the current repository skill injected verbatim."
+          },
+          "metrics": {
+            "pass_count": 21,
+            "total_count": 27,
+            "validation_result": "fail",
+            "score": 0.7778,
+            "score_unit": "routing_accuracy",
+            "score_unavailable_reason": null,
+            "elapsed_seconds": null,
+            "elapsed_unavailable_reason": "The legacy routing ledger did not record elapsed time.",
+            "cost_usd": 1.1213664999999997,
+            "cost_unavailable_reason": null,
+            "tokens": {
+              "input_tokens": 58,
+              "output_tokens": 5541,
+              "cache_creation_input_tokens": 39475,
+              "cache_read_input_tokens": 208229,
+              "total_tokens": 253303
+            },
+            "token_unavailable_reason": null
+          },
+          "regression": {
+            "status": "unknown",
+            "note": "No isolated without-skill baseline was recorded, so uplift and regression cannot be inferred."
+          },
+          "artifact": {
+            "path": "docs/skill-budget/routing-eval-20260702.json",
+            "visibility": "repository",
+            "disclosure": "full",
+            "sha256": "sha256:d5696f4b89043703f62270b42335edbe563ab9ab525a541104858f03b60b6726"
+          },
+          "card_telemetry": [
+            {"card_path": "references/cards/benchmark-delta-harness.md", "fired_count": 1, "contribution": "unknown", "attributed_tokens": null, "token_unavailable_reason": "The routing ledger records aggregate tokens, not per-card attribution.", "evidence_refs": ["docs/skill-budget/routing-eval-20260702.json#/summary/per_card_utilization"]},
+            {"card_path": "references/cards/closure-negative-space-and-excess-discovery-harness.md", "fired_count": 6, "contribution": "unknown", "attributed_tokens": null, "token_unavailable_reason": "The routing ledger records aggregate tokens, not per-card attribution.", "evidence_refs": ["docs/skill-budget/routing-eval-20260702.json#/summary/per_card_utilization"]},
+            {"card_path": "references/cards/creator-proxy-elaboration-harness-wwcd.md", "fired_count": 2, "contribution": "unknown", "attributed_tokens": null, "token_unavailable_reason": "The routing ledger records aggregate tokens, not per-card attribution.", "evidence_refs": ["docs/skill-budget/routing-eval-20260702.json#/summary/per_card_utilization"]},
+            {"card_path": "references/cards/evaluated-feedback-loop.md", "fired_count": 1, "contribution": "unknown", "attributed_tokens": null, "token_unavailable_reason": "The routing ledger records aggregate tokens, not per-card attribution.", "evidence_refs": ["docs/skill-budget/routing-eval-20260702.json#/summary/per_card_utilization"]},
+            {"card_path": "references/cards/fable-harness-long-coding-or-migration-tasks.md", "fired_count": 1, "contribution": "unknown", "attributed_tokens": null, "token_unavailable_reason": "The routing ledger records aggregate tokens, not per-card attribution.", "evidence_refs": ["docs/skill-budget/routing-eval-20260702.json#/summary/per_card_utilization"]},
+            {"card_path": "references/cards/general-e2e-completion-harness.md", "fired_count": 2, "contribution": "unknown", "attributed_tokens": null, "token_unavailable_reason": "The routing ledger records aggregate tokens, not per-card attribution.", "evidence_refs": ["docs/skill-budget/routing-eval-20260702.json#/summary/per_card_utilization"]},
+            {"card_path": "references/cards/implementation-validation-gate.md", "fired_count": 2, "contribution": "unknown", "attributed_tokens": null, "token_unavailable_reason": "The routing ledger records aggregate tokens, not per-card attribution.", "evidence_refs": ["docs/skill-budget/routing-eval-20260702.json#/summary/per_card_utilization"]},
+            {"card_path": "references/cards/knowledge-crystallization-harness.md", "fired_count": 1, "contribution": "unknown", "attributed_tokens": null, "token_unavailable_reason": "The routing ledger records aggregate tokens, not per-card attribution.", "evidence_refs": ["docs/skill-budget/routing-eval-20260702.json#/summary/per_card_utilization"]},
+            {"card_path": "references/cards/legal-reasoning-harness.md", "fired_count": 2, "contribution": "unknown", "attributed_tokens": null, "token_unavailable_reason": "The routing ledger records aggregate tokens, not per-card attribution.", "evidence_refs": ["docs/skill-budget/routing-eval-20260702.json#/summary/per_card_utilization"]},
+            {"card_path": "references/cards/loop-engineering-and-job-automation-harness.md", "fired_count": 3, "contribution": "unknown", "attributed_tokens": null, "token_unavailable_reason": "The routing ledger records aggregate tokens, not per-card attribution.", "evidence_refs": ["docs/skill-budget/routing-eval-20260702.json#/summary/per_card_utilization"]},
+            {"card_path": "references/cards/mechanism-grammar-harness-arc-style-hidden-rule-discovery.md", "fired_count": 1, "contribution": "unknown", "attributed_tokens": null, "token_unavailable_reason": "The routing ledger records aggregate tokens, not per-card attribution.", "evidence_refs": ["docs/skill-budget/routing-eval-20260702.json#/summary/per_card_utilization"]},
+            {"card_path": "references/cards/mythos-defensive-harness.md", "fired_count": 2, "contribution": "unknown", "attributed_tokens": null, "token_unavailable_reason": "The routing ledger records aggregate tokens, not per-card attribution.", "evidence_refs": ["docs/skill-budget/routing-eval-20260702.json#/summary/per_card_utilization"]},
+            {"card_path": "references/cards/refactoring-similarity-harness.md", "fired_count": 2, "contribution": "unknown", "attributed_tokens": null, "token_unavailable_reason": "The routing ledger records aggregate tokens, not per-card attribution.", "evidence_refs": ["docs/skill-budget/routing-eval-20260702.json#/summary/per_card_utilization"]}
+          ],
+          "validation_evidence": [
+            "The binding validator recomputes pass count, total, accuracy, cost, token totals, and exact card utilization from the immutable ledger."
+          ]
+        }
+      ],
+      "comparison_note": "Measured legacy run retained as unpaired evidence. It cannot support an uplift claim until a contract-matched baseline exists."
+    }
+  ],
+  "routing_eval_bindings": [
+    {
+      "entry_id": "routing-eval-20260702",
+      "condition": "fairy_tale",
+      "ledger_path": "docs/skill-budget/routing-eval-20260702.json",
+      "ledger_sha256": "sha256:d5696f4b89043703f62270b42335edbe563ab9ab525a541104858f03b60b6726"
+    }
+  ]
+}

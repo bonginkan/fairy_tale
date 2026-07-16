@@ -1,5 +1,20 @@
 # Release Notes
 
+## 0.2.30
+
+- **Measured workflow impact scoreboard** (#13): adds a strict JSON scoreboard
+  for benchmark and normal-task runs, with isolated baseline / Fairy Tale
+  comparison contracts, pass counts and scores, elapsed time, cost, complete
+  token totals, regression notes, immutable artifact identity, and per-card
+  utilization / contribution telemetry. Example runs are excluded from
+  measured aggregates by default; unpaired runs cannot claim uplift; private
+  paths are redacted. The committed sample consumes the routing-evaluation
+  ledger by SHA-256 and recomputes its pass rate, cost, tokens, and complete
+  card utilization map. A derived Markdown view, `fairy scoreboard` thin
+  dispatch, strict schema/runtime parity controls, feedback-governance link,
+  adapter, package references, and plugin mirrors are included. Runtime package
+  version is 0.2.30.
+
 ## 0.2.29
 
 - **Bounded Fairy Fusion automatic trigger decisions** (#12): adds

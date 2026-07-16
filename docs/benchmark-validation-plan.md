@@ -96,6 +96,14 @@ Minimum recorded fields:
 - scorer version,
 - artifact paths.
 
+Record completed comparisons in the strict
+[Workflow Impact Scoreboard](workflow-impact-scoreboard.md). Use one paired
+entry for contract-matched local baseline and Fairy Tale runs; use
+`paired_external_baseline` only for an identified official baseline. Store
+pass rate, elapsed time, cost, tokens, regressions, immutable artifacts, and
+per-card telemetry there so benchmark uplift is weighed against workflow
+overhead. An unpaired run remains useful evidence but cannot claim uplift.
+
 ## Domain cards
 
 ### Cybersecurity

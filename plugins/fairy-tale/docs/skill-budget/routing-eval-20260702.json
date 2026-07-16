@@ -1,0 +1,825 @@
+{
+  "schema_version": 1,
+  "issue": "#59 routing-precision eval (parity evidence for #57)",
+  "generated_at_utc": "2026-07-02T05:11:58+00:00",
+  "model": "claude-fable-5",
+  "claude_cli_version": "2.1.198 (Claude Code)",
+  "command": "claude -p --model claude-fable-5 --setting-sources '' --tools '' --output-format json --append-system-prompt-file <router-prompt>",
+  "system_prompt_sha256": "9d3947a5e4dcbfbc9c12498dbcc4162f9ee54594124a7344079fd982ff63b568",
+  "skill_md_sha256": "c6613c760f2a65f8bb0ab8ba462791af125baee01c1e6c63d258cf6d9730927e",
+  "cases_sha256": "9c3fc48b0ebcf3f3beba7f364db4d915bccb17cd7d601d05e9046292cdb5a3a3",
+  "repo_commit": "8c5179be2eca041bccd14b2b8dda0abb14c5be91",
+  "eval_inputs_committed_at_repo_commit": true,
+  "isolation": {
+    "setting_sources": "",
+    "tools": "",
+    "stripped_env": [
+      "CLAUDECODE",
+      "CLAUDE_CODE_ENTRYPOINT",
+      "CLAUDE_CODE_CHILD_SESSION",
+      "CLAUDE_CODE_SESSION_ID",
+      "CLAUDE_CODE_EXECPATH"
+    ],
+    "skill_source": "current repo skills/fairy-tale/SKILL.md injected verbatim into the appended system prompt; the runner never reads installed skills",
+    "leakage": "user prompt = case prompt only; expected_cards/rationale/category/risk_tag never leave the judge"
+  },
+  "run_policy": {
+    "runs_per_case": 1,
+    "retry": "none",
+    "temperature": "claude -p default (not configurable via CLI)",
+    "limitation": "single-run point estimate; individual case flips on rerun are possible — compare suites, not single cases"
+  },
+  "token_note": "tokens/cost are primary values from the CLI JSON payload; 'unavailable' is recorded when the CLI did not return them (never estimated)",
+  "results": [
+    {
+      "id": "gen-01",
+      "category": "divergent_generation",
+      "expected_cards": [],
+      "exit_code": 0,
+      "tokens": {
+        "input_tokens": 2,
+        "output_tokens": 31,
+        "cache_creation_input_tokens": 9158,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.18472999999999998,
+      "pass": true,
+      "classification": "pass",
+      "overfire": false,
+      "underfire": false,
+      "extra_cards": [],
+      "missing_cards": [],
+      "invalid_paths": [],
+      "parse_error": null,
+      "got_cards": []
+    },
+    {
+      "id": "gen-02",
+      "category": "divergent_generation",
+      "expected_cards": [],
+      "exit_code": 0,
+      "tokens": {
+        "input_tokens": 2,
+        "output_tokens": 80,
+        "cache_creation_input_tokens": 9164,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.18790099999999998,
+      "pass": true,
+      "classification": "pass",
+      "overfire": false,
+      "underfire": false,
+      "extra_cards": [],
+      "missing_cards": [],
+      "invalid_paths": [],
+      "parse_error": null,
+      "got_cards": []
+    },
+    {
+      "id": "gen-03",
+      "category": "divergent_generation",
+      "expected_cards": [],
+      "exit_code": 0,
+      "tokens": {
+        "input_tokens": 2,
+        "output_tokens": 55,
+        "cache_creation_input_tokens": 9174,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0593895,
+      "pass": true,
+      "classification": "pass",
+      "overfire": false,
+      "underfire": false,
+      "extra_cards": [],
+      "missing_cards": [],
+      "invalid_paths": [],
+      "parse_error": null,
+      "got_cards": []
+    },
+    {
+      "id": "gen-04",
+      "category": "divergent_generation",
+      "expected_cards": [],
+      "exit_code": 0,
+      "tokens": {
+        "input_tokens": 2,
+        "output_tokens": 31,
+        "cache_creation_input_tokens": 9164,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.185468,
+      "pass": true,
+      "classification": "pass",
+      "overfire": false,
+      "underfire": false,
+      "extra_cards": [],
+      "missing_cards": [],
+      "invalid_paths": [],
+      "parse_error": null,
+      "got_cards": []
+    },
+    {
+      "id": "gen-01-review",
+      "category": "review_contrast",
+      "expected_cards": [
+        "references/cards/closure-negative-space-and-excess-discovery-harness.md"
+      ],
+      "exit_code": 0,
+      "tokens": {
+        "input_tokens": 2,
+        "output_tokens": 135,
+        "cache_creation_input_tokens": 173,
+        "cache_read_input_tokens": 9011
+      },
+      "cost_usd": 0.019938,
+      "pass": true,
+      "classification": "pass",
+      "overfire": false,
+      "underfire": false,
+      "extra_cards": [],
+      "missing_cards": [],
+      "invalid_paths": [],
+      "parse_error": null,
+      "got_cards": [
+        "references/cards/closure-negative-space-and-excess-discovery-harness.md"
+      ]
+    },
+    {
+      "id": "gen-02-review",
+      "category": "review_contrast",
+      "expected_cards": [
+        "references/cards/closure-negative-space-and-excess-discovery-harness.md"
+      ],
+      "exit_code": 0,
+      "tokens": {
+        "input_tokens": 2,
+        "output_tokens": 217,
+        "cache_creation_input_tokens": 160,
+        "cache_read_input_tokens": 9011
+      },
+      "cost_usd": 0.023686000000000002,
+      "pass": true,
+      "classification": "pass",
+      "overfire": false,
+      "underfire": false,
+      "extra_cards": [],
+      "missing_cards": [],
+      "invalid_paths": [],
+      "parse_error": null,
+      "got_cards": [
+        "references/cards/closure-negative-space-and-excess-discovery-harness.md"
+      ]
+    },
+    {
+      "id": "chat-01",
+      "category": "plain_conversation",
+      "expected_cards": [],
+      "exit_code": 0,
+      "tokens": {
+        "input_tokens": 2,
+        "output_tokens": 34,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 9156
+      },
+      "cost_usd": 0.006051999999999999,
+      "pass": true,
+      "classification": "pass",
+      "overfire": false,
+      "underfire": false,
+      "extra_cards": [],
+      "missing_cards": [],
+      "invalid_paths": [],
+      "parse_error": null,
+      "got_cards": []
+    },
+    {
+      "id": "chat-02",
+      "category": "plain_conversation",
+      "expected_cards": [],
+      "exit_code": 0,
+      "tokens": {
+        "input_tokens": 2,
+        "output_tokens": 23,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 9160
+      },
+      "cost_usd": 0.005761,
+      "pass": true,
+      "classification": "pass",
+      "overfire": false,
+      "underfire": false,
+      "extra_cards": [],
+      "missing_cards": [],
+      "invalid_paths": [],
+      "parse_error": null,
+      "got_cards": []
+    },
+    {
+      "id": "chat-03",
+      "category": "plain_conversation",
+      "expected_cards": [],
+      "exit_code": 0,
+      "tokens": {
+        "input_tokens": 2,
+        "output_tokens": 21,
+        "cache_creation_input_tokens": 147,
+        "cache_read_input_tokens": 9011
+      },
+      "cost_usd": 0.013642,
+      "pass": true,
+      "classification": "pass",
+      "overfire": false,
+      "underfire": false,
+      "extra_cards": [],
+      "missing_cards": [],
+      "invalid_paths": [],
+      "parse_error": null,
+      "got_cards": []
+    },
+    {
+      "id": "rev-01",
+      "category": "review_refactor",
+      "expected_cards": [
+        "references/cards/closure-negative-space-and-excess-discovery-harness.md"
+      ],
+      "exit_code": 0,
+      "tokens": {
+        "input_tokens": 2,
+        "output_tokens": 414,
+        "cache_creation_input_tokens": 162,
+        "cache_read_input_tokens": 9011
+      },
+      "cost_usd": 0.03363,
+      "pass": false,
+      "classification": "overfire",
+      "overfire": true,
+      "underfire": false,
+      "extra_cards": [
+        "references/cards/mythos-defensive-harness.md"
+      ],
+      "missing_cards": [],
+      "invalid_paths": [],
+      "parse_error": null,
+      "got_cards": [
+        "references/cards/closure-negative-space-and-excess-discovery-harness.md",
+        "references/cards/mythos-defensive-harness.md"
+      ]
+    },
+    {
+      "id": "rev-02",
+      "category": "review_refactor",
+      "expected_cards": [
+        "references/cards/closure-negative-space-and-excess-discovery-harness.md"
+      ],
+      "exit_code": 0,
+      "tokens": {
+        "input_tokens": 2,
+        "output_tokens": 162,
+        "cache_creation_input_tokens": 152,
+        "cache_read_input_tokens": 9011
+      },
+      "cost_usd": 0.020778,
+      "pass": true,
+      "classification": "pass",
+      "overfire": false,
+      "underfire": false,
+      "extra_cards": [],
+      "missing_cards": [],
+      "invalid_paths": [],
+      "parse_error": null,
+      "got_cards": [
+        "references/cards/closure-negative-space-and-excess-discovery-harness.md"
+      ]
+    },
+    {
+      "id": "rev-03",
+      "category": "review_refactor",
+      "expected_cards": [
+        "references/cards/refactoring-similarity-harness.md"
+      ],
+      "exit_code": 0,
+      "tokens": {
+        "input_tokens": 2,
+        "output_tokens": 425,
+        "cache_creation_input_tokens": 161,
+        "cache_read_input_tokens": 9011
+      },
+      "cost_usd": 0.034168,
+      "pass": false,
+      "classification": "overfire",
+      "overfire": true,
+      "underfire": false,
+      "extra_cards": [
+        "references/cards/closure-negative-space-and-excess-discovery-harness.md"
+      ],
+      "missing_cards": [],
+      "invalid_paths": [],
+      "parse_error": null,
+      "got_cards": [
+        "references/cards/refactoring-similarity-harness.md",
+        "references/cards/closure-negative-space-and-excess-discovery-harness.md"
+      ]
+    },
+    {
+      "id": "rev-04",
+      "category": "review_refactor",
+      "expected_cards": [
+        "references/cards/implementation-validation-gate.md"
+      ],
+      "exit_code": 0,
+      "tokens": {
+        "input_tokens": 2,
+        "output_tokens": 198,
+        "cache_creation_input_tokens": 162,
+        "cache_read_input_tokens": 9011
+      },
+      "cost_usd": 0.022789999999999998,
+      "pass": true,
+      "classification": "pass",
+      "overfire": false,
+      "underfire": false,
+      "extra_cards": [],
+      "missing_cards": [],
+      "invalid_paths": [],
+      "parse_error": null,
+      "got_cards": [
+        "references/cards/implementation-validation-gate.md"
+      ]
+    },
+    {
+      "id": "loop-01",
+      "category": "loop_spiral",
+      "expected_cards": [
+        "references/cards/loop-engineering-and-job-automation-harness.md"
+      ],
+      "exit_code": 0,
+      "tokens": {
+        "input_tokens": 2,
+        "output_tokens": 86,
+        "cache_creation_input_tokens": 167,
+        "cache_read_input_tokens": 9011
+      },
+      "cost_usd": 0.017353999999999998,
+      "pass": true,
+      "classification": "pass",
+      "overfire": false,
+      "underfire": false,
+      "extra_cards": [],
+      "missing_cards": [],
+      "invalid_paths": [],
+      "parse_error": null,
+      "got_cards": [
+        "references/cards/loop-engineering-and-job-automation-harness.md"
+      ]
+    },
+    {
+      "id": "loop-02",
+      "category": "loop_spiral",
+      "expected_cards": [
+        "references/cards/loop-engineering-and-job-automation-harness.md"
+      ],
+      "exit_code": 0,
+      "tokens": {
+        "input_tokens": 2,
+        "output_tokens": 435,
+        "cache_creation_input_tokens": 160,
+        "cache_read_input_tokens": 9011
+      },
+      "cost_usd": 0.034606,
+      "pass": true,
+      "classification": "pass",
+      "overfire": false,
+      "underfire": false,
+      "extra_cards": [],
+      "missing_cards": [],
+      "invalid_paths": [],
+      "parse_error": null,
+      "got_cards": [
+        "references/cards/loop-engineering-and-job-automation-harness.md"
+      ]
+    },
+    {
+      "id": "loop-03",
+      "category": "loop_spiral",
+      "expected_cards": [
+        "references/cards/loop-engineering-and-job-automation-harness.md"
+      ],
+      "exit_code": 0,
+      "tokens": {
+        "input_tokens": 2,
+        "output_tokens": 250,
+        "cache_creation_input_tokens": 163,
+        "cache_read_input_tokens": 9011
+      },
+      "cost_usd": 0.025477,
+      "pass": true,
+      "classification": "pass",
+      "overfire": false,
+      "underfire": false,
+      "extra_cards": [],
+      "missing_cards": [],
+      "invalid_paths": [],
+      "parse_error": null,
+      "got_cards": [
+        "references/cards/loop-engineering-and-job-automation-harness.md"
+      ]
+    },
+    {
+      "id": "e2e-01",
+      "category": "e2e_gui",
+      "expected_cards": [
+        "references/cards/general-e2e-completion-harness.md"
+      ],
+      "exit_code": 0,
+      "tokens": {
+        "input_tokens": 2,
+        "output_tokens": 163,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 9186
+      },
+      "cost_usd": 0.009346,
+      "pass": true,
+      "classification": "pass",
+      "overfire": false,
+      "underfire": false,
+      "extra_cards": [],
+      "missing_cards": [],
+      "invalid_paths": [],
+      "parse_error": null,
+      "got_cards": [
+        "references/cards/general-e2e-completion-harness.md"
+      ]
+    },
+    {
+      "id": "e2e-02",
+      "category": "e2e_gui",
+      "expected_cards": [
+        "references/cards/general-e2e-completion-harness.md"
+      ],
+      "exit_code": 0,
+      "tokens": {
+        "input_tokens": 2,
+        "output_tokens": 191,
+        "cache_creation_input_tokens": 161,
+        "cache_read_input_tokens": 9011
+      },
+      "cost_usd": 0.022432,
+      "pass": true,
+      "classification": "pass",
+      "overfire": false,
+      "underfire": false,
+      "extra_cards": [],
+      "missing_cards": [],
+      "invalid_paths": [],
+      "parse_error": null,
+      "got_cards": [
+        "references/cards/general-e2e-completion-harness.md"
+      ]
+    },
+    {
+      "id": "legal-01",
+      "category": "legal_closed",
+      "expected_cards": [
+        "references/cards/legal-reasoning-harness.md"
+      ],
+      "exit_code": 0,
+      "tokens": {
+        "input_tokens": 3,
+        "output_tokens": 56,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 9177
+      },
+      "cost_usd": 0.0066585,
+      "pass": false,
+      "classification": "overfire",
+      "overfire": true,
+      "underfire": false,
+      "extra_cards": [
+        "references/cards/closure-negative-space-and-excess-discovery-harness.md"
+      ],
+      "missing_cards": [],
+      "invalid_paths": [],
+      "parse_error": null,
+      "got_cards": [
+        "references/cards/legal-reasoning-harness.md",
+        "references/cards/closure-negative-space-and-excess-discovery-harness.md"
+      ]
+    },
+    {
+      "id": "closed-01",
+      "category": "legal_closed",
+      "expected_cards": [
+        "references/cards/knowledge-crystallization-harness.md"
+      ],
+      "exit_code": 0,
+      "tokens": {
+        "input_tokens": 2,
+        "output_tokens": 60,
+        "cache_creation_input_tokens": 171,
+        "cache_read_input_tokens": 9011
+      },
+      "cost_usd": 0.016077,
+      "pass": true,
+      "classification": "pass",
+      "overfire": false,
+      "underfire": false,
+      "extra_cards": [],
+      "missing_cards": [],
+      "invalid_paths": [],
+      "parse_error": null,
+      "got_cards": [
+        "references/cards/knowledge-crystallization-harness.md"
+      ]
+    },
+    {
+      "id": "wwcd-01",
+      "category": "wwcd_relay",
+      "expected_cards": [
+        "references/cards/creator-proxy-elaboration-harness-wwcd.md"
+      ],
+      "exit_code": 0,
+      "tokens": {
+        "input_tokens": 2,
+        "output_tokens": 173,
+        "cache_creation_input_tokens": 193,
+        "cache_read_input_tokens": 9011
+      },
+      "cost_usd": 0.022247999999999997,
+      "pass": true,
+      "classification": "pass",
+      "overfire": false,
+      "underfire": false,
+      "extra_cards": [],
+      "missing_cards": [],
+      "invalid_paths": [],
+      "parse_error": null,
+      "got_cards": [
+        "references/cards/creator-proxy-elaboration-harness-wwcd.md"
+      ]
+    },
+    {
+      "id": "wwcd-02",
+      "category": "wwcd_relay",
+      "expected_cards": [
+        "references/cards/creator-proxy-elaboration-harness-wwcd.md",
+        "references/cards/legal-reasoning-harness.md"
+      ],
+      "exit_code": 0,
+      "tokens": {
+        "input_tokens": 2,
+        "output_tokens": 141,
+        "cache_creation_input_tokens": 174,
+        "cache_read_input_tokens": 9011
+      },
+      "cost_usd": 0.020182000000000002,
+      "pass": true,
+      "classification": "pass",
+      "overfire": false,
+      "underfire": false,
+      "extra_cards": [],
+      "missing_cards": [],
+      "invalid_paths": [],
+      "parse_error": null,
+      "got_cards": [
+        "references/cards/creator-proxy-elaboration-harness-wwcd.md",
+        "references/cards/legal-reasoning-harness.md"
+      ]
+    },
+    {
+      "id": "bench-01",
+      "category": "benchmark",
+      "expected_cards": [
+        "references/cards/benchmark-delta-harness.md",
+        "references/cards/evaluated-feedback-loop.md"
+      ],
+      "exit_code": 0,
+      "tokens": {
+        "input_tokens": 2,
+        "output_tokens": 325,
+        "cache_creation_input_tokens": 178,
+        "cache_read_input_tokens": 9011
+      },
+      "cost_usd": 0.02955,
+      "pass": true,
+      "classification": "pass",
+      "overfire": false,
+      "underfire": false,
+      "extra_cards": [],
+      "missing_cards": [],
+      "invalid_paths": [],
+      "parse_error": null,
+      "got_cards": [
+        "references/cards/benchmark-delta-harness.md",
+        "references/cards/evaluated-feedback-loop.md"
+      ]
+    },
+    {
+      "id": "sec-01",
+      "category": "security",
+      "expected_cards": [
+        "references/cards/cyber-frontier-defense-harness.md"
+      ],
+      "exit_code": 0,
+      "tokens": {
+        "input_tokens": 2,
+        "output_tokens": 326,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 9183
+      },
+      "cost_usd": 0.0134275,
+      "pass": false,
+      "classification": "overfire+underfire",
+      "overfire": true,
+      "underfire": true,
+      "extra_cards": [
+        "references/cards/mythos-defensive-harness.md"
+      ],
+      "missing_cards": [
+        "references/cards/cyber-frontier-defense-harness.md"
+      ],
+      "invalid_paths": [],
+      "parse_error": null,
+      "got_cards": [
+        "references/cards/mythos-defensive-harness.md"
+      ]
+    },
+    {
+      "id": "mig-01",
+      "category": "migration",
+      "expected_cards": [
+        "references/cards/fable-harness-long-coding-or-migration-tasks.md"
+      ],
+      "exit_code": 0,
+      "tokens": {
+        "input_tokens": 2,
+        "output_tokens": 914,
+        "cache_creation_input_tokens": 165,
+        "cache_read_input_tokens": 9011
+      },
+      "cost_usd": 0.058719999999999994,
+      "pass": false,
+      "classification": "overfire",
+      "overfire": true,
+      "underfire": false,
+      "extra_cards": [
+        "references/cards/implementation-validation-gate.md",
+        "references/cards/refactoring-similarity-harness.md"
+      ],
+      "missing_cards": [],
+      "invalid_paths": [],
+      "parse_error": null,
+      "got_cards": [
+        "references/cards/fable-harness-long-coding-or-migration-tasks.md",
+        "references/cards/refactoring-similarity-harness.md",
+        "references/cards/implementation-validation-gate.md"
+      ]
+    },
+    {
+      "id": "res-01",
+      "category": "research",
+      "expected_cards": [
+        "references/cards/high-signal-research-synthesis.md"
+      ],
+      "exit_code": 0,
+      "tokens": {
+        "input_tokens": 5,
+        "output_tokens": 29,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 9180
+      },
+      "cost_usd": 0.006024,
+      "pass": false,
+      "classification": "invalid_output",
+      "overfire": false,
+      "underfire": false,
+      "invalid_paths": [],
+      "parse_error": "schema violation: top-level object with 'cards' required",
+      "got_cards": null
+    },
+    {
+      "id": "mech-01",
+      "category": "mechanism",
+      "expected_cards": [
+        "references/cards/mechanism-grammar-harness-arc-style-hidden-rule-discovery.md"
+      ],
+      "exit_code": 0,
+      "tokens": {
+        "input_tokens": 2,
+        "output_tokens": 566,
+        "cache_creation_input_tokens": 166,
+        "cache_read_input_tokens": 9011
+      },
+      "cost_usd": 0.04133099999999999,
+      "pass": true,
+      "classification": "pass",
+      "overfire": false,
+      "underfire": false,
+      "extra_cards": [],
+      "missing_cards": [],
+      "invalid_paths": [],
+      "parse_error": null,
+      "got_cards": [
+        "references/cards/mechanism-grammar-harness-arc-style-hidden-rule-discovery.md"
+      ]
+    }
+  ],
+  "summary": {
+    "total": 27,
+    "passed": 21,
+    "accuracy": 0.7778,
+    "overfire": 5,
+    "underfire": 1,
+    "invalid_output": 1,
+    "invalid_card_path": 0,
+    "per_category": {
+      "divergent_generation": {
+        "total": 4,
+        "passed": 4,
+        "accuracy": 1.0
+      },
+      "review_contrast": {
+        "total": 2,
+        "passed": 2,
+        "accuracy": 1.0
+      },
+      "plain_conversation": {
+        "total": 3,
+        "passed": 3,
+        "accuracy": 1.0
+      },
+      "review_refactor": {
+        "total": 4,
+        "passed": 2,
+        "accuracy": 0.5
+      },
+      "loop_spiral": {
+        "total": 3,
+        "passed": 3,
+        "accuracy": 1.0
+      },
+      "e2e_gui": {
+        "total": 2,
+        "passed": 2,
+        "accuracy": 1.0
+      },
+      "legal_closed": {
+        "total": 2,
+        "passed": 1,
+        "accuracy": 0.5
+      },
+      "wwcd_relay": {
+        "total": 2,
+        "passed": 2,
+        "accuracy": 1.0
+      },
+      "benchmark": {
+        "total": 1,
+        "passed": 1,
+        "accuracy": 1.0
+      },
+      "security": {
+        "total": 1,
+        "passed": 0,
+        "accuracy": 0.0
+      },
+      "migration": {
+        "total": 1,
+        "passed": 0,
+        "accuracy": 0.0
+      },
+      "research": {
+        "total": 1,
+        "passed": 0,
+        "accuracy": 0.0
+      },
+      "mechanism": {
+        "total": 1,
+        "passed": 1,
+        "accuracy": 1.0
+      }
+    },
+    "per_card_utilization": {
+      "references/cards/benchmark-delta-harness.md": 1,
+      "references/cards/closure-negative-space-and-excess-discovery-harness.md": 6,
+      "references/cards/creator-proxy-elaboration-harness-wwcd.md": 2,
+      "references/cards/evaluated-feedback-loop.md": 1,
+      "references/cards/fable-harness-long-coding-or-migration-tasks.md": 1,
+      "references/cards/general-e2e-completion-harness.md": 2,
+      "references/cards/implementation-validation-gate.md": 2,
+      "references/cards/knowledge-crystallization-harness.md": 1,
+      "references/cards/legal-reasoning-harness.md": 2,
+      "references/cards/loop-engineering-and-job-automation-harness.md": 3,
+      "references/cards/mechanism-grammar-harness-arc-style-hidden-rule-discovery.md": 1,
+      "references/cards/mythos-defensive-harness.md": 2,
+      "references/cards/refactoring-similarity-harness.md": 2
+    },
+    "invalid_path_outputs": {},
+    "scope_gate_54_regression": {
+      "negative_controls_total": 7,
+      "negative_controls_clean": 7,
+      "contrast_cases_total": 2,
+      "contrast_cases_passed": 2
+    }
+  }
+}
