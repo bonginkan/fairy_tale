@@ -45,20 +45,25 @@
   unconsumed assumptions block); claim sources must be locators; amounts
   carry their own anchored source and period; included-in requires a covered
   scope and a resolved host; margins are ratio-unit quotients over a
-  revenue-bound denominator. Reference is not effect: every formula input is
-  perturbation-tested (zero-coefficient references block) and cost-bound
-  inputs must move margins/profit DOWN; dependency/aggregate graphs must be
-  acyclic (self/duplicate references block); amounts carry an explicit
-  stated basis; uncertainty reversal flags are required booleans; every
-  sign-off entry is individually complete. Coverage is refutable by
-  execution: every class in the checker's canonical REASON_CLASSES list (87
-  classes) must be covered by an executed RED fixture in the acceptance run
-  — deleting a rule or its fixture turns CI red; no hand-maintained coverage
-  claims. Selftest carries 95+ red/green/hostile controls (every PR #75
-  round-1/2/3/4/5 review probe and an add/remove metamorphic flip);
-  ninety-six sanitized cross-industry acceptance fixtures (including
-  positive controls for bounded uncertainties and per-unit recurring
-  margins) in
+  revenue-bound denominator. Reference is not effect, and perturbation
+  reaches the LEDGER anchors end-to-end through bindings (a *0 hidden inside
+  a binding blocks; cost anchors must move margins/profit DOWN; one binding
+  never mixes revenue and cost anchors); dependency/aggregate graphs must be
+  acyclic with weights in (0,1] and period-consistent components; amounts
+  carry an explicit stated basis; included-in carries the absorbed amount OR
+  an allocation basis (per the issue contract); the ledger records its
+  observed frame, a count-checked central-claim inventory, and an artifact
+  verdict; uncertainty impact bounds are numeric with cumulative materiality
+  evaluated against a declared threshold; uncertainty reversal flags are
+  required booleans; every sign-off entry is individually complete. Coverage
+  is refutable by execution: every class in the checker's canonical
+  REASON_CLASSES list (96 classes) must be covered by an executed RED
+  fixture in the acceptance run — deleting a rule or its fixture turns CI
+  red; no hand-maintained coverage claims. Selftest carries 100+
+  red/green/hostile controls (every PR #75 round-1..6 review probe and an
+  add/remove metamorphic flip); one hundred seven sanitized cross-industry
+  acceptance fixtures (including positive controls for bounded
+  uncertainties, per-unit recurring margins, and amount-only included-in) in
   `fixtures/finance-completeness/cases.jsonl` (agency, SaaS, marketplace,
   managed service, hardware, channel sales), all wired into CI. `redundancy`
   added to the listing recall-floor triggers. Router row +

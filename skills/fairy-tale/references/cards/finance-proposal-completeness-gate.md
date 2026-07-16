@@ -24,11 +24,12 @@ gate → Closure / Negative-Space Check → reviewer sign-off.
   unresolved counts. A central claim without a ledger record is a BLOCK.
 - **Cost disposition is a closed enum, fail-closed.** Every evidenced or
   entailed cost driver carries exactly one disposition: `amount` (a finite
-  number with its own anchored source, on the claim's period), `included-in`
-  (must reference a cost line, claim, or formula input that EXISTS in the
-  same ledger — and a host driver must itself be a resolved amount — plus a
-  substantive allocation basis, a covered scope, an anchored source, and the
-  claim's period), `not-applicable-with-evidence` (requires a citable,
+  number with an explicit stated basis, its own anchored source, on the
+  claim's period), `included-in` (must reference a cost line, claim, or
+  formula input that EXISTS in the same ledger — and a host driver must
+  itself be a resolved amount — plus the absorbed amount OR an allocation
+  basis, a covered scope, an anchored source, and the claim's period),
+  `not-applicable-with-evidence` (requires a citable,
   identifier-bearing anchor — not prose length), or `TBD`. A `TBD` on an
   entailed driver is an open blocker: it must surface in the unresolved
   count, be enumerated in `blockers`, and BLOCK promotion — it is never
@@ -84,12 +85,19 @@ gate → Closure / Negative-Space Check → reviewer sign-off.
   must use conversion and active-months wherever volume enters the bound
   arithmetic; conversion/churn domains are validated; margins must be
   ratio-unit quotients over a revenue-bound denominator with a numerator
-  derived from it, in plausible range. Reference is not effect: every input
-  is perturbation-tested (a `*0` coefficient blocks) and a cost-bound input
-  that moves a margin/profit UP is a sign inversion. Dependency and
-  aggregate graphs must be acyclic with no self/duplicate references.
-  Constant formulas, non-executable formulas, missing inputs, and
-  non-finite values block. A strict schema rejects unknown keys
+  derived from it, in plausible range. Reference is not effect, and
+  perturbation reaches the LEDGER: every input AND every anchor (amount
+  drivers, revenue drivers, assumption values) is perturbation-tested
+  end-to-end through bindings + formula — a `*0` hidden inside a binding
+  blocks — and a cost anchor that moves a margin/profit UP is a sign
+  inversion; one binding never mixes revenue and cost anchors. Dependency
+  and aggregate graphs must be acyclic with no self/duplicate references,
+  weights live in (0,1], and aggregate components share the claim's period.
+  The ledger records its observed frame, a central-claim inventory whose
+  count matches the recorded claims, and an artifact verdict; uncertainty
+  impact bounds are numeric and their cumulative absolute impact must stay
+  under a declared materiality threshold. Constant formulas, non-executable
+  formulas, missing inputs, and non-finite values block. A strict schema rejects unknown keys
   anywhere in the record so a typo can never weaken a rule, while requiring
   every #74 record field (recomputed value, assumptions with values,
   evidence status, sensitivity, cross-claim dependencies, closure state).

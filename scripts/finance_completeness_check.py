@@ -75,7 +75,11 @@ EVIDENCE_ANCHOR_RE = re.compile(
 LEDGER_KEYS = {
     "artifact_sha256", "business_model", "unresolved_count", "claims",
     "cohort_schedule", "signoffs", "blockers", "uncertainties",
+    "observed_frame", "central_claim_inventory", "artifact_verdict",
+    "materiality_threshold",
 }
+INVENTORY_KEYS = {"count", "enumeration_basis"}
+MATERIALITY_KEYS = {"value", "unit", "basis"}
 CLAIM_KEYS = {
     "claim_id", "source", "metric", "period", "currency", "unit", "tax_basis",
     "displayed_value", "formula", "inputs", "input_bindings", "recomputed_value",
@@ -84,7 +88,7 @@ CLAIM_KEYS = {
 }
 DRIVER_KEYS = {"name", "entailed_class", "disposition", "value", "basis", "included_in", "allocation_basis", "covered_scope", "source", "period", "evidence"}
 ASSUMPTION_KEYS = {"id", "text", "evidence_status", "value"}
-UNCERTAINTY_KEYS = {"id", "text", "impact_bound", "decision_reversing"}
+UNCERTAINTY_KEYS = {"id", "text", "impact_value", "impact_unit", "decision_reversing"}
 SIGNOFF_KEYS = {"role", "reviewer", "artifact_sha256", "verdict", "coverage"}
 SIGNOFF_VERDICTS = {"approve", "block"}
 COHORT_REQUIRED = ("conversion", "churn_monthly", "active_months")
@@ -149,6 +153,12 @@ REASON_CLASSES = (
     # dependency graphs, and fully fail-closed nested records.
     "formula_input_ineffective", "cost_sign_inverted", "depends_on_cycle",
     "component_duplicate", "amount_without_basis",
+    # fix-6 (PR #75 round 6): perturbation reaches the LEDGER anchors,
+    # observed frame / inventory / artifact verdict are schema, impact bounds
+    # are numeric with cumulative materiality.
+    "anchor_ineffective", "observed_frame_missing", "inventory_mismatch",
+    "artifact_verdict_missing", "artifact_verdict_blocked", "materiality_exceeded",
+    "binding_mixed_roles", "aggregate_weight_domain", "component_period_mismatch",
 )
 
 # NOTE (PR #75 round 3): coverage of REASON_CLASSES is judged against the
@@ -350,6 +360,11 @@ def check_claim_arithmetic(claim: dict, claims_by_id: dict, reasons: list[str]) 
         if not all(is_finite_number(w) for w in weights.values()):
             reasons.append(f"non_finite_value:{cid}:weights")
             return
+        # A mix weight lives in (0, 1]: negative or zero weights let a pair
+        # like 2.0/-1.0 "normalize" while inverting a component's sign.
+        if any(not (0 < float(w) <= 1) for w in weights.values()):
+            reasons.append(f"aggregate_weight_domain:{cid}")
+            return
         if abs(sum(float(w) for w in weights.values()) - 1.0) > 0.01:
             reasons.append(f"aggregate_weights_unnormalized:{cid}")
             return
@@ -362,6 +377,10 @@ def check_claim_arithmetic(claim: dict, claims_by_id: dict, reasons: list[str]) 
             if not is_finite_number(component_value):
                 reasons.append(f"non_finite_value:{cid}:component:{component_id}")
                 return
+            # Aggregating across periods launders a different period's margin
+            # into this claim's basis.
+            if str(component.get("period") or "").strip() != str(claim.get("period") or "").strip():
+                reasons.append(f"component_period_mismatch:{cid}:{component_id}")
             total += float(weights[component_id]) * float(component_value)
         recomputed = total
     else:
@@ -393,6 +412,7 @@ def check_claim_arithmetic(claim: dict, claims_by_id: dict, reasons: list[str]) 
         check_input_bindings(claim, inputs, reasons)
         check_cost_consumption(claim, reasons)
         check_economic_effect(claim, formula, inputs, recomputed, reasons)
+        check_anchor_effect(claim, formula, reasons)
     if "recomputed_value" not in claim:
         reasons.append(f"recomputed_value_missing:{cid}")
     else:
@@ -443,6 +463,73 @@ def check_economic_effect(claim: dict, formula: str, inputs: dict, baseline: flo
             binding_names = formula_names(binding.strip()) or set()
             if binding_names and binding_names <= cost_driver_names and perturbed > baseline + 1e-12:
                 reasons.append(f"cost_sign_inverted:{cid}:{key}")
+
+
+def resolve_from_anchors(claim: dict, formula: str, namespace: dict, assumption_values: dict) -> float | None:
+    """Re-derive the inputs from bindings over a (possibly perturbed) anchor
+    namespace, then execute the formula — the full ledger-to-result path."""
+    derived: dict[str, float] = {}
+    for key, binding in (claim.get("input_bindings") or {}).items():
+        if not isinstance(binding, str) or not binding.strip():
+            return None
+        binding = binding.strip()
+        if binding.startswith("assumption:"):
+            value = assumption_values.get(binding.split(":", 1)[1])
+            if value is None:
+                return None
+            derived[key] = value
+        else:
+            resolved = safe_eval_formula(binding, namespace)
+            if resolved is None:
+                return None
+            derived[key] = resolved
+    return safe_eval_formula(formula, derived)
+
+
+def check_anchor_effect(claim: dict, formula: str, reasons: list[str]) -> None:
+    """Perturbation must reach the LEDGER anchors (PR #75 round 6): hiding
+    `*0` inside a binding expression leaves the formula input responsive
+    while the recorded driver has zero economic effect. Perturb each anchor
+    (amount drivers, revenue drivers, assumption values) end-to-end through
+    bindings + formula; every referenced anchor must move the result, and a
+    cost anchor on a margin/profit claim must move it DOWN."""
+    cid = claim.get("claim_id", "?")
+    metric = claim.get("metric")
+    namespace = binding_namespace(claim)
+    assumption_values = {
+        entry["id"]: float(entry["value"])
+        for entry in (claim.get("assumptions") or [])
+        if isinstance(entry, dict) and isinstance(entry.get("id"), str) and is_finite_number(entry.get("value"))
+    }
+    baseline = resolve_from_anchors(claim, formula, namespace, assumption_values)
+    if baseline is None:
+        return  # binding/executability failures already reported
+    cost_anchor_names = {
+        (d.get("name") or "").strip()
+        for d in claim.get("cost_drivers", []) or []
+        if isinstance(d, dict) and d.get("disposition") == "amount"
+    } - {""}
+    referenced = binding_referenced_names(claim)
+    bound_assumptions = {
+        b.strip().split(":", 1)[1]
+        for b in (claim.get("input_bindings") or {}).values()
+        if isinstance(b, str) and b.strip().startswith("assumption:")
+    }
+    def perturb(value: float) -> float:
+        return value * 1.01 if value != 0 else 0.01
+    for anchor in sorted((set(namespace) & referenced) | (bound_assumptions & set(assumption_values))):
+        if anchor in namespace:
+            result = resolve_from_anchors(claim, formula, {**namespace, anchor: perturb(namespace[anchor])}, assumption_values)
+        else:
+            result = resolve_from_anchors(claim, formula, namespace,
+                                          {**assumption_values, anchor: perturb(assumption_values[anchor])})
+        if result is None:
+            continue
+        if abs(result - baseline) < 1e-12:
+            reasons.append(f"anchor_ineffective:{cid}:{anchor}")
+        elif anchor in cost_anchor_names and metric in (MARGIN_METRICS | {"operating_profit"}) \
+                and result > baseline + 1e-12:
+            reasons.append(f"cost_sign_inverted:{cid}:{anchor}")
 
 
 def check_cost_consumption(claim: dict, reasons: list[str]) -> None:
@@ -500,8 +587,19 @@ def check_input_bindings(claim: dict, inputs: dict, reasons: list[str]) -> None:
         resolved = safe_eval_formula(binding, namespace)
         if resolved is None:
             reasons.append(f"formula_input_unbound:{cid}:{key}")
-        elif not math.isclose(resolved, float(value), rel_tol=1e-6, abs_tol=1e-9):
+            continue
+        if not math.isclose(resolved, float(value), rel_tol=1e-6, abs_tol=1e-9):
             reasons.append(f"formula_input_mismatch:{cid}:{key}")
+        # One input never mixes revenue and cost anchors: the roles carry
+        # opposite signs, so a mixed binding hides a cost inside revenue.
+        binding_names = formula_names(binding) or set()
+        cost_names = {
+            (d.get("name") or "").strip()
+            for d in claim.get("cost_drivers", []) or []
+            if isinstance(d, dict) and (d.get("name") or "").strip()
+        }
+        if binding_names & REVENUE_DRIVER_KEYS and binding_names & cost_names:
+            reasons.append(f"binding_mixed_roles:{cid}:{key}")
 
 
 def check_revenue_drivers(claim: dict, reasons: list[str]) -> None:
@@ -568,7 +666,9 @@ def check_driver(driver: dict, claim: dict, valid_targets: set[str], reasons: li
                          if isinstance(d, dict) and (d.get("name") or "").strip() == target), None)
             if host is not None and not (host.get("disposition") == "amount" and is_finite_number(host.get("value"))):
                 reasons.append(f"included_in_host_unresolved:{claim_id}:{name}")
-        if len((driver.get("allocation_basis") or "").strip()) < 15:
+        # Issue #74: an included-in carries its absorbed AMOUNT or an
+        # allocation basis — either anchors the absorption; neither blocks.
+        if not is_finite_number(driver.get("value")) and len((driver.get("allocation_basis") or "").strip()) < 15:
             reasons.append(f"included_in_without_allocation_basis:{claim_id}:{name}")
         if len((driver.get("covered_scope") or "").strip()) < 10:
             reasons.append(f"included_in_without_scope:{claim_id}:{name}")
@@ -753,6 +853,18 @@ def evaluate(ledger: dict) -> tuple[str, list[str]]:
             reasons.append("blockers_open")
         # Uncertainties are structured: each must state a bounded impact, and
         # one that could reverse the decision blocks outright.
+        # Impact bounds are NUMERIC (a free string can declare itself
+        # unbounded and pass), and cumulative materiality is evaluated
+        # against a declared threshold.
+        threshold = ledger.get("materiality_threshold")
+        threshold_ok = isinstance(threshold, dict) and is_finite_number(threshold.get("value")) \
+            and float(threshold.get("value") or 0) > 0 and str(threshold.get("unit") or "").strip() \
+            and len(str(threshold.get("basis") or "").strip()) >= 10
+        if threshold_ok:
+            check_unknown_keys(threshold, MATERIALITY_KEYS, "materiality_threshold", reasons)
+        if uncertainties and not threshold_ok:
+            reasons.append("materiality_exceeded:threshold_missing")
+        cumulative = 0.0
         for entry in uncertainties:
             if not isinstance(entry, dict) or not isinstance(entry.get("id"), str) \
                     or len(str(entry.get("text") or "").strip()) < 10:
@@ -765,8 +877,36 @@ def evaluate(ledger: dict) -> tuple[str, list[str]]:
                 reasons.append(f"uncertainty_malformed:{entry['id']}:decision_reversing")
             elif entry["decision_reversing"]:
                 reasons.append(f"uncertainty_decision_reversing:{entry['id']}")
-            if len(str(entry.get("impact_bound") or "").strip()) < 10:
+            if not is_finite_number(entry.get("impact_value")):
                 reasons.append(f"uncertainty_unbounded:{entry['id']}")
+                continue
+            unit = str(entry.get("impact_unit") or "").strip()
+            if not unit or (threshold_ok and unit != str(threshold.get("unit")).strip()):
+                reasons.append(f"uncertainty_malformed:{entry['id']}:impact_unit")
+                continue
+            cumulative += abs(float(entry["impact_value"]))
+        if threshold_ok and cumulative > float(threshold["value"]):
+            reasons.append(f"materiality_exceeded:cumulative={cumulative}:threshold={threshold['value']}")
+
+    # #74 frame contract: what was reviewed, how many central claims exist,
+    # and the overall artifact verdict are explicit records — coverage over
+    # an undeclared frame is unprovable.
+    if not is_locator(ledger.get("observed_frame")) or len(str(ledger.get("observed_frame") or "").strip()) < 10:
+        reasons.append("observed_frame_missing")
+    inventory = ledger.get("central_claim_inventory")
+    if not isinstance(inventory, dict) or not isinstance(inventory.get("count"), int) \
+            or isinstance(inventory.get("count"), bool) \
+            or len(str(inventory.get("enumeration_basis") or "").strip()) < 10:
+        reasons.append("inventory_mismatch:record_missing")
+    else:
+        check_unknown_keys(inventory, INVENTORY_KEYS, "central_claim_inventory", reasons)
+        if inventory["count"] != len(claims):
+            reasons.append(f"inventory_mismatch:declared={inventory['count']}:recorded={len(claims)}")
+    artifact_verdict = ledger.get("artifact_verdict")
+    if artifact_verdict not in SIGNOFF_VERDICTS:
+        reasons.append("artifact_verdict_missing")
+    elif artifact_verdict == "block":
+        reasons.append("artifact_verdict_blocked")
 
     artifact = str(ledger.get("artifact_sha256") or "").strip()
     if not ARTIFACT_HASH_RE.match(artifact):
@@ -905,6 +1045,9 @@ def _green_ledger() -> dict:
         "unresolved_count": 0,
         "blockers": [],
         "uncertainties": [],
+        "observed_frame": "full proposal deck p1-p12 including appendix A",
+        "central_claim_inventory": {"count": 1, "enumeration_basis": "every revenue/margin figure on p2 table 1"},
+        "artifact_verdict": "approve",
         "claims": [{
             "claim_id": "C1", "source": "p2:table1", "metric": "gross_margin",
             "period": "FY1", "currency": "USD", "unit": "ratio", "tax_basis": "excl",
@@ -1231,14 +1374,18 @@ def _selftest() -> int:
         l["blockers"] = ["host line pending"]
     probe("absorbing into an unresolved host blocks", unresolved_host, "included_in_host_unresolved")
 
+    def with_threshold(l):
+        l["materiality_threshold"] = {"value": 5.0, "unit": "margin_pt", "basis": "board materiality policy p1"}
     probe("a malformed uncertainty entry blocks",
-          lambda l: l.update(uncertainties=["it might rain"]), "uncertainty_malformed")
-    probe("an unbounded uncertainty blocks",
-          lambda l: l.update(uncertainties=[{"id": "u1", "text": "churn could exceed the modeled rate"}]),
+          lambda l: (with_threshold(l), l.update(uncertainties=["it might rain"]))[-1], "uncertainty_malformed")
+    probe("an uncertainty without a numeric impact blocks",
+          lambda l: (with_threshold(l), l.update(uncertainties=[{"id": "u1", "text": "churn could exceed the modeled rate",
+                                                                 "decision_reversing": False}]))[-1],
           "uncertainty_unbounded")
     probe("a decision-reversing uncertainty blocks",
-          lambda l: l.update(uncertainties=[{"id": "u1", "text": "churn could exceed the modeled rate",
-                                             "impact_bound": "up to 3pt margin impact per p7", "decision_reversing": True}]),
+          lambda l: (with_threshold(l), l.update(uncertainties=[{"id": "u1", "text": "churn could exceed the modeled rate",
+                                                                 "impact_value": 3.0, "impact_unit": "margin_pt",
+                                                                 "decision_reversing": True}]))[-1],
           "uncertainty_decision_reversing")
 
     # --- fix-5 probes (PR #75 round 5: effect, DAG, fail-closed nested records) ---
@@ -1276,12 +1423,83 @@ def _selftest() -> int:
     probe("an amount without an explicit basis blocks",
           lambda l: l["claims"][0]["cost_drivers"][0].pop("basis"), "amount_without_basis")
     probe("an uncertainty without the boolean reversal flag blocks",
-          lambda l: l.update(uncertainties=[{"id": "u1", "text": "churn could exceed the modeled rate",
-                                             "impact_bound": "up to 3pt margin impact per p7"}]),
+          lambda l: (with_threshold(l), l.update(uncertainties=[{"id": "u1", "text": "churn could exceed the modeled rate",
+                                                                 "impact_value": 3.0, "impact_unit": "margin_pt"}]))[-1],
           "uncertainty_malformed")
     def blank_signoff_rider(l):
         l["signoffs"].append({"role": "arithmetic_reconciliation"})
     probe("a blank sign-off entry cannot ride beside a valid one", blank_signoff_rider, "signoff_malformed")
+
+    # --- fix-6 probes (PR #75 round 6: anchors, frame, materiality) ---
+    def hidden_zero_anchor(l):
+        l["claims"][0]["input_bindings"]["fee"] = "partner_fee*0"
+        l["claims"][0]["inputs"]["fee"] = 0.0
+        l["claims"][0].update(displayed_value=0.75, recomputed_value=0.75)
+    probe("a *0 hidden inside a binding leaves the ledger anchor ineffective and blocks",
+          hidden_zero_anchor, "anchor_ineffective")
+
+    def mixed_positive_cost(l):
+        l["claims"][0]["input_bindings"]["rev"] = "price*volume+partner_fee"
+        l["claims"][0]["inputs"]["rev"] = 115.0
+        l["claims"][0].update(displayed_value=0.652, recomputed_value=0.652, rounding_rule="3dp")
+    probe("a cost mixed into a revenue binding blocks (mixed roles)",
+          mixed_positive_cost, "binding_mixed_roles")
+    def negative_weight(l):
+        second = copy.deepcopy(l["claims"][0]); second["claim_id"] = "C2"
+        agg = {"claim_id": "C0", "source": "p9:agg", "metric": "gross_margin", "period": "FY1",
+               "currency": "USD", "unit": "ratio", "tax_basis": "excl", "displayed_value": 0.6,
+               "recomputed_value": 0.6, "rounding_rule": "2dp", "components": ["C1", "C2"],
+               "weights": {"C1": 2.0, "C2": -1.0}, "revenue_drivers": {"price": 10.0, "volume": 20, "start_month": 1, "active_months": 12},
+               "assumptions": [], "evidence_status": "cited",
+               "sensitivity": "tracks component margins one-for-one", "depends_on": ["C1", "C2"]}
+        l["claims"] = [agg, l["claims"][0], second]
+        for s in l["signoffs"]:
+            s["coverage"] = ["C0", "C1", "C2"]
+        l["central_claim_inventory"]["count"] = 3
+    probe("negative aggregate weights block even when they sum to one", negative_weight, "aggregate_weight_domain")
+    def cross_period_component(l):
+        negative_weight(l)
+        l["claims"][0]["weights"] = {"C1": 0.5, "C2": 0.5}
+        l["claims"][2]["period"] = "FY2"
+    probe("a cross-period component in an aggregate blocks", cross_period_component, "component_period_mismatch")
+    probe("a missing observed frame blocks", lambda l: l.pop("observed_frame"), "observed_frame_missing")
+    probe("an inventory count diverging from recorded claims blocks",
+          lambda l: l["central_claim_inventory"].update(count=5), "inventory_mismatch")
+    probe("a missing artifact verdict blocks", lambda l: l.pop("artifact_verdict"), "artifact_verdict_missing")
+    probe("a blocked artifact verdict blocks the gate", lambda l: l.update(artifact_verdict="block"), "artifact_verdict_blocked")
+    probe("uncertainties without a materiality threshold block",
+          lambda l: l.update(uncertainties=[{"id": "u1", "text": "churn could exceed the modeled rate",
+                                             "impact_value": 1.0, "impact_unit": "margin_pt",
+                                             "decision_reversing": False}]),
+          "materiality_exceeded")
+    def cumulative_materiality(l):
+        with_threshold(l)
+        l["uncertainties"] = [
+            {"id": "u1", "text": "churn could exceed the modeled rate", "impact_value": 3.0,
+             "impact_unit": "margin_pt", "decision_reversing": False},
+            {"id": "u2", "text": "hosting price increase at renewal window", "impact_value": 2.5,
+             "impact_unit": "margin_pt", "decision_reversing": False},
+        ]
+    probe("correlated uncertainties exceeding the materiality threshold block",
+          cumulative_materiality, "materiality_exceeded")
+
+    def included_in_value_only(l):
+        l["claims"][0]["cost_drivers"][0] = {
+            "name": "partner_fee", "entailed_class": "channel_economics",
+            "disposition": "included-in", "included_in": "cogs", "value": 15.0,
+            "covered_scope": "partner fee line in full",
+            "source": "master services contract schedule B p3", "period": "FY1",
+        }
+        l["claims"][0]["input_bindings"]["fee"] = "assumption:a2"
+        l["claims"][0]["assumptions"].append({"id": "a2", "text": "partner fee inside COGS per agreement p3",
+                                              "evidence_status": "cited", "value": 15.0})
+    def check_positive(name: str, mutate) -> None:
+        ledger = copy.deepcopy(_green_ledger())
+        mutate(ledger)
+        verdict, reasons = evaluate(ledger)
+        check(name, verdict == "pass" and not reasons)
+    check_positive("included-in with an absorbed amount and no allocation basis passes (issue: amount OR basis)",
+                   included_in_value_only)
 
     if failures:
         print("finance completeness selftest FAILED.")
