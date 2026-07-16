@@ -302,6 +302,60 @@ def canonical_number(value: float) -> str:
     return repr(rounded)
 
 
+def canonical_multiplicative_expr(node: ast.AST) -> str:
+    """Normalize multiplication and division into one coefficient/factor form.
+
+    Constants are accumulated through both operators, so economically equal
+    shares such as ``x * 0.5``, ``x / 2``, and ``x * 100 / 200`` cannot mint
+    different declared streams. Symbolic numerator and denominator factors
+    remain explicit; this is normalization, not cancellation.
+    """
+    def parts(current: ast.AST) -> tuple[float, list[str], list[str]] | None:
+        value = constant_expr_value(current)
+        if value is not None:
+            return value, [], []
+        if isinstance(current, ast.UnaryOp) and isinstance(current.op, (ast.UAdd, ast.USub)):
+            resolved = parts(current.operand)
+            if resolved is None:
+                return None
+            coefficient, numerator, denominator = resolved
+            return (-coefficient if isinstance(current.op, ast.USub) else coefficient,
+                    numerator, denominator)
+        if isinstance(current, ast.BinOp) and isinstance(current.op, (ast.Mult, ast.Div)):
+            left = parts(current.left)
+            right = parts(current.right)
+            if left is None or right is None:
+                return None
+            left_coefficient, left_numerator, left_denominator = left
+            right_coefficient, right_numerator, right_denominator = right
+            if isinstance(current.op, ast.Mult):
+                return (left_coefficient * right_coefficient,
+                        left_numerator + right_numerator,
+                        left_denominator + right_denominator)
+            if abs(right_coefficient) <= 1e-15:
+                return None
+            return (left_coefficient / right_coefficient,
+                    left_numerator + right_denominator,
+                    left_denominator + right_numerator)
+        return 1.0, [canonical_expr(current)], []
+
+    resolved = parts(node)
+    if resolved is None:
+        return ast.dump(node)
+    coefficient, numerator, denominator = resolved
+    if abs(coefficient) <= 1e-12:
+        return "0"
+    if abs(coefficient - 1.0) > 1e-12 or not numerator:
+        numerator.append(canonical_number(coefficient))
+    numerator = sorted(numerator)
+    denominator = sorted(denominator)
+    numerator_text = numerator[0] if len(numerator) == 1 else "(" + "*".join(numerator) + ")"
+    if not denominator:
+        return numerator_text
+    denominator_text = denominator[0] if len(denominator) == 1 else "(" + "*".join(denominator) + ")"
+    return f"({numerator_text}/{denominator_text})"
+
+
 def canonical_expr(node: ast.AST) -> str:
     """Order-independent canonical form: commutative chains sort their
     operands, so `price*volume` and `volume*price` are the SAME expression.
@@ -312,7 +366,9 @@ def canonical_expr(node: ast.AST) -> str:
     constant_value = constant_expr_value(node)
     if constant_value is not None:
         return canonical_number(constant_value)
-    if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Add, ast.Mult)):
+    if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Mult, ast.Div)):
+        return canonical_multiplicative_expr(node)
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
         op_type = type(node.op)
         raw_operands: list[ast.AST] = []
         def collect(n: ast.AST) -> None:
@@ -323,27 +379,20 @@ def canonical_expr(node: ast.AST) -> str:
                 raw_operands.append(n)
         collect(node)
         # Fold constants so neutral elements can never mint a "different"
-        # expression: 1*price*volume IS price*volume (round 13).
-        constant_product = 1.0
+        # expression: price+0 IS price (round 13).
         constant_sum = 0.0
         operands: list[str] = []
         for operand in raw_operands:
             value = constant_expr_value(operand)
             if value is not None:
-                if op_type is ast.Mult:
-                    constant_product *= value
-                else:
-                    constant_sum += value
+                constant_sum += value
             else:
                 operands.append(canonical_expr(operand))
-        if op_type is ast.Mult and abs(constant_product - 1.0) > 1e-12:
-            operands.append(canonical_number(constant_product))
-        if op_type is ast.Add and abs(constant_sum) > 1e-12:
+        if abs(constant_sum) > 1e-12:
             operands.append(canonical_number(constant_sum))
         if len(operands) == 1:
             return operands[0]
-        symbol = "+" if op_type is ast.Add else "*"
-        return "(" + symbol.join(sorted(operands)) + ")"
+        return "(" + "+".join(sorted(operands)) + ")"
     if isinstance(node, ast.BinOp):
         right_value = constant_expr_value(node.right)
         if isinstance(node.op, ast.Sub) and right_value is not None and abs(right_value) <= 1e-12:
@@ -1751,6 +1800,18 @@ def _selftest() -> int:
     verdict, reasons = evaluate(_green_ledger())
     check("green ledger passes", verdict == "pass" and not reasons)
     check("non-dict ledger blocks", evaluate("nope")[1] == ["ledger_not_object"])  # type: ignore[arg-type]
+    equivalent_half_shares = {
+        canonical_expr(ast.parse(expression, mode="eval"))
+        for expression in (
+            "price*volume*0.5", "price*volume/2", "price*volume*(1/2)",
+            "(price*volume*4)/8", "volume*price/(4/2)", "(price/2)*volume",
+        )
+    }
+    check("finite multiplicative/divisive half-share forms share one canonical expression",
+          len(equivalent_half_shares) == 1)
+    check("zero and non-finite divisors remain fail-closed",
+          safe_eval_formula("price/0", {"price": 1.0}) is None
+          and safe_eval_formula("price/1e999", {"price": 1.0}) is None)
 
     probe("removing the entailed disposition flips to block",
           lambda l: l["claims"][0].update(cost_drivers=[]), "entailed_cost_undispositioned")
@@ -2401,6 +2462,18 @@ def _selftest() -> int:
                                      "source": "revenue model p9 table 2"})
     probe("the /1 neutral element cannot mint a different stream",
           neutral_divisor, "duplicate_revenue_stream")
+
+    def equivalent_half_share(l):
+        c = l["claims"][0]
+        c.update(formula="(rev+rev2-cogs-fee)/rev", displayed_value=1.2, recomputed_value=1.2)
+        c["inputs"] = {"rev": 50.0, "rev2": 50.0, "cogs": 25.0, "fee": 15.0}
+        c["input_bindings"] = {"rev": "price*volume*0.5", "rev2": "price*volume/2",
+                               "cogs": "assumption:a1", "fee": "partner_fee"}
+        c["stream_ids"] = {"rev": "core_subscription", "rev2": "s2"}
+        l["revenue_streams"].append({"id": "s2", "description": "allegedly different stream",
+                                     "source": "revenue model p9 table 2"})
+    probe("equivalent multiplicative and divisive shares cannot mint different streams",
+          equivalent_half_share, "duplicate_revenue_stream")
     probe("an empty stream id blocks",
           lambda l: (l["claims"][0].update(stream_ids={"rev": " "}),)[0] or None
           if False else l["claims"][0].update(stream_ids={"rev": " "}), "stream_undeclared")
@@ -2495,7 +2568,7 @@ def _selftest() -> int:
     if failures:
         print("finance completeness selftest FAILED.")
         return 1
-    print("finance completeness selftest passed (green->pass; PR #75 round-1..14 hostile probes block). "
+    print("finance completeness selftest passed (green->pass; PR #75 round-1..15 hostile probes block). "
           "NOTE: coverage proof lives in the fixtures run, not here.")
     return 0
 

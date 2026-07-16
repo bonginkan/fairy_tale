@@ -107,9 +107,12 @@
   valid fractional-share semantics, `stream_ids` is closed over executed
   revenue inputs, and aggregate revenue plus leaf stream identity resolve
   transitively so a nested aggregate cannot launder duplicate revenue or
-  bypass weight anchoring. Selftest carries 142 red/green/hostile controls
-  (every PR #75 round-1..14 review probe and an add/remove metamorphic flip);
-  one hundred fifty-four sanitized cross-industry acceptance fixtures
+  bypass weight anchoring. Round 15 normalizes finite constant factors across
+  multiplication and division, so equivalent shares such as `x*0.5`, `x/2`,
+  and `x*100/200` cannot mint distinct streams. Selftest carries 145
+  red/green/hostile controls (every PR #75 round-1..15 review probe and an
+  add/remove metamorphic flip); one hundred fifty-five sanitized
+  cross-industry acceptance fixtures
   (positive controls for bounded uncertainties, per-unit recurring margins,
   amount-only included-in, pass-with-warnings, resolved conflicts, correct
   recurring margins, segment-differentiated margins, and additive cohort
