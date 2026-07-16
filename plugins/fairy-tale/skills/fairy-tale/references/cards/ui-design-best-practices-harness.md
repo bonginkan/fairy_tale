@@ -11,13 +11,47 @@ Dogfood QA; this harness governs how the UI is *designed and built*.
   success metric (which action must be obvious and cheap) before writing UI
   code. The Narrative Empathy card owns voice/microcopy/feel; reference it
   from the brief rather than restating it.
-- **Canon compliance, anti-reinvention.** Name the governing canon first: the
-  project's existing design tokens and components, then the platform or
-  product design system the project already follows (e.g. Apple HIG, Material
-  Design, an in-house system). Reuse before inventing; a new one-off style,
-  spacing value, or color is an excess-pass candidate and needs evidence that
-  the canon cannot express it. Verify best-practice claims against official
-  sources with a checked date (Best-Practice Gate) — never from memory.
+- **Canon compliance and token contract.** Name the governing canon first: the
+  project's existing tokens and components, then the platform or product
+  design system it already follows. Inventory before adding. Map primitive
+  values to semantic roles (for example surface, text, border, focus, danger)
+  and semantic roles to component/state tokens; components consume roles, not
+  raw one-off values. Inherit one bounded spacing scale and type scale from the
+  governing system rather than imposing a universal 4/8-point grid. A new raw
+  color, size, radius, shadow, breakpoint, or z-index is an excess-pass
+  candidate and needs evidence that the canon cannot express it. DTCG defines
+  the interoperable token format; a governing design system such as USWDS is
+  an implementation example, never a mandated aesthetic.
+- **Supported-theme parity is Tier A.** If the governing product supports
+  multiple themes, build a token/state matrix for every supported theme and
+  validate each rendered theme. Do not auto-invert one theme or invent a dark
+  theme for a single-theme product. Contrast and semantic meaning must survive
+  the mapping; color alone never carries status.
+- **Layout is a system, not a stack.** Choose the governing grid/container,
+  alignment anchors, content measure, density, and responsive transformation
+  before component placement. Use proximity and whitespace to encode groups;
+  keep repeated rows and controls on stable tracks; set explicit constraints
+  for boards, tables, toolbars, and media so state or content changes do not
+  shift the layout. Density is a task decision: operational surfaces optimize
+  scanning and comparison, while editorial surfaces may spend more space.
+- **Information architecture and action hierarchy.** Map task -> entry point ->
+  destination -> recovery. Keep navigation breadth/depth and labels consistent
+  with the governing product; use progressive disclosure only for secondary
+  complexity, never to hide required context or destructive consequences.
+  Declare the primary task and action hierarchy for each view. Dense tables or
+  repeated workflows may legitimately have coequal row actions; do not force a
+  universal one-primary-button rule.
+- **Business-surface contracts.** Build the relevant contract before styling:
+  forms need persistent programmatic labels, instructions before input,
+  keyboard order, validation timing, inline errors plus a recoverable summary,
+  and preserved user input; tables need captions/headers, units and time basis,
+  sort/filter/loading/empty/error states, and an intentional small-screen
+  transformation rather than clipping; dashboards need metric definitions,
+  source/freshness, comparison basis, drill-down path, and honest empty/stale
+  states. Pricing or checkout views must expose the charged unit, period,
+  inclusions, next step, and error recovery instead of relying on visual trust
+  cues alone. W3C WAI form/table tutorials and the governing component system
+  own the detailed pattern, not an improvised local variant.
 - **Established heuristics are the review lens.** Evaluate against NN/g's ten
   usability heuristics (visibility of system status; match to the real world;
   user control and freedom; consistency and standards; error prevention;
@@ -29,25 +63,36 @@ Dogfood QA; this harness governs how the UI is *designed and built*.
   default metrics. Fitts's law (target size/distance), Hick's law (choice
   count), and Jakob's law (familiar patterns) are the standard levers when a
   metric is bad.
-- **Structural fundamentals checklist.** Visual hierarchy that matches task
-  priority; consistent spacing scale and grid; a deliberate type scale; text
-  contrast at least 4.5:1 (3:1 for large text, WCAG 2.2 SC 1.4.3); pointer
-  targets at least 24x24 CSS px or spaced/excepted per SC 2.5.8 (AA); full
-  keyboard operability with visible focus; reduced-motion respected.
-- **Full state coverage is entailed, not optional.** Empty, loading, error,
-  success, disabled, overflow/long-content, and responsive breakpoints are
-  entailed companions of every screen (Closure/Negative-Space Tier A). A
-  happy-path-only screen is an incomplete design, not a finished one.
-- **Validate on the rendered artifact.** Render the actual UI and inspect it
-  (screenshot or live run) before claiming design quality; code-only review
-  must disclose "visual not measured" and recommend a human or visual-QA
-  pass. Hand the finished surface to GUI Dogfood QA for the black-box pass;
-  hand 3D/spatial work to Spatial Forge.
+- **Accessibility floor.** Preserve a meaningful focus order (SC 2.4.3) and a
+  visible keyboard focus indicator (SC 2.4.7). Text contrast is at least 4.5:1
+  (3:1 for large text, SC 1.4.3); non-text UI states and focus indicators are
+  at least 3:1 where SC 1.4.11 applies; pointer targets meet 24x24 CSS px or an
+  allowed spacing/exception (SC 2.5.8). Content reflows without two-dimensional
+  scrolling at 320 CSS px width (or 256 CSS px height for vertical writing),
+  except genuinely two-dimensional content (SC 1.4.10). Keep full keyboard
+  operability, labels/instructions, identified errors, and reduced motion.
+- **Full state and content coverage are entailed.** For each affected
+  component and viewport, enumerate default, hover where applicable, focus,
+  active, selected, disabled, loading, empty, error, success, overflow/long
+  content, permission-limited, offline/stale where relevant, and responsive
+  behavior. A happy-path-only screen or a component with an undefined state is
+  incomplete, not finished.
+- **Rendered evidence is the acceptance artifact.** Render the actual UI at
+  stable, named viewports and every supported theme/state. Keep deterministic
+  screenshots and review diffs against an accepted baseline when the project
+  has visual-regression infrastructure (Playwright `toHaveScreenshot` is one
+  example, not a mandated framework); mask or stabilize volatile content
+  explicitly, never by hiding regressions. Record viewport/theme/state and the
+  observed defect. Code-only review must disclose `visual not measured`.
+  Hand the surface to GUI Dogfood QA for black-box task execution; design-class
+  findings return to the brief/token/component/state contract, then rerender
+  and rerun the affected matrix. Hand 3D/spatial work to Spatial Forge.
 
-Primary and near-primary sources (checked 2026-07-07): W3C WCAG 2.2
-Understanding SC 1.4.3 Contrast (Minimum) and SC 2.5.8 Target Size (Minimum)
-(w3.org/WAI); NN/g ten usability heuristics
-(nngroup.com/articles/ten-usability-heuristics/). Secondary field reference:
-Laws of UX (lawsofux.com) — a curated collection naming the interaction laws,
-not the original Fitts / Hick / Jakob literature; cite the originals when a
-claim leans on a specific law.
+Primary and near-primary sources (checked 2026-07-16): W3C WCAG 2.2
+Understanding SC 1.4.3, 1.4.10, 1.4.11, 2.4.3, 2.4.7, and 2.5.8 plus WAI
+form/table tutorials; DTCG Design Tokens Format 2025.10; USWDS token, layout,
+form, and table guidance; NN/g ten usability heuristics and progressive
+disclosure; Playwright visual comparisons (artifact example only). Secondary
+field reference: Laws of UX — not the original Fitts / Hick / Jakob literature;
+cite the originals when a claim depends on a specific law. URLs and source-tier
+notes live in `references/sources.md`.
