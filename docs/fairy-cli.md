@@ -15,6 +15,8 @@ through both so one failure does not hide the other. `validate` runs the
 deterministic repository suite used by CI. Use `validate --list`, `--dry-run`,
 or repeated `--only STEP` options to inspect or select registered checks.
 The command exits non-zero when any selected check fails or cannot execute.
+GitHub credential variables are stripped from ordinary validation subprocesses;
+only the two live provenance verification steps receive them when supplied.
 
 Task Card and Validation Ledger commands delegate to the canonical artifact
 engine without copying its schemas or lifecycle rules:

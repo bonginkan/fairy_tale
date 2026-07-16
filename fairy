@@ -6,16 +6,18 @@ from __future__ import annotations
 import argparse
 import contextlib
 import io
+import os
 import shlex
 import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Sequence
+from typing import Callable, Mapping, Sequence
 
 
 ROOT = Path(__file__).resolve().parent
 PYTHON = sys.executable
+CREDENTIAL_ENV_KEYS = frozenset({"GITHUB_TOKEN", "GH_TOKEN"})
 
 
 @dataclass(frozen=True)
@@ -23,10 +25,22 @@ class Step:
     step_id: str
     label: str
     command: tuple[str, ...]
+    credential_keys: frozenset[str] = frozenset()
 
 
-def python_step(step_id: str, label: str, script: str, *args: str) -> Step:
-    return Step(step_id, label, (PYTHON, str(ROOT / "scripts" / script), *args))
+def python_step(
+    step_id: str,
+    label: str,
+    script: str,
+    *args: str,
+    credential_keys: frozenset[str] = frozenset(),
+) -> Step:
+    return Step(
+        step_id,
+        label,
+        (PYTHON, str(ROOT / "scripts" / script), *args),
+        credential_keys,
+    )
 
 
 DOCTOR_STEPS = (
@@ -74,8 +88,20 @@ VALIDATION_STEPS = (
         "extract_mode_pattern_cards.py",
         "--selftest",
     ),
-    python_step("card-provenance", "Card extraction parity", "extract_mode_pattern_cards.py", "--verify"),
-    python_step("process-provenance", "Process extraction parity", "extract_process_records.py", "--verify"),
+    python_step(
+        "card-provenance",
+        "Card extraction parity",
+        "extract_mode_pattern_cards.py",
+        "--verify",
+        credential_keys=CREDENTIAL_ENV_KEYS,
+    ),
+    python_step(
+        "process-provenance",
+        "Process extraction parity",
+        "extract_process_records.py",
+        "--verify",
+        credential_keys=CREDENTIAL_ENV_KEYS,
+    ),
     python_step("listing-selftest", "Listing overhead self-controls", "skill_listing_overhead_check.py", "--selftest"),
     python_step("listing", "Listing overhead enforcement", "skill_listing_overhead_check.py", "--enforce"),
     python_step("routing-selftest", "Routing evaluator self-controls", "routing_eval.py", "--selftest"),
@@ -118,11 +144,19 @@ def select_steps(steps: Sequence[Step], selected: Sequence[str] | None) -> tuple
     return tuple(step for step in steps if step.step_id in wanted)
 
 
+def child_environment(step: Step, base: Mapping[str, str] | None = None) -> dict[str, str]:
+    environment = dict(os.environ if base is None else base)
+    for key in CREDENTIAL_ENV_KEYS - step.credential_keys:
+        environment.pop(key, None)
+    return environment
+
+
 def run_steps(
     steps: Sequence[Step],
     *,
     dry_run: bool = False,
     runner: Runner = subprocess.run,
+    environment: Mapping[str, str] | None = None,
 ) -> int:
     failures: list[tuple[str, int]] = []
     for step in steps:
@@ -131,7 +165,13 @@ def run_steps(
         if dry_run:
             continue
         try:
-            completed = runner(step.command, cwd=ROOT, check=False, text=True)
+            completed = runner(
+                step.command,
+                cwd=ROOT,
+                check=False,
+                text=True,
+                env=child_environment(step, environment),
+            )
             returncode = completed.returncode
         except OSError as exc:
             print(f"FAIL {step.step_id}: cannot execute command: {exc}", file=sys.stderr)
@@ -188,6 +228,21 @@ def selftest() -> int:
         ids = [step.step_id for step in steps]
         check(len(ids) == len(set(ids)), f"{registry_name} step ids are unique")
         check(all(step.command for step in steps), f"{registry_name} commands are non-empty")
+        check(
+            all(step.credential_keys <= CREDENTIAL_ENV_KEYS for step in steps),
+            f"{registry_name} credential keys are registered",
+        )
+
+    check(
+        [step.step_id for step in VALIDATION_STEPS if step.credential_keys]
+        == ["card-provenance", "process-provenance"],
+        "only provenance verification steps receive credentials",
+    )
+    check(len(VALIDATION_STEPS) == 21, "validation registry remains complete")
+    check(
+        sum(not step.credential_keys for step in VALIDATION_STEPS) == 19,
+        "nineteen ordinary validation steps receive no credentials",
+    )
 
     repository_paths = {
         Path(step.command[1])
@@ -208,12 +263,14 @@ def selftest() -> int:
     check(LEDGER_COMMANDS["finalize"] == "ledger-finalize", "ledger operation mapping")
 
     calls: list[tuple[str, ...]] = []
+    environments: list[dict[str, str]] = []
 
     def fake_runner(
-        command: Sequence[str], *, cwd: Path, check: bool, text: bool
+        command: Sequence[str], *, cwd: Path, check: bool, text: bool, env: Mapping[str, str]
     ) -> subprocess.CompletedProcess[str]:
         del cwd, check, text
         calls.append(tuple(command))
+        environments.append(dict(env))
         returncode = 3 if command[-1] == "fail" else 0
         return subprocess.CompletedProcess(command, returncode)
 
@@ -226,12 +283,71 @@ def selftest() -> int:
         aggregate_result = run_steps(fake_steps, runner=fake_runner)
     check(aggregate_result == 1, "aggregate failure is non-zero")
     check(len(calls) == 3, "runner continues through all checks")
+    environments.clear()
+    credential_steps = (
+        Step("ordinary", "ordinary", (PYTHON, "ordinary")),
+        Step(
+            "provenance",
+            "provenance",
+            (PYTHON, "provenance"),
+            CREDENTIAL_ENV_KEYS,
+        ),
+    )
+    sentinel_environment = {
+        "PATH": "sentinel-path",
+        "GITHUB_TOKEN": "github-sentinel",
+        "GH_TOKEN": "gh-sentinel",
+    }
+    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+        credential_result = run_steps(
+            credential_steps,
+            runner=fake_runner,
+            environment=sentinel_environment,
+        )
+    check(credential_result == 0, "credential sentinel run succeeds")
+    check(
+        not (CREDENTIAL_ENV_KEYS & environments[0].keys()),
+        "ordinary step receives no GitHub credentials",
+    )
+    check(
+        all(environments[1].get(key) == sentinel_environment[key] for key in CREDENTIAL_ENV_KEYS),
+        "provenance step receives registered GitHub credentials",
+    )
+    check(
+        environments[0].get("PATH") == sentinel_environment["PATH"],
+        "ordinary environment remains otherwise intact",
+    )
+    provenance_step = credential_steps[1]
+
+    def credential_required_runner(
+        command: Sequence[str],
+        *,
+        cwd: Path,
+        check: bool,
+        text: bool,
+        env: Mapping[str, str],
+    ) -> subprocess.CompletedProcess[str]:
+        del cwd, check, text
+        return subprocess.CompletedProcess(command, 0 if env.get("GITHUB_TOKEN") else 4)
+
+    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+        no_credential_result = run_steps(
+            (provenance_step,),
+            runner=credential_required_runner,
+            environment={"PATH": "sentinel-path"},
+        )
+    check(no_credential_result == 1, "provenance credential failure remains fail-closed")
     missing_output = io.StringIO()
 
     def missing_runner(
-        command: Sequence[str], *, cwd: Path, check: bool, text: bool
+        command: Sequence[str],
+        *,
+        cwd: Path,
+        check: bool,
+        text: bool,
+        env: Mapping[str, str],
     ) -> subprocess.CompletedProcess[str]:
-        del command, cwd, check, text
+        del command, cwd, check, text, env
         raise FileNotFoundError("missing test executable")
 
     with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(missing_output):
