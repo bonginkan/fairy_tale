@@ -56,6 +56,9 @@ python3 scripts/fairy_tale_residency_check.py
    - Define stop limits: max subtasks, max files, max web searches, max tool
      calls, max elapsed time, and escalation conditions.
    - Prefer a small pilot before full autonomy.
+   - For long or tightly scoped work, create canonical linked Task Card and
+     Validation Ledger JSON with `scripts/task_artifacts.py`; render Markdown
+     only as a review/handoff view, not as a second source of truth.
 
 3. **Scout before synthesis**
    - Use cheap/scoped scouts for code search, logs, web research, or config
@@ -162,6 +165,9 @@ python3 scripts/fairy_tale_residency_check.py
    - For UI/visual work, inspect actual outputs.
    - For security findings, require reproducible defensive evidence and
      responsible-disclosure framing.
+   - Record each planned check as `pass`, `fail`, `blocked`, or `not_run` in
+     the linked Validation Ledger. Finalize `complete` only after every planned
+     check passes and blockers and remaining risks are explicit.
 
 9. **Consolidate**
    - Produce durable artifacts: summary, changed files, config update, skill

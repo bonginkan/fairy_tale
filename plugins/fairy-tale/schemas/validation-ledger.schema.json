@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/bonginkan/fairy_tale/schemas/validation-ledger.schema.json",
+  "title": "Fairy Tale Validation Ledger",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "artifact_type",
+    "task_id",
+    "task_card_path",
+    "status",
+    "checks",
+    "blockers",
+    "remaining_risks",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "artifact_type": { "const": "validation_ledger" },
+    "task_id": { "$ref": "#/$defs/id" },
+    "task_card_path": {
+      "$ref": "#/$defs/portable_filename"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["active", "blocked", "complete"]
+    },
+    "checks": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/check" }
+    },
+    "blockers": { "$ref": "#/$defs/text_list" },
+    "remaining_risks": { "$ref": "#/$defs/text_list" },
+    "summary": { "type": "string" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "status": { "const": "complete" } },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "checks": {
+            "minItems": 1,
+            "items": { "properties": { "result": { "const": "pass" } } }
+          },
+          "blockers": { "maxItems": 0 },
+          "summary": { "$ref": "#/$defs/text" }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "status": { "const": "blocked" } },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "blockers": { "minItems": 1 },
+          "summary": { "$ref": "#/$defs/text" }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{2,127}$"
+    },
+    "text": { "type": "string", "minLength": 1, "pattern": "\\S" },
+    "portable_filename": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$",
+      "allOf": [
+        {
+          "not": {
+            "pattern": "^(?:[Cc][Oo][Nn]|[Pp][Rr][Nn]|[Aa][Uu][Xx]|[Nn][Uu][Ll]|[Cc][Oo][Mm][1-9]|[Ll][Pp][Tt][1-9])(?:\\.|$)"
+          }
+        },
+        { "not": { "pattern": "\\.$" } }
+      ]
+    },
+    "text_list": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/text" }
+    },
+    "check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "plan_item",
+        "command",
+        "result",
+        "artifact_paths",
+        "notes"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "plan_item": { "$ref": "#/$defs/text" },
+        "command": { "type": "string" },
+        "result": {
+          "type": "string",
+          "enum": ["blocked", "fail", "not_run", "pass"]
+        },
+        "artifact_paths": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/text" }
+        },
+        "notes": { "type": "string" }
+      }
+    }
+  }
+}

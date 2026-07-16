@@ -50,6 +50,11 @@ cd fairy_tale
 [CONTRIBUTING.md](CONTRIBUTING.md)、[Feedback governance](docs/feedback-governance.md)
 を確認する。
 
+長時間または厳密に scope を限定した作業では、機械検証可能な
+[Task Card と Validation Ledger](docs/task-artifacts.md) を作成する。リンクした
+JSON artifact が objective、allowed targets、budget、stop conditions、検証結果、
+blocker、evidence path、remaining risk を handoff や context resume 後も保持する。
+
 ## 目的
 
 - 報告されている Fable 5 / Mythos 5 の強い能力を、運用上の用語で記述する。

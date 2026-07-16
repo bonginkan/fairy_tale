@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/bonginkan/fairy_tale/schemas/task-card.schema.json",
+  "title": "Fairy Tale Task Card",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "artifact_type",
+    "task_id",
+    "mode",
+    "objective",
+    "success_criteria",
+    "allowed_targets",
+    "constraints",
+    "budget",
+    "stop_conditions",
+    "validation_plan",
+    "ledger_path"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "artifact_type": { "const": "task_card" },
+    "task_id": { "$ref": "#/$defs/id" },
+    "mode": {
+      "type": "string",
+      "enum": ["benchmark", "coding", "research", "security"]
+    },
+    "objective": { "$ref": "#/$defs/text" },
+    "success_criteria": { "$ref": "#/$defs/text_list" },
+    "allowed_targets": { "$ref": "#/$defs/text_list" },
+    "constraints": { "$ref": "#/$defs/text_list" },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_elapsed_minutes",
+        "max_tool_calls",
+        "max_subagents",
+        "max_searches",
+        "token_or_cost_limit"
+      ],
+      "properties": {
+        "max_elapsed_minutes": { "type": "integer", "minimum": 1 },
+        "max_tool_calls": { "type": "integer", "minimum": 1 },
+        "max_subagents": { "type": "integer", "minimum": 0 },
+        "max_searches": { "type": "integer", "minimum": 0 },
+        "token_or_cost_limit": { "$ref": "#/$defs/text" }
+      }
+    },
+    "stop_conditions": { "$ref": "#/$defs/text_list" },
+    "validation_plan": { "$ref": "#/$defs/text_list" },
+    "ledger_path": {
+      "$ref": "#/$defs/portable_filename"
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{2,127}$"
+    },
+    "text": { "type": "string", "minLength": 1, "pattern": "\\S" },
+    "portable_filename": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$",
+      "allOf": [
+        {
+          "not": {
+            "pattern": "^(?:[Cc][Oo][Nn]|[Pp][Rr][Nn]|[Aa][Uu][Xx]|[Nn][Uu][Ll]|[Cc][Oo][Mm][1-9]|[Ll][Pp][Tt][1-9])(?:\\.|$)"
+          }
+        },
+        { "not": { "pattern": "\\.$" } }
+      ]
+    },
+    "text_list": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/text" }
+    }
+  }
+}

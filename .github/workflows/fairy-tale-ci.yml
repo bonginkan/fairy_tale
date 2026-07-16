@@ -23,6 +23,10 @@ jobs:
         run: python3 scripts/fairy_tale_residency_check.py
       - name: Install smoke test
         run: python3 scripts/install_smoke_test.py
+      - name: Task artifact gate (self-controls)
+        run: python3 scripts/task_artifacts.py selftest
+      - name: Task artifact acceptance cases
+        run: python3 scripts/task_artifacts.py cases --cases fixtures/task-artifacts/cases.jsonl
       - name: Skill token budget gate (self-controls)
         run: python3 scripts/skill_token_budget_check.py --selftest
       - name: Skill token budget full enforcement (post-#57 restructure)
