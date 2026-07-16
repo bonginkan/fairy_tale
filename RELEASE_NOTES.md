@@ -1,5 +1,36 @@
 # Release Notes
 
+## 0.2.22
+
+- **Finance Proposal Completeness Gate (new card + fail-closed checker)** (#74):
+  adds `references/cards/finance-proposal-completeness-gate.md` — a fail-closed
+  completeness gate for artifacts carrying financial claims (proposals, pricing
+  models, business cases, forecasts), fired from artifact content rather than
+  task wording. Arithmetic that reconciles is not completeness: every central
+  claim needs a ledger record (metric definition, period/currency/unit/tax
+  basis, displayed vs recomputed value, revenue drivers, cost drivers); every
+  evidenced or structurally entailed cost driver carries exactly one
+  disposition out of `amount` / `included-in` / `not-applicable-with-evidence`
+  / `TBD`, with `TBD` blocking (never an accepted zero) and `not-applicable`
+  requiring citable evidence. The Unit Economics Assumption Closure sub-gate
+  derives entailed rows from the stated business model (channel economics for
+  partner-led sales; setup/onboarding, support, security, incident response
+  for implementation/managed service; feasible conversion/churn cohort
+  schedules for recurring models). Aggregate margins inherit component
+  coverage; sign-off requires heterogeneous reviewer roles
+  (arithmetic/reconciliation + completeness/negative-space) bound to the same
+  immutable artifact hash. Deterministic enforcement via
+  `scripts/finance_completeness_check.py` (selftest with red/green/hostile
+  controls and an add/remove metamorphic flip) plus nine sanitized
+  cross-industry acceptance fixtures in
+  `fixtures/finance-completeness/cases.jsonl` (agency, SaaS, marketplace,
+  managed service, hardware, channel sales), both wired into CI. Router row +
+  Choose-a-route bullet + description trigger wired in SKILL.md, and three
+  routing-eval fixtures (finance-01/02 + OCR-only negative control
+  finance-03). Vocabulary is standard managerial-accounting usage; the gate
+  constrains completeness and disposition, not any org-specific accounting
+  policy.
+
 ## 0.2.21
 
 - **Token Consumption Optimizer Harness (new card + record)**: adds

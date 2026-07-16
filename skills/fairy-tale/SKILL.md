@@ -1,6 +1,6 @@
 ---
 name: fairy-tale
-description: Fable/Mythos-informed workflow harness for budgeted, evidence-driven, validation-gated agent execution. Use for loop engineering, spiral engineering, double-helix learning loops, evolutionary spiral operators, job automation, silent-loop auto-resume, do-not-disturb windows, usage-aware multi-agent load balancing, closure checks, negative-space discovery, excess/redundancy/legacy-surface review, e2e completion and GUI dogfood QA, creator-proxy (WWCD) elaboration, codebase migration, research synthesis, benchmark and legal reasoning, UI design best practices, UI/3D/creative work, token consumption optimization (process memoization), mechanism discovery, and defensive security process design.
+description: Fable/Mythos-informed workflow harness for budgeted, evidence-driven, validation-gated agent execution. Use for loop/spiral engineering, double-helix learning loops, evolutionary spiral operators, job automation, silent-loop auto-resume, do-not-disturb windows, usage-aware multi-agent load balancing, closure checks, negative-space discovery, excess/legacy-surface review, finance proposal completeness, e2e completion and GUI dogfood QA, creator-proxy (WWCD) elaboration, codebase migration, research synthesis, benchmark and legal reasoning, UI design best practices, UI/3D/creative work, token-consumption optimization (memoization), mechanism discovery, and defensive security process design.
 ---
 
 # Fairy Tale
@@ -117,6 +117,10 @@ python3 scripts/fairy_tale_residency_check.py
      personality cults, anecdotes, unsafe speed, or founder mythology.
    - For legal, HLE-style, bio/health, finance/document, or other benchmark
      work: use the Domain Router before applying any agentic-coding harness.
+   - For proposal/pricing/business-case review where the artifact itself
+     carries financial claims (revenue, margin, ROI, unit economics): run the
+     Finance Proposal Completeness Gate after the Evidence Table — arithmetic
+     that reconciles is not completeness.
    - For workflow improvement: inspect existing commands, skills, agents,
      memories, hooks, and sessions before adding new structure.
    - For loop engineering or job automation: use the Loop Engineering and Job
@@ -181,6 +185,7 @@ Route with the table below and read the linked card before applying a pattern; t
 | Legal Reasoning Harness | Identify jurisdiction, authority type, date, procedural posture, and task | `references/cards/legal-reasoning-harness.md` |
 | Bio/Health Safety Harness | Classify whether the task is benign explanation, clinical guidance, lab | `references/cards/bio-health-safety-harness.md` |
 | Evidence Table Harness | Extract document, table, chart, and source facts before analysis. | `references/cards/evidence-table-harness.md` |
+| Finance Proposal Completeness Gate | Fail-closed unit-economics closure for artifacts carrying financial claims. | `references/cards/finance-proposal-completeness-gate.md` |
 | Effort Inversion Debugger | Do not assume higher effort is better. If `xhigh` or max effort underperforms | `references/cards/effort-inversion-debugger.md` |
 | Best-Practice Gate | Use official or upstream documentation for current claims before updating the | `references/cards/best-practice-gate.md` |
 | Evaluated Feedback Loop | Treat failed benchmark criteria as reusable feedback, not just result data. | `references/cards/evaluated-feedback-loop.md` |
