@@ -13,6 +13,13 @@ reimplement the schemas or closure rules.
 The generator supports `coding`, `research`, `security`, and `benchmark` modes.
 Budgets are explicit inputs rather than universal defaults.
 
+When the Task Card output is inside a Git repository with
+`.fairy/profile.json`, the generator captures that profile as an immutable
+snapshot. Profile prohibitions are added to `constraints`, required validation
+commands are added to `validation_plan`, and the complete profile remains
+visible in JSON and Markdown. Repositories without a profile retain the generic
+behavior. See [Repository Fairy Profiles](fairy-profile.md).
+
 ```powershell
 python3 scripts/task_artifacts.py task-card `
   --task-id demo-coding `
@@ -102,7 +109,9 @@ python3 scripts/task_artifacts.py cases --cases fixtures/task-artifacts/cases.js
 ```
 
 The JSON schemas are `schemas/task-card.schema.json` and
-`schemas/validation-ledger.schema.json`. Keep canonical JSON and rendered
+`schemas/validation-ledger.schema.json`; optional profile snapshots reference
+`schemas/repo-profile-snapshot.schema.json` and
+`schemas/fairy-profile.schema.json`. Keep canonical JSON and rendered
 Markdown together only when the surrounding repository wants durable task
 artifacts; otherwise place them in an ignored or external run directory.
 Schemas enforce each document's closed shape and final-state floor. Use the

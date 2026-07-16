@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/bonginkan/fairy_tale/schemas/repo-profile-snapshot.schema.json",
+  "title": "Fairy Tale Repository Profile Snapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["path", "sha256", "profile"],
+  "properties": {
+    "path": { "const": ".fairy/profile.json" },
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "profile": { "$ref": "fairy-profile.schema.json" }
+  }
+}

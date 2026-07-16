@@ -10,8 +10,11 @@ scripts and Rust adapter runner, which stay directly executable.
 ./fairy validate
 ```
 
-`doctor` runs the residency check and adapter manifest validator, continuing
-through both so one failure does not hide the other. `validate` runs the
+`doctor` validates the caller repository's optional `.fairy/profile.json`,
+then runs the residency check and adapter manifest validator. It continues
+through all three so one failure does not hide the others. A missing profile is
+a successful compatibility fallback; a malformed profile fails closed.
+`validate` runs the
 deterministic repository suite used by CI. Use `validate --list`, `--dry-run`,
 or repeated `--only STEP` options to inspect or select registered checks.
 The command exits non-zero when any selected check fails or cannot execute.
@@ -29,9 +32,12 @@ engine without copying its schemas or lifecycle rules:
 ```
 
 The CLI resolves repository tooling relative to its own executable, so
-`doctor` and `validate` do not depend on the caller's current directory. Task
-artifact paths remain relative to the caller, matching direct
-`scripts/task_artifacts.py` use.
+`validate` does not depend on the caller's current directory. `doctor` preserves
+the caller directory only as the starting point for repository profile
+discovery, while still resolving its validators from the Fairy Tale checkout.
+Task artifact paths remain relative to the caller, matching direct
+`scripts/task_artifacts.py` use. See
+[Repository Fairy Profiles](fairy-profile.md).
 
 The existing `install.sh` remains intentionally skill-only: it installs no host
 executable and does not mutate `PATH`. Use `fairy` from a source checkout. This

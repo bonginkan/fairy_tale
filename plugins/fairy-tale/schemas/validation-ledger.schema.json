@@ -32,7 +32,8 @@
     },
     "blockers": { "$ref": "#/$defs/text_list" },
     "remaining_risks": { "$ref": "#/$defs/text_list" },
-    "summary": { "type": "string" }
+    "summary": { "type": "string" },
+    "repo_profile": { "$ref": "repo-profile-snapshot.schema.json" }
   },
   "allOf": [
     {

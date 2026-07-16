@@ -16,6 +16,7 @@ from typing import Callable, Mapping, Sequence
 
 
 ROOT = Path(__file__).resolve().parent
+CALLER_CWD = Path.cwd()
 PYTHON = sys.executable
 CREDENTIAL_ENV_KEYS = frozenset({"GITHUB_TOKEN", "GH_TOKEN"})
 
@@ -44,6 +45,14 @@ def python_step(
 
 
 DOCTOR_STEPS = (
+    python_step(
+        "profile",
+        "Repository Fairy profile",
+        "task_artifacts.py",
+        "profile-check",
+        "--start",
+        str(CALLER_CWD),
+    ),
     python_step("residency", "Residency check", "fairy_tale_residency_check.py"),
     Step(
         "adapters",
@@ -237,6 +246,10 @@ def selftest() -> int:
         [step.step_id for step in VALIDATION_STEPS if step.credential_keys]
         == ["card-provenance", "process-provenance"],
         "only provenance verification steps receive credentials",
+    )
+    check(
+        DOCTOR_STEPS[0].command[-2:] == ("--start", str(CALLER_CWD)),
+        "doctor validates the caller repository profile",
     )
     check(len(VALIDATION_STEPS) == 21, "validation registry remains complete")
     check(

@@ -52,7 +52,8 @@
     "validation_plan": { "$ref": "#/$defs/text_list" },
     "ledger_path": {
       "$ref": "#/$defs/portable_filename"
-    }
+    },
+    "repo_profile": { "$ref": "repo-profile-snapshot.schema.json" }
   },
   "$defs": {
     "id": {

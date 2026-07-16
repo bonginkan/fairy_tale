@@ -2,16 +2,18 @@
 """Create, update, render, and validate Fairy Tale task artifacts.
 
 JSON is the canonical representation. Markdown is a rendered view for handoff
-and completion reports. The future unified ``fairy`` CLI can delegate to this
+and completion reports. The repository-level ``fairy`` CLI delegates to this
 module without duplicating the artifact contract.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
+import subprocess
 import sys
 import tempfile
 import unicodedata
@@ -22,6 +24,7 @@ from typing import Any
 
 SCHEMA_VERSION = "1.0"
 ROOT = Path(__file__).resolve().parents[1]
+PROFILE_RELATIVE_PATH = Path(".fairy/profile.json")
 MODES = ("benchmark", "coding", "research", "security")
 RESULTS = ("blocked", "fail", "not_run", "pass")
 LEDGER_STATUSES = ("active", "blocked", "complete")
@@ -36,7 +39,7 @@ WINDOWS_RESERVED_NAMES = {
     *(f"LPT{index}" for index in range(1, 10)),
 }
 
-TASK_CARD_KEYS = {
+TASK_CARD_REQUIRED_KEYS = {
     "schema_version",
     "artifact_type",
     "task_id",
@@ -50,6 +53,7 @@ TASK_CARD_KEYS = {
     "validation_plan",
     "ledger_path",
 }
+TASK_CARD_KEYS = TASK_CARD_REQUIRED_KEYS | {"repo_profile"}
 BUDGET_KEYS = {
     "max_elapsed_minutes",
     "max_tool_calls",
@@ -57,7 +61,7 @@ BUDGET_KEYS = {
     "max_searches",
     "token_or_cost_limit",
 }
-LEDGER_KEYS = {
+LEDGER_REQUIRED_KEYS = {
     "schema_version",
     "artifact_type",
     "task_id",
@@ -68,6 +72,7 @@ LEDGER_KEYS = {
     "remaining_risks",
     "summary",
 }
+LEDGER_KEYS = LEDGER_REQUIRED_KEYS | {"repo_profile"}
 CHECK_KEYS = {
     "id",
     "plan_item",
@@ -76,6 +81,18 @@ CHECK_KEYS = {
     "artifact_paths",
     "notes",
 }
+PROFILE_KEYS = {
+    "schema_version",
+    "profile_id",
+    "required_validations",
+    "prohibited_actions",
+    "recommended_steps",
+    "artifact_paths",
+}
+PROFILE_VALIDATION_KEYS = {"id", "description", "command"}
+PROFILE_TEXT_RULE_KEYS = {"id", "description"}
+PROFILE_ARTIFACT_KEYS = {"id", "description", "path"}
+PROFILE_SNAPSHOT_KEYS = {"path", "sha256", "profile"}
 
 
 class ArtifactError(ValueError):
@@ -111,6 +128,16 @@ def portable_filename(value: Any) -> bool:
     return stem not in WINDOWS_RESERVED_NAMES and not value.endswith(".")
 
 
+def repo_relative_path(value: Any) -> bool:
+    if not has_text(value) or "\\" in value or ":" in value:
+        return False
+    path = Path(value)
+    segments = value.split("/")
+    return not path.is_absolute() and all(
+        segment not in {"", ".", ".."} for segment in segments
+    )
+
+
 def add(findings: list[Finding], code: str, message: str) -> None:
     findings.append(Finding(code, message))
 
@@ -131,13 +158,214 @@ def missing_keys(
         add(findings, code, "missing keys: " + ", ".join(missing))
 
 
+def validate_profile_entries(
+    value: Any,
+    *,
+    field: str,
+    keys: set[str],
+    findings: list[Finding],
+) -> list[str]:
+    identifiers: list[str] = []
+    if not isinstance(value, list):
+        add(findings, f"fairy_profile.{field}", f"{field} must be a list")
+        return identifiers
+    for index, entry in enumerate(value):
+        prefix = f"fairy_profile.{field}[{index}]"
+        if not isinstance(entry, dict):
+            add(findings, prefix, "entry must be an object")
+            continue
+        unknown_keys(entry, keys, f"{prefix}.unknown_keys", findings)
+        missing_keys(entry, keys, f"{prefix}.missing", findings)
+        identifier = entry.get("id")
+        if not valid_id(identifier):
+            add(findings, f"{prefix}.id", "id is malformed")
+        else:
+            identifiers.append(identifier)
+        if not has_text(entry.get("description")):
+            add(findings, f"{prefix}.description", "description is required")
+        if "command" in keys and not has_text(entry.get("command")):
+            add(findings, f"{prefix}.command", "command is required")
+        if "path" in keys and not repo_relative_path(entry.get("path")):
+            add(findings, f"{prefix}.path", "path must be a safe repo-relative path")
+    return identifiers
+
+
+def validate_fairy_profile(profile: Any) -> list[Finding]:
+    findings: list[Finding] = []
+    if not isinstance(profile, dict):
+        return [Finding("fairy_profile.not_object", "Fairy profile must be an object")]
+
+    unknown_keys(profile, PROFILE_KEYS, "fairy_profile.unknown_keys", findings)
+    missing_keys(profile, PROFILE_KEYS, "fairy_profile.missing", findings)
+    if profile.get("schema_version") != SCHEMA_VERSION:
+        add(findings, "fairy_profile.schema_version", "schema_version must be 1.0")
+    if not valid_id(profile.get("profile_id")):
+        add(findings, "fairy_profile.profile_id", "profile_id is malformed")
+
+    identifiers: list[str] = []
+    identifiers.extend(
+        validate_profile_entries(
+            profile.get("required_validations"),
+            field="required_validations",
+            keys=PROFILE_VALIDATION_KEYS,
+            findings=findings,
+        )
+    )
+    for field in ("prohibited_actions", "recommended_steps"):
+        identifiers.extend(
+            validate_profile_entries(
+                profile.get(field),
+                field=field,
+                keys=PROFILE_TEXT_RULE_KEYS,
+                findings=findings,
+            )
+        )
+    identifiers.extend(
+        validate_profile_entries(
+            profile.get("artifact_paths"),
+            field="artifact_paths",
+            keys=PROFILE_ARTIFACT_KEYS,
+            findings=findings,
+        )
+    )
+    duplicates = sorted(
+        {identifier for identifier in identifiers if identifiers.count(identifier) > 1}
+    )
+    if duplicates:
+        add(
+            findings,
+            "fairy_profile.duplicate_id",
+            "rule ids must be unique across the profile: " + ", ".join(duplicates),
+        )
+    if not identifiers:
+        add(findings, "fairy_profile.empty", "profile must declare at least one rule")
+    return findings
+
+
+def validate_profile_snapshot(snapshot: Any) -> list[Finding]:
+    findings: list[Finding] = []
+    if not isinstance(snapshot, dict):
+        return [Finding("repo_profile.not_object", "repo_profile must be an object")]
+    unknown_keys(snapshot, PROFILE_SNAPSHOT_KEYS, "repo_profile.unknown_keys", findings)
+    missing_keys(snapshot, PROFILE_SNAPSHOT_KEYS, "repo_profile.missing", findings)
+    if snapshot.get("path") != PROFILE_RELATIVE_PATH.as_posix():
+        add(findings, "repo_profile.path", "profile path must be .fairy/profile.json")
+    sha256 = snapshot.get("sha256")
+    if not isinstance(sha256, str) or not re.fullmatch(r"sha256:[0-9a-f]{64}", sha256):
+        add(findings, "repo_profile.sha256", "sha256 must be a lowercase SHA-256 locator")
+    profile_findings = validate_fairy_profile(snapshot.get("profile"))
+    findings.extend(
+        Finding(f"repo_profile.{item.code}", item.message)
+        for item in profile_findings
+    )
+    if not profile_findings and isinstance(sha256, str):
+        expected = profile_sha256(snapshot["profile"])
+        if sha256 != expected:
+            add(
+                findings,
+                "repo_profile.sha256_mismatch",
+                "sha256 does not match the embedded profile",
+            )
+    return findings
+
+
+def profile_sha256(profile: dict[str, Any]) -> str:
+    canonical = json.dumps(
+        profile,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    return "sha256:" + hashlib.sha256(canonical).hexdigest()
+
+
+def repository_root(start: Path) -> Path | None:
+    resolved = resolve_path(start)
+    if resolved.is_file():
+        resolved = resolved.parent
+    while not resolved.exists() and resolved != resolved.parent:
+        resolved = resolved.parent
+    if not resolved.is_dir():
+        resolved = resolved.parent
+    try:
+        completed = subprocess.run(
+            ["git", "-C", str(resolved), "rev-parse", "--show-toplevel"],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+    except OSError as exc:
+        raise ArtifactError(f"cannot discover Git root from {resolved}: {exc}") from exc
+    if completed.returncode != 0:
+        return None
+    root_text = completed.stdout.strip()
+    if not root_text:
+        raise ArtifactError(f"Git returned an empty repository root from {resolved}")
+    root = resolve_path(Path(root_text))
+    if not root.is_dir():
+        raise ArtifactError(f"Git repository root is not a directory: {root}")
+    return root
+
+
+def load_repo_profile(start: Path) -> dict[str, Any] | None:
+    root = repository_root(start)
+    if root is None:
+        return None
+    profile_directory = exact_path_entry(
+        root / PROFILE_RELATIVE_PATH.parent,
+        "Fairy profile directory",
+        allow_missing=True,
+        expected_kind="directory",
+    )
+    if profile_directory is None:
+        return None
+    path = exact_path_entry(
+        profile_directory / PROFILE_RELATIVE_PATH.name,
+        "Fairy profile",
+        allow_missing=True,
+        expected_kind="file",
+    )
+    if path is None:
+        return None
+    raw = read_utf8(path, "Fairy profile")
+    try:
+        profile = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ArtifactError(f"invalid JSON in Fairy profile {path}: {exc.msg}") from exc
+    require_valid(validate_fairy_profile(profile))
+    return {
+        "path": PROFILE_RELATIVE_PATH.as_posix(),
+        "sha256": profile_sha256(profile),
+        "profile": profile,
+    }
+
+
+def profile_validation_items(snapshot: dict[str, Any]) -> list[str]:
+    return [
+        f"[profile:{item['id']}] {item['description']} Command: {item['command']}"
+        for item in snapshot["profile"]["required_validations"]
+    ]
+
+
+def profile_constraint_items(snapshot: dict[str, Any]) -> list[str]:
+    return [
+        f"[profile:{item['id']}] {item['description']}"
+        for item in snapshot["profile"]["prohibited_actions"]
+    ]
+
+
+def merge_unique(base: list[str], additions: list[str]) -> list[str]:
+    return list(dict.fromkeys([*base, *additions]))
+
+
 def validate_task_card(card: Any) -> list[Finding]:
     findings: list[Finding] = []
     if not isinstance(card, dict):
         return [Finding("task_card.not_object", "task card must be an object")]
 
     unknown_keys(card, TASK_CARD_KEYS, "task_card.unknown_keys", findings)
-    missing_keys(card, TASK_CARD_KEYS, "task_card.missing", findings)
+    missing_keys(card, TASK_CARD_REQUIRED_KEYS, "task_card.missing", findings)
     if card.get("schema_version") != SCHEMA_VERSION:
         add(findings, "task_card.schema_version", "schema_version must be 1.0")
     if card.get("artifact_type") != "task_card":
@@ -188,6 +416,28 @@ def validate_task_card(card: Any) -> list[Finding]:
             "task_card.ledger_path",
             "ledger_path must be a portable filename in the Task Card directory",
         )
+    if "repo_profile" in card:
+        profile_findings = validate_profile_snapshot(card.get("repo_profile"))
+        findings.extend(
+            Finding(f"task_card.{item.code}", item.message) for item in profile_findings
+        )
+        if not profile_findings:
+            expected_constraints = set(profile_constraint_items(card["repo_profile"]))
+            actual_constraints = set(card.get("constraints", []))
+            if not expected_constraints <= actual_constraints:
+                add(
+                    findings,
+                    "task_card.repo_profile.constraints",
+                    "profile prohibited actions must be projected into constraints",
+                )
+            expected_validations = set(profile_validation_items(card["repo_profile"]))
+            actual_validations = set(card.get("validation_plan", []))
+            if not expected_validations <= actual_validations:
+                add(
+                    findings,
+                    "task_card.repo_profile.validation_plan",
+                    "profile required validations must be projected into validation_plan",
+                )
     return findings
 
 
@@ -237,7 +487,7 @@ def validate_validation_ledger(
         return [Finding("validation_ledger.not_object", "validation ledger must be an object")]
 
     unknown_keys(ledger, LEDGER_KEYS, "validation_ledger.unknown_keys", findings)
-    missing_keys(ledger, LEDGER_KEYS, "validation_ledger.missing", findings)
+    missing_keys(ledger, LEDGER_REQUIRED_KEYS, "validation_ledger.missing", findings)
     if ledger.get("schema_version") != SCHEMA_VERSION:
         add(findings, "validation_ledger.schema_version", "schema_version must be 1.0")
     if ledger.get("artifact_type") != "validation_ledger":
@@ -281,6 +531,11 @@ def validate_validation_ledger(
             add(findings, f"validation_ledger.{field}", f"{field} must be a string list")
     if not isinstance(ledger.get("summary"), str):
         add(findings, "validation_ledger.summary", "summary must be a string")
+    if "repo_profile" in ledger:
+        findings.extend(
+            Finding(f"validation_ledger.{item.code}", item.message)
+            for item in validate_profile_snapshot(ledger.get("repo_profile"))
+        )
 
     card: dict[str, Any] | None = None
     if verify_link:
@@ -314,6 +569,12 @@ def validate_validation_ledger(
                         card = loaded
                         if card.get("task_id") != ledger.get("task_id"):
                             add(findings, "validation_ledger.link.task_id", "task ids do not match")
+                        if card.get("repo_profile") != ledger.get("repo_profile"):
+                            add(
+                                findings,
+                                "validation_ledger.link.repo_profile",
+                                "Task Card and ledger repo_profile snapshots must match",
+                            )
                         if card.get("ledger_path") != ledger_path.name:
                             add(
                                 findings,
@@ -470,30 +731,51 @@ def portable_path_identity(path: Path) -> tuple[str, ...]:
     return tuple(portable_name_identity(part) for part in resolve_path(path).parts)
 
 
-def canonical_artifact_path(
-    path: Path, label: str, *, allow_missing: bool = False
-) -> Path:
+def exact_path_entry(
+    path: Path,
+    label: str,
+    *,
+    allow_missing: bool = False,
+    expected_kind: str = "file",
+) -> Path | None:
     try:
         directory_entries = os.listdir(path.parent)
     except OSError as exc:
         raise ArtifactError(f"cannot inspect {label} directory {path.parent}: {exc}") from exc
 
+    aliases = [
+        name
+        for name in directory_entries
+        if portable_name_identity(name) == portable_name_identity(path.name)
+    ]
     if path.name not in directory_entries:
-        aliases = [
-            name
-            for name in directory_entries
-            if portable_name_identity(name) == portable_name_identity(path.name)
-        ]
         if aliases:
             raise ArtifactError(
-                f"{label} filename must match exactly: stored {path.name}, found {aliases[0]}"
+                f"{label} name must match exactly: expected {path.name}, found {aliases[0]}"
             )
         if allow_missing:
-            return resolve_path(path)
-        raise ArtifactError(f"{label} not found under its exact stored filename: {path.name}")
+            return None
+        raise ArtifactError(f"{label} not found under its exact stored name: {path.name}")
+    conflicting_aliases = sorted(name for name in aliases if name != path.name)
+    if conflicting_aliases:
+        raise ArtifactError(
+            f"{label} has conflicting portable aliases: {path.name}, "
+            + ", ".join(conflicting_aliases)
+        )
     if path.is_symlink():
-        raise ArtifactError(f"{label} must be a regular file in the artifact directory")
+        raise ArtifactError(f"{label} cannot be a symlink")
+    if expected_kind == "file" and not path.is_file():
+        raise ArtifactError(f"{label} must be a regular file: {path}")
+    if expected_kind == "directory" and not path.is_dir():
+        raise ArtifactError(f"{label} must be a directory: {path}")
     return resolve_path(path)
+
+
+def canonical_artifact_path(
+    path: Path, label: str, *, allow_missing: bool = False
+) -> Path:
+    resolved = exact_path_entry(path, label, allow_missing=allow_missing)
+    return resolve_path(path) if resolved is None else resolved
 
 
 def require_distinct_paths(first: Path, second: Path, message: str) -> None:
@@ -511,8 +793,16 @@ def require_valid(findings: list[Finding]) -> None:
         raise ArtifactError(detail)
 
 
-def make_task_card(args: argparse.Namespace) -> dict[str, Any]:
-    return {
+def make_task_card(
+    args: argparse.Namespace,
+    repo_profile: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    constraints = list(args.constraint)
+    validation_plan = list(args.validation)
+    if repo_profile is not None:
+        constraints = merge_unique(constraints, profile_constraint_items(repo_profile))
+        validation_plan = merge_unique(validation_plan, profile_validation_items(repo_profile))
+    card = {
         "schema_version": SCHEMA_VERSION,
         "artifact_type": "task_card",
         "task_id": args.task_id,
@@ -520,7 +810,7 @@ def make_task_card(args: argparse.Namespace) -> dict[str, Any]:
         "objective": args.objective,
         "success_criteria": args.success,
         "allowed_targets": args.target,
-        "constraints": args.constraint,
+        "constraints": constraints,
         "budget": {
             "max_elapsed_minutes": args.max_elapsed_minutes,
             "max_tool_calls": args.max_tool_calls,
@@ -529,13 +819,16 @@ def make_task_card(args: argparse.Namespace) -> dict[str, Any]:
             "token_or_cost_limit": args.token_or_cost_limit,
         },
         "stop_conditions": args.stop,
-        "validation_plan": args.validation,
+        "validation_plan": validation_plan,
         "ledger_path": args.ledger_path,
     }
+    if repo_profile is not None:
+        card["repo_profile"] = repo_profile
+    return card
 
 
 def empty_validation_ledger(card: dict[str, Any], card_path: Path, ledger_path: Path) -> dict[str, Any]:
-    return {
+    ledger = {
         "schema_version": SCHEMA_VERSION,
         "artifact_type": "validation_ledger",
         "task_id": card["task_id"],
@@ -546,6 +839,47 @@ def empty_validation_ledger(card: dict[str, Any], card_path: Path, ledger_path: 
         "remaining_risks": [],
         "summary": "",
     }
+    if "repo_profile" in card:
+        ledger["repo_profile"] = json.loads(json.dumps(card["repo_profile"]))
+    return ledger
+
+
+def repo_profile_markdown(snapshot: dict[str, Any] | None) -> list[str]:
+    if snapshot is None:
+        return []
+    profile = snapshot["profile"]
+    lines = [
+        "",
+        "## Repo Profile",
+        f"- ID: `{profile['profile_id']}`",
+        f"- Source: `{snapshot['path']}`",
+        f"- SHA-256: `{snapshot['sha256']}`",
+        "",
+        "### Required Validations",
+    ]
+    lines.extend(
+        [f"- `{item['id']}`: {item['description']} (`{item['command']}`)" for item in profile["required_validations"]]
+        or ["- None declared."]
+    )
+    lines.extend(["", "### Prohibited Actions"])
+    lines.extend(
+        [f"- `{item['id']}`: {item['description']}" for item in profile["prohibited_actions"]]
+        or ["- None declared."]
+    )
+    lines.extend(["", "### Recommended Steps"])
+    lines.extend(
+        [f"- `{item['id']}`: {item['description']}" for item in profile["recommended_steps"]]
+        or ["- None declared."]
+    )
+    lines.extend(["", "### Artifact Paths"])
+    lines.extend(
+        [
+            f"- `{item['id']}`: `{item['path']}` - {item['description']}"
+            for item in profile["artifact_paths"]
+        ]
+        or ["- None declared."]
+    )
+    return lines
 
 
 def task_card_markdown(card: dict[str, Any]) -> str:
@@ -565,6 +899,7 @@ def task_card_markdown(card: dict[str, Any]) -> str:
         "",
         "## Constraints",
         *[f"- {item}" for item in card["constraints"]],
+        *repo_profile_markdown(card.get("repo_profile")),
         "",
         "## Budget",
         f"- Elapsed minutes: {budget['max_elapsed_minutes']}",
@@ -592,6 +927,7 @@ def ledger_markdown(ledger: dict[str, Any]) -> str:
         "",
         f"- Task card: `{ledger['task_card_path']}`",
         f"- Status: `{ledger['status']}`",
+        *repo_profile_markdown(ledger.get("repo_profile")),
         "",
         "## Checks",
         "",
@@ -628,7 +964,7 @@ def ledger_markdown(ledger: dict[str, Any]) -> str:
 def command_task_card(args: argparse.Namespace) -> int:
     if not portable_filename(args.output.name):
         raise ArtifactError("Task Card output must use a portable filename")
-    card = make_task_card(args)
+    card = make_task_card(args, load_repo_profile(args.output.parent))
     require_valid(validate_task_card(card))
     linked_ledger = args.output.parent / str(card["ledger_path"])
     require_distinct_paths(
@@ -651,6 +987,31 @@ def command_task_card(args: argparse.Namespace) -> int:
     if args.markdown_output:
         write_text_atomic(args.markdown_output, task_card_markdown(card))
     print(f"wrote task card: {args.output}")
+    return 0
+
+
+def command_profile_check(args: argparse.Namespace) -> int:
+    snapshot = load_repo_profile(args.start)
+    if snapshot is None:
+        print(f"OK no Fairy profile found from: {resolve_path(args.start)}")
+        return 0
+    profile = snapshot["profile"]
+    rule_count = sum(
+        len(profile[field])
+        for field in (
+            "required_validations",
+            "prohibited_actions",
+            "recommended_steps",
+            "artifact_paths",
+        )
+    )
+    root = repository_root(args.start)
+    if root is None:
+        raise ArtifactError(f"cannot resolve Git root from {args.start}")
+    print(
+        f"OK Fairy profile valid: {root / PROFILE_RELATIVE_PATH} "
+        f"({profile['profile_id']}; {rule_count} rules)"
+    )
     return 0
 
 
@@ -835,6 +1196,48 @@ def _test_card(mode: str = "coding") -> dict[str, Any]:
     return make_task_card(args)
 
 
+def _test_profile() -> dict[str, Any]:
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "profile_id": "test-repository",
+        "required_validations": [
+            {
+                "id": "focused-test",
+                "description": "Run the repository focused tests.",
+                "command": "python3 -m pytest tests/test_focus.py",
+            }
+        ],
+        "prohibited_actions": [
+            {
+                "id": "no-force-push",
+                "description": "Do not force-push repository branches.",
+            }
+        ],
+        "recommended_steps": [
+            {
+                "id": "review-head",
+                "description": "Review the exact candidate head before merge.",
+            }
+        ],
+        "artifact_paths": [
+            {
+                "id": "release-notes",
+                "description": "Record user-visible release changes.",
+                "path": "RELEASE_NOTES.md",
+            }
+        ],
+    }
+
+
+def _test_profile_snapshot(profile: dict[str, Any] | None = None) -> dict[str, Any]:
+    resolved_profile = profile or _test_profile()
+    return {
+        "path": PROFILE_RELATIVE_PATH.as_posix(),
+        "sha256": profile_sha256(resolved_profile),
+        "profile": resolved_profile,
+    }
+
+
 def command_selftest(_args: argparse.Namespace) -> int:
     controls = 0
 
@@ -872,10 +1275,32 @@ def command_selftest(_args: argparse.Namespace) -> int:
 
     task_schema = load_json(ROOT / "schemas" / "task-card.schema.json")
     ledger_schema = load_json(ROOT / "schemas" / "validation-ledger.schema.json")
-    check(set(task_schema["required"]) == TASK_CARD_KEYS, "task schema top-level sync")
+    profile_schema = load_json(ROOT / "schemas" / "fairy-profile.schema.json")
+    snapshot_schema = load_json(
+        ROOT / "schemas" / "repo-profile-snapshot.schema.json"
+    )
+    check(
+        set(task_schema["required"]) == TASK_CARD_REQUIRED_KEYS,
+        "task schema required-key sync",
+    )
+    check(set(task_schema["properties"]) == TASK_CARD_KEYS, "task schema property sync")
     check(set(task_schema["properties"]["budget"]["required"]) == BUDGET_KEYS, "task budget schema sync")
-    check(set(ledger_schema["required"]) == LEDGER_KEYS, "ledger schema top-level sync")
+    check(
+        set(ledger_schema["required"]) == LEDGER_REQUIRED_KEYS,
+        "ledger schema required-key sync",
+    )
+    check(set(ledger_schema["properties"]) == LEDGER_KEYS, "ledger schema property sync")
     check(set(ledger_schema["$defs"]["check"]["required"]) == CHECK_KEYS, "check schema sync")
+    check(set(profile_schema["required"]) == PROFILE_KEYS, "profile schema required-key sync")
+    check(set(profile_schema["properties"]) == PROFILE_KEYS, "profile schema property sync")
+    check(
+        set(snapshot_schema["required"]) == PROFILE_SNAPSHOT_KEYS,
+        "profile snapshot schema required-key sync",
+    )
+    check(
+        set(snapshot_schema["properties"]) == PROFILE_SNAPSHOT_KEYS,
+        "profile snapshot schema property sync",
+    )
     pass_evidence = ledger_schema["$defs"]["check"]["allOf"][0]["then"]["anyOf"]
     check(
         {next(iter(item["properties"])) for item in pass_evidence}
@@ -890,6 +1315,110 @@ def command_selftest(_args: argparse.Namespace) -> int:
     malformed = dict(card, task_id=123)
     check(any(item.code == "task_card.task_id" for item in validate_task_card(malformed)), "non-string task id")
 
+    profile = _test_profile()
+    check(not validate_fairy_profile(profile), "valid Fairy profile")
+    malformed_profile = dict(profile, typo=[])
+    check(
+        any(
+            item.code == "fairy_profile.unknown_keys"
+            for item in validate_fairy_profile(malformed_profile)
+        ),
+        "unknown profile key",
+    )
+    malformed_profile = json.loads(json.dumps(profile))
+    malformed_profile["recommended_steps"][0]["id"] = "focused-test"
+    check(
+        any(
+            item.code == "fairy_profile.duplicate_id"
+            for item in validate_fairy_profile(malformed_profile)
+        ),
+        "profile ids are globally unique",
+    )
+    for unsafe_profile_path in (
+        "../RELEASE_NOTES.md",
+        "./RELEASE_NOTES.md",
+        "docs/./release.md",
+        "docs//release.md",
+        "docs/../release.md",
+        "C:/release.md",
+        "docs\\release.md",
+        "/release.md",
+        " ",
+    ):
+        malformed_profile = json.loads(json.dumps(profile))
+        malformed_profile["artifact_paths"][0]["path"] = unsafe_profile_path
+        check(
+            any(
+                item.code.endswith("artifact_paths[0].path")
+                for item in validate_fairy_profile(malformed_profile)
+            ),
+            f"unsafe profile artifact path {unsafe_profile_path!r}",
+        )
+    malformed_snapshot = _test_profile_snapshot()
+    malformed_snapshot["sha256"] = "sha256:ABC"
+    check(
+        any(
+            item.code == "repo_profile.sha256"
+            for item in validate_profile_snapshot(malformed_snapshot)
+        ),
+        "profile snapshot hash is strict",
+    )
+    mismatched_snapshot = _test_profile_snapshot()
+    mismatched_snapshot["profile"]["profile_id"] = "changed-profile"
+    check(
+        any(
+            item.code == "repo_profile.sha256_mismatch"
+            for item in validate_profile_snapshot(mismatched_snapshot)
+        ),
+        "profile snapshot hash binds the embedded profile",
+    )
+
+    profile_snapshot = _test_profile_snapshot()
+    profiled_card = make_task_card(
+        argparse.Namespace(
+            task_id="test-profiled",
+            mode="coding",
+            objective="Honor repository-local workflow rules.",
+            success=["Profile rules are reflected in task artifacts."],
+            target=["src/", "tests/"],
+            constraint=["Preserve adjacent behavior."],
+            max_elapsed_minutes=60,
+            max_tool_calls=40,
+            max_subagents=1,
+            max_searches=8,
+            token_or_cost_limit="one bounded agent run",
+            stop=["Stop on an authority or safety boundary."],
+            validation=["focused test"],
+            ledger_path="validation-ledger.json",
+        ),
+        profile_snapshot,
+    )
+    check(not validate_task_card(profiled_card), "profiled Task Card is valid")
+    check(
+        profile_constraint_items(profile_snapshot)[0] in profiled_card["constraints"],
+        "profile prohibition projects into constraints",
+    )
+    check(
+        profile_validation_items(profile_snapshot)[0]
+        in profiled_card["validation_plan"],
+        "profile validation projects into the plan",
+    )
+    stripped_projection = json.loads(json.dumps(profiled_card))
+    stripped_projection["validation_plan"].remove(
+        profile_validation_items(profile_snapshot)[0]
+    )
+    check(
+        any(
+            item.code == "task_card.repo_profile.validation_plan"
+            for item in validate_task_card(stripped_projection)
+        ),
+        "profile validation projection is enforced",
+    )
+    check(
+        "## Repo Profile" in task_card_markdown(profiled_card),
+        "profile remains visible in the Task Card review view",
+    )
+
     with tempfile.TemporaryDirectory() as raw_dir:
         root = Path(raw_dir)
         card_path = root / "task-card.json"
@@ -901,6 +1430,21 @@ def command_selftest(_args: argparse.Namespace) -> int:
             except ArtifactError:
                 return True
             return False
+
+        def initialize_git_repo(path: Path) -> None:
+            path.mkdir(parents=True, exist_ok=True)
+            completed = subprocess.run(
+                ["git", "init", "--quiet", str(path)],
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            if completed.returncode != 0:
+                raise AssertionError(
+                    f"cannot initialize selftest Git repository {path}: "
+                    f"{completed.stderr.strip()}"
+                )
 
         def card_args(
             output: Path, *, ledger_name: str = "validation-ledger.json", markdown: Path | None = None
@@ -923,6 +1467,76 @@ def command_selftest(_args: argparse.Namespace) -> int:
                 output=output,
                 markdown_output=markdown,
             )
+
+        repo_root = root / "profiled-repo"
+        initialize_git_repo(repo_root)
+        profile_dir = repo_root / ".fairy"
+        profile_dir.mkdir(parents=True)
+        write_json(profile_dir / "profile.json", profile)
+        loaded_profile = load_repo_profile(repo_root / "nested" / "output")
+        check(loaded_profile is not None, "profile is discovered from a nested path")
+        check(
+            loaded_profile is not None
+            and loaded_profile["profile"] == profile
+            and loaded_profile["path"] == PROFILE_RELATIVE_PATH.as_posix(),
+            "profile snapshot preserves source identity",
+        )
+        shadow_directory = repo_root / "nested"
+        shadow_directory.mkdir()
+        (shadow_directory / ".git").mkdir()
+        check(
+            load_repo_profile(shadow_directory / "output") == loaded_profile,
+            "an empty nested .git marker cannot shadow the actual Git root",
+        )
+        check(
+            load_repo_profile(root / "unprofiled") is None,
+            "missing Fairy profile falls back cleanly",
+        )
+        unprofiled_repo = root / "unprofiled-repo"
+        initialize_git_repo(unprofiled_repo)
+        check(
+            load_repo_profile(unprofiled_repo) is None,
+            "a Git repository without a profile falls back cleanly",
+        )
+        invalid_repo = root / "invalid-profile-repo"
+        initialize_git_repo(invalid_repo)
+        (invalid_repo / ".fairy").mkdir()
+        (invalid_repo / ".fairy" / "profile.json").write_text(
+            '{"schema_version":"1.0"}', encoding="utf-8"
+        )
+        check(
+            rejected(lambda: load_repo_profile(invalid_repo)),
+            "invalid Fairy profile fails closed",
+        )
+        dangling_repo = root / "dangling-profile-repo"
+        initialize_git_repo(dangling_repo)
+        (dangling_repo / ".fairy").mkdir()
+        dangling_profile = dangling_repo / ".fairy" / "profile.json"
+        try:
+            dangling_profile.symlink_to("missing-profile.json")
+        except (NotImplementedError, OSError):
+            pass
+        else:
+            check(
+                rejected(lambda: load_repo_profile(dangling_repo)),
+                "dangling profile symlink fails closed",
+            )
+        case_directory_repo = root / "case-directory-repo"
+        initialize_git_repo(case_directory_repo)
+        (case_directory_repo / ".FAIRY").mkdir()
+        write_json(case_directory_repo / ".FAIRY" / "profile.json", profile)
+        check(
+            rejected(lambda: load_repo_profile(case_directory_repo)),
+            "case-drifted Fairy profile directory fails closed",
+        )
+        case_filename_repo = root / "case-filename-repo"
+        initialize_git_repo(case_filename_repo)
+        (case_filename_repo / ".fairy").mkdir()
+        write_json(case_filename_repo / ".fairy" / "PROFILE.JSON", profile)
+        check(
+            rejected(lambda: load_repo_profile(case_filename_repo)),
+            "case-drifted Fairy profile filename fails closed",
+        )
 
         invalid_utf8 = root / "invalid-utf8.json"
         invalid_utf8.write_bytes(b"\xff\xfe")
@@ -1049,6 +1663,49 @@ def command_selftest(_args: argparse.Namespace) -> int:
         ledger = empty_validation_ledger(card, card_path, ledger_path)
         write_json(ledger_path, ledger)
         check(not validate_validation_ledger(ledger, ledger_path=ledger_path, verify_link=True), "linked active ledger")
+
+        profiled_card_path = root / "profiled-task-card.json"
+        profiled_ledger_path = root / "profiled-validation-ledger.json"
+        linked_profiled_card = json.loads(json.dumps(profiled_card))
+        linked_profiled_card["ledger_path"] = profiled_ledger_path.name
+        write_json(profiled_card_path, linked_profiled_card)
+        profiled_ledger = empty_validation_ledger(
+            linked_profiled_card,
+            profiled_card_path,
+            profiled_ledger_path,
+        )
+        write_json(profiled_ledger_path, profiled_ledger)
+        check(
+            profiled_ledger.get("repo_profile") == profile_snapshot,
+            "ledger copies the Task Card profile snapshot",
+        )
+        check(
+            not validate_validation_ledger(
+                profiled_ledger,
+                ledger_path=profiled_ledger_path,
+                verify_link=True,
+            ),
+            "profiled linked ledger is valid",
+        )
+        mismatched_profile = json.loads(json.dumps(profiled_ledger))
+        mismatched_profile["repo_profile"] = _test_profile_snapshot(
+            dict(profile, profile_id="other-repository")
+        )
+        check(
+            any(
+                item.code == "validation_ledger.link.repo_profile"
+                for item in validate_validation_ledger(
+                    mismatched_profile,
+                    ledger_path=profiled_ledger_path,
+                    verify_link=True,
+                )
+            ),
+            "linked profile snapshot mismatch blocks",
+        )
+        check(
+            "## Repo Profile" in ledger_markdown(profiled_ledger),
+            "profile remains visible in the ledger review view",
+        )
 
         for index, plan_item in enumerate(card["validation_plan"], start=1):
             ledger["checks"].append(
@@ -1227,6 +1884,13 @@ def command_selftest(_args: argparse.Namespace) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Create and validate Fairy Tale task artifacts.")
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    profile_check = subparsers.add_parser(
+        "profile-check",
+        help="validate the nearest repository Fairy profile when present",
+    )
+    profile_check.add_argument("--start", type=Path, default=Path.cwd())
+    profile_check.set_defaults(func=command_profile_check)
 
     card = subparsers.add_parser("task-card", help="write a canonical JSON Task Card")
     card.add_argument("--task-id", required=True)

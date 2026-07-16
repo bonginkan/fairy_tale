@@ -1,5 +1,24 @@
 # Release Notes
 
+## 0.2.28
+
+- **Repository Fairy profiles** (#11): adds the optional, closed
+  `.fairy/profile.json` contract for repository-specific required validations,
+  prohibited actions, recommended steps, and artifact paths. Task Card creation
+  discovers the nearest Git-root profile, projects required validations and
+  prohibitions into the executable task contract, and captures the complete
+  profile with a recomputable canonical SHA-256 snapshot. Validation Ledger
+  initialization copies the exact snapshot, link validation rejects drift, and
+  both Markdown views preserve all profile rules. `fairy doctor` now validates
+  the caller repository profile before residency and adapter checks. Discovery
+  follows Git's authoritative root and requires the exact portable
+  `.fairy/profile.json` names, so nested marker and case-alias drift fail
+  closed; absence remains a compatible GREEN fallback. Profile commands remain
+  declarative and are never executed as
+  hooks. Shared profile/snapshot schemas, a Fairy Tale repository sample,
+  positive and hostile controls, 16 artifact cases, mirrored docs, and package
+  references are included. Runtime package version is 0.2.28.
+
 ## 0.2.27
 
 - **Unified Fairy CLI** (#8): adds the executable repository entrypoint
