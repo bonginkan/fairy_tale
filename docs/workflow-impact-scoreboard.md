@@ -69,7 +69,10 @@ an exact, portable repository-relative path and must exist under that name.
 Private or local artifacts use a non-sensitive `redacted/...` locator and a
 hash; never publish an absolute host path. Missing cost, elapsed, score, budget,
 or token data requires a specific unavailability reason. Example runs are
-explicitly marked and never enter measured aggregates by default.
+bound in both directions: `source_kind=example` requires a matching
+`example: true` repository artifact, and a repository artifact marked
+`example: true` cannot be relabeled as measured or official evidence. They
+never enter measured aggregates by default.
 
 Each Fairy Tale run may record per-card telemetry:
 

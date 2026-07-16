@@ -7,8 +7,10 @@
   comparison contracts, pass counts and scores, elapsed time, cost, complete
   token totals, regression notes, immutable artifact identity, and per-card
   utilization / contribution telemetry. Example runs are excluded from
-  measured aggregates by default; unpaired runs cannot claim uplift; private
-  paths are redacted. The committed sample consumes the routing-evaluation
+  measured aggregates by default, with bidirectional source-label / artifact
+  marker validation preventing illustrative artifacts from being relabeled as
+  measured evidence; unpaired runs cannot claim uplift; private paths are
+  redacted. The committed sample consumes the routing-evaluation
   ledger by SHA-256 and recomputes its pass rate, cost, tokens, and complete
   card utilization map. A derived Markdown view, `fairy scoreboard` thin
   dispatch, strict schema/runtime parity controls, feedback-governance link,

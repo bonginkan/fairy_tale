@@ -423,23 +423,34 @@ def validate_run(value: Any, path: str, task_kind: Any, errors: list[str]) -> No
         total_tokens = metrics.get("tokens", {}).get("total_tokens") if isinstance(metrics.get("tokens"), dict) else None
         if attributed and total_tokens is not None and sum(attributed) > total_tokens:
             add(errors, f"{path}.card_telemetry", "attributed tokens cannot exceed total run tokens")
-    if run.get("source_kind") == "example":
-        artifact = run.get("artifact") if isinstance(run.get("artifact"), dict) else {}
+    source_kind = run.get("source_kind")
+    artifact = run.get("artifact") if isinstance(run.get("artifact"), dict) else {}
+    artifact_payload: Any = None
+    if artifact.get("visibility") == "repository" and resolved_artifact is not None:
+        try:
+            artifact_payload = load_json_file(resolved_artifact)
+        except ArtifactError as exc:
+            if source_kind == "example":
+                add(errors, f"{path}.artifact", str(exc))
+    if source_kind == "example":
         if artifact.get("visibility") != "repository" or resolved_artifact is None:
             add(errors, f"{path}.artifact", "example runs require a repository artifact")
-        else:
-            try:
-                example = load_json_file(resolved_artifact)
-            except ArtifactError as exc:
-                add(errors, f"{path}.artifact", str(exc))
-            else:
-                expected = {
-                    "example": True,
-                    "condition": condition,
-                    "task_kind": task_kind,
-                }
-                if not isinstance(example, dict) or any(example.get(key) != item for key, item in expected.items()):
-                    add(errors, f"{path}.artifact", "example marker, condition, and task kind must match the run")
+        elif artifact_payload is not None:
+            expected = {
+                "example": True,
+                "condition": condition,
+                "task_kind": task_kind,
+            }
+            if not isinstance(artifact_payload, dict) or any(
+                artifact_payload.get(key) != item for key, item in expected.items()
+            ):
+                add(errors, f"{path}.artifact", "example marker, condition, and task kind must match the run")
+    elif (
+        source_kind in SOURCE_KINDS
+        and isinstance(artifact_payload, dict)
+        and artifact_payload.get("example") is True
+    ):
+        add(errors, f"{path}.source_kind", "repository artifacts marked example:true must use source_kind example")
 
 
 def validate_entry(value: Any, index: int, errors: list[str]) -> None:
@@ -904,6 +915,13 @@ def selftest(scoreboard_path: Path = DEFAULT_SCOREBOARD) -> int:
     mutation["entries"][0]["runs"][0]["source_kind"] = "measured_local"
     check(any("must both be" in item for item in validate_scoreboard(mutation)), "mixed example and measured pair blocks")
     mutation = copy.deepcopy(scoreboard)
+    for run in mutation["entries"][0]["runs"]:
+        run["source_kind"] = "measured_local"
+    check(
+        any("marked example:true" in item for item in validate_scoreboard(mutation)),
+        "example artifacts cannot be relabeled as a measured pair",
+    )
+    mutation = copy.deepcopy(scoreboard)
     mutation["entries"][0]["runs"][0]["isolation"]["fresh_session"] = False
     check(any("require a fresh session" in item for item in validate_scoreboard(mutation)), "non-isolated pair blocks")
     mutation = copy.deepcopy(scoreboard)
@@ -970,6 +988,9 @@ def selftest(scoreboard_path: Path = DEFAULT_SCOREBOARD) -> int:
     mutation = copy.deepcopy(scoreboard)
     mutation["entries"][0]["runs"][0]["condition"] = "fairy_tale"
     check(any("example marker" in item for item in validate_scoreboard(mutation)), "example identity is verified from its artifact")
+    mutation = copy.deepcopy(scoreboard)
+    mutation["entries"][2]["runs"][0]["source_kind"] = "example"
+    check(any("example marker" in item for item in validate_scoreboard(mutation)), "example labels require an example artifact marker")
     mutation = copy.deepcopy(scoreboard)
     mutation["generated_at_utc"] = "2026-99-99T00:00:00Z"
     check(any("UTC timestamp" in item for item in validate_scoreboard(mutation)), "invalid timestamp blocks")
