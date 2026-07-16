@@ -273,8 +273,10 @@ def validate_validation_ledger(
         if ledger_path is None:
             add(findings, "validation_ledger.link", "ledger path is required for link verification")
         elif portable_filename(ledger.get("task_card_path")):
-            card_path = (ledger_path.parent / str(ledger["task_card_path"])).resolve()
             try:
+                card_path = resolve_path(
+                    ledger_path.parent / str(ledger["task_card_path"])
+                )
                 loaded = load_json(card_path)
             except (ArtifactError, OSError) as exc:
                 add(findings, "validation_ledger.link.task_card", str(exc))
@@ -288,13 +290,24 @@ def validate_validation_ledger(
                     card = loaded
                     if card.get("task_id") != ledger.get("task_id"):
                         add(findings, "validation_ledger.link.task_id", "task ids do not match")
-                    linked_ledger = (card_path.parent / str(card["ledger_path"])).resolve()
-                    if linked_ledger != ledger_path.resolve():
+                    try:
+                        linked_ledger = resolve_path(
+                            card_path.parent / str(card["ledger_path"])
+                        )
+                        resolved_ledger = resolve_path(ledger_path)
+                    except ArtifactError as exc:
                         add(
                             findings,
                             "validation_ledger.link.ledger_path",
-                            "task card does not point back to this ledger",
+                            str(exc),
                         )
+                    else:
+                        if linked_ledger != resolved_ledger:
+                            add(
+                                findings,
+                                "validation_ledger.link.ledger_path",
+                                "task card does not point back to this ledger",
+                            )
 
     status = ledger.get("status")
     blockers = ledger.get("blockers") if isinstance(ledger.get("blockers"), list) else []
@@ -349,11 +362,18 @@ def validate_artifact(
     return [Finding("artifact.type", "artifact_type must be task_card or validation_ledger")]
 
 
+def read_utf8(path: Path, label: str) -> str:
+    try:
+        return path.read_text(encoding="utf-8")
+    except FileNotFoundError as exc:
+        raise ArtifactError(f"{label} not found: {path}") from exc
+    except UnicodeDecodeError as exc:
+        raise ArtifactError(f"invalid UTF-8 in {label}: {path}") from exc
+
+
 def load_json(path: Path) -> Any:
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except FileNotFoundError as exc:
-        raise ArtifactError(f"artifact not found: {path}") from exc
+        return json.loads(read_utf8(path, "artifact"))
     except json.JSONDecodeError as exc:
         raise ArtifactError(f"invalid JSON in {path}: {exc.msg}") from exc
 
@@ -380,19 +400,27 @@ def write_json(path: Path, payload: Any) -> None:
     )
 
 
-def require_distinct_paths(first: Path, second: Path, message: str) -> None:
-    def portable_identity(path: Path) -> tuple[str, ...]:
-        return tuple(
-            unicodedata.normalize("NFKC", part).casefold()
-            for part in path.resolve().parts
-        )
+def resolve_path(path: Path) -> Path:
+    try:
+        return path.resolve()
+    except (OSError, RuntimeError) as exc:
+        raise ArtifactError(f"cannot resolve path {path}: {exc}") from exc
 
-    if portable_identity(first) == portable_identity(second):
+
+def portable_path_identity(path: Path) -> tuple[str, ...]:
+    return tuple(
+        unicodedata.normalize("NFKC", part).casefold()
+        for part in resolve_path(path).parts
+    )
+
+
+def require_distinct_paths(first: Path, second: Path, message: str) -> None:
+    if portable_path_identity(first) == portable_path_identity(second):
         raise ArtifactError(message)
 
 
 def relative_path(target: Path, base: Path) -> str:
-    return Path(os.path.relpath(target.resolve(), base.resolve())).as_posix()
+    return Path(os.path.relpath(resolve_path(target), resolve_path(base))).as_posix()
 
 
 def require_valid(findings: list[Finding]) -> None:
@@ -658,7 +686,9 @@ def command_render(args: argparse.Namespace) -> int:
 def command_cases(args: argparse.Namespace) -> int:
     total = 0
     failed = 0
-    for line_number, raw in enumerate(args.cases.read_text(encoding="utf-8").splitlines(), start=1):
+    for line_number, raw in enumerate(
+        read_utf8(args.cases, "cases file").splitlines(), start=1
+    ):
         if not raw.strip():
             continue
         total += 1
@@ -788,6 +818,13 @@ def command_selftest(_args: argparse.Namespace) -> int:
                 markdown_output=markdown,
             )
 
+        invalid_utf8 = root / "invalid-utf8.json"
+        invalid_utf8.write_bytes(b"\xff\xfe")
+        check(
+            rejected(lambda: load_json(invalid_utf8)),
+            "invalid UTF-8 is a reasoned artifact failure",
+        )
+
         check(
             rejected(
                 lambda: require_distinct_paths(
@@ -798,6 +835,41 @@ def command_selftest(_args: argparse.Namespace) -> int:
             ),
             "case-only path aliases collide across supported filesystems",
         )
+
+        loop_path = root / "loop.json"
+        try:
+            loop_path.symlink_to(loop_path.name)
+        except (NotImplementedError, OSError):
+            pass
+        else:
+            loop_ledger = empty_validation_ledger(
+                card,
+                root / "task-card.json",
+                root / "loop-ledger.json",
+            )
+            loop_ledger["task_card_path"] = loop_path.name
+            loop_findings = validate_validation_ledger(
+                loop_ledger,
+                ledger_path=root / "loop-ledger.json",
+                verify_link=True,
+            )
+            check(
+                any(
+                    item.code == "validation_ledger.link.task_card"
+                    for item in loop_findings
+                ),
+                "symlink loop in a linked artifact is a reasoned finding",
+            )
+            check(
+                rejected(
+                    lambda: require_distinct_paths(
+                        root / "safe.json",
+                        loop_path,
+                        "symlink loop must block",
+                    )
+                ),
+                "symlink loop in an output path is a reasoned failure",
+            )
 
         collision_path = root / "collision.json"
         check(
@@ -992,7 +1064,7 @@ def main() -> int:
     args = parser.parse_args()
     try:
         return int(args.func(args))
-    except (ArtifactError, OSError, AssertionError) as exc:
+    except (ArtifactError, OSError, AssertionError, UnicodeError) as exc:
         print(f"ERROR {exc}", file=sys.stderr)
         return 2
 
