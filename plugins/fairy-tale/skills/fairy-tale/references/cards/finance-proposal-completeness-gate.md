@@ -93,11 +93,16 @@ gate → Closure / Negative-Space Check → reviewer sign-off.
   a revenue anchor that moves revenue/forecast/operating-profit DOWN are
   sign inversions; cohort usage is judged by SYMBOLIC DEGREE on the fully
   substituted derivation — per additive term, degree above one is
-  compounding and below zero is inverse, so alias splits are caught while
-  additive streams each using a factor once, and revenue denominators that
-  multiply cohort factors, stay green; the same revenue stream (identical
-  or value-overlapping anchors) may never enter one claim twice; one
-  binding never mixes revenue and cost anchors. Dependency and aggregate graphs must be
+  compounding and below zero is inverse; a factor on both sides of any
+  nested quotient (conversion/(1+conversion)) and a factor repeated within
+  one expression (conversion+conversion) block; alias splits are caught
+  while additive streams each using a factor once (as separate inputs),
+  and revenue denominators that multiply cohort factors, stay green.
+  Stream identity is declarative: each revenue-role input carries a
+  distinct anchor-set signature — the same set twice (commuted, scaled, or
+  padded) blocks, while equal-VALUE streams over different anchors pass;
+  no proximity heuristics ever decide a verdict. One binding never mixes
+  revenue and cost anchors. Dependency and aggregate graphs must be
   acyclic with no self/duplicate references; aggregate weights live in
   (0,1], must match the components' EXECUTED revenue (their UNIQUE
   revenue-bound input values, setup fees and cohort factors included,
@@ -110,7 +115,8 @@ gate → Closure / Negative-Space Check → reviewer sign-off.
   closure conditions (any unsatisfied one blocks), and cross-page
   conflicts: same-basis claims with diverging values must carry a recorded
   conflict with a locator-anchored resolution, while a `segment` identity
-  axis — casefolded and drawn from an anchored ledger registry, never free
+  axis — whitespace-collapsed, casefolded, and drawn from an anchored
+  ledger registry whose entries must be canonically distinct, never free
   text — keeps legitimately different segments from false-blocking without
   becoming a laundering surface. Recurring claims must
   record conversion and churn. Uncertainty impact bounds are numeric with

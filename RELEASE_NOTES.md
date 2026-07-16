@@ -84,9 +84,15 @@
   alias-split compounding red, margins analyzed per numerator/denominator);
   identical or value-overlapping revenue streams can never enter one claim
   twice; segments are casefolded canonical identities from an anchored
-  ledger registry. Selftest carries 130+ red/green/hostile controls (every
-  PR #75 round-1..10 review probe and an add/remove metamorphic flip); one
-  hundred thirty-five sanitized cross-industry acceptance fixtures
+  ledger registry. Round 11: nonlinear cohort quotients and same-factor
+  sums inside one expression block; stream identity is fully declarative
+  (distinct anchor-set signatures — scaled/padded copies block, equal-value
+  distinct-anchor streams pass; no proximity heuristics); segment
+  canonicalization collapses whitespace and rejects registries whose
+  entries collapse to one canonical name. Selftest carries 135+
+  red/green/hostile controls (every PR #75 round-1..11 review probe and an
+  add/remove metamorphic flip); one hundred thirty-nine sanitized
+  cross-industry acceptance fixtures
   (positive controls for bounded uncertainties, per-unit recurring margins,
   amount-only included-in, pass-with-warnings, resolved conflicts, correct
   recurring margins, segment-differentiated margins, and additive cohort
