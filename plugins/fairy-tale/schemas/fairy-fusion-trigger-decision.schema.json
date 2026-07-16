@@ -1,0 +1,146 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/bonginkan/fairy_tale/schemas/fairy-fusion-trigger-decision.schema.json",
+  "title": "Fairy Fusion automatic trigger decision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "artifact_type",
+    "decision",
+    "should_trigger",
+    "reasons",
+    "reviewer_cap",
+    "recursion_depth",
+    "recursion_cap",
+    "artifact_path",
+    "automatic_execution",
+    "input_sha256",
+    "observed"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "artifact_type": {
+      "const": "fairy_fusion_trigger_decision"
+    },
+    "decision": {
+      "enum": ["skip", "trigger", "blocked"]
+    },
+    "should_trigger": {
+      "type": "boolean"
+    },
+    "reasons": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "repeated_failure_signature",
+          "validation_ledger_missing",
+          "empty_artifact",
+          "meaningless_artifact",
+          "review_conflict",
+          "explicit_request",
+          "recursion_cap_reached"
+        ]
+      }
+    },
+    "reviewer_cap": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5
+    },
+    "recursion_depth": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "recursion_cap": {
+      "const": 1
+    },
+    "artifact_path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?=.*\\S)(?!.*[\\u0000-\\u001F\\u007F])(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*[\\\\:])[^/]+(?:/[^/]+)*$"
+    },
+    "automatic_execution": {
+      "const": false
+    },
+    "input_sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "observed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_failure_signature_repeat",
+        "validation_ledger_status",
+        "artifact_status",
+        "review_conflict",
+        "explicit_request"
+      ],
+      "properties": {
+        "max_failure_signature_repeat": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "validation_ledger_status": {
+          "enum": ["present", "missing", "not_required"]
+        },
+        "artifact_status": {
+          "enum": ["meaningful", "empty", "meaningless", "not_expected"]
+        },
+        "review_conflict": {
+          "type": "boolean"
+        },
+        "explicit_request": {
+          "type": "boolean"
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"decision": {"const": "trigger"}}
+      },
+      "then": {
+        "properties": {
+          "should_trigger": {"const": true},
+          "reasons": {
+            "minItems": 1,
+            "not": {"contains": {"const": "recursion_cap_reached"}}
+          },
+          "recursion_depth": {"maximum": 0}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"decision": {"const": "skip"}}
+      },
+      "then": {
+        "properties": {
+          "should_trigger": {"const": false},
+          "reasons": {"maxItems": 0}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"decision": {"const": "blocked"}}
+      },
+      "then": {
+        "properties": {
+          "should_trigger": {"const": false},
+          "recursion_depth": {"minimum": 1},
+          "reasons": {
+            "minItems": 2,
+            "contains": {"const": "recursion_cap_reached"}
+          }
+        }
+      }
+    }
+  ]
+}

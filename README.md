@@ -62,12 +62,16 @@ same workflow checks without memorizing individual script paths:
 ./fairy validate
 ./fairy task-card --help
 ./fairy ledger --help
+./fairy fusion --help
 ```
 
 `doctor` validates an optional caller-repository `.fairy/profile.json`, then
 runs residency and adapter health checks. `validate` runs the
 deterministic CI suite, while Task Card and Validation Ledger operations remain
-thin delegates to `scripts/task_artifacts.py`. See [Fairy CLI](docs/fairy-cli.md).
+thin delegates to `scripts/task_artifacts.py`. Fairy Fusion execution and its
+bounded, decision-only automatic trigger check delegate to the existing fusion
+runner. See [Fairy CLI](docs/fairy-cli.md) and
+[automatic trigger decisions](docs/fairy-fusion-auto-trigger.md).
 The skill-only installer intentionally does not install a host executable or
 modify `PATH`; use the CLI from a source checkout.
 
@@ -291,6 +295,7 @@ Notes:
 - [Benchmark feedback skill](skills/fairy-tale-benchmark-feedback/SKILL.md)
 - [Legal feedback skill](skills/fairy-tale-legal-feedback/SKILL.md)
 - [Fairy Fusion adapter](adapters/fairy-fusion.adapter.json)
+- [Fairy Fusion automatic trigger decisions](docs/fairy-fusion-auto-trigger.md)
 - [Feedback pruning adapter](adapters/feedback-pruning.adapter.json)
 - [Fairy adapter runner](crates/fairy-adapter-runner/)
 - [BioMystery runner](scripts/biomystery_runner.py)

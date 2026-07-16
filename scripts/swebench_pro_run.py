@@ -15,6 +15,11 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
+try:
+    from fairy_fusion_review import max_failure_signature_repeat
+except ModuleNotFoundError:  # Module import from the repository root.
+    from scripts.fairy_fusion_review import max_failure_signature_repeat
+
 
 DEFAULT_HARNESS_DIR = Path("tmp/swe-bench-pro-os")
 DEFAULT_VENV_PYTHON = Path("tmp/swe-bench-pro-venv/bin/python")
@@ -716,7 +721,7 @@ def repeated_failure_reasons(
     for reason in contract_break_reasons(stdout_text, stderr_text):
         if reason not in reasons:
             reasons.append(reason)
-    candidates: dict[str, int] = {}
+    candidates: list[str] = []
     for line in merged.splitlines():
         normalized = re.sub(r"\s+", " ", line.strip())
         if len(normalized) < 24:
@@ -724,10 +729,8 @@ def repeated_failure_reasons(
         low = normalized.lower()
         if not any(marker in low for marker in ("error", "fail", "failed", "exception", "traceback", "not found", "cannot", "missing")):
             continue
-        key = re.sub(r"0x[0-9a-fA-F]+|\d+", "<n>", low)
-        candidates[key] = candidates.get(key, 0) + 1
-    repeated = [key for key, count in candidates.items() if count >= repeat_threshold]
-    if repeated:
+        candidates.append(low)
+    if max_failure_signature_repeat(candidates) >= repeat_threshold:
         reasons.append(f"repeated_failure_signature_x{repeat_threshold}")
     return reasons
 

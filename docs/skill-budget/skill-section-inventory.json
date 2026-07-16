@@ -2,10 +2,10 @@
   "purpose": "Parity checklist for the SKILL.md router/per-card restructure: every section listed here must remain reachable (in SKILL.md or via an extracted card referenced from the router). Compare with --inventory-compare to fail closed on silent drops.",
   "skill_md": "skills/fairy-tale/SKILL.md",
   "measured": {
-    "bytes": 16807,
-    "lines": 235,
-    "chars": 16751,
-    "est_tokens": 4202,
+    "bytes": 17252,
+    "lines": 241,
+    "chars": 17196,
+    "est_tokens": 4313,
     "estimation_basis": "est tokens = UTF-8 bytes / 4.0 (reporting only); head window enforced at 3.5 bytes/token (densest plausible tokenization); line budget uses exact lines",
     "head_window_bytes": 17500,
     "head_token_budget": 5000
@@ -32,23 +32,23 @@
       "title": "Default workflow",
       "line": 45,
       "byte_offset": 2328,
-      "byte_end": 9679,
-      "est_tokens": 1838
+      "byte_end": 10124,
+      "est_tokens": 1949
     },
     {
       "level": 2,
       "title": "Mode patterns",
-      "line": 171,
-      "byte_offset": 9679,
-      "byte_end": 15319,
+      "line": 177,
+      "byte_offset": 10124,
+      "byte_end": 15764,
       "est_tokens": 1410
     },
     {
       "level": 2,
       "title": "Supporting references",
-      "line": 211,
-      "byte_offset": 15319,
-      "byte_end": 16807,
+      "line": 217,
+      "byte_offset": 15764,
+      "byte_end": 17252,
       "est_tokens": 372
     }
   ],
@@ -134,8 +134,8 @@
     {
       "path": "references/cards/fairy-fusion-harness.md",
       "title": "Fairy Fusion Harness",
-      "bytes": 1685,
-      "est_tokens": 421
+      "bytes": 2141,
+      "est_tokens": 535
     },
     {
       "path": "references/cards/finance-proposal-completeness-gate.md",
@@ -541,9 +541,9 @@
     },
     {
       "path": "skills/fairy-tale/references/cards/fairy-fusion-harness.md",
-      "bytes": 1685,
-      "lines": 28,
-      "est_tokens": 421
+      "bytes": 2141,
+      "lines": 34,
+      "est_tokens": 535
     },
     {
       "path": "skills/fairy-tale/references/cards/finance-proposal-completeness-gate.md",
@@ -835,9 +835,9 @@
     },
     {
       "path": "skills/fairy-tale/references/process/fusion-review-card.md",
-      "bytes": 448,
-      "lines": 23,
-      "est_tokens": 112
+      "bytes": 604,
+      "lines": 28,
+      "est_tokens": 151
     },
     {
       "path": "skills/fairy-tale/references/process/generalization-audit-record.md",

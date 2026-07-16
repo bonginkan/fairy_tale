@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/bonginkan/fairy_tale/schemas/fairy-fusion-auto-check-input.schema.json",
+  "title": "Fairy Fusion automatic trigger input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "failure_signatures",
+    "validation_ledger_status",
+    "artifact_status",
+    "review_conflict",
+    "explicit_request",
+    "reviewer_cap",
+    "recursion_depth",
+    "artifact_path"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "failure_signatures": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 512,
+        "pattern": "\\S"
+      }
+    },
+    "validation_ledger_status": {
+      "enum": ["present", "missing", "not_required"]
+    },
+    "artifact_status": {
+      "enum": ["meaningful", "empty", "meaningless", "not_expected"]
+    },
+    "review_conflict": {
+      "type": "boolean"
+    },
+    "explicit_request": {
+      "type": "boolean"
+    },
+    "reviewer_cap": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5
+    },
+    "recursion_depth": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "artifact_path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?=.*\\S)(?!.*[\\u0000-\\u001F\\u007F])(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*[\\\\:])[^/]+(?:/[^/]+)*$"
+    }
+  }
+}

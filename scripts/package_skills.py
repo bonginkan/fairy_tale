@@ -27,13 +27,17 @@ EXTRA_FILES = [
 ]
 PACKAGE_REFERENCE_FILES = [
     ROOT / "docs" / "fairy-profile.md",
+    ROOT / "docs" / "fairy-fusion-auto-trigger.md",
     ROOT / "docs" / "loop-engineering-automation.md",
     ROOT / "docs" / "task-artifacts.md",
     ROOT / "schemas" / "fairy-profile.schema.json",
+    ROOT / "schemas" / "fairy-fusion-auto-check-input.schema.json",
+    ROOT / "schemas" / "fairy-fusion-trigger-decision.schema.json",
     ROOT / "schemas" / "repo-profile-snapshot.schema.json",
     ROOT / "schemas" / "task-card.schema.json",
     ROOT / "schemas" / "validation-ledger.schema.json",
     ROOT / "scripts" / "task_artifacts.py",
+    ROOT / "scripts" / "fairy_fusion_review.py",
 ]
 
 

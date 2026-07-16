@@ -75,6 +75,12 @@ VALIDATION_STEPS = (
     python_step("install-smoke", "Install smoke test", "install_smoke_test.py"),
     python_step("task-selftest", "Task artifact self-controls", "task_artifacts.py", "selftest"),
     python_step(
+        "fusion-selftest",
+        "Fairy Fusion automatic trigger self-controls",
+        "fairy_fusion_review.py",
+        "--selftest",
+    ),
+    python_step(
         "task-cases",
         "Task artifact acceptance cases",
         "task_artifacts.py",
@@ -216,6 +222,18 @@ def delegate_task_artifact(command: str, args: Sequence[str]) -> int:
         return 127
 
 
+def fusion_command(args: Sequence[str]) -> tuple[str, ...]:
+    return (PYTHON, str(ROOT / "scripts" / "fairy_fusion_review.py"), *args)
+
+
+def delegate_fusion(args: Sequence[str]) -> int:
+    try:
+        return subprocess.run(fusion_command(args), check=False).returncode
+    except OSError as exc:
+        print(f"fairy: cannot execute Fairy Fusion command: {exc}", file=sys.stderr)
+        return 127
+
+
 def ledger_help() -> str:
     return """usage: fairy ledger {init,add,finalize,validate,render} [args ...]
 
@@ -251,10 +269,10 @@ def selftest() -> int:
         DOCTOR_STEPS[0].command[-2:] == ("--start", str(CALLER_CWD)),
         "doctor validates the caller repository profile",
     )
-    check(len(VALIDATION_STEPS) == 21, "validation registry remains complete")
+    check(len(VALIDATION_STEPS) == 22, "validation registry remains complete")
     check(
-        sum(not step.credential_keys for step in VALIDATION_STEPS) == 19,
-        "nineteen ordinary validation steps receive no credentials",
+        sum(not step.credential_keys for step in VALIDATION_STEPS) == 20,
+        "twenty ordinary validation steps receive no credentials",
     )
 
     repository_paths = {
@@ -272,6 +290,11 @@ def selftest() -> int:
     check(
         task_artifact_command("task-card", ("--help",))[-2:] == ("task-card", "--help"),
         "task-card delegation preserves arguments",
+    )
+    check(
+        fusion_command(("--auto-check", "--state-json", "state.json"))[-3:]
+        == ("--auto-check", "--state-json", "state.json"),
+        "fusion delegation preserves arguments",
     )
     check(LEDGER_COMMANDS["finalize"] == "ledger-finalize", "ledger operation mapping")
 
@@ -404,6 +427,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     subparsers.add_parser("task-card", help="delegate Task Card creation to task_artifacts.py")
     subparsers.add_parser("ledger", help="delegate Validation Ledger lifecycle operations")
+    subparsers.add_parser("fusion", help="delegate Fairy Fusion review and trigger decisions")
     subparsers.add_parser("selftest", help="run deterministic CLI self-controls")
     return parser
 
@@ -412,6 +436,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     raw = list(sys.argv[1:] if argv is None else argv)
     if raw and raw[0] == "task-card":
         return delegate_task_artifact("task-card", raw[1:])
+    if raw and raw[0] == "fusion":
+        return delegate_fusion(raw[1:])
     if raw and raw[0] == "ledger":
         if len(raw) == 1 or raw[1] in {"-h", "--help"}:
             print(ledger_help(), end="")
