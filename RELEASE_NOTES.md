@@ -1,5 +1,24 @@
 # Release Notes
 
+## 0.2.27
+
+- **Unified Fairy CLI** (#8): adds the executable repository entrypoint
+  `fairy`. `fairy doctor` runs the existing residency and Rust adapter
+  validators through one aggregate, fail-closed command; `fairy validate`
+  runs the deterministic repository suite with discoverable `--list`,
+  `--dry-run`, and repeatable `--only` selection. The validation registry is
+  now the CI execution path instead of a second workflow-maintained command
+  list. `fairy task-card` and `fairy ledger` delegate to the canonical #9/#10
+  artifact engine, preserving direct script compatibility and caller-relative
+  artifact paths. The CLI resolves repository checks relative to its own
+  executable, continues through independent checks so one failure does not
+  hide another, and exits non-zero on any failed or unexecutable step. The
+  skill-only installer remains host-neutral and does not install executables or
+  mutate `PATH`; the CLI is explicitly source-checkout tooling. Deterministic
+  self-controls, CI doctor execution, English/Japanese quick-start examples,
+  and command-boundary documentation are included. Runtime package version is
+  0.2.27.
+
 ## 0.2.26
 
 - **Task Card and Validation Ledger artifacts** (#9, #10): adds a canonical

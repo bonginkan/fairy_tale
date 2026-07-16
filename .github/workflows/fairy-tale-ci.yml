@@ -17,69 +17,21 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Distribution parity (4-copy byte parity + inline-ref resolution)
-        run: python3 scripts/check_distribution_parity.py
-      - name: Residency check
-        run: python3 scripts/fairy_tale_residency_check.py
-      - name: Install smoke test
-        run: python3 scripts/install_smoke_test.py
-      - name: Task artifact gate (self-controls)
-        run: python3 scripts/task_artifacts.py selftest
-      - name: Task artifact acceptance cases
-        run: python3 scripts/task_artifacts.py cases --cases fixtures/task-artifacts/cases.jsonl
-      - name: Skill token budget gate (self-controls)
-        run: python3 scripts/skill_token_budget_check.py --selftest
-      - name: Skill token budget full enforcement (post-#57 restructure)
-        # All gates fail-closed: line budget, compaction-safe head anchors,
-        # router-table containment, router/card integrity, and two-way
-        # section+card inventory parity.
-        run: >-
-          python3 scripts/skill_token_budget_check.py
-          --inventory-compare docs/skill-budget/skill-section-inventory.json
-          --enforce
-      - name: Extracted-card provenance gate (self-controls)
-        run: python3 scripts/extract_mode_pattern_cards.py --selftest
-      - name: Card extraction byte-parity verify
-        run: python3 scripts/extract_mode_pattern_cards.py --verify
+      - name: Unified CLI self-controls
+        run: ./fairy selftest
+      - name: Unified deterministic validation suite
+        run: ./fairy validate
         env:
           GITHUB_TOKEN: ${{ github.token }}
-      - name: Process record byte-parity verify
-        run: python3 scripts/extract_process_records.py --verify
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-      - name: Skill listing overhead gate (self-controls)
-        run: python3 scripts/skill_listing_overhead_check.py --selftest
-      - name: Skill listing overhead gate (budgets + recall floor + hook floor)
-        run: python3 scripts/skill_listing_overhead_check.py --enforce
-      - name: Routing eval judge/validator gate (self-controls)
-        # LLM runs stay manual (nondeterministic + credentialed); CI pins the
-        # fixture schema/distribution/leakage checks and judge red-locks only.
-        run: python3 scripts/routing_eval.py --selftest
-      - name: Routing eval fixture validation
-        run: python3 scripts/routing_eval.py --validate
-      - name: Spiral revolution exercise gate (self-controls)
-        run: python3 scripts/spiral_revolution_check.py --selftest
-      - name: Spiral revolution exercise gate (records)
-        run: python3 scripts/spiral_revolution_check.py
-      - name: Evolution variant exercise gate (self-controls)
-        run: python3 scripts/evolution_variant_check.py --selftest
-      - name: Evolution variant exercise gate (records)
-        run: python3 scripts/evolution_variant_check.py
-      - name: E2E coverage exercise gate (self-controls)
-        run: python3 scripts/e2e_coverage_check.py --selftest
-      - name: Finance completeness gate (self-controls)
-        run: python3 scripts/finance_completeness_check.py --selftest
-      - name: Finance completeness gate (acceptance cases)
-        run: python3 scripts/finance_completeness_check.py
 
   adapters:
     name: adapters (manifest validation)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Adapter manifest validation
-        # Rust stable is pre-installed on ubuntu-latest runners.
-        run: cargo run --manifest-path crates/fairy-adapter-runner/Cargo.toml -- validate
+      - name: Unified CLI doctor (residency + adapter manifests)
+        # Python and Rust stable are pre-installed on ubuntu-latest runners.
+        run: ./fairy doctor
 
   task-artifact-python-compatibility:
     name: task artifacts (Python 3.13 compatibility)

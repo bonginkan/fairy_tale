@@ -46,6 +46,22 @@ git clone https://github.com/bonginkan/fairy_tale.git
 cd fairy_tale
 ```
 
+source checkout では、個別 script の path を覚える代わりに統一 CLI を使える。
+
+```bash
+./fairy --help
+./fairy doctor
+./fairy validate
+./fairy task-card --help
+./fairy ledger --help
+```
+
+`doctor` は residency と adapter の健全性をまとめて検証し、`validate` は
+決定論的な CI suite を実行する。Task Card / Validation Ledger 操作は既存の
+`scripts/task_artifacts.py` へ委譲し、契約を複製しない。詳細は
+[Fairy CLI](docs/fairy-cli.md) を参照。skill-only installer は host executable
+や `PATH` を変更しないため、CLI は source checkout から実行する。
+
 測定結果を公開する前に [SECURITY.md](SECURITY.md)、
 [CONTRIBUTING.md](CONTRIBUTING.md)、[Feedback governance](docs/feedback-governance.md)
 を確認する。
