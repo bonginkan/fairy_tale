@@ -65,7 +65,8 @@ source / run / receipt refs:
   parked, DND-paused, approval-blocked, and closed states may remain silent as
   defined by the loop profile.
 
-Sources checked 2026-07-16: `bonginkan/north-star-os#45` and `#46` provide a
-concrete Discord Helix profile and replayed failure evidence. Their bot names,
-role assignment, same-account policy, and 30/20/45-minute values are deployment
-examples, not universal Fairy Tale rules.
+Internal sources checked 2026-07-16 (private repository; access required and
+not independently public-verifiable): `bonginkan/north-star-os#45` and `#46`
+provide a concrete Discord Helix profile and replayed failure evidence. Their
+bot names, role assignment, same-account policy, and 30/20/45-minute values are
+deployment examples, not universal Fairy Tale rules.

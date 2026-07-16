@@ -229,11 +229,13 @@ Checked: 2026-06-25 (UTC).
   https://developers.google.com/workspace/meet/api/guides/overview
 - Google Meet Media API overview:
   https://developers.google.com/workspace/meet/media-api/guides/overview
-- `bonginkan/north-star-os#45`, concrete Discord Helix operating profile and
-  observed handoff/stall failures (deployment evidence; fixed bot names,
-  roles, same-account policy, and timing values are not universal rules):
+- Internal deployment evidence (private repository; access required and not
+  independently public-verifiable), `bonginkan/north-star-os#45`: concrete
+  Discord Helix operating profile and observed handoff/stall failures. Fixed
+  bot names, roles, same-account policy, and timing values are not universal:
   https://github.com/bonginkan/north-star-os/issues/45
-- `bonginkan/north-star-os#46`, turn fields, context recovery, and replayable
+- Internal deployment evidence (same private repository),
+  `bonginkan/north-star-os#46`: turn fields, context recovery, and replayable
   communication fixtures for that profile:
   https://github.com/bonginkan/north-star-os/issues/46
 

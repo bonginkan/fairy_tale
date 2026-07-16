@@ -15,11 +15,13 @@
   are rejected. Cadence, stall thresholds, DND, watchdogs, roles, merge
   authority, and same-account policy remain inputs from the existing Loop
   Engineering profile rather than universal constants; a hard stall triggers
-  readback/escalation, never process timeout or forced termination. The card is
-  grounded in `bonginkan/north-star-os#45/#46` as deployment evidence while
-  explicitly excluding their fixed bot names, role split, and 30/20/45-minute
-  values from the universal contract. Adds positive handoff and incidental-
-  mention negative routing controls. Runtime package version is 0.2.25.
+  readback/escalation, never process timeout or forced termination. The card
+  records `bonginkan/north-star-os#45/#46` as internal deployment evidence
+  (private repository; access required and not independently public-verifiable)
+  while explicitly excluding their fixed bot names, role split, and
+  30/20/45-minute values from the universal contract. Adds positive handoff
+  and incidental-mention negative routing controls. Runtime package version is
+  0.2.25.
 
 ## 0.2.24
 

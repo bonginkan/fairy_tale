@@ -158,8 +158,8 @@
     {
       "path": "references/cards/helix-loop-communication-harness.md",
       "title": "Helix Loop Communication Harness",
-      "bytes": 4104,
-      "est_tokens": 1026
+      "bytes": 4191,
+      "est_tokens": 1048
     },
     {
       "path": "references/cards/high-signal-research-synthesis.md",
@@ -565,9 +565,9 @@
     },
     {
       "path": "skills/fairy-tale/references/cards/helix-loop-communication-harness.md",
-      "bytes": 4104,
-      "lines": 71,
-      "est_tokens": 1026
+      "bytes": 4191,
+      "lines": 72,
+      "est_tokens": 1048
     },
     {
       "path": "skills/fairy-tale/references/cards/high-signal-research-synthesis.md",
@@ -1015,9 +1015,9 @@
     },
     {
       "path": "skills/fairy-tale/references/sources.md",
-      "bytes": 26351,
-      "lines": 524,
-      "est_tokens": 6588
+      "bytes": 26491,
+      "lines": 526,
+      "est_tokens": 6623
     }
   ]
 }

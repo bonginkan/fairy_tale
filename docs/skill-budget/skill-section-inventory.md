@@ -39,7 +39,7 @@ in SKILL.md itself or as an extracted card reachable from the router.
 | skills/fairy-tale/references/cards/finance-proposal-completeness-gate.md | 10773 | 157 | 2693 |
 | skills/fairy-tale/references/cards/general-e2e-completion-harness.md | 2030 | 30 | 508 |
 | skills/fairy-tale/references/cards/generalization-and-latent-structure-harness-hidden-rules-executable-models-and-tacit-intent.md | 3350 | 50 | 838 |
-| skills/fairy-tale/references/cards/helix-loop-communication-harness.md | 4104 | 71 | 1026 |
+| skills/fairy-tale/references/cards/helix-loop-communication-harness.md | 4191 | 72 | 1048 |
 | skills/fairy-tale/references/cards/high-signal-research-synthesis.md | 238 | 7 | 60 |
 | skills/fairy-tale/references/cards/implementation-validation-gate.md | 4774 | 71 | 1194 |
 | skills/fairy-tale/references/cards/knowledge-crystallization-harness.md | 415 | 10 | 104 |
@@ -114,4 +114,4 @@ in SKILL.md itself or as an extracted card reachable from the router.
 | skills/fairy-tale/references/process/voice-profile-card.md | 237 | 16 | 59 |
 | skills/fairy-tale/references/process.md | 7670 | 57 | 1918 |
 | skills/fairy-tale/references/similarity-refactoring-adapter.md | 2885 | 81 | 721 |
-| skills/fairy-tale/references/sources.md | 26351 | 524 | 6588 |
+| skills/fairy-tale/references/sources.md | 26491 | 526 | 6623 |
