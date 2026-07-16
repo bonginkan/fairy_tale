@@ -14,6 +14,7 @@ import json
 import os
 import re
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -21,6 +22,11 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+try:
+    from task_artifacts import ArtifactError, require_distinct_paths
+except ModuleNotFoundError:  # Module import from the repository root.
+    from scripts.task_artifacts import ArtifactError, require_distinct_paths
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -462,6 +468,20 @@ def load_auto_check_state(path: Path) -> dict[str, Any]:
     return payload
 
 
+def write_auto_check_decision(
+    state_path: Path, output_path: Path, payload: dict[str, Any]
+) -> None:
+    try:
+        require_distinct_paths(
+            state_path,
+            output_path,
+            "auto-check output must differ from the input state",
+        )
+        write_json(output_path, payload)
+    except (ArtifactError, OSError, UnicodeError) as exc:
+        raise AutoCheckError(f"cannot write auto-check decision {output_path}: {exc}") from exc
+
+
 def auto_check_selftest() -> int:
     controls = 0
 
@@ -625,6 +645,21 @@ def auto_check_selftest() -> int:
         decision_properties["automatic_execution"]["const"] is False,
         "decision schema prohibits automatic execution",
     )
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        state_path = Path(temporary_directory) / "state.json"
+        output_path = Path(temporary_directory) / "decision.json"
+        original_state = json.dumps(base, sort_keys=True).encode("utf-8")
+        state_path.write_bytes(original_state)
+        try:
+            write_auto_check_decision(state_path, state_path, clean)
+        except AutoCheckError:
+            collision_rejected = True
+        else:
+            collision_rejected = False
+        check(collision_rejected, "auto-check output cannot overwrite its input state")
+        check(state_path.read_bytes() == original_state, "rejected collision preserves input bytes")
+        write_auto_check_decision(state_path, output_path, clean)
+        check(json.loads(output_path.read_text(encoding="utf-8")) == clean, "distinct output is written")
     print(f"fairy fusion auto-check selftest OK: {controls} controls")
     return 0
 
@@ -969,9 +1004,9 @@ def main() -> int:
             return 2
         if args.output:
             try:
-                write_json(args.output, payload)
-            except (OSError, UnicodeError) as exc:
-                print(f"ERROR cannot write auto-check decision {args.output}: {exc}", file=sys.stderr)
+                write_auto_check_decision(args.state_json, args.output, payload)
+            except AutoCheckError as exc:
+                print(f"ERROR {exc}", file=sys.stderr)
                 return 2
         else:
             print(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False))

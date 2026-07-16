@@ -33,6 +33,9 @@ Then evaluate it from a source checkout:
 ./fairy fusion --auto-check --state-json state.json --output decision.json
 ```
 
+When `--output` is used, its portable path identity must differ from
+`--state-json`; the command rejects a collision before writing either artifact.
+
 The result conforms to
 `schemas/fairy-fusion-trigger-decision.schema.json` and records the decision,
 trigger reasons, reviewer cap, observed recursion depth, recursion cap, intended
