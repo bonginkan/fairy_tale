@@ -89,10 +89,14 @@
   (distinct anchor-set signatures — scaled/padded copies block, equal-value
   distinct-anchor streams pass; no proximity heuristics); segment
   canonicalization collapses whitespace and rejects registries whose
-  entries collapse to one canonical name. Selftest carries 135+
-  red/green/hostile controls (every PR #75 round-1..11 review probe and an
-  add/remove metamorphic flip); one hundred thirty-nine sanitized
-  cross-industry acceptance fixtures
+  entries collapse to one canonical name. Round 12: cohort factors carry an
+  exact coefficient-one contract (2*conversion blocks, rate fractions
+  green); stream identity is DECLARED via an anchored `revenue_streams`
+  registry (source-backed ids, not inferred anchor sets) with exact
+  canonical-expression dedup; segment and stream canonicalization apply
+  Unicode NFKC. Selftest carries 140+ red/green/hostile controls (every
+  PR #75 round-1..12 review probe and an add/remove metamorphic flip); one
+  hundred forty-two sanitized cross-industry acceptance fixtures
   (positive controls for bounded uncertainties, per-unit recurring margins,
   amount-only included-in, pass-with-warnings, resolved conflicts, correct
   recurring margins, segment-differentiated margins, and additive cohort

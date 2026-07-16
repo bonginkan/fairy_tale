@@ -51,6 +51,7 @@ import json
 import math
 import re
 import sys
+import unicodedata
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -77,9 +78,10 @@ LEDGER_KEYS = {
     "cohort_schedule", "signoffs", "blockers", "uncertainties",
     "observed_frame", "central_claim_inventory", "artifact_verdict",
     "materiality_threshold", "minimum_closure_conditions", "cross_page_conflicts",
-    "segments",
+    "segments", "revenue_streams",
 }
 SEGMENT_KEYS = {"name", "source"}
+STREAM_KEYS = {"id", "description", "source"}
 CONFLICT_KEYS = {"id", "claim_ids", "description", "resolution"}
 INVENTORY_KEYS = {"count", "claim_ids", "enumeration_basis"}
 MATERIALITY_KEYS = {"value", "unit", "basis"}
@@ -94,7 +96,7 @@ CLAIM_KEYS = {
     "segment", "displayed_value", "formula", "inputs", "input_bindings",
     "recomputed_value", "rounding_rule", "revenue_drivers", "cost_drivers",
     "assumptions", "evidence_status", "sensitivity", "depends_on",
-    "components", "weights",
+    "components", "weights", "stream_ids",
 }
 DRIVER_KEYS = {"name", "entailed_class", "disposition", "value", "basis", "included_in", "allocation_basis", "covered_scope", "source", "period", "evidence"}
 ASSUMPTION_KEYS = {"id", "text", "evidence_status", "value"}
@@ -183,6 +185,8 @@ REASON_CLASSES = (
     # fix-10 (PR #75 round 10): the same revenue stream may never be counted
     # twice inside one claim's formula.
     "duplicate_revenue_stream", "segment_undeclared",
+    # fix-12 (PR #75 round 12): declared stream identity + exact scale contract.
+    "stream_undeclared", "revenue_binding_scale_invalid",
 )
 
 # NOTE (PR #75 round 3): coverage of REASON_CLASSES is judged against the
@@ -249,6 +253,63 @@ def factor_degrees(node: ast.AST, factor: str) -> set[int]:
     if isinstance(node, ast.Name):
         return {1 if node.id == factor else 0}
     return {0}
+
+
+def canonical_expr(node: ast.AST) -> str:
+    """Order-independent canonical form: commutative chains sort their
+    operands, so `price*volume` and `volume*price` are the SAME expression.
+    An exact contract, not a proximity heuristic."""
+    if isinstance(node, ast.Expression):
+        return canonical_expr(node.body)
+    if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Add, ast.Mult)):
+        op_type = type(node.op)
+        operands: list[str] = []
+        def collect(n: ast.AST) -> None:
+            if isinstance(n, ast.BinOp) and isinstance(n.op, op_type):
+                collect(n.left)
+                collect(n.right)
+            else:
+                operands.append(canonical_expr(n))
+        collect(node)
+        symbol = "+" if op_type is ast.Add else "*"
+        return "(" + symbol.join(sorted(operands)) + ")"
+    if isinstance(node, ast.BinOp):
+        symbol = "-" if isinstance(node.op, ast.Sub) else "/"
+        return f"({canonical_expr(node.left)}{symbol}{canonical_expr(node.right)})"
+    if isinstance(node, ast.UnaryOp):
+        sign = "-" if isinstance(node.op, ast.USub) else "+"
+        return f"({sign}{canonical_expr(node.operand)})"
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Constant):
+        return repr(node.value)
+    return ast.dump(node)
+
+
+def additive_term_scales(expression: str) -> list[float] | None:
+    """Net constant multiplier of each top-level additive term (all anchors
+    set to 1). Quantities come from anchors; constants only PARTITION a
+    stream, so every term's scale must stay <= 1."""
+    try:
+        tree = ast.parse(expression, mode="eval").body
+    except (SyntaxError, ValueError):
+        return None
+    terms: list[ast.AST] = []
+    def split_terms(n: ast.AST) -> None:
+        if isinstance(n, ast.BinOp) and isinstance(n.op, (ast.Add, ast.Sub)):
+            split_terms(n.left)
+            split_terms(n.right)
+        else:
+            terms.append(n)
+    split_terms(tree)
+    scales: list[float] = []
+    for term in terms:
+        names = {n.id for n in ast.walk(term) if isinstance(n, ast.Name)}
+        value = safe_eval_formula(ast.unparse(term), {name: 1.0 for name in names})
+        if value is None:
+            return None
+        scales.append(abs(value))
+    return scales
 
 
 def divisor_names(formula: str) -> set[str]:
@@ -672,25 +733,46 @@ def check_input_bindings(claim: dict, inputs: dict, reasons: list[str]) -> None:
     # a binding for a key the formula never consumes is a smuggling surface.
     for key in sorted(set(bindings) - set(inputs)):
         reasons.append(f"binding_unused:{cid}:{key}")
-    # Stream identity is DECLARATIVE, not fuzzy (round 11): each revenue-role
-    # input must carry a DISTINCT anchor-set signature. The same set twice —
-    # commuted, constant-scaled (2*price*volume), or value-padded — is the
-    # same stream counted twice and blocks; equal-VALUE streams over
-    # different anchors are legitimately different revenue and pass. No
-    # value comparisons: a machine gate emits verdicts only from exact
-    # contracts, never from proximity heuristics.
-    seen_signatures: dict[frozenset, str] = {}
+    # Stream identity is DECLARED, never inferred (round 12): every
+    # revenue-role input maps to a distinct stream id from the ledger's
+    # anchored registry via `stream_ids`. The only machine dedup contracts
+    # are EXACT: identical canonical expression + identical value is the
+    # same stream, and per-term constant scales must stay <= 1 (constants
+    # PARTITION a stream — a 2x coefficient can never inflate an anchor).
+    declared_streams = {
+        entry["id"]
+        for entry in (claim.get("_ledger_revenue_streams") or [])
+        if isinstance(entry, dict) and isinstance(entry.get("id"), str)
+    }
+    stream_ids = claim.get("stream_ids") or {}
+    seen_stream_ids: dict[str, str] = {}
+    seen_canonical: dict[tuple, str] = {}
     for key in sorted(inputs):
         binding = bindings.get(key)
         if not isinstance(binding, str) or binding.strip().startswith("assumption:"):
             continue
         names = formula_names(binding.strip()) or set()
         if names and names <= REVENUE_DRIVER_KEYS:
-            signature = frozenset(names)
-            if signature in seen_signatures:
+            scales = additive_term_scales(binding.strip())
+            if scales is None or any(scale > 1 + 1e-9 for scale in scales):
+                reasons.append(f"revenue_binding_scale_invalid:{cid}:{key}")
+            stream_id = stream_ids.get(key)
+            if not isinstance(stream_id, str) or stream_id not in declared_streams:
+                reasons.append(f"stream_undeclared:{cid}:{key}")
+            elif stream_id in seen_stream_ids:
                 reasons.append(f"duplicate_revenue_stream:{cid}:{key}")
             else:
-                seen_signatures[signature] = key
+                seen_stream_ids[stream_id] = key
+            if is_finite_number(inputs.get(key)):
+                try:
+                    canon = canonical_expr(ast.parse(binding.strip(), mode="eval"))
+                except (SyntaxError, ValueError):
+                    canon = binding.strip()
+                exact = (canon, round(float(inputs[key]), 9))
+                if exact in seen_canonical:
+                    reasons.append(f"duplicate_revenue_stream:{cid}:{key}")
+                else:
+                    seen_canonical[exact] = key
     for key, value in inputs.items():
         binding = bindings.get(key)
         if not isinstance(binding, str) or not binding.strip():
@@ -737,19 +819,20 @@ def executed_revenue(component: dict) -> float | None:
     total = 0.0
     found = False
     inputs = component.get("inputs") or {}
-    seen_signatures: set[frozenset] = set()
+    stream_ids = component.get("stream_ids") or {}
+    seen_ids: set[str] = set()
     for key, binding in (component.get("input_bindings") or {}).items():
         if not isinstance(binding, str) or binding.strip().startswith("assumption:"):
             continue
         names = formula_names(binding.strip()) or set()
         if names and names <= REVENUE_DRIVER_KEYS and is_finite_number(inputs.get(key)):
-            # One distinct anchor-set signature = one stream (round 11):
-            # duplicate signatures already block at claim level, and only
-            # distinct streams count toward executed revenue.
-            signature = frozenset(names)
-            if signature in seen_signatures:
-                continue
-            seen_signatures.add(signature)
+            # One declared stream id counts once toward executed revenue
+            # (round 12); undeclared/duplicate ids block at claim level.
+            stream_id = stream_ids.get(key)
+            if isinstance(stream_id, str):
+                if stream_id in seen_ids:
+                    continue
+                seen_ids.add(stream_id)
             total += float(inputs[key])
             found = True
     return total if found else None
@@ -866,10 +949,29 @@ def evaluate(ledger: dict) -> tuple[str, list[str]]:
             if isinstance(driver, dict) and isinstance(driver.get("name"), str):
                 valid_targets.add(driver["name"].strip())
 
+    # Revenue-stream registry (round 12): declared identities with anchored
+    # sources, canonically distinct — the stream axis mirrors the segment
+    # axis so no identity is ever inferred.
+    streams_registry = ledger.get("revenue_streams")
+    valid_stream_entries: list[dict] = []
+    if isinstance(streams_registry, list):
+        seen_stream_keys: set[str] = set()
+        for entry in streams_registry:
+            if isinstance(entry, dict) and isinstance(entry.get("id"), str)                     and len(str(entry.get("description") or "").strip()) >= 10                     and is_locator(entry.get("source")):
+                check_unknown_keys(entry, STREAM_KEYS, f"stream:{entry['id']}", reasons)
+                canon_id = " ".join(unicodedata.normalize("NFKC", entry["id"]).split()).casefold()
+                if canon_id in seen_stream_keys:
+                    reasons.append(f"stream_undeclared:registry_duplicate:{canon_id}")
+                seen_stream_keys.add(canon_id)
+                valid_stream_entries.append(entry)
+            else:
+                reasons.append("stream_undeclared:registry_malformed")
+
     open_tbd = 0
     for claim in claims:
+        claim["_ledger_revenue_streams"] = valid_stream_entries
         cid = claim.get("claim_id", "?")
-        check_unknown_keys(claim, CLAIM_KEYS, str(cid), reasons)
+        check_unknown_keys(claim, CLAIM_KEYS | {"_ledger_revenue_streams"}, str(cid), reasons)
         for field in REQUIRED_CLAIM_FIELDS:
             if not str(claim.get(field) or "").strip():
                 reasons.append(f"missing_ledger_field:{cid}:{field}")
@@ -1046,13 +1148,33 @@ def evaluate(ledger: dict) -> tuple[str, list[str]]:
                     if not isinstance(expression, str) or expression.strip().startswith("assumption:"):
                         continue
                     try:
-                        expr_names = [n.id for n in ast.walk(ast.parse(expression.strip(), mode="eval"))
-                                      if isinstance(n, ast.Name)]
+                        expr_tree = ast.parse(expression.strip(), mode="eval").body
                     except (SyntaxError, ValueError):
                         continue
+                    expr_names = [n.id for n in ast.walk(expr_tree) if isinstance(n, ast.Name)]
                     for factor in cohort_factors:
                         if expr_names.count(factor) > 1:
                             reasons.append(f"cohort_factor_duplicated:{cid}:{factor}")
+                    # Exact coefficient contract (round 12): a cohort factor
+                    # counts ONCE at coefficient one. A cohort-bearing
+                    # multiplicative chain may not carry an integer constant
+                    # > 1 (2*conversion is 2x); fractional rate constants
+                    # (<=1) partition a stream and stay green.
+                    def mult_terms(node):
+                        for term in ([node] if not (isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Add, ast.Sub)))
+                                     else []):
+                            yield term
+                        if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Add, ast.Sub)):
+                            yield from mult_terms(node.left)
+                            yield from mult_terms(node.right)
+                    for term in mult_terms(expr_tree):
+                        term_names = {n.id for n in ast.walk(term) if isinstance(n, ast.Name)}
+                        if not (term_names & cohort_factors):
+                            continue
+                        for node in ast.walk(term):
+                            if isinstance(node, ast.Constant) and is_finite_number(node.value) and float(node.value) > 1 + 1e-9:
+                                reasons.append(f"cohort_factor_duplicated:{cid}:coefficient")
+                                break
 
     declared = ledger.get("unresolved_count")
     if not isinstance(declared, int) or isinstance(declared, bool) or declared != open_tbd:
@@ -1142,7 +1264,7 @@ def evaluate(ledger: dict) -> tuple[str, list[str]]:
     # claim uses must be declared in a ledger registry with an anchored
     # source, so a self-invented label can never split a conflict group.
     def canonical_segment(value: str) -> str:
-        return " ".join(value.split()).casefold()
+        return " ".join(unicodedata.normalize("NFKC", value).split()).casefold()
 
     segments_registry = ledger.get("segments")
     declared_segments: set[str] = set()
@@ -1370,12 +1492,15 @@ def _green_ledger() -> dict:
                                         "text": "every entailed cost row carries a resolved disposition"}],
         "cross_page_conflicts": [],
         "segments": [],
+        "revenue_streams": [{"id": "core_subscription", "description": "core subscription revenue stream",
+                             "source": "revenue model p2 table 1"}],
         "claims": [{
             "claim_id": "C1", "source": "p2:table1", "metric": "gross_margin",
             "period": "FY1", "currency": "USD", "unit": "ratio", "tax_basis": "excl",
             "displayed_value": 0.60, "formula": "(rev-cogs-fee)/rev",
             "inputs": {"rev": 100.0, "cogs": 25.0, "fee": 15.0},
             "input_bindings": {"rev": "price*volume", "cogs": "assumption:a1", "fee": "partner_fee"},
+            "stream_ids": {"rev": "core_subscription"},
             "recomputed_value": 0.60,
             "rounding_rule": "2dp",
             "revenue_drivers": {"price": 10.0, "volume": 10, "start_month": 1, "active_months": 12},
@@ -1928,6 +2053,10 @@ def _selftest() -> int:
         c["inputs"] = {"new_rev": 54.0, "expansion_rev": 21.6}
         c["input_bindings"] = {"new_rev": "price*volume*conversion*active_months*0.15",
                                "expansion_rev": "setup_fee*volume*conversion*active_months*0.15"}
+        c["stream_ids"] = {"new_rev": "new_business", "expansion_rev": "expansion"}
+        l["revenue_streams"] = [
+            {"id": "new_business", "description": "new business cohort revenue", "source": "revenue model p2 table 1"},
+            {"id": "expansion", "description": "expansion setup-fee revenue", "source": "revenue model p2 table 2"}]
         c["revenue_drivers"]["setup_fee"] = 4.0
         c["assumptions"] = []
     check_positive("additive revenue streams each using cohort factors once pass (round-10 false-block)",
@@ -1978,7 +2107,16 @@ def _selftest() -> int:
         c["input_bindings"] = {"rev": "price*volume", "rev2": "2*price*volume",
                                "cogs": "assumption:a1", "fee": "partner_fee"}
     probe("a constant-scaled copy of the same stream blocks (2*price*volume)",
-          scaled_duplicate_stream, "duplicate_revenue_stream")
+          scaled_duplicate_stream, "revenue_binding_scale_invalid")
+
+    def coefficient_double(l):
+        recurring_forecast_no_cohort_math(l)
+        l["claims"][0]["revenue_drivers"].update(conversion=0.3, churn_monthly=0.05)
+        c = l["claims"][0]
+        c.update(formula="rev", displayed_value=216.0, recomputed_value=216.0, rounding_rule="1dp")
+        c["inputs"] = {"rev": 216.0}
+        c["input_bindings"] = {"rev": "price*volume*2*conversion*active_months*0.3"}
+    probe("an integer coefficient on a cohort factor (2*conversion) blocks", coefficient_double, "cohort_factor_duplicated:C1:coefficient")
 
     def registry_whitespace_launder(l):
         segment_positive(l)
@@ -1997,8 +2135,21 @@ def _selftest() -> int:
         c["inputs"] = {"rev": 100.0, "side_rev": 100.0, "cogs": 25.0, "fee": 15.0}
         c["input_bindings"] = {"rev": "price*volume", "side_rev": "setup_fee*volume",
                                "cogs": "assumption:a1", "fee": "partner_fee"}
-    check_positive("equal-value streams over DIFFERENT anchors pass (no proximity heuristics)",
+        c["stream_ids"] = {"rev": "core_subscription", "side_rev": "setup_fees"}
+        l["revenue_streams"].append({"id": "setup_fees", "description": "one-time setup fee revenue",
+                                     "source": "revenue model p2 table 3"})
+    check_positive("equal-value streams over DIFFERENT anchors pass (declared distinct streams)",
                    equal_value_distinct_streams)
+
+    probe("a revenue input without a declared stream id blocks",
+          lambda l: l["claims"][0].update(stream_ids={}), "stream_undeclared")
+
+    def nfkc_segment(l):
+        segment_positive(l)
+        l["segments"].append({"name": "\uff25\uff4e\uff54\uff45\uff52\uff50\uff52\uff49\uff53\uff45",
+                              "source": "segment definitions p2 table 1"})
+    probe("a full-width Unicode twin of a declared segment blocks (NFKC canonicalization)",
+          nfkc_segment, "segment_undeclared:registry_duplicate")
 
     def revenue_inverted(l):
         recurring_forecast_no_cohort_math(l)

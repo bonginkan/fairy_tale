@@ -98,11 +98,14 @@ gate → Closure / Negative-Space Check → reviewer sign-off.
   one expression (conversion+conversion) block; alias splits are caught
   while additive streams each using a factor once (as separate inputs),
   and revenue denominators that multiply cohort factors, stay green.
-  Stream identity is declarative: each revenue-role input carries a
-  distinct anchor-set signature — the same set twice (commuted, scaled, or
-  padded) blocks, while equal-VALUE streams over different anchors pass;
-  no proximity heuristics ever decide a verdict. One binding never mixes
-  revenue and cost anchors. Dependency and aggregate graphs must be
+  A cohort factor multiplies revenue exactly ONCE at coefficient one — an
+  integer coefficient (2*conversion) or a repeated occurrence blocks, while
+  fractional rate constants (<=1) stay green. Stream identity is DECLARED,
+  never inferred: every revenue-role input maps to a stream id from an
+  anchored `revenue_streams` registry; the same declared id, or the same
+  canonical expression at the same value, is one stream counted twice and
+  blocks — while distinct declared streams over any anchors pass. One
+  binding never mixes revenue and cost anchors. Dependency and aggregate graphs must be
   acyclic with no self/duplicate references; aggregate weights live in
   (0,1], must match the components' EXECUTED revenue (their UNIQUE
   revenue-bound input values, setup fees and cohort factors included,
@@ -115,9 +118,9 @@ gate → Closure / Negative-Space Check → reviewer sign-off.
   closure conditions (any unsatisfied one blocks), and cross-page
   conflicts: same-basis claims with diverging values must carry a recorded
   conflict with a locator-anchored resolution, while a `segment` identity
-  axis — whitespace-collapsed, casefolded, and drawn from an anchored
-  ledger registry whose entries must be canonically distinct, never free
-  text — keeps legitimately different segments from false-blocking without
+  axis — Unicode NFKC-normalized, whitespace-collapsed, casefolded, and
+  drawn from an anchored ledger registry whose entries must be canonically
+  distinct, never free text — keeps legitimately different segments from false-blocking without
   becoming a laundering surface. Recurring claims must
   record conversion and churn. Uncertainty impact bounds are numeric with
   locator-anchored evidence in a CLOSED, capped unit registry (#74
