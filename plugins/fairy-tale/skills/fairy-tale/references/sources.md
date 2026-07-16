@@ -477,6 +477,8 @@ Primary / near-primary:
 - U.S. Web Design System, design tokens, spacing units, type size, layout
   grid, forms, and tables (implementation examples, not a mandated system):
   https://designsystem.digital.gov/design-tokens/
+  https://designsystem.digital.gov/design-tokens/color/system-tokens/
+  https://designsystem.digital.gov/design-tokens/color/theme-tokens/
   https://designsystem.digital.gov/design-tokens/spacing-units/
   https://designsystem.digital.gov/design-tokens/typesetting/font-size/
   https://designsystem.digital.gov/utilities/layout-grid/

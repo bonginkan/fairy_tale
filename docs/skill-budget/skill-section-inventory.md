@@ -113,4 +113,4 @@ in SKILL.md itself or as an extracted card reachable from the router.
 | skills/fairy-tale/references/process/voice-profile-card.md | 237 | 16 | 59 |
 | skills/fairy-tale/references/process.md | 7639 | 57 | 1910 |
 | skills/fairy-tale/references/similarity-refactoring-adapter.md | 2360 | 76 | 590 |
-| skills/fairy-tale/references/sources.md | 24728 | 498 | 6182 |
+| skills/fairy-tale/references/sources.md | 24867 | 500 | 6217 |
