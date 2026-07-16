@@ -13,8 +13,9 @@
   before component placement. New business-surface contracts cover forms,
   tables/data views, dashboards, and pricing/checkout disclosure and recovery.
   The accessibility floor now names WCAG 2.2 focus order/visibility, reflow at
-  320 CSS px, non-text contrast at 3:1, text contrast, target size, labels,
-  errors, keyboard use, and reduced motion. State coverage is a component x
+  320 CSS px width or 256 CSS px height as applicable, non-text contrast at
+  3:1, text contrast, target size, labels, errors, keyboard use, and reduced
+  motion. State coverage is a component x
   viewport x supported-theme matrix. Rendered acceptance now records stable
   screenshot baselines/diffs (framework-neutral; Playwright is an example),
   discloses `visual not measured` for code-only review, and loops design-class

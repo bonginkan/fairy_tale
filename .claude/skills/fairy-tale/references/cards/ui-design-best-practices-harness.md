@@ -68,9 +68,10 @@ Dogfood QA; this harness governs how the UI is *designed and built*.
   (3:1 for large text, SC 1.4.3); non-text UI states and focus indicators are
   at least 3:1 where SC 1.4.11 applies; pointer targets meet 24x24 CSS px or an
   allowed spacing/exception (SC 2.5.8). Content reflows without two-dimensional
-  scrolling at 320 CSS px width (or 256 CSS px height for vertical writing),
-  except genuinely two-dimensional content (SC 1.4.10). Keep full keyboard
-  operability, labels/instructions, identified errors, and reduced motion.
+  scrolling at 320 CSS px width for vertically scrolling content or 256 CSS px
+  height for horizontally scrolling content, except genuinely two-dimensional
+  content (SC 1.4.10). Keep full keyboard operability, labels/instructions,
+  identified errors, and reduced motion.
 - **Full state and content coverage are entailed.** For each affected
   component and viewport, enumerate default, hover where applicable, focus,
   active, selected, disabled, loading, empty, error, success, overflow/long
