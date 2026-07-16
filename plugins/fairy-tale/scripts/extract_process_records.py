@@ -6,9 +6,9 @@ Increment 4 of fairy_tale #57 (WI3): move each `## <record>` section of
 process.md into a compact index so a task loads only the record it needs.
 
 Shares the extraction/verify core with extract_mode_pattern_cards.py (same
-verbatim contract, snapshot + byte-range/sha256 manifest, repo-relative
-manifest paths with absolute paths RED, duplicate slugs a hard error). The
-mode-pattern extractor's CLI and its 28/28 byte verify are untouched.
+original snapshot + byte-range/hash provenance, optional issue-bound pinned
+evolutions, repo-relative manifest paths with absolute paths RED, duplicate
+slugs a hard error).
 
 The ONLY non-moved text this script introduces (disclosed, reviewed as new):
 the index preamble line and the index table (title verbatim / mechanical

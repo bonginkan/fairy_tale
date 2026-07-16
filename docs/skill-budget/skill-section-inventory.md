@@ -21,7 +21,7 @@ in SKILL.md itself or as an extracted card reachable from the router.
 | path | bytes | lines | est tokens |
 |------|-------|-------|------------|
 | skills/fairy-tale/references/best-practices.md | 4257 | 97 | 1064 |
-| skills/fairy-tale/references/capabilities.md | 16561 | 385 | 4140 |
+| skills/fairy-tale/references/capabilities.md | 16766 | 388 | 4192 |
 | skills/fairy-tale/references/cards/accessible-genius-method-router.md | 1688 | 28 | 422 |
 | skills/fairy-tale/references/cards/benchmark-delta-harness.md | 1599 | 26 | 400 |
 | skills/fairy-tale/references/cards/best-practice-gate.md | 402 | 9 | 100 |
@@ -40,14 +40,14 @@ in SKILL.md itself or as an extracted card reachable from the router.
 | skills/fairy-tale/references/cards/general-e2e-completion-harness.md | 2030 | 30 | 508 |
 | skills/fairy-tale/references/cards/generalization-and-latent-structure-harness-hidden-rules-executable-models-and-tacit-intent.md | 3350 | 50 | 838 |
 | skills/fairy-tale/references/cards/high-signal-research-synthesis.md | 238 | 7 | 60 |
-| skills/fairy-tale/references/cards/implementation-validation-gate.md | 2537 | 41 | 634 |
+| skills/fairy-tale/references/cards/implementation-validation-gate.md | 4774 | 71 | 1194 |
 | skills/fairy-tale/references/cards/knowledge-crystallization-harness.md | 415 | 10 | 104 |
 | skills/fairy-tale/references/cards/legal-reasoning-harness.md | 596 | 12 | 149 |
 | skills/fairy-tale/references/cards/loop-engineering-and-job-automation-harness.md | 3484 | 53 | 871 |
 | skills/fairy-tale/references/cards/mechanism-grammar-harness-arc-style-hidden-rule-discovery.md | 636 | 13 | 159 |
 | skills/fairy-tale/references/cards/mythos-defensive-harness.md | 349 | 9 | 87 |
 | skills/fairy-tale/references/cards/narrative-empathy-harness-prose-conversation-and-ui-feel.md | 772 | 14 | 193 |
-| skills/fairy-tale/references/cards/refactoring-similarity-harness.md | 515 | 12 | 129 |
+| skills/fairy-tale/references/cards/refactoring-similarity-harness.md | 2265 | 34 | 566 |
 | skills/fairy-tale/references/cards/spatial-forge-harness-3d-cad-and-simulation-work.md | 932 | 16 | 233 |
 | skills/fairy-tale/references/cards/steady-behavior-harness.md | 761 | 14 | 190 |
 | skills/fairy-tale/references/cards/token-consumption-optimizer-harness.md | 3628 | 55 | 907 |
@@ -99,7 +99,7 @@ in SKILL.md itself or as an extracted card reachable from the router.
 | skills/fairy-tale/references/process/negative-space-discovery-record.md | 4394 | 120 | 1098 |
 | skills/fairy-tale/references/process/oss-release-gate.md | 352 | 17 | 88 |
 | skills/fairy-tale/references/process/problem-finding-cards.md | 614 | 29 | 154 |
-| skills/fairy-tale/references/process/refactoring-similarity-record.md | 383 | 21 | 96 |
+| skills/fairy-tale/references/process/refactoring-similarity-record.md | 1173 | 35 | 293 |
 | skills/fairy-tale/references/process/scout-report.md | 118 | 11 | 30 |
 | skills/fairy-tale/references/process/silent-loop-auto-resume-watchdog-record.md | 3084 | 70 | 771 |
 | skills/fairy-tale/references/process/spatial-forge-brief.md | 459 | 20 | 115 |
@@ -111,6 +111,6 @@ in SKILL.md itself or as an extracted card reachable from the router.
 | skills/fairy-tale/references/process/ui-affect-checklist.md | 287 | 17 | 72 |
 | skills/fairy-tale/references/process/usage-aware-multi-agent-load-balancer-record.md | 5075 | 113 | 1269 |
 | skills/fairy-tale/references/process/voice-profile-card.md | 237 | 16 | 59 |
-| skills/fairy-tale/references/process.md | 7639 | 57 | 1910 |
-| skills/fairy-tale/references/similarity-refactoring-adapter.md | 2360 | 76 | 590 |
-| skills/fairy-tale/references/sources.md | 25478 | 509 | 6370 |
+| skills/fairy-tale/references/process.md | 7670 | 57 | 1918 |
+| skills/fairy-tale/references/similarity-refactoring-adapter.md | 2885 | 81 | 721 |
+| skills/fairy-tale/references/sources.md | 25896 | 517 | 6474 |

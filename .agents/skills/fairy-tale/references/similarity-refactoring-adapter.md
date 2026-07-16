@@ -52,13 +52,17 @@ use tools to gather evidence, then let the model synthesize and validate.
 
 ## Recommended process
 
-1. Run the analyzer in JSON mode.
+1. Run the analyzer in JSON mode when the touched surface is TypeScript; use
+   repository-native tools or scoped symbol/text search for other languages.
 2. Group results by mode: functions, types, classes, overlap.
-3. Drop low-value or intentionally duplicated patterns.
-4. For each candidate cluster, identify behavioral invariants and public API
-   boundaries.
-5. Refactor one cluster at a time.
-6. Run tests/typecheck after each cluster.
+3. Treat each result as a candidate and identify its owned invariant,
+   behavioral contract, and public API boundaries.
+4. Once a family is confirmed, enumerate that family across the whole
+   codebase, including distant members; classify exclusions with evidence.
+5. Refactor one confirmed family at a time: extract the coherent shared
+   abstraction, migrate every member, and remove superseded private paths.
+6. Run focused tests/typecheck plus an adjacent compatibility check, then
+   repeat the family search to prove no unclassified member remains.
 7. Feed false positives and missed duplicates back into a local benchmark.
 
 ## Claim boundaries
@@ -73,4 +77,5 @@ Not allowed:
 
 - Similarity score alone proves semantic equivalence.
 - A detected pair must always be merged.
+- One tool report proves that every member of a semantic family was found.
 - The tool alone reproduces Fable 5's refactoring performance.

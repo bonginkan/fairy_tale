@@ -164,8 +164,8 @@
     {
       "path": "references/cards/implementation-validation-gate.md",
       "title": "Implementation Validation Gate",
-      "bytes": 2537,
-      "est_tokens": 634
+      "bytes": 4774,
+      "est_tokens": 1194
     },
     {
       "path": "references/cards/knowledge-crystallization-harness.md",
@@ -206,8 +206,8 @@
     {
       "path": "references/cards/refactoring-similarity-harness.md",
       "title": "Refactoring Similarity Harness",
-      "bytes": 515,
-      "est_tokens": 129
+      "bytes": 2265,
+      "est_tokens": 566
     },
     {
       "path": "references/cards/spatial-forge-harness-3d-cad-and-simulation-work.md",
@@ -451,9 +451,9 @@
     },
     {
       "path": "skills/fairy-tale/references/capabilities.md",
-      "bytes": 16561,
-      "lines": 385,
-      "est_tokens": 4140
+      "bytes": 16766,
+      "lines": 388,
+      "est_tokens": 4192
     },
     {
       "path": "skills/fairy-tale/references/cards/accessible-genius-method-router.md",
@@ -565,9 +565,9 @@
     },
     {
       "path": "skills/fairy-tale/references/cards/implementation-validation-gate.md",
-      "bytes": 2537,
-      "lines": 41,
-      "est_tokens": 634
+      "bytes": 4774,
+      "lines": 71,
+      "est_tokens": 1194
     },
     {
       "path": "skills/fairy-tale/references/cards/knowledge-crystallization-harness.md",
@@ -607,9 +607,9 @@
     },
     {
       "path": "skills/fairy-tale/references/cards/refactoring-similarity-harness.md",
-      "bytes": 515,
-      "lines": 12,
-      "est_tokens": 129
+      "bytes": 2265,
+      "lines": 34,
+      "est_tokens": 566
     },
     {
       "path": "skills/fairy-tale/references/cards/spatial-forge-harness-3d-cad-and-simulation-work.md",
@@ -919,9 +919,9 @@
     },
     {
       "path": "skills/fairy-tale/references/process/refactoring-similarity-record.md",
-      "bytes": 383,
-      "lines": 21,
-      "est_tokens": 96
+      "bytes": 1173,
+      "lines": 35,
+      "est_tokens": 293
     },
     {
       "path": "skills/fairy-tale/references/process/scout-report.md",
@@ -991,21 +991,21 @@
     },
     {
       "path": "skills/fairy-tale/references/process.md",
-      "bytes": 7639,
+      "bytes": 7670,
       "lines": 57,
-      "est_tokens": 1910
+      "est_tokens": 1918
     },
     {
       "path": "skills/fairy-tale/references/similarity-refactoring-adapter.md",
-      "bytes": 2360,
-      "lines": 76,
-      "est_tokens": 590
+      "bytes": 2885,
+      "lines": 81,
+      "est_tokens": 721
     },
     {
       "path": "skills/fairy-tale/references/sources.md",
-      "bytes": 25478,
-      "lines": 509,
-      "est_tokens": 6370
+      "bytes": 25896,
+      "lines": 517,
+      "est_tokens": 6474
     }
   ]
 }

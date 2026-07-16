@@ -1,5 +1,31 @@
 # Release Notes
 
+## 0.2.24
+
+- **Active DRY and clone-family consolidation gate** (#78): changes minimum
+  implementation practice from the fewest edited lines to the minimum coherent
+  design. The Implementation Validation Gate now searches for an existing
+  abstraction before editing, triggers a codebase-wide family enumeration when
+  a clone is found, consolidates every confirmed member in the same validated
+  increment, reruns the search after editing, and treats fewer independent
+  maintenance paths and subtractive diffs as completion evidence. The
+  Refactoring Similarity Harness is now language-neutral and applies to ordinary
+  patches as well as broad refactors; repository-native tools remain preferred,
+  with symbol/call-site/text search plus reviewer inspection as the fallback.
+  Rule-of-three is a signal rather than a mandate; different ownership,
+  lifecycle, failure semantics, or change cadence can justify an explicit
+  `keep-intentionally` result. Public/persisted surfaces use migration or
+  deprecation in the same consolidation plan, while generated/vendor/history/
+  forensic/mirrored exclusions require ownership and parity evidence. The
+  existing Excess taxonomy is reused rather than cloned. The process record now
+  captures family identity, complete membership, classifications, migrated call
+  sites, removed private paths, compatibility treatment, before/after
+  maintenance paths, validation, and residual members. Adds ordinary-patch and
+  semantic-look-alike routing controls. Extracted-card provenance now preserves
+  the immutable original snapshot while allowing reviewed post-extraction
+  evolution only through issue-bound current-body hashes. Runtime package
+  version is 0.2.24.
+
 ## 0.2.23
 
 - **UI Design Best-Practices Harness (build-grade expansion)** (#76): extends

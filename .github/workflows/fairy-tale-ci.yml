@@ -33,6 +33,8 @@ jobs:
           python3 scripts/skill_token_budget_check.py
           --inventory-compare docs/skill-budget/skill-section-inventory.json
           --enforce
+      - name: Extracted-card provenance gate (self-controls)
+        run: python3 scripts/extract_mode_pattern_cards.py --selftest
       - name: Card extraction byte-parity verify
         run: python3 scripts/extract_mode_pattern_cards.py --verify
       - name: Process record byte-parity verify
