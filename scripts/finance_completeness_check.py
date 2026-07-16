@@ -76,10 +76,14 @@ LEDGER_KEYS = {
     "artifact_sha256", "business_model", "unresolved_count", "claims",
     "cohort_schedule", "signoffs", "blockers", "uncertainties",
     "observed_frame", "central_claim_inventory", "artifact_verdict",
-    "materiality_threshold",
+    "materiality_threshold", "minimum_closure_conditions",
 }
-INVENTORY_KEYS = {"count", "enumeration_basis"}
+INVENTORY_KEYS = {"count", "claim_ids", "enumeration_basis"}
 MATERIALITY_KEYS = {"value", "unit", "basis"}
+# Closed unit registry with DEFAULT CAPS: a self-set "1000 bananas" threshold
+# can never launder material uncertainty.
+MATERIALITY_UNIT_CAPS = {"margin_pt": 5.0, "revenue_pct": 5.0}
+CLOSURE_CONDITION_KEYS = {"id", "text", "satisfied"}
 CLAIM_KEYS = {
     "claim_id", "source", "metric", "period", "currency", "unit", "tax_basis",
     "displayed_value", "formula", "inputs", "input_bindings", "recomputed_value",
@@ -90,7 +94,7 @@ DRIVER_KEYS = {"name", "entailed_class", "disposition", "value", "basis", "inclu
 ASSUMPTION_KEYS = {"id", "text", "evidence_status", "value"}
 UNCERTAINTY_KEYS = {"id", "text", "impact_value", "impact_unit", "decision_reversing"}
 SIGNOFF_KEYS = {"role", "reviewer", "artifact_sha256", "verdict", "coverage"}
-SIGNOFF_VERDICTS = {"approve", "block"}
+SIGNOFF_VERDICTS = {"approve", "pass_with_warnings", "block"}
 COHORT_REQUIRED = ("conversion", "churn_monthly", "active_months")
 COHORT_KEYS = set(COHORT_REQUIRED) | {"feasible_evidence"}
 REVENUE_DRIVER_REQUIRED = ("price", "volume", "start_month", "active_months")
@@ -159,6 +163,12 @@ REASON_CLASSES = (
     "anchor_ineffective", "observed_frame_missing", "inventory_mismatch",
     "artifact_verdict_missing", "artifact_verdict_blocked", "materiality_exceeded",
     "binding_mixed_roles", "aggregate_weight_domain", "component_period_mismatch",
+    # fix-7 (PR #75 round 7): directional cohort/revenue anchors, aggregates
+    # anchored to revenue shares and a shared basis, and no self-declared
+    # thresholds/inventories/riders.
+    "revenue_sign_inverted", "aggregate_weight_unanchored",
+    "component_basis_mismatch", "materiality_threshold_unanchored",
+    "cohort_factor_inverted", "closure_condition_unsatisfied",
 )
 
 # NOTE (PR #75 round 3): coverage of REASON_CLASSES is judged against the
@@ -177,6 +187,19 @@ def formula_names(formula: str) -> set[str] | None:
     except (SyntaxError, ValueError):
         return None
     return {node.id for node in ast.walk(tree) if isinstance(node, ast.Name)}
+
+
+def divisor_names(formula: str) -> set[str]:
+    """Names appearing anywhere inside a divisor position of the expression."""
+    try:
+        tree = ast.parse(formula, mode="eval")
+    except (SyntaxError, ValueError):
+        return set()
+    found: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
+            found.update(n.id for n in ast.walk(node.right) if isinstance(n, ast.Name))
+    return found
 
 
 def safe_eval_formula(formula: str, inputs: dict) -> float | None:
@@ -369,6 +392,7 @@ def check_claim_arithmetic(claim: dict, claims_by_id: dict, reasons: list[str]) 
             reasons.append(f"aggregate_weights_unnormalized:{cid}")
             return
         total = 0.0
+        component_revenues: dict[str, float] = {}
         for component_id in components:
             component = claims_by_id.get(component_id)
             if component is None:
@@ -378,10 +402,23 @@ def check_claim_arithmetic(claim: dict, claims_by_id: dict, reasons: list[str]) 
                 reasons.append(f"non_finite_value:{cid}:component:{component_id}")
                 return
             # Aggregating across periods launders a different period's margin
-            # into this claim's basis.
+            # into this claim's basis; mixing metrics/currencies/tax bases
+            # blends incomparable numbers.
             if str(component.get("period") or "").strip() != str(claim.get("period") or "").strip():
                 reasons.append(f"component_period_mismatch:{cid}:{component_id}")
+            for basis_field in ("metric", "currency", "unit", "tax_basis"):
+                if str(component.get(basis_field) or "").strip() != str(claim.get(basis_field) or "").strip():
+                    reasons.append(f"component_basis_mismatch:{cid}:{component_id}:{basis_field}")
+            drivers = component.get("revenue_drivers") or {}
+            if is_finite_number(drivers.get("price")) and is_finite_number(drivers.get("volume")):
+                component_revenues[component_id] = float(drivers["price"]) * float(drivers["volume"])
             total += float(weights[component_id]) * float(component_value)
+        # Weights are ANCHORED to component revenue shares, never self-declared.
+        if len(component_revenues) == len(components) and sum(component_revenues.values()) > 0:
+            revenue_total = sum(component_revenues.values())
+            for component_id, revenue in component_revenues.items():
+                if abs(float(weights[component_id]) - revenue / revenue_total) > 0.01:
+                    reasons.append(f"aggregate_weight_unanchored:{cid}:{component_id}")
         recomputed = total
     else:
         formula = claim.get("formula")
@@ -454,7 +491,7 @@ def check_economic_effect(claim: dict, formula: str, inputs: dict, baseline: flo
         perturbed = safe_eval_formula(formula, {**inputs, key: perturbed_value})
         if perturbed is None:
             continue  # division-by-zero style edge; executability already gated
-        if abs(perturbed - baseline) < 1e-12:
+        if perturbed == baseline:  # exact: tiny real effects must not false-block
             reasons.append(f"formula_input_ineffective:{cid}:{key}")
             continue
         binding = bindings.get(key)
@@ -525,11 +562,15 @@ def check_anchor_effect(claim: dict, formula: str, reasons: list[str]) -> None:
                                           {**assumption_values, anchor: perturb(assumption_values[anchor])})
         if result is None:
             continue
-        if abs(result - baseline) < 1e-12:
+        if result == baseline:  # exact: a tiny-but-real effect must not false-block
             reasons.append(f"anchor_ineffective:{cid}:{anchor}")
         elif anchor in cost_anchor_names and metric in (MARGIN_METRICS | {"operating_profit"}) \
-                and result > baseline + 1e-12:
+                and result > baseline:
             reasons.append(f"cost_sign_inverted:{cid}:{anchor}")
+        elif anchor in REVENUE_DRIVER_KEYS and metric in ("revenue", "forecast") and result < baseline:
+            # More price/volume/conversion/months can never mean LESS revenue:
+            # an inverse (divided) cohort factor shows up here directionally.
+            reasons.append(f"revenue_sign_inverted:{cid}:{anchor}")
 
 
 def check_cost_consumption(claim: dict, reasons: list[str]) -> None:
@@ -835,6 +876,22 @@ def evaluate(ledger: dict) -> tuple[str, list[str]]:
                 if claim.get("metric") in ("revenue", "forecast") or "volume" in used:
                     if not {"conversion", "active_months"} <= used:
                         reasons.append(f"cohort_math_missing:{cid}")
+                # Cohort factors MULTIPLY revenue (#74): a factor sitting in a
+                # divisor position is inverse semantics even if "effectful".
+                inverted: set[str] = set()
+                formula_text = claim.get("formula")
+                if isinstance(formula_text, str):
+                    inverted |= divisor_names(formula_text) & set(claim.get("inputs") or {})
+                    # map inverted inputs back through their bindings
+                    for key in list(inverted):
+                        binding = (claim.get("input_bindings") or {}).get(key)
+                        if isinstance(binding, str) and not binding.strip().startswith("assumption:"):
+                            inverted |= formula_names(binding.strip()) or set()
+                for binding in (claim.get("input_bindings") or {}).values():
+                    if isinstance(binding, str) and not binding.strip().startswith("assumption:"):
+                        inverted |= divisor_names(binding.strip())
+                if {"conversion", "active_months"} & inverted:
+                    reasons.append(f"cohort_factor_inverted:{cid}")
 
     declared = ledger.get("unresolved_count")
     if not isinstance(declared, int) or isinstance(declared, bool) or declared != open_tbd:
@@ -862,6 +919,13 @@ def evaluate(ledger: dict) -> tuple[str, list[str]]:
             and len(str(threshold.get("basis") or "").strip()) >= 10
         if threshold_ok:
             check_unknown_keys(threshold, MATERIALITY_KEYS, "materiality_threshold", reasons)
+            unit = str(threshold["unit"]).strip()
+            # The unit registry is CLOSED and capped, and the basis must be a
+            # locator: "1000 bananas per internal decision" can never pass.
+            if unit not in MATERIALITY_UNIT_CAPS or float(threshold["value"]) > MATERIALITY_UNIT_CAPS[unit] \
+                    or not is_locator(threshold.get("basis")):
+                reasons.append("materiality_threshold_unanchored")
+                threshold_ok = False
         if uncertainties and not threshold_ok:
             reasons.append("materiality_exceeded:threshold_missing")
         cumulative = 0.0
@@ -896,17 +960,35 @@ def evaluate(ledger: dict) -> tuple[str, list[str]]:
     inventory = ledger.get("central_claim_inventory")
     if not isinstance(inventory, dict) or not isinstance(inventory.get("count"), int) \
             or isinstance(inventory.get("count"), bool) \
-            or len(str(inventory.get("enumeration_basis") or "").strip()) < 10:
+            or not isinstance(inventory.get("claim_ids"), list) \
+            or not is_locator(inventory.get("enumeration_basis")):
         reasons.append("inventory_mismatch:record_missing")
     else:
         check_unknown_keys(inventory, INVENTORY_KEYS, "central_claim_inventory", reasons)
-        if inventory["count"] != len(claims):
+        # Identity, not just cardinality: the inventory names the exact claim
+        # IDs, and both the set and the count must match the recorded claims.
+        if inventory["count"] != len(claims) or set(inventory["claim_ids"]) != {c for c in claim_ids if c} \
+                or len(inventory["claim_ids"]) != len(claims):
             reasons.append(f"inventory_mismatch:declared={inventory['count']}:recorded={len(claims)}")
     artifact_verdict = ledger.get("artifact_verdict")
     if artifact_verdict not in SIGNOFF_VERDICTS:
         reasons.append("artifact_verdict_missing")
     elif artifact_verdict == "block":
         reasons.append("artifact_verdict_blocked")
+    # Minimum closure conditions are explicit records; any unsatisfied one blocks.
+    closure_conditions = ledger.get("minimum_closure_conditions")
+    if not isinstance(closure_conditions, list) or not closure_conditions:
+        reasons.append("closure_state_missing:minimum_closure_conditions")
+    else:
+        for entry in closure_conditions:
+            if not isinstance(entry, dict) or not isinstance(entry.get("id"), str) \
+                    or len(str(entry.get("text") or "").strip()) < 10 \
+                    or not isinstance(entry.get("satisfied"), bool):
+                reasons.append("closure_state_missing:minimum_closure_conditions")
+                continue
+            check_unknown_keys(entry, CLOSURE_CONDITION_KEYS, f"closure_condition:{entry['id']}", reasons)
+            if not entry["satisfied"]:
+                reasons.append(f"closure_condition_unsatisfied:{entry['id']}")
 
     artifact = str(ledger.get("artifact_sha256") or "").strip()
     if not ARTIFACT_HASH_RE.match(artifact):
@@ -923,8 +1005,12 @@ def evaluate(ledger: dict) -> tuple[str, list[str]]:
             continue
         # Every accepted entry is individually complete: a blank entry can
         # never ride along beside a valid one (PR #75 round 5).
-        if not str(entry.get("reviewer") or "").strip() or not isinstance(entry.get("coverage"), list) \
+        coverage = entry.get("coverage")
+        if not str(entry.get("reviewer") or "").strip() or not isinstance(coverage, list) or not coverage \
+                or not set(c for c in coverage if isinstance(c, str)) <= {c for c in claim_ids if c} \
                 or not str(entry.get("artifact_sha256") or "").strip():
+            # Non-empty, claim-anchored coverage per ENTRY: an empty-coverage
+            # rider can never pad a role.
             reasons.append(f"signoff_malformed:{entry.get('role', '?')}")
         verdict_value = entry.get("verdict")
         if verdict_value not in SIGNOFF_VERDICTS:
@@ -1046,8 +1132,11 @@ def _green_ledger() -> dict:
         "blockers": [],
         "uncertainties": [],
         "observed_frame": "full proposal deck p1-p12 including appendix A",
-        "central_claim_inventory": {"count": 1, "enumeration_basis": "every revenue/margin figure on p2 table 1"},
+        "central_claim_inventory": {"count": 1, "claim_ids": ["C1"],
+                                    "enumeration_basis": "every revenue/margin figure on p2 table 1"},
         "artifact_verdict": "approve",
+        "minimum_closure_conditions": [{"id": "mc1", "satisfied": True,
+                                        "text": "every entailed cost row carries a resolved disposition"}],
         "claims": [{
             "claim_id": "C1", "source": "p2:table1", "metric": "gross_margin",
             "period": "FY1", "currency": "USD", "unit": "ratio", "tax_basis": "excl",
@@ -1500,6 +1589,78 @@ def _selftest() -> int:
         check(name, verdict == "pass" and not reasons)
     check_positive("included-in with an absorbed amount and no allocation basis passes (issue: amount OR basis)",
                    included_in_value_only)
+
+    # --- fix-7 probes (PR #75 round 7: direction, anchored aggregates, no self-declaration) ---
+    def inverse_cohort(l):
+        recurring_forecast_no_cohort_math(l)
+        l["claims"][0].update(formula="rev/(conv*months)", displayed_value=2.7778, recomputed_value=2.7778,
+                              rounding_rule="4dp")
+        l["claims"][0]["inputs"] = {"rev": 100.0, "conv": 0.3, "months": 120.0}
+        l["claims"][0]["input_bindings"] = {"rev": "price*volume", "conv": "conversion", "months": "active_months*10"}
+        l["claims"][0]["revenue_drivers"]["active_months"] = 12
+    probe("a divided cohort factor blocks (inverse semantics)", inverse_cohort, "cohort_factor_inverted")
+
+    def unanchored_weights(l):
+        dup = None
+        second = copy.deepcopy(l["claims"][0]); second["claim_id"] = "C2"
+        second["revenue_drivers"] = {"price": 10.0, "volume": 90, "start_month": 1, "active_months": 12}
+        second["inputs"] = {"rev": 900.0, "cogs": 225.0, "fee": 135.0}
+        second["input_bindings"] = {"rev": "price*volume", "cogs": "assumption:a1", "fee": "partner_fee"}
+        second["assumptions"] = [{"id": "a1", "text": "COGS from supplier quote p2 line 4", "evidence_status": "cited", "value": 225.0}]
+        second["cost_drivers"] = [{"name": "partner_fee", "entailed_class": "channel_economics",
+                                   "disposition": "amount", "value": 135.0,
+                                   "basis": "flat fee per period, tax-exclusive",
+                                   "source": "partner agreement p3 clause 2", "period": "FY1"}]
+        agg = {"claim_id": "C0", "source": "p9:agg", "metric": "gross_margin", "period": "FY1",
+               "currency": "USD", "unit": "ratio", "tax_basis": "excl", "displayed_value": 0.6,
+               "recomputed_value": 0.6, "rounding_rule": "2dp", "components": ["C1", "C2"],
+               "weights": {"C1": 0.5, "C2": 0.5},
+               "revenue_drivers": {"price": 10.0, "volume": 100, "start_month": 1, "active_months": 12},
+               "assumptions": [], "evidence_status": "cited",
+               "sensitivity": "tracks component margins one-for-one", "depends_on": ["C1", "C2"]}
+        l["claims"] = [agg, l["claims"][0], second]
+        for s in l["signoffs"]:
+            s["coverage"] = ["C0", "C1", "C2"]
+        l["central_claim_inventory"] = {"count": 3, "claim_ids": ["C0", "C1", "C2"],
+                                        "enumeration_basis": "every margin figure p2-p9 tables"}
+    probe("self-declared 50/50 weights over 10/90 revenue block", unanchored_weights, "aggregate_weight_unanchored")
+
+    def basis_mismatch(l):
+        unanchored_weights(l)
+        l["claims"][0]["weights"] = {"C1": 0.1, "C2": 0.9}
+        l["claims"][2]["currency"] = "EUR"
+    probe("a component in another currency blocks", basis_mismatch, "component_basis_mismatch")
+    probe("a banana-unit self-set materiality threshold blocks",
+          lambda l: l.update(uncertainties=[{"id": "u1", "text": "churn could exceed the modeled rate",
+                                             "impact_value": 1.0, "impact_unit": "bananas", "decision_reversing": False}],
+                             materiality_threshold={"value": 1000.0, "unit": "bananas",
+                                                    "basis": "internal team decision without any source"}),
+          "materiality_threshold_unanchored")
+    probe("an inventory naming wrong claim ids blocks even with a matching count",
+          lambda l: l["central_claim_inventory"].update(claim_ids=["C9"]), "inventory_mismatch")
+    probe("an unsatisfied minimum closure condition blocks",
+          lambda l: l["minimum_closure_conditions"][0].update(satisfied=False), "closure_condition_unsatisfied")
+    probe("missing minimum closure conditions block",
+          lambda l: l.pop("minimum_closure_conditions"), "closure_state_missing")
+    def empty_coverage_rider(l):
+        l["signoffs"].append({"role": "arithmetic_reconciliation", "reviewer": "r3",
+                              "artifact_sha256": l["artifact_sha256"], "verdict": "approve", "coverage": []})
+    probe("an empty-coverage sign-off rider blocks", empty_coverage_rider, "signoff_malformed")
+
+    def revenue_inverted(l):
+        recurring_forecast_no_cohort_math(l)
+        l["claims"][0]["revenue_drivers"].update(conversion=0.3, churn_monthly=0.05)
+        l["claims"][0].update(formula="conv*months-rev", displayed_value=-96.4, recomputed_value=-96.4,
+                              rounding_rule="1dp")
+        l["claims"][0]["inputs"] = {"rev": 100.0, "conv": 0.3, "months": 12.0}
+        l["claims"][0]["input_bindings"] = {"rev": "price*volume", "conv": "conversion", "months": "active_months"}
+    probe("revenue moving DOWN when volume moves up blocks", revenue_inverted, "revenue_sign_inverted")
+    check_positive("a PASS_WITH_WARNINGS verdict with bounded uncertainties passes",
+                   lambda l: (with_threshold(l),
+                              l.update(artifact_verdict="pass_with_warnings",
+                                       uncertainties=[{"id": "u1", "text": "churn could run 1pt above the modeled rate",
+                                                       "impact_value": 2.0, "impact_unit": "margin_pt",
+                                                       "decision_reversing": False}]))[-1])
 
     if failures:
         print("finance completeness selftest FAILED.")

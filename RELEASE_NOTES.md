@@ -53,17 +53,25 @@
   carry an explicit stated basis; included-in carries the absorbed amount OR
   an allocation basis (per the issue contract); the ledger records its
   observed frame, a count-checked central-claim inventory, and an artifact
-  verdict; uncertainty impact bounds are numeric with cumulative materiality
-  evaluated against a declared threshold; uncertainty reversal flags are
-  required booleans; every sign-off entry is individually complete. Coverage
+  verdict (approve/pass_with_warnings/block) plus explicit minimum closure
+  conditions; anchors are direction-tested (cost up => margin down, revenue
+  drivers up => revenue up, cohort factors never in divisors); aggregate
+  weights must match component revenue shares and components share the
+  claim's basis; the central-claim inventory names exact claim IDs;
+  materiality thresholds come from a closed, capped unit registry with a
+  locator-anchored basis; uncertainty impact bounds are numeric with
+  cumulative materiality evaluated against that threshold; uncertainty
+  reversal flags are required booleans; every sign-off entry is
+  individually complete with non-empty claim-anchored coverage. Coverage
   is refutable by execution: every class in the checker's canonical
-  REASON_CLASSES list (96 classes) must be covered by an executed RED
+  REASON_CLASSES list (102 classes) must be covered by an executed RED
   fixture in the acceptance run — deleting a rule or its fixture turns CI
-  red; no hand-maintained coverage claims. Selftest carries 100+
-  red/green/hostile controls (every PR #75 round-1..6 review probe and an
-  add/remove metamorphic flip); one hundred seven sanitized cross-industry
+  red; no hand-maintained coverage claims. Selftest carries 110+
+  red/green/hostile controls (every PR #75 round-1..7 review probe and an
+  add/remove metamorphic flip); one hundred sixteen sanitized cross-industry
   acceptance fixtures (including positive controls for bounded
-  uncertainties, per-unit recurring margins, and amount-only included-in) in
+  uncertainties, per-unit recurring margins, amount-only included-in, and
+  pass-with-warnings) in
   `fixtures/finance-completeness/cases.jsonl` (agency, SaaS, marketplace,
   managed service, hardware, channel sales), all wired into CI. `redundancy`
   added to the listing recall-floor triggers. Router row +

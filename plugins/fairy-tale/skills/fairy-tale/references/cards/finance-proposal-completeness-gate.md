@@ -86,17 +86,23 @@ gate → Closure / Negative-Space Check → reviewer sign-off.
   arithmetic; conversion/churn domains are validated; margins must be
   ratio-unit quotients over a revenue-bound denominator with a numerator
   derived from it, in plausible range. Reference is not effect, and
-  perturbation reaches the LEDGER: every input AND every anchor (amount
-  drivers, revenue drivers, assumption values) is perturbation-tested
-  end-to-end through bindings + formula — a `*0` hidden inside a binding
-  blocks — and a cost anchor that moves a margin/profit UP is a sign
-  inversion; one binding never mixes revenue and cost anchors. Dependency
-  and aggregate graphs must be acyclic with no self/duplicate references,
-  weights live in (0,1], and aggregate components share the claim's period.
-  The ledger records its observed frame, a central-claim inventory whose
-  count matches the recorded claims, and an artifact verdict; uncertainty
-  impact bounds are numeric and their cumulative absolute impact must stay
-  under a declared materiality threshold. Constant formulas, non-executable
+  perturbation reaches the LEDGER with DIRECTION: every input AND every
+  anchor (amount drivers, revenue drivers, assumption values) is
+  perturbation-tested end-to-end through bindings + formula — a `*0` hidden
+  inside a binding blocks; a cost anchor that moves a margin/profit UP and a
+  revenue anchor that moves revenue/forecast DOWN are sign inversions; a
+  cohort factor in a divisor position is inverse semantics; one binding
+  never mixes revenue and cost anchors. Dependency and aggregate graphs
+  must be acyclic with no self/duplicate references; aggregate weights live
+  in (0,1], must match the components' revenue shares (never
+  self-declared), and components share the claim's period, metric,
+  currency, unit, and tax basis. The ledger records its observed frame, a
+  central-claim inventory naming the exact claim IDs (identity, not just
+  count), an artifact verdict (approve / pass_with_warnings / block), and
+  explicit minimum closure conditions (any unsatisfied one blocks);
+  uncertainty impact bounds are numeric in a CLOSED, capped unit registry
+  with a locator-anchored threshold basis, and cumulative absolute impact
+  must stay under the threshold. Constant formulas, non-executable
   formulas, missing inputs, and non-finite values block. A strict schema rejects unknown keys
   anywhere in the record so a typo can never weaken a rule, while requiring
   every #74 record field (recomputed value, assumptions with values,
