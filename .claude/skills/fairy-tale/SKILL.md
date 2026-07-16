@@ -1,6 +1,6 @@
 ---
 name: fairy-tale
-description: Fable/Mythos-informed workflow harness for budgeted, evidence-driven, validation-gated agent execution. Use for loop/spiral engineering, double-helix learning loops, evolutionary spiral operators, job automation, silent-loop auto-resume, do-not-disturb windows, usage-aware multi-agent load balancing, closure checks, negative-space discovery, excess/redundancy/legacy-surface review, finance proposal completeness, e2e completion, GUI dogfood QA, creator-proxy WWCD elaboration, codebase migration, research synthesis, benchmark/legal reasoning, UI design best practices, UI/3D/creative work, token-consumption optimization (memoization), mechanism discovery, and defensive security process design.
+description: Fable/Mythos-informed workflow harness for budgeted, evidence-driven, validation-gated agent execution. Use for loop/spiral engineering, double-helix learning loops, evolutionary spirals, job automation, agent handoffs, silent-loop auto-resume, do-not-disturb windows, usage-aware multi-agent load balancing, closure checks, negative-space discovery, excess/redundancy/legacy-surface review, finance proposal completeness, e2e completion, GUI dogfood QA, creator-proxy WWCD elaboration, migration, research synthesis, benchmark/legal reasoning, UI design best practices, UI/3D/creative work, token-consumption optimization (memoization), mechanism discovery, and defensive security process design.
 ---
 
 # Fairy Tale
@@ -128,6 +128,10 @@ python3 scripts/fairy_tale_residency_check.py
      source adapters, run ledger, permission gates, Do Not Disturb operating
      windows, and stop conditions before adding schedulers or autonomous
      action.
+   - For an active agent-to-agent handoff, review request, progress checkpoint,
+     or state-change notice inside a loop: use the Helix Loop Communication
+     Harness. Address the named counterpart and carry repo-qualified artifact,
+     exact-head, check, blocker, next-action, and acknowledgement state.
    - For multi-agent role assignment inside a loop: use the
      `Usage-Aware Multi-Agent Load Balancer` card and its Usage Reading
      Reference. Assign fixed specialist capabilities first, check active
@@ -177,6 +181,7 @@ Route with the table below and read the linked card before applying a pattern; t
 | Cyber Frontier Defense Harness | Use only for authorized defensive work. | `references/cards/cyber-frontier-defense-harness.md` |
 | Workflow self-improvement | Inspect current agent config, skills, commands, hooks, and usage patterns. | `references/cards/workflow-self-improvement.md` |
 | Loop Engineering and Job Automation Harness | Use this when the task asks agents to keep running across turns, | `references/cards/loop-engineering-and-job-automation-harness.md` |
+| Helix Loop Communication Harness | Use for active agent-to-agent handoffs, review requests, progress checkpoints, and state-change notices inside a routed loop. | `references/cards/helix-loop-communication-harness.md` |
 | High-signal research synthesis | Separate primary sources from user reports. | `references/cards/high-signal-research-synthesis.md` |
 | Accessible Genius Method Router | Use when the task benefits from durable methods distilled from historical | `references/cards/accessible-genius-method-router.md` |
 | Benchmark Delta Harness | Identify which benchmark capability is being targeted: agentic coding, | `references/cards/benchmark-delta-harness.md` |

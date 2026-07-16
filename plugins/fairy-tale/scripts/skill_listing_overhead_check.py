@@ -71,6 +71,7 @@ REQUIRED_TRIGGERS = {
         "research",
         "benchmark",
         "legal",
+        "handoff",
         "defensive security",
     ),
     "fairy-tale-benchmark-feedback": ("swe-bench pro", "hle", "exploitbench"),
