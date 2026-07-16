@@ -89,21 +89,29 @@ gate → Closure / Negative-Space Check → reviewer sign-off.
   perturbation reaches the LEDGER with DIRECTION: every input AND every
   anchor (amount drivers, revenue drivers, assumption values) is
   perturbation-tested end-to-end through bindings + formula — a `*0` hidden
-  inside a binding blocks; a cost anchor that moves a margin/profit UP and a
-  revenue anchor that moves revenue/forecast DOWN are sign inversions; a
-  cohort factor in a divisor position is inverse semantics; one binding
-  never mixes revenue and cost anchors. Dependency and aggregate graphs
-  must be acyclic with no self/duplicate references; aggregate weights live
-  in (0,1], must match the components' revenue shares (never
-  self-declared), and components share the claim's period, metric,
-  currency, unit, and tax basis. The ledger records its observed frame, a
-  central-claim inventory naming the exact claim IDs (identity, not just
-  count), an artifact verdict (approve / pass_with_warnings / block), and
-  explicit minimum closure conditions (any unsatisfied one blocks);
-  uncertainty impact bounds are numeric in a CLOSED, capped unit registry
-  with a locator-anchored threshold basis, and cumulative absolute impact
-  must stay under the threshold. Constant formulas, non-executable
-  formulas, missing inputs, and non-finite values block. A strict schema rejects unknown keys
+  inside a binding blocks; a cost anchor that moves a margin/profit UP and
+  a revenue anchor that moves revenue/forecast/operating-profit DOWN are
+  sign inversions; a cohort factor divided or repeated within one
+  expression is inverse/compounded semantics (a revenue denominator that
+  MULTIPLIES cohort factors is correct margin math); one binding never
+  mixes revenue and cost anchors. Dependency and aggregate graphs must be
+  acyclic with no self/duplicate references; aggregate weights live in
+  (0,1], must match the components' EXECUTED revenue (their revenue-bound
+  input values, setup fees and cohort factors included — never a bare
+  price*volume shortcut, never self-declared), and components share the
+  claim's period, metric, currency, unit, and tax basis. The ledger
+  records its observed frame, a central-claim inventory naming the exact
+  claim IDs (identity, not just count), an artifact verdict (PASS /
+  PASS_WITH_WARNINGS / BLOCK, the issue-canonical enum), explicit minimum
+  closure conditions (any unsatisfied one blocks), and cross-page
+  conflicts: same-basis claims with diverging values must carry a recorded
+  conflict with a locator-anchored resolution. Recurring claims must
+  record conversion and churn. Uncertainty impact bounds are numeric with
+  locator-anchored evidence in a CLOSED, capped unit registry (#74
+  default: relative 10%; stricter task-supplied thresholds accepted), and
+  cumulative absolute impact must stay under the threshold. Constant
+  formulas, non-executable formulas, missing inputs, and non-finite
+  values block. A strict schema rejects unknown keys
   anywhere in the record so a typo can never weaken a rule, while requiring
   every #74 record field (recomputed value, assumptions with values,
   evidence status, sensitivity, cross-claim dependencies, closure state).

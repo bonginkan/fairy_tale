@@ -64,14 +64,21 @@
   reversal flags are required booleans; every sign-off entry is
   individually complete with non-empty claim-anchored coverage. Coverage
   is refutable by execution: every class in the checker's canonical
-  REASON_CLASSES list (102 classes) must be covered by an executed RED
+  REASON_CLASSES list (106 classes) must be covered by an executed RED
   fixture in the acceptance run — deleting a rule or its fixture turns CI
-  red; no hand-maintained coverage claims. Selftest carries 110+
-  red/green/hostile controls (every PR #75 round-1..7 review probe and an
-  add/remove metamorphic flip); one hundred sixteen sanitized cross-industry
-  acceptance fixtures (including positive controls for bounded
-  uncertainties, per-unit recurring margins, amount-only included-in, and
-  pass-with-warnings) in
+  red; no hand-maintained coverage claims. Round 8 adds: operating-profit
+  revenue direction, per-expression cohort divisor/duplication semantics
+  (correct recurring margins no longer false-block), aggregate weights
+  anchored to EXECUTED revenue (setup fees included), recurring
+  conversion/churn required, cross-page conflict records with anchored
+  resolutions, evidence-anchored numeric impacts (default cap 10%),
+  string-typed coverage, and the issue-canonical PASS /
+  PASS_WITH_WARNINGS / BLOCK verdict enum. Selftest carries 120+
+  red/green/hostile controls (every PR #75 round-1..8 review probe and an
+  add/remove metamorphic flip); one hundred twenty-six sanitized
+  cross-industry acceptance fixtures (positive controls for bounded
+  uncertainties, per-unit recurring margins, amount-only included-in,
+  pass-with-warnings, resolved conflicts, and correct recurring margins) in
   `fixtures/finance-completeness/cases.jsonl` (agency, SaaS, marketplace,
   managed service, hardware, channel sales), all wired into CI. `redundancy`
   added to the listing recall-floor triggers. Router row +

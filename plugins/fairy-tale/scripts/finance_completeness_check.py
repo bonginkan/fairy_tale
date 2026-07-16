@@ -76,13 +76,15 @@ LEDGER_KEYS = {
     "artifact_sha256", "business_model", "unresolved_count", "claims",
     "cohort_schedule", "signoffs", "blockers", "uncertainties",
     "observed_frame", "central_claim_inventory", "artifact_verdict",
-    "materiality_threshold", "minimum_closure_conditions",
+    "materiality_threshold", "minimum_closure_conditions", "cross_page_conflicts",
 }
+CONFLICT_KEYS = {"id", "claim_ids", "description", "resolution"}
 INVENTORY_KEYS = {"count", "claim_ids", "enumeration_basis"}
 MATERIALITY_KEYS = {"value", "unit", "basis"}
-# Closed unit registry with DEFAULT CAPS: a self-set "1000 bananas" threshold
-# can never launder material uncertainty.
-MATERIALITY_UNIT_CAPS = {"margin_pt": 5.0, "revenue_pct": 5.0}
+# Closed unit registry with DEFAULT CAPS (#74 default: relative 10%): a
+# self-set "1000 bananas" threshold can never launder material uncertainty;
+# a task-supplied STRICTER (smaller) threshold is always accepted.
+MATERIALITY_UNIT_CAPS = {"margin_pt": 10.0, "revenue_pct": 10.0}
 CLOSURE_CONDITION_KEYS = {"id", "text", "satisfied"}
 CLAIM_KEYS = {
     "claim_id", "source", "metric", "period", "currency", "unit", "tax_basis",
@@ -92,9 +94,10 @@ CLAIM_KEYS = {
 }
 DRIVER_KEYS = {"name", "entailed_class", "disposition", "value", "basis", "included_in", "allocation_basis", "covered_scope", "source", "period", "evidence"}
 ASSUMPTION_KEYS = {"id", "text", "evidence_status", "value"}
-UNCERTAINTY_KEYS = {"id", "text", "impact_value", "impact_unit", "decision_reversing"}
+UNCERTAINTY_KEYS = {"id", "text", "impact_value", "impact_unit", "evidence", "decision_reversing"}
 SIGNOFF_KEYS = {"role", "reviewer", "artifact_sha256", "verdict", "coverage"}
-SIGNOFF_VERDICTS = {"approve", "pass_with_warnings", "block"}
+# Verdict enum synced to the issue #74 contract (canonical uppercase).
+SIGNOFF_VERDICTS = {"PASS", "PASS_WITH_WARNINGS", "BLOCK"}
 COHORT_REQUIRED = ("conversion", "churn_monthly", "active_months")
 COHORT_KEYS = set(COHORT_REQUIRED) | {"feasible_evidence"}
 REVENUE_DRIVER_REQUIRED = ("price", "volume", "start_month", "active_months")
@@ -169,6 +172,10 @@ REASON_CLASSES = (
     "revenue_sign_inverted", "aggregate_weight_unanchored",
     "component_basis_mismatch", "materiality_threshold_unanchored",
     "cohort_factor_inverted", "closure_condition_unsatisfied",
+    # fix-8 (PR #75 round 8): profit direction, executed-revenue weights,
+    # recurring driver completeness, and the cross-page conflict contract.
+    "cross_page_conflict_unrecorded", "cross_page_conflict_malformed",
+    "cross_page_conflict_unresolved", "cohort_factor_duplicated",
 )
 
 # NOTE (PR #75 round 3): coverage of REASON_CLASSES is judged against the
@@ -409,9 +416,9 @@ def check_claim_arithmetic(claim: dict, claims_by_id: dict, reasons: list[str]) 
             for basis_field in ("metric", "currency", "unit", "tax_basis"):
                 if str(component.get(basis_field) or "").strip() != str(claim.get(basis_field) or "").strip():
                     reasons.append(f"component_basis_mismatch:{cid}:{component_id}:{basis_field}")
-            drivers = component.get("revenue_drivers") or {}
-            if is_finite_number(drivers.get("price")) and is_finite_number(drivers.get("volume")):
-                component_revenues[component_id] = float(drivers["price"]) * float(drivers["volume"])
+            executed = executed_revenue(component)
+            if executed is not None:
+                component_revenues[component_id] = executed
             total += float(weights[component_id]) * float(component_value)
         # Weights are ANCHORED to component revenue shares, never self-declared.
         if len(component_revenues) == len(components) and sum(component_revenues.values()) > 0:
@@ -567,9 +574,11 @@ def check_anchor_effect(claim: dict, formula: str, reasons: list[str]) -> None:
         elif anchor in cost_anchor_names and metric in (MARGIN_METRICS | {"operating_profit"}) \
                 and result > baseline:
             reasons.append(f"cost_sign_inverted:{cid}:{anchor}")
-        elif anchor in REVENUE_DRIVER_KEYS and metric in ("revenue", "forecast") and result < baseline:
-            # More price/volume/conversion/months can never mean LESS revenue:
-            # an inverse (divided) cohort factor shows up here directionally.
+        elif anchor in REVENUE_DRIVER_KEYS and metric in ("revenue", "forecast", "operating_profit") \
+                and result < baseline:
+            # More price/volume/conversion/months can never mean LESS revenue
+            # or less operating profit: an inverse (divided or negated)
+            # revenue term shows up here directionally.
             reasons.append(f"revenue_sign_inverted:{cid}:{anchor}")
 
 
@@ -641,6 +650,27 @@ def check_input_bindings(claim: dict, inputs: dict, reasons: list[str]) -> None:
         }
         if binding_names & REVENUE_DRIVER_KEYS and binding_names & cost_names:
             reasons.append(f"binding_mixed_roles:{cid}:{key}")
+
+
+def executed_revenue(component: dict) -> float | None:
+    """A component's ACTUAL revenue: the sum of its executed revenue-side
+    input values (bindings referencing only revenue-driver keys — which
+    includes setup fees and cohort factors), or the displayed value itself
+    for revenue/forecast components. Never a bare price*volume shortcut."""
+    if component.get("metric") in ("revenue", "forecast"):
+        value = component.get("displayed_value")
+        return float(value) if is_finite_number(value) else None
+    total = 0.0
+    found = False
+    inputs = component.get("inputs") or {}
+    for key, binding in (component.get("input_bindings") or {}).items():
+        if not isinstance(binding, str) or binding.strip().startswith("assumption:"):
+            continue
+        names = formula_names(binding.strip()) or set()
+        if names and names <= REVENUE_DRIVER_KEYS and is_finite_number(inputs.get(key)):
+            total += float(inputs[key])
+            found = True
+    return total if found else None
 
 
 def check_revenue_drivers(claim: dict, reasons: list[str]) -> None:
@@ -859,6 +889,10 @@ def evaluate(ledger: dict) -> tuple[str, list[str]]:
             for claim in claims:
                 drivers = claim.get("revenue_drivers") or {}
                 cid = claim.get("claim_id", "?")
+                # Recurring economics REQUIRE the cohort drivers on record.
+                for key in ("conversion", "churn_monthly"):
+                    if not is_finite_number(drivers.get(key)):
+                        reasons.append(f"revenue_driver_missing:{cid}:{key}")
                 claimed_active = drivers.get("active_months")
                 if is_finite_number(claimed_active) and float(claimed_active) > active:
                     reasons.append(f"cohort_inconsistent_active_months:{cid}")
@@ -877,21 +911,41 @@ def evaluate(ledger: dict) -> tuple[str, list[str]]:
                     if not {"conversion", "active_months"} <= used:
                         reasons.append(f"cohort_math_missing:{cid}")
                 # Cohort factors MULTIPLY revenue (#74): a factor sitting in a
-                # divisor position is inverse semantics even if "effectful".
-                inverted: set[str] = set()
+                # divisor position WITHIN one expression is inverse semantics.
+                # Per-expression only: a margin's revenue denominator whose
+                # binding multiplies cohort factors is CORRECT (round-8
+                # false-block); the end-to-end direction test covers cross-
+                # expression composition. A factor appearing twice in one
+                # expression compounds growth and blocks too.
+                cohort_factors = {"conversion", "active_months"}
+                claim_bindings = claim.get("input_bindings") or {}
+                # An input ALIAS in the formula's divisor whose binding is a
+                # PURE cohort expression is inverse too; a revenue denominator
+                # that merely CONTAINS cohort factors alongside price/volume
+                # is correct margin math (round-8 false-block).
                 formula_text = claim.get("formula")
                 if isinstance(formula_text, str):
-                    inverted |= divisor_names(formula_text) & set(claim.get("inputs") or {})
-                    # map inverted inputs back through their bindings
-                    for key in list(inverted):
-                        binding = (claim.get("input_bindings") or {}).get(key)
+                    for alias in divisor_names(formula_text):
+                        binding = claim_bindings.get(alias)
                         if isinstance(binding, str) and not binding.strip().startswith("assumption:"):
-                            inverted |= formula_names(binding.strip()) or set()
-                for binding in (claim.get("input_bindings") or {}).values():
-                    if isinstance(binding, str) and not binding.strip().startswith("assumption:"):
-                        inverted |= divisor_names(binding.strip())
-                if {"conversion", "active_months"} & inverted:
-                    reasons.append(f"cohort_factor_inverted:{cid}")
+                            bound_names = formula_names(binding.strip()) or set()
+                            if bound_names and bound_names <= cohort_factors:
+                                reasons.append(f"cohort_factor_inverted:{cid}")
+                expressions = [claim.get("formula")] + list(claim_bindings.values())
+                for expression in expressions:
+                    if not isinstance(expression, str) or expression.strip().startswith("assumption:"):
+                        continue
+                    expression = expression.strip()
+                    if divisor_names(expression) & cohort_factors:
+                        reasons.append(f"cohort_factor_inverted:{cid}")
+                    try:
+                        names_in_expr = [n.id for n in ast.walk(ast.parse(expression, mode="eval"))
+                                         if isinstance(n, ast.Name)]
+                    except (SyntaxError, ValueError):
+                        continue
+                    for factor in cohort_factors:
+                        if names_in_expr.count(factor) > 1:
+                            reasons.append(f"cohort_factor_duplicated:{cid}:{factor}")
 
     declared = ledger.get("unresolved_count")
     if not isinstance(declared, int) or isinstance(declared, bool) or declared != open_tbd:
@@ -941,7 +995,9 @@ def evaluate(ledger: dict) -> tuple[str, list[str]]:
                 reasons.append(f"uncertainty_malformed:{entry['id']}:decision_reversing")
             elif entry["decision_reversing"]:
                 reasons.append(f"uncertainty_decision_reversing:{entry['id']}")
-            if not is_finite_number(entry.get("impact_value")):
+            if not is_finite_number(entry.get("impact_value")) or not is_locator(entry.get("evidence")):
+                # A numeric impact still needs a locator-anchored source: a
+                # self-declared number is not a bound.
                 reasons.append(f"uncertainty_unbounded:{entry['id']}")
                 continue
             unit = str(entry.get("impact_unit") or "").strip()
@@ -973,8 +1029,45 @@ def evaluate(ledger: dict) -> tuple[str, list[str]]:
     artifact_verdict = ledger.get("artifact_verdict")
     if artifact_verdict not in SIGNOFF_VERDICTS:
         reasons.append("artifact_verdict_missing")
-    elif artifact_verdict == "block":
+    elif artifact_verdict == "BLOCK":
         reasons.append("artifact_verdict_blocked")
+    # Cross-page conflicts (#74): same-basis claims showing different values
+    # must be RECORDED with an anchored resolution — and the record must be
+    # referentially sound. Components of one aggregate are separate lines,
+    # not conflicts.
+    conflicts = ledger.get("cross_page_conflicts")
+    component_ids = {t for c in claims for t in (c.get("components") or []) if isinstance(t, str)}
+    recorded_pairs: set[frozenset] = set()
+    if not isinstance(conflicts, list):
+        reasons.append("cross_page_conflict_unrecorded:record_missing")
+    else:
+        for entry in conflicts:
+            if not isinstance(entry, dict) or not isinstance(entry.get("id"), str) \
+                    or not isinstance(entry.get("claim_ids"), list) \
+                    or not all(isinstance(c, str) and c in claim_ids for c in entry.get("claim_ids") or []) \
+                    or len(entry.get("claim_ids") or []) < 2 \
+                    or len(str(entry.get("description") or "").strip()) < 10:
+                reasons.append("cross_page_conflict_malformed")
+                continue
+            check_unknown_keys(entry, CONFLICT_KEYS, f"conflict:{entry['id']}", reasons)
+            if not is_locator(entry.get("resolution")):
+                reasons.append(f"cross_page_conflict_unresolved:{entry['id']}")
+            recorded_pairs.add(frozenset(entry["claim_ids"]))
+        basis_groups: dict[tuple, list] = {}
+        for claim in claims:
+            key = tuple(str(claim.get(f) or "").strip() for f in ("metric", "period", "currency", "unit", "tax_basis"))
+            basis_groups.setdefault(key, []).append(claim)
+        for group in basis_groups.values():
+            candidates = [c for c in group if c.get("claim_id") not in component_ids and not c.get("components")]
+            for i, first in enumerate(candidates):
+                for second in candidates[i + 1:]:
+                    a, b = first.get("displayed_value"), second.get("displayed_value")
+                    if is_finite_number(a) and is_finite_number(b) and abs(float(a) - float(b)) > 1e-9:
+                        pair = frozenset({first.get("claim_id"), second.get("claim_id")})
+                        if not any(pair <= recorded for recorded in recorded_pairs):
+                            reasons.append(
+                                f"cross_page_conflict_unrecorded:{first.get('claim_id')}:{second.get('claim_id')}")
+
     # Minimum closure conditions are explicit records; any unsatisfied one blocks.
     closure_conditions = ledger.get("minimum_closure_conditions")
     if not isinstance(closure_conditions, list) or not closure_conditions:
@@ -1007,7 +1100,8 @@ def evaluate(ledger: dict) -> tuple[str, list[str]]:
         # never ride along beside a valid one (PR #75 round 5).
         coverage = entry.get("coverage")
         if not str(entry.get("reviewer") or "").strip() or not isinstance(coverage, list) or not coverage \
-                or not set(c for c in coverage if isinstance(c, str)) <= {c for c in claim_ids if c} \
+                or not all(isinstance(c, str) for c in coverage) \
+                or not set(coverage) <= {c for c in claim_ids if c} \
                 or not str(entry.get("artifact_sha256") or "").strip():
             # Non-empty, claim-anchored coverage per ENTRY: an empty-coverage
             # rider can never pad a role.
@@ -1015,7 +1109,7 @@ def evaluate(ledger: dict) -> tuple[str, list[str]]:
         verdict_value = entry.get("verdict")
         if verdict_value not in SIGNOFF_VERDICTS:
             reasons.append(f"signoff_verdict_missing:{entry.get('role', '?')}")
-        elif verdict_value == "block":
+        elif verdict_value == "BLOCK":
             reasons.append(f"signoff_blocked:{entry.get('role', '?')}")
         signoffs.append(entry)
     reviewers_by_role: dict[str, set[str]] = {}
@@ -1134,9 +1228,10 @@ def _green_ledger() -> dict:
         "observed_frame": "full proposal deck p1-p12 including appendix A",
         "central_claim_inventory": {"count": 1, "claim_ids": ["C1"],
                                     "enumeration_basis": "every revenue/margin figure on p2 table 1"},
-        "artifact_verdict": "approve",
+        "artifact_verdict": "PASS",
         "minimum_closure_conditions": [{"id": "mc1", "satisfied": True,
                                         "text": "every entailed cost row carries a resolved disposition"}],
+        "cross_page_conflicts": [],
         "claims": [{
             "claim_id": "C1", "source": "p2:table1", "metric": "gross_margin",
             "period": "FY1", "currency": "USD", "unit": "ratio", "tax_basis": "excl",
@@ -1159,9 +1254,9 @@ def _green_ledger() -> dict:
         }],
         "signoffs": [
             {"role": "arithmetic_reconciliation", "reviewer": "r1", "artifact_sha256": hash_value,
-             "verdict": "approve", "coverage": ["C1"]},
+             "verdict": "PASS", "coverage": ["C1"]},
             {"role": "completeness_negative_space", "reviewer": "r2", "artifact_sha256": hash_value,
-             "verdict": "approve", "coverage": ["C1"]},
+             "verdict": "PASS", "coverage": ["C1"]},
         ],
     }
 
@@ -1390,7 +1485,7 @@ def _selftest() -> int:
     probe("missing sign-off verdict blocks",
           lambda l: l["signoffs"][0].pop("verdict"), "signoff_verdict_missing")
     probe("a reviewer block verdict blocks the gate",
-          lambda l: l["signoffs"][1].update(verdict="block"), "signoff_blocked")
+          lambda l: l["signoffs"][1].update(verdict="BLOCK"), "signoff_blocked")
     probe("reviewer coverage must span every claim per required role",
           lambda l: l["signoffs"][1].update(coverage=[]), "signoff_coverage_incomplete")
     probe("margin unit must be a ratio", lambda l: l["claims"][0].update(unit="USD"), "unit_metric_mismatch")
@@ -1464,7 +1559,7 @@ def _selftest() -> int:
     probe("absorbing into an unresolved host blocks", unresolved_host, "included_in_host_unresolved")
 
     def with_threshold(l):
-        l["materiality_threshold"] = {"value": 5.0, "unit": "margin_pt", "basis": "board materiality policy p1"}
+        l["materiality_threshold"] = {"value": 10.0, "unit": "margin_pt", "basis": "board materiality policy p1"}
     probe("a malformed uncertainty entry blocks",
           lambda l: (with_threshold(l), l.update(uncertainties=["it might rain"]))[-1], "uncertainty_malformed")
     probe("an uncertainty without a numeric impact blocks",
@@ -1473,7 +1568,7 @@ def _selftest() -> int:
           "uncertainty_unbounded")
     probe("a decision-reversing uncertainty blocks",
           lambda l: (with_threshold(l), l.update(uncertainties=[{"id": "u1", "text": "churn could exceed the modeled rate",
-                                                                 "impact_value": 3.0, "impact_unit": "margin_pt",
+                                                                 "impact_value": 3.0, "impact_unit": "margin_pt", "evidence": "sensitivity table p7 row 3",
                                                                  "decision_reversing": True}]))[-1],
           "uncertainty_decision_reversing")
 
@@ -1513,7 +1608,7 @@ def _selftest() -> int:
           lambda l: l["claims"][0]["cost_drivers"][0].pop("basis"), "amount_without_basis")
     probe("an uncertainty without the boolean reversal flag blocks",
           lambda l: (with_threshold(l), l.update(uncertainties=[{"id": "u1", "text": "churn could exceed the modeled rate",
-                                                                 "impact_value": 3.0, "impact_unit": "margin_pt"}]))[-1],
+                                                                 "impact_value": 3.0, "impact_unit": "margin_pt", "evidence": "sensitivity table p7 row 3"}]))[-1],
           "uncertainty_malformed")
     def blank_signoff_rider(l):
         l["signoffs"].append({"role": "arithmetic_reconciliation"})
@@ -1555,19 +1650,19 @@ def _selftest() -> int:
     probe("an inventory count diverging from recorded claims blocks",
           lambda l: l["central_claim_inventory"].update(count=5), "inventory_mismatch")
     probe("a missing artifact verdict blocks", lambda l: l.pop("artifact_verdict"), "artifact_verdict_missing")
-    probe("a blocked artifact verdict blocks the gate", lambda l: l.update(artifact_verdict="block"), "artifact_verdict_blocked")
+    probe("a blocked artifact verdict blocks the gate", lambda l: l.update(artifact_verdict="BLOCK"), "artifact_verdict_blocked")
     probe("uncertainties without a materiality threshold block",
           lambda l: l.update(uncertainties=[{"id": "u1", "text": "churn could exceed the modeled rate",
-                                             "impact_value": 1.0, "impact_unit": "margin_pt",
+                                             "impact_value": 1.0, "impact_unit": "margin_pt", "evidence": "sensitivity table p7 row 3",
                                              "decision_reversing": False}]),
           "materiality_exceeded")
     def cumulative_materiality(l):
         with_threshold(l)
         l["uncertainties"] = [
-            {"id": "u1", "text": "churn could exceed the modeled rate", "impact_value": 3.0,
-             "impact_unit": "margin_pt", "decision_reversing": False},
-            {"id": "u2", "text": "hosting price increase at renewal window", "impact_value": 2.5,
-             "impact_unit": "margin_pt", "decision_reversing": False},
+            {"id": "u1", "text": "churn could exceed the modeled rate", "impact_value": 6.0,
+             "impact_unit": "margin_pt", "evidence": "sensitivity table p7 row 3", "decision_reversing": False},
+            {"id": "u2", "text": "hosting price increase at renewal window", "impact_value": 5.5,
+             "impact_unit": "margin_pt", "evidence": "vendor notice appendix C", "decision_reversing": False},
         ]
     probe("correlated uncertainties exceeding the materiality threshold block",
           cumulative_materiality, "materiality_exceeded")
@@ -1644,7 +1739,7 @@ def _selftest() -> int:
           lambda l: l.pop("minimum_closure_conditions"), "closure_state_missing")
     def empty_coverage_rider(l):
         l["signoffs"].append({"role": "arithmetic_reconciliation", "reviewer": "r3",
-                              "artifact_sha256": l["artifact_sha256"], "verdict": "approve", "coverage": []})
+                              "artifact_sha256": l["artifact_sha256"], "verdict": "PASS", "coverage": []})
     probe("an empty-coverage sign-off rider blocks", empty_coverage_rider, "signoff_malformed")
 
     def revenue_inverted(l):
@@ -1657,9 +1752,10 @@ def _selftest() -> int:
     probe("revenue moving DOWN when volume moves up blocks", revenue_inverted, "revenue_sign_inverted")
     check_positive("a PASS_WITH_WARNINGS verdict with bounded uncertainties passes",
                    lambda l: (with_threshold(l),
-                              l.update(artifact_verdict="pass_with_warnings",
+                              l.update(artifact_verdict="PASS_WITH_WARNINGS",
                                        uncertainties=[{"id": "u1", "text": "churn could run 1pt above the modeled rate",
                                                        "impact_value": 2.0, "impact_unit": "margin_pt",
+                                                       "evidence": "sensitivity table p7 row 2",
                                                        "decision_reversing": False}]))[-1])
 
     if failures:
