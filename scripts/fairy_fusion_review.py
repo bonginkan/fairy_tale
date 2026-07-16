@@ -58,10 +58,13 @@ DEFAULT_ROLES: dict[str, list[dict[str, Any]]] = {
         },
         {
             "name": "minimality_reviewer",
-            "objective": "Find broad rewrites, duplicated abstractions, formatting churn, test edits, or patches not tied to the stated requirement.",
+            "objective": "Find broad unrelated rewrites, unclosed semantic clone families, parallel maintenance paths, formatting churn, test edits, or patches not tied to the stated requirement.",
             "checklist": [
                 "diff scope",
-                "local abstraction reuse",
+                "bounded pre/post abstraction and clone search",
+                "codebase-wide closure of each confirmed family",
+                "migration or evidence-backed exclusions",
+                "before/after independent maintenance paths",
                 "temporary artifacts",
                 "test and fixture edits",
                 "style-only churn",

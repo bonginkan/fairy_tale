@@ -1,5 +1,5 @@
 {
-  "purpose": "Byte-preserving extraction manifest: each card body must equal the original SKILL.md byte range. Verify with --verify against the committed pre-extraction snapshot.",
+  "purpose": "Extraction provenance manifest: unchanged card bodies equal the original SKILL.md byte range; reviewed post-extraction evolutions pin their current body hash to a live same-repository GitHub issue node and body/title anchor while preserving the contained committed original snapshot and hash.",
   "original_skill_md_snapshot": "docs/skill-budget/skill-md-pre-extraction-snapshot.md",
   "skill_md_sha256": "562723a75e37f106aba573752bbfd0c4fc0f3712c7fa490ac0d8fca394b4f2a7",
   "new_skill_md_sha256": "60e4e4b4e16387c7e20fae1da202d3b71eb301ce671b7cd046d1046d73d514de",
@@ -21,7 +21,14 @@
       "old_body_start": 9191,
       "old_body_end": 11695,
       "body_sha256": "0174cbdfb48ae2d114dfab05724c44a2603587f1965c167e73a622c65c068c3e",
-      "route_hint": "Use for any implementation task with a clear behavioral target, not only"
+      "route_hint": "Use for any implementation task with a clear behavioral target, not only",
+      "evolution": {
+        "current_body_sha256": "2b37f5f48ea04e2d6ee1c967edf0c2e6a95f53df732cf9558bc1acb97cc9dee2",
+        "issue": "https://github.com/bonginkan/fairy_tale/issues/78",
+        "issue_anchor": "Implementation Validation Gate",
+        "issue_node_id": "I_kwDOS59HQ88AAAABJCpNLQ",
+        "reason": "Make pre/post clone-family closure an active implementation completion gate."
+      }
     },
     {
       "title": "Mythos Defensive Harness",
@@ -39,7 +46,14 @@
       "old_body_start": 12081,
       "old_body_end": 13059,
       "body_sha256": "2749e030a4732fba05eabe22fe6ddec64823baea6ea15e533c3c09fbdc6d8528",
-      "route_hint": "Use only for authorized defensive work."
+      "route_hint": "Use only for authorized defensive work.",
+      "evolution": {
+        "current_body_sha256": "0536e132ab0e3699c8f53ba45804d738bebb7cf887c6dec5aa0cd7f255ceaffa",
+        "issue": "https://github.com/bonginkan/fairy_tale/issues/78",
+        "issue_anchor": "minimum coherent design",
+        "issue_node_id": "I_kwDOS59HQ88AAAABJCpNLQ",
+        "reason": "Keep defensive patch scope narrow while routing any discovered semantic clone family through codebase-wide consolidation."
+      }
     },
     {
       "title": "Workflow self-improvement",
@@ -246,7 +260,14 @@
       "old_body_start": 40041,
       "old_body_end": 40523,
       "body_sha256": "ce36b85a471c22dd044d5643d76448ebe5b7605a2717dd6eca5f7aa609a04ca8",
-      "route_hint": "Run structural similarity tools before broad refactors when the target is a"
+      "route_hint": "Run structural similarity tools before broad refactors when the target is a",
+      "evolution": {
+        "current_body_sha256": "3945f3c873ac1d9e818eb2813c6800a20fd1e6edb02bf9c7d76ad4b7cccf0ecb",
+        "issue": "https://github.com/bonginkan/fairy_tale/issues/78",
+        "issue_anchor": "Refactoring Similarity Harness",
+        "issue_node_id": "I_kwDOS59HQ88AAAABJCpNLQ",
+        "reason": "Generalize similarity analysis to language-neutral ordinary patches and codebase-wide family closure."
+      }
     },
     {
       "title": "Creator-Proxy Elaboration Harness (WWCD)",

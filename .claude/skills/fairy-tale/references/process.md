@@ -53,5 +53,5 @@ Each record template lives in its own card under `references/process/`; read onl
 | UI affect checklist | ```text | `references/process/ui-affect-checklist.md` |
 | Mechanism grammar record | Use this for ARC-style hidden-rule games, unfamiliar tools, simulations, or | `references/process/mechanism-grammar-record.md` |
 | External reconstruction adapter record | Use this when connecting an outside reconstruction project such as OpenMythos. | `references/process/external-reconstruction-adapter-record.md` |
-| Refactoring similarity record | Use this before broad TypeScript refactors. | `references/process/refactoring-similarity-record.md` |
+| Refactoring similarity record | Use this when an ordinary patch or broad refactor exposes a possible clone | `references/process/refactoring-similarity-record.md` |
 | Accessible genius method record | Use this when applying a method from `references/genius-methods.md`. Record the | `references/process/accessible-genius-method-record.md` |

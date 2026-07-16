@@ -61,8 +61,9 @@ harness artifacts, logs, and local work product.
   implementation details, mirroring current buggy output, or mocking the unit
   under test into success.
 - `architectural_erosion`: the patch may pass current tests while making the
-  next change harder through duplicated logic, large special-case chains,
-  unrelated surface area, or added complexity in already-large functions.
+  next change harder through duplicated logic, an unclosed semantic clone
+  family, large special-case chains, unrelated surface area, or added
+  complexity in already-large functions.
 - `dependency_or_artifact_churn`: the patch changes dependencies, lockfiles,
   generated outputs, vendored code, snapshots, or broad config without clear
   task necessity and validation.
@@ -109,20 +110,33 @@ Before finalizing a SWE patch:
    proof. Reject tests that assert `true`, assert only implementation details,
    snapshot accidental output, or mock the unit under test so the test cannot
    fail for the real bug.
-10. Review maintainability and change surface: reject duplicated logic, broad
-   special-case chains, dependency/lockfile churn, generated/vendor artifacts,
-   and large unrelated diffs unless the task explicitly requires them.
-11. If progress stalls, use Fairy Fusion SWE reviewers: interface,
+10. Before editing, run a bounded abstraction/clone search over the touched
+   concept. If a semantic clone family is confirmed, enumerate it across the
+   codebase and consolidate every private member in the same patch. Use a
+   migration/deprecation path or evidence-backed exclusion for public,
+   persisted, generated, vendored, mirrored, or semantically distinct members;
+   do not expand into unrelated cleanup.
+11. After editing, repeat that search and reject new parallel maintenance
+   paths. Record discovered-family membership, migrated or excluded members,
+   and before/after independent maintenance paths. Treat the minimum coherent
+   design, not the fewest changed lines, as the minimality target.
+12. Review the remaining change surface: reject broad special-case chains,
+   dependency/lockfile churn, generated/vendor artifacts, and unrelated diffs
+   unless the task explicitly requires them.
+13. If progress stalls, use Fairy Fusion SWE reviewers: interface,
    contract-compatibility, regression, edge-case validation, and minimality.
    Treat their synthesis as a checklist to verify, not as a replacement for
    repository evidence.
-12. Use benchmark tools and container checks, but do not inspect hidden answers
+14. Use benchmark tools and container checks, but do not inspect hidden answers
    or gold patches.
 
 ## SWE-Bench Pro Success Practices
 
-- `local_invariant_mapping`: map existing helpers, types, call sites, and
-  adjacent tests before editing; reuse local abstractions.
+- `local_invariant_mapping`: map existing helpers, types, call sites, adjacent
+  tests, abstractions, and semantic clones before editing. Reuse an abstraction
+  that owns the same behavior; if a clone family is confirmed, consolidate its
+  codebase-wide membership in the same patch or record migration and
+  evidence-backed exclusions. Validate fewer independent maintenance paths.
 - `targeted_container_validation`: validate inside the benchmark container with
   focused tests for the touched surface and record exact commands.
 - `named_interface_completion`: implement the exact requested symbol at the

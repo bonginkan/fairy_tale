@@ -13,8 +13,9 @@
 - Require non-weaponized evidence before severity: affected component,
   preconditions, trust boundary crossed, impacted data/action, and why existing
   controls fail.
-- Prefer patch-first output: minimal change, tests, detection coverage, rollout,
-  and owner notes.
+- Prefer patch-first output with the minimum coherent change surface, tests,
+  detection coverage, rollout, and owner notes. If the patch exposes a semantic
+  clone family, route through the Implementation Validation Gate and close that
+  family codebase-wide rather than optimizing for the fewest edited lines.
 - Deduplicate by root cause and separate confirmed, likely, speculative, and
   informational findings.
-

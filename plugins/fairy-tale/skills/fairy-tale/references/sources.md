@@ -162,7 +162,7 @@
 
 ## Redundancy, deprecation, and legacy-surface review sources
 
-Checked: 2026-06-25 (UTC).
+Checked: 2026-07-16 (UTC).
 
 - Semantic Versioning 2.0.0:
   https://semver.org/
@@ -172,8 +172,16 @@ Checked: 2026-06-25 (UTC).
   https://abseil.io/resources/swe-book/html/ch22.html
 - Martin Fowler, Refactoring:
   https://martinfowler.com/books/refactoring.html
+- Martin Fowler, Beck's design rules (fewest elements only after tests,
+  intention, and duplication removal):
+  https://martinfowler.com/bliki/BeckDesignRules.html
 - Martin Fowler refactoring catalog, Remove Dead Code:
   https://refactoring.com/catalog/removeDeadCode.html
+- PMD Copy/Paste Detector, language-aware duplicate-code detection:
+  https://docs.pmd-code.org/latest/pmd_userdocs_cpd.html
+- jscpd, multi-language copy/paste detection (tool example, not a mandated
+  dependency):
+  https://github.com/kucherenko/jscpd
 
 ## Loop engineering and job automation sources
 

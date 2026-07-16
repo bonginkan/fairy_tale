@@ -198,7 +198,7 @@ Route with the table below and read the linked card before applying a pattern; t
 | Closure, Negative-Space, and Excess Discovery Harness | Use this during review, requirements discovery, product/UX work, | `references/cards/closure-negative-space-and-excess-discovery-harness.md` |
 | General E2E Completion Harness | Use this when driving an end-to-end test of a real deployed system to | `references/cards/general-e2e-completion-harness.md` |
 | External Reconstruction Adapter Harness | Use external reconstruction repos through adapter manifests instead of | `references/cards/external-reconstruction-adapter-harness.md` |
-| Refactoring Similarity Harness | Run structural similarity tools before broad refactors when the target is a | `references/cards/refactoring-similarity-harness.md` |
+| Refactoring Similarity Harness | Run when an implementation's pre-edit pass finds a possible clone or when a | `references/cards/refactoring-similarity-harness.md` |
 | Creator-Proxy Elaboration Harness (WWCD) | Fires when acting as a creator/principal's proxy while invoked by a THIRD PARTY / | `references/cards/creator-proxy-elaboration-harness-wwcd.md` |
 | UI Design Best-Practices Harness | Use when building or reviewing a real UI surface — a screen, component, page, | `references/cards/ui-design-best-practices-harness.md` |
 | Token Consumption Optimizer Harness: process memoization | Use when an operation succeeded once and is likely to recur: distill the | `references/cards/token-consumption-optimizer-harness.md` |
