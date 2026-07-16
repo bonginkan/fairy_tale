@@ -92,8 +92,8 @@
     {
       "path": "references/cards/cyber-frontier-defense-harness.md",
       "title": "Cyber Frontier Defense Harness",
-      "bytes": 1011,
-      "est_tokens": 253
+      "bytes": 1222,
+      "est_tokens": 306
     },
     {
       "path": "references/cards/domain-router.md",
@@ -493,9 +493,9 @@
     },
     {
       "path": "skills/fairy-tale/references/cards/cyber-frontier-defense-harness.md",
-      "bytes": 1011,
-      "lines": 20,
-      "est_tokens": 253
+      "bytes": 1222,
+      "lines": 21,
+      "est_tokens": 306
     },
     {
       "path": "skills/fairy-tale/references/cards/domain-router.md",

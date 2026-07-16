@@ -21,10 +21,15 @@
   captures family identity, complete membership, classifications, migrated call
   sites, removed private paths, compatibility treatment, before/after
   maintenance paths, validation, and residual members. Adds ordinary-patch and
-  semantic-look-alike routing controls. Extracted-card provenance now preserves
-  the immutable original snapshot while allowing reviewed post-extraction
-  evolution only through issue-bound current-body hashes. Runtime package
-  version is 0.2.24.
+  semantic-look-alike routing controls. The active SWE benchmark runner and
+  benchmark-feedback skill/ledger use the same pre/post family-closure contract
+  instead of retaining a smaller-local-abstraction prompt clone. The defensive
+  patch card also routes semantic clones to the same gate while retaining its
+  scoped patch-first rollout contract. Extracted-card provenance now
+  containment-checks snapshot/card paths and allows reviewed
+  post-extraction evolution only when the current-body hash is bound to a live
+  same-repository GitHub issue's stable node ID and a title/body anchor. Runtime
+  package version is 0.2.24.
 
 ## 0.2.23
 

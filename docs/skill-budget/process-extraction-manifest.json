@@ -1,5 +1,5 @@
 {
-  "purpose": "Extraction provenance manifest for process records: unchanged bodies remain byte-preserved; reviewed evolutions pin a current hash while retaining the committed original snapshot and hash.",
+  "purpose": "Extraction provenance manifest for process records: unchanged bodies remain byte-preserved; reviewed evolutions pin a current hash to a live same-repository GitHub issue node and body/title anchor while retaining the contained committed original snapshot and hash.",
   "original_skill_md_snapshot": "docs/skill-budget/process-md-pre-extraction-snapshot.md",
   "skill_md_sha256": "3606c508012001a80d7291043174f414c9df22447e93c1c33b5f7dc00179f5db",
   "new_skill_md_sha256": "cc9f2c03a71bb0371820b0afa4aad15a6ca894dc872d5043687b53d70fd1ff4f",
@@ -439,6 +439,8 @@
       "evolution": {
         "current_body_sha256": "173636894c5af89cf58a55827053ff589b250c90f40b0a5f3a445cdcee4dd11f",
         "issue": "https://github.com/bonginkan/fairy_tale/issues/78",
+        "issue_anchor": "process record",
+        "issue_node_id": "I_kwDOS59HQ88AAAABJCpNLQ",
         "reason": "Record complete clone-family membership, classification, migration, subtraction, and post-edit closure."
       }
     },

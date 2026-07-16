@@ -28,7 +28,7 @@ in SKILL.md itself or as an extracted card reachable from the router.
 | skills/fairy-tale/references/cards/bio-health-safety-harness.md | 428 | 10 | 107 |
 | skills/fairy-tale/references/cards/closure-negative-space-and-excess-discovery-harness.md | 3018 | 46 | 754 |
 | skills/fairy-tale/references/cards/creator-proxy-elaboration-harness-wwcd.md | 2626 | 38 | 656 |
-| skills/fairy-tale/references/cards/cyber-frontier-defense-harness.md | 1011 | 20 | 253 |
+| skills/fairy-tale/references/cards/cyber-frontier-defense-harness.md | 1222 | 21 | 306 |
 | skills/fairy-tale/references/cards/domain-router.md | 944 | 17 | 236 |
 | skills/fairy-tale/references/cards/effort-inversion-debugger.md | 843 | 16 | 211 |
 | skills/fairy-tale/references/cards/evaluated-feedback-loop.md | 1696 | 27 | 424 |
