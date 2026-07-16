@@ -27,6 +27,10 @@ EXTRA_FILES = [
 ]
 PACKAGE_REFERENCE_FILES = [
     ROOT / "docs" / "loop-engineering-automation.md",
+    ROOT / "docs" / "task-artifacts.md",
+    ROOT / "schemas" / "task-card.schema.json",
+    ROOT / "schemas" / "validation-ledger.schema.json",
+    ROOT / "scripts" / "task_artifacts.py",
 ]
 
 

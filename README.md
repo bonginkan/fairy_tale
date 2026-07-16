@@ -72,6 +72,12 @@ For tasks where visible context may be incomplete, use the domain-neutral
 observations, negative evidence, hypotheses, inferred invariants, probes, and
 validators before promoting a local pattern into a general rule.
 
+For long or tightly scoped work, create a machine-valid
+[Task Card and Validation Ledger](docs/task-artifacts.md). The linked JSON
+artifacts preserve the objective, allowed targets, explicit budget, stop
+conditions, planned checks, results, blockers, evidence paths, and remaining
+risk across handoffs and context resumes.
+
 ## Goals
 
 - Describe the strongest reported Fable 5 / Mythos 5 capabilities in operational terms.

@@ -1,5 +1,24 @@
 # Release Notes
 
+## 0.2.26
+
+- **Task Card and Validation Ledger artifacts** (#9, #10): adds a canonical
+  JSON artifact engine at `scripts/task_artifacts.py` for bounded coding,
+  research, security, and benchmark work. Task Cards require objective,
+  success criteria, allowed targets, constraints, explicit elapsed/tool/
+  subagent/search/token-or-cost budgets, stop conditions, validation plan, and
+  a ledger path; no organization-specific or universal budget defaults are
+  imposed. Validation Ledgers link back to the Task Card by path and task ID,
+  record checks as `pass` / `fail` / `blocked` / `not_run` with commands,
+  artifact paths, blockers, and remaining risks, and fail closed on completion
+  while any planned check is missing or non-passing. The lifecycle supports
+  init, explicit add/replace, complete/blocked finalization, link validation,
+  and Markdown rendering while keeping JSON as the sole source of truth.
+  Strict Draft 2020-12 schemas, 12 acceptance cases, deterministic self-
+  controls, CI wiring, user docs, and plugin companion parity are included.
+  The future unified `fairy` CLI may delegate to this engine rather than clone
+  its contracts. Runtime package version is 0.2.26.
+
 ## 0.2.25
 
 - **Helix Loop Communication Harness** (#68): adds an organization-neutral
