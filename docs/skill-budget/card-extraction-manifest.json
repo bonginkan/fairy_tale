@@ -179,7 +179,14 @@
       "old_body_start": 26257,
       "old_body_end": 27919,
       "body_sha256": "458b934d13bfcdee974e4a668b9eba269b7d665c91b2f3f6a0e03b758d13c4c6",
-      "route_hint": "Choose the fusion mode before running reviewers."
+      "route_hint": "Choose the fusion mode before running reviewers.",
+      "evolution": {
+        "current_body_sha256": "bd0da9a1af62eb417f741e843a8311a0c73b404c8d6ab9d165736d0b7233b75b",
+        "issue": "https://github.com/bonginkan/fairy_tale/issues/12",
+        "issue_anchor": "fairy fusion --auto-check",
+        "issue_node_id": "I_kwDOS59HQ88AAAABF9IX_w",
+        "reason": "Define bounded, decision-only automatic trigger conditions, evidence fields, and the one-level recursion cap."
+      }
     },
     {
       "title": "Steady Behavior Harness",

@@ -309,7 +309,14 @@
       "old_body_start": 49471,
       "old_body_end": 49898,
       "body_sha256": "0d34e94633356553436457e6e4b82d1b96b3bae36b05af8a54d4dabd3716c272",
-      "route_hint": "Use this before launching multi-reviewer or multi-model deliberation."
+      "route_hint": "Use this before launching multi-reviewer or multi-model deliberation.",
+      "evolution": {
+        "current_body_sha256": "1ab81f7de656817197741b0efa516534c4b460b94d40f15e51c39af92c051491",
+        "issue": "https://github.com/bonginkan/fairy_tale/issues/12",
+        "issue_anchor": "発火理由、reviewer cap、recursion depth、artifact path",
+        "issue_node_id": "I_kwDOS59HQ88AAAABF9IX_w",
+        "reason": "Record machine-readable trigger disposition, bounds, artifact identity, and decision-only execution state."
+      }
     },
     {
       "title": "Domain router card",

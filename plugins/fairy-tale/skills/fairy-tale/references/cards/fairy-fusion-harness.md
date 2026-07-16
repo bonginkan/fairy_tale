@@ -16,13 +16,19 @@
   visible artifacts, role contract, and output schema. Keep full reviewer
   outputs as append-only artifacts, then return only a compact synthesis hint to
   the main agent.
-- In plugin-managed harnesses, enable automatic fusion when the same failure
-  signature repeats at least three times, an implementation attempt produces no
-  meaningful diff, or the validation ledger is missing. Continue automatic
-  retries until local clear conditions are met or the user/operator stops the
-  run; keep every retry auditable with append-only artifacts.
+- In plugin-managed harnesses, record a trigger decision when the same
+  normalized failure signature repeats at least three times, a required
+  validation ledger is missing, an expected artifact is empty or meaningless,
+  independent reviews conflict, or a user/operator explicitly requests fusion.
+  The generic automatic check is decision-only: it must not launch reviewers,
+  call a provider, or retry work. Apply the caller's approval/provider policy
+  before any separate reviewer execution.
+- Record the trigger reasons, reviewer cap, recursion depth and cap, intended
+  review artifact path, and input identity. Default automatic recursion to one
+  level; a trigger condition at depth 1 or greater is blocked rather than
+  recursively reviewed.
 - For coding tasks, use SWE specialist roles before retrying: interface
   reviewer, regression reviewer, validation reviewer, and minimality reviewer.
-- Keep fan-out capped and recursion one-level unless a human explicitly
-  approves more.
-
+- Keep fan-out capped. A human may launch a separate review under a different
+  policy, but must not mutate the automatic decision's one-level recursion
+  contract.

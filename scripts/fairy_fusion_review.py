@@ -9,9 +9,12 @@ pass, explicit contradictions, blind spots, and closure actions.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
+import re
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -19,6 +22,63 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+try:
+    from task_artifacts import ArtifactError, require_distinct_paths
+except ModuleNotFoundError:  # Module import from the repository root.
+    from scripts.task_artifacts import ArtifactError, require_distinct_paths
+
+
+ROOT = Path(__file__).resolve().parents[1]
+AUTO_CHECK_INPUT_KEYS = {
+    "schema_version",
+    "failure_signatures",
+    "validation_ledger_status",
+    "artifact_status",
+    "review_conflict",
+    "explicit_request",
+    "reviewer_cap",
+    "recursion_depth",
+    "artifact_path",
+}
+AUTO_CHECK_DECISION_KEYS = {
+    "schema_version",
+    "artifact_type",
+    "decision",
+    "should_trigger",
+    "reasons",
+    "reviewer_cap",
+    "recursion_depth",
+    "recursion_cap",
+    "artifact_path",
+    "automatic_execution",
+    "input_sha256",
+    "observed",
+}
+AUTO_CHECK_REASONS = {
+    "repeated_failure_signature",
+    "validation_ledger_missing",
+    "empty_artifact",
+    "meaningless_artifact",
+    "review_conflict",
+    "explicit_request",
+    "recursion_cap_reached",
+}
+AUTO_CHECK_OBSERVED_KEYS = {
+    "max_failure_signature_repeat",
+    "validation_ledger_status",
+    "artifact_status",
+    "review_conflict",
+    "explicit_request",
+}
+VALIDATION_LEDGER_STATUSES = {"present", "missing", "not_required"}
+ARTIFACT_STATUSES = {"meaningful", "empty", "meaningless", "not_expected"}
+AUTO_REVIEWER_CAP = 5
+AUTO_RECURSION_CAP = 1
+
+
+class AutoCheckError(ValueError):
+    """A reasoned, user-facing automatic-trigger decision failure."""
 
 
 DEFAULT_ROLES: dict[str, list[dict[str, Any]]] = {
@@ -161,6 +221,447 @@ def read_text(path: Path) -> str:
 def write_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def normalize_failure_signature(value: str) -> str:
+    normalized = re.sub(r"\s+", " ", value.strip()).casefold()
+    return re.sub(r"0x[0-9a-f]+|\d+", "<n>", normalized)
+
+
+def max_failure_signature_repeat(signatures: list[str]) -> int:
+    counts: dict[str, int] = {}
+    for signature in signatures:
+        normalized = normalize_failure_signature(signature)
+        counts[normalized] = counts.get(normalized, 0) + 1
+    return max(counts.values(), default=0)
+
+
+def safe_artifact_path(value: Any) -> bool:
+    if (
+        not isinstance(value, str)
+        or not value.strip()
+        or "\\" in value
+        or ":" in value
+        or any(ord(character) < 32 or ord(character) == 127 for character in value)
+    ):
+        return False
+    path = Path(value)
+    segments = value.split("/")
+    return not path.is_absolute() and all(
+        segment not in {"", ".", ".."} for segment in segments
+    )
+
+
+def canonical_sha256(payload: dict[str, Any]) -> str:
+    canonical = json.dumps(
+        payload,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    return "sha256:" + hashlib.sha256(canonical).hexdigest()
+
+
+def validate_auto_check_input(state: Any) -> list[str]:
+    errors: list[str] = []
+    if not isinstance(state, dict):
+        return ["auto-check state must be an object"]
+    unknown = sorted(set(state) - AUTO_CHECK_INPUT_KEYS)
+    missing = sorted(AUTO_CHECK_INPUT_KEYS - set(state))
+    if unknown:
+        errors.append("unknown keys: " + ", ".join(unknown))
+    if missing:
+        errors.append("missing keys: " + ", ".join(missing))
+    if state.get("schema_version") != "1.0":
+        errors.append("schema_version must be 1.0")
+    signatures = state.get("failure_signatures")
+    if not isinstance(signatures, list):
+        errors.append("failure_signatures must be a list")
+    elif len(signatures) > 100:
+        errors.append("failure_signatures cannot exceed 100 entries")
+    elif not all(
+        isinstance(item, str) and bool(item.strip()) and len(item) <= 512
+        for item in signatures
+    ):
+        errors.append("failure_signatures entries must be non-empty strings up to 512 characters")
+    if state.get("validation_ledger_status") not in VALIDATION_LEDGER_STATUSES:
+        errors.append("validation_ledger_status is invalid")
+    if state.get("artifact_status") not in ARTIFACT_STATUSES:
+        errors.append("artifact_status is invalid")
+    for field in ("review_conflict", "explicit_request"):
+        if not isinstance(state.get(field), bool):
+            errors.append(f"{field} must be boolean")
+    reviewer_cap = state.get("reviewer_cap")
+    if (
+        not isinstance(reviewer_cap, int)
+        or isinstance(reviewer_cap, bool)
+        or not 1 <= reviewer_cap <= AUTO_REVIEWER_CAP
+    ):
+        errors.append(f"reviewer_cap must be an integer from 1 to {AUTO_REVIEWER_CAP}")
+    recursion_depth = state.get("recursion_depth")
+    if (
+        not isinstance(recursion_depth, int)
+        or isinstance(recursion_depth, bool)
+        or recursion_depth < 0
+    ):
+        errors.append("recursion_depth must be a non-negative integer")
+    if not safe_artifact_path(state.get("artifact_path")):
+        errors.append("artifact_path must be a safe repository-relative path")
+    return errors
+
+
+def evaluate_auto_check(state: Any) -> dict[str, Any]:
+    errors = validate_auto_check_input(state)
+    if errors:
+        raise AutoCheckError("; ".join(errors))
+    assert isinstance(state, dict)
+    signatures = state["failure_signatures"]
+    repeat_count = max_failure_signature_repeat(signatures)
+    reasons: list[str] = []
+    if repeat_count >= 3:
+        reasons.append("repeated_failure_signature")
+    if state["validation_ledger_status"] == "missing":
+        reasons.append("validation_ledger_missing")
+    if state["artifact_status"] == "empty":
+        reasons.append("empty_artifact")
+    if state["artifact_status"] == "meaningless":
+        reasons.append("meaningless_artifact")
+    if state["review_conflict"]:
+        reasons.append("review_conflict")
+    if state["explicit_request"]:
+        reasons.append("explicit_request")
+
+    if reasons and state["recursion_depth"] >= AUTO_RECURSION_CAP:
+        decision = "blocked"
+        should_trigger = False
+        reasons.append("recursion_cap_reached")
+    elif reasons:
+        decision = "trigger"
+        should_trigger = True
+    else:
+        decision = "skip"
+        should_trigger = False
+
+    return {
+        "schema_version": "1.0",
+        "artifact_type": "fairy_fusion_trigger_decision",
+        "decision": decision,
+        "should_trigger": should_trigger,
+        "reasons": reasons,
+        "reviewer_cap": state["reviewer_cap"],
+        "recursion_depth": state["recursion_depth"],
+        "recursion_cap": AUTO_RECURSION_CAP,
+        "artifact_path": state["artifact_path"],
+        "automatic_execution": False,
+        "input_sha256": canonical_sha256(state),
+        "observed": {
+            "max_failure_signature_repeat": repeat_count,
+            "validation_ledger_status": state["validation_ledger_status"],
+            "artifact_status": state["artifact_status"],
+            "review_conflict": state["review_conflict"],
+            "explicit_request": state["explicit_request"],
+        },
+    }
+
+
+def validate_auto_check_decision(decision: Any) -> list[str]:
+    errors: list[str] = []
+    if not isinstance(decision, dict):
+        return ["auto-check decision must be an object"]
+    if set(decision) != AUTO_CHECK_DECISION_KEYS:
+        errors.append("decision keys do not match the closed contract")
+    if decision.get("schema_version") != "1.0":
+        errors.append("decision schema_version must be 1.0")
+    if decision.get("artifact_type") != "fairy_fusion_trigger_decision":
+        errors.append("decision artifact_type is invalid")
+    outcome = decision.get("decision")
+    if outcome not in {"skip", "trigger", "blocked"}:
+        errors.append("decision is invalid")
+    reasons = decision.get("reasons")
+    if not isinstance(reasons, list) or not all(reason in AUTO_CHECK_REASONS for reason in reasons):
+        errors.append("decision reasons are invalid")
+    elif len(reasons) != len(set(reasons)):
+        errors.append("decision reasons must be unique")
+    if outcome == "trigger" and decision.get("should_trigger") is not True:
+        errors.append("trigger decisions must set should_trigger=true")
+    if outcome != "trigger" and decision.get("should_trigger") is not False:
+        errors.append("non-trigger decisions must set should_trigger=false")
+    if outcome == "skip" and reasons:
+        errors.append("skip decisions cannot carry trigger reasons")
+    if outcome == "blocked" and (
+        not isinstance(reasons, list)
+        or len(reasons) < 2
+        or "recursion_cap_reached" not in reasons
+    ):
+        errors.append("blocked decisions must record a trigger and recursion_cap_reached")
+    if outcome != "blocked" and isinstance(reasons, list) and "recursion_cap_reached" in reasons:
+        errors.append("only blocked decisions may record recursion_cap_reached")
+    reviewer_cap = decision.get("reviewer_cap")
+    if (
+        not isinstance(reviewer_cap, int)
+        or isinstance(reviewer_cap, bool)
+        or not 1 <= reviewer_cap <= AUTO_REVIEWER_CAP
+    ):
+        errors.append("decision reviewer_cap is invalid")
+    recursion_depth = decision.get("recursion_depth")
+    if (
+        not isinstance(recursion_depth, int)
+        or isinstance(recursion_depth, bool)
+        or recursion_depth < 0
+    ):
+        errors.append("decision recursion_depth is invalid")
+    if (
+        not isinstance(decision.get("recursion_cap"), int)
+        or isinstance(decision.get("recursion_cap"), bool)
+        or decision.get("recursion_cap") != AUTO_RECURSION_CAP
+    ):
+        errors.append("decision recursion_cap is invalid")
+    if outcome == "trigger" and isinstance(recursion_depth, int) and recursion_depth >= AUTO_RECURSION_CAP:
+        errors.append("trigger decisions must stay below the recursion cap")
+    if (
+        outcome == "blocked"
+        and isinstance(recursion_depth, int)
+        and recursion_depth < AUTO_RECURSION_CAP
+    ):
+        errors.append("blocked decisions must be at or above the recursion cap")
+    if not safe_artifact_path(decision.get("artifact_path")):
+        errors.append("decision artifact_path is invalid")
+    if decision.get("automatic_execution") is not False:
+        errors.append("auto-check cannot execute reviewers")
+    if not isinstance(decision.get("input_sha256"), str) or not re.fullmatch(
+        r"sha256:[0-9a-f]{64}", decision["input_sha256"]
+    ):
+        errors.append("input_sha256 is invalid")
+    observed = decision.get("observed")
+    if not isinstance(observed, dict) or set(observed) != AUTO_CHECK_OBSERVED_KEYS:
+        errors.append("decision observed values do not match the closed contract")
+    else:
+        repeat_count = observed.get("max_failure_signature_repeat")
+        if (
+            not isinstance(repeat_count, int)
+            or isinstance(repeat_count, bool)
+            or repeat_count < 0
+        ):
+            errors.append("observed max_failure_signature_repeat is invalid")
+        if observed.get("validation_ledger_status") not in VALIDATION_LEDGER_STATUSES:
+            errors.append("observed validation_ledger_status is invalid")
+        if observed.get("artifact_status") not in ARTIFACT_STATUSES:
+            errors.append("observed artifact_status is invalid")
+        for field in ("review_conflict", "explicit_request"):
+            if not isinstance(observed.get(field), bool):
+                errors.append(f"observed {field} must be boolean")
+    return errors
+
+
+def load_auto_check_state(path: Path) -> dict[str, Any]:
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
+        raise AutoCheckError(f"cannot read auto-check state {path}: {exc}") from exc
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise AutoCheckError(f"invalid JSON in auto-check state {path}: {exc.msg}") from exc
+    errors = validate_auto_check_input(payload)
+    if errors:
+        raise AutoCheckError("; ".join(errors))
+    return payload
+
+
+def write_auto_check_decision(
+    state_path: Path, output_path: Path, payload: dict[str, Any]
+) -> None:
+    try:
+        require_distinct_paths(
+            state_path,
+            output_path,
+            "auto-check output must differ from the input state",
+        )
+        write_json(output_path, payload)
+    except (ArtifactError, OSError, UnicodeError) as exc:
+        raise AutoCheckError(f"cannot write auto-check decision {output_path}: {exc}") from exc
+
+
+def auto_check_selftest() -> int:
+    controls = 0
+
+    def check(condition: bool, label: str) -> None:
+        nonlocal controls
+        controls += 1
+        if not condition:
+            raise AssertionError(label)
+
+    base = {
+        "schema_version": "1.0",
+        "failure_signatures": [],
+        "validation_ledger_status": "present",
+        "artifact_status": "meaningful",
+        "review_conflict": False,
+        "explicit_request": False,
+        "reviewer_cap": 3,
+        "recursion_depth": 0,
+        "artifact_path": "artifacts/fairy-fusion/review.json",
+    }
+
+    def evaluated(**updates: Any) -> dict[str, Any]:
+        state = dict(base)
+        state.update(updates)
+        return evaluate_auto_check(state)
+
+    clean = evaluated()
+    check(clean["decision"] == "skip" and not clean["reasons"], "clean state skips")
+    repeated = evaluated(
+        failure_signatures=["Error code 41", " error   CODE 42 ", "ERROR code 43"]
+    )
+    check(
+        repeated["decision"] == "trigger"
+        and repeated["reasons"] == ["repeated_failure_signature"],
+        "three normalized failure signatures trigger",
+    )
+    check(
+        evaluated(failure_signatures=["same error", "same error"])["decision"] == "skip",
+        "two repeated failures stay below the threshold",
+    )
+    check(
+        evaluated(validation_ledger_status="missing")["reasons"]
+        == ["validation_ledger_missing"],
+        "missing validation ledger triggers",
+    )
+    check(
+        evaluated(validation_ledger_status="not_required")["decision"] == "skip",
+        "a reasoned not-required ledger does not false-trigger",
+    )
+    check(evaluated(artifact_status="empty")["reasons"] == ["empty_artifact"], "empty artifact triggers")
+    check(
+        evaluated(artifact_status="meaningless")["reasons"] == ["meaningless_artifact"],
+        "meaningless artifact triggers",
+    )
+    check(
+        evaluated(artifact_status="not_expected")["decision"] == "skip",
+        "not-expected artifact does not false-trigger",
+    )
+    check(evaluated(review_conflict=True)["reasons"] == ["review_conflict"], "review conflict triggers")
+    check(evaluated(explicit_request=True)["reasons"] == ["explicit_request"], "explicit request triggers")
+    blocked = evaluated(validation_ledger_status="missing", recursion_depth=1)
+    check(
+        blocked["decision"] == "blocked"
+        and not blocked["should_trigger"]
+        and blocked["reasons"][-1] == "recursion_cap_reached",
+        "one-level recursion cap blocks nested automatic fusion",
+    )
+    check(blocked["reviewer_cap"] == 3 and blocked["recursion_cap"] == 1, "caps remain explicit")
+    check(blocked["artifact_path"] == base["artifact_path"], "artifact path remains explicit")
+    check(not validate_auto_check_decision(clean), "generated skip decision is valid")
+    check(not validate_auto_check_decision(repeated), "generated trigger decision is valid")
+    check(not validate_auto_check_decision(blocked), "generated blocked decision is valid")
+    malformed_decision = dict(repeated)
+    malformed_decision["automatic_execution"] = True
+    check(bool(validate_auto_check_decision(malformed_decision)), "execution claim fails closed")
+    malformed_decision = dict(blocked)
+    malformed_decision["reasons"] = ["recursion_cap_reached"]
+    check(bool(validate_auto_check_decision(malformed_decision)), "blocked decision requires a trigger")
+
+    invalid_states = [
+        {**base, "unknown": True},
+        {key: value for key, value in base.items() if key != "artifact_path"},
+        {**base, "failure_signatures": "error"},
+        {**base, "validation_ledger_status": "unknown"},
+        {**base, "artifact_status": "unknown"},
+        {**base, "review_conflict": 1},
+        {**base, "reviewer_cap": 6},
+        {**base, "recursion_depth": -1},
+        {**base, "artifact_path": "../review.json"},
+        {**base, "artifact_path": "artifacts/review\u0000.json"},
+    ]
+    for index, state in enumerate(invalid_states, start=1):
+        try:
+            evaluate_auto_check(state)
+        except AutoCheckError:
+            rejected = True
+        else:
+            rejected = False
+        check(rejected, f"malformed state {index} fails closed")
+
+    input_schema = json.loads(
+        (ROOT / "schemas" / "fairy-fusion-auto-check-input.schema.json").read_text(encoding="utf-8")
+    )
+    decision_schema = json.loads(
+        (ROOT / "schemas" / "fairy-fusion-trigger-decision.schema.json").read_text(encoding="utf-8")
+    )
+    check(set(input_schema["properties"]) == AUTO_CHECK_INPUT_KEYS, "input schema keys match runtime")
+    check(set(input_schema["required"]) == AUTO_CHECK_INPUT_KEYS, "input schema requires every runtime key")
+    input_properties = input_schema["properties"]
+    check(
+        set(input_properties["validation_ledger_status"]["enum"])
+        == VALIDATION_LEDGER_STATUSES,
+        "input ledger enum matches runtime",
+    )
+    check(
+        set(input_properties["artifact_status"]["enum"]) == ARTIFACT_STATUSES,
+        "input artifact enum matches runtime",
+    )
+    check(
+        input_properties["reviewer_cap"]["maximum"] == AUTO_REVIEWER_CAP,
+        "input reviewer cap matches runtime",
+    )
+    input_path_pattern = input_properties["artifact_path"]["pattern"]
+    for path_value in (
+        "artifacts/review.json",
+        "",
+        ".",
+        "../review.json",
+        "artifacts/../review.json",
+        "artifacts//review.json",
+        "artifacts\\review.json",
+        "C:/review.json",
+        "artifacts/review\u0000.json",
+    ):
+        check(
+            bool(re.fullmatch(input_path_pattern, path_value)) == safe_artifact_path(path_value),
+            f"input schema path policy matches runtime for {path_value!r}",
+        )
+    check(
+        set(decision_schema["properties"]) == AUTO_CHECK_DECISION_KEYS,
+        "decision schema keys match runtime",
+    )
+    check(
+        set(decision_schema["required"]) == AUTO_CHECK_DECISION_KEYS,
+        "decision schema requires every runtime key",
+    )
+    decision_properties = decision_schema["properties"]
+    check(
+        set(decision_properties["reasons"]["items"]["enum"]) == AUTO_CHECK_REASONS,
+        "decision reason enum matches runtime",
+    )
+    check(
+        decision_properties["reviewer_cap"]["maximum"] == AUTO_REVIEWER_CAP,
+        "decision reviewer cap matches runtime",
+    )
+    check(
+        decision_properties["recursion_cap"]["const"] == AUTO_RECURSION_CAP,
+        "decision recursion cap matches runtime",
+    )
+    check(
+        decision_properties["automatic_execution"]["const"] is False,
+        "decision schema prohibits automatic execution",
+    )
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        state_path = Path(temporary_directory) / "state.json"
+        output_path = Path(temporary_directory) / "decision.json"
+        original_state = json.dumps(base, sort_keys=True).encode("utf-8")
+        state_path.write_bytes(original_state)
+        try:
+            write_auto_check_decision(state_path, state_path, clean)
+        except AutoCheckError:
+            collision_rejected = True
+        else:
+            collision_rejected = False
+        check(collision_rejected, "auto-check output cannot overwrite its input state")
+        check(state_path.read_bytes() == original_state, "rejected collision preserves input bytes")
+        write_auto_check_decision(state_path, output_path, clean)
+        check(json.loads(output_path.read_text(encoding="utf-8")) == clean, "distinct output is written")
+    print(f"fairy fusion auto-check selftest OK: {controls} controls")
+    return 0
 
 
 def load_task(args: argparse.Namespace) -> dict[str, Any]:
@@ -435,6 +936,9 @@ def execute(task: dict[str, Any], roles: list[dict[str, Any]], args: argparse.Na
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--auto-check", action="store_true")
+    parser.add_argument("--state-json", type=Path)
+    parser.add_argument("--selftest", action="store_true")
     parser.add_argument("--domain", default="generic", choices=sorted(DEFAULT_ROLES))
     parser.add_argument("--task-json", type=Path)
     parser.add_argument("--prompt-file", type=Path)
@@ -459,6 +963,57 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+    if args.selftest:
+        if args.auto_check or args.state_json:
+            print("ERROR --selftest cannot be combined with auto-check inputs", file=sys.stderr)
+            return 2
+        return auto_check_selftest()
+    if args.auto_check:
+        incompatible = any(
+            (
+                args.task_json,
+                args.prompt_file,
+                args.roles_file,
+                args.blind_panel,
+                args.execute,
+                args.dry_run,
+                args.allow_recursive,
+                args.domain != "generic",
+                args.max_reviewers != 5,
+                args.workers != 4,
+                args.model != "gpt-5.5",
+                args.judge_model,
+                args.effort != "medium",
+                args.timeout != 0,
+            )
+        )
+        if incompatible:
+            print("ERROR --auto-check cannot be combined with reviewer execution inputs", file=sys.stderr)
+            return 2
+        if args.state_json is None:
+            print("ERROR --auto-check requires --state-json", file=sys.stderr)
+            return 2
+        try:
+            payload = evaluate_auto_check(load_auto_check_state(args.state_json))
+        except AutoCheckError as exc:
+            print(f"ERROR {exc}", file=sys.stderr)
+            return 2
+        decision_errors = validate_auto_check_decision(payload)
+        if decision_errors:
+            print("ERROR " + "; ".join(decision_errors), file=sys.stderr)
+            return 2
+        if args.output:
+            try:
+                write_auto_check_decision(args.state_json, args.output, payload)
+            except AutoCheckError as exc:
+                print(f"ERROR {exc}", file=sys.stderr)
+                return 2
+        else:
+            print(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False))
+        return 0
+    if args.state_json is not None:
+        print("ERROR --state-json requires --auto-check", file=sys.stderr)
+        return 2
     task = load_task(args)
     roles = load_roles(args)
     if args.max_reviewers < 1:

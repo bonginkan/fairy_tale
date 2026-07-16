@@ -1,5 +1,21 @@
 # Release Notes
 
+## 0.2.29
+
+- **Bounded Fairy Fusion automatic trigger decisions** (#12): adds
+  `fairy fusion --auto-check --state-json ...` as a strict, deterministic
+  decision command for repeated failure signatures, missing required
+  Validation Ledgers, empty or meaningless expected artifacts, review
+  conflicts, and explicit requests. The result records trigger reasons,
+  reviewer cap, recursion depth and one-level cap, intended review artifact
+  path, observed state, and canonical input SHA-256. Automatic checks are
+  decision-only: they never launch reviewers, call a provider, retry work, or
+  recurse beyond depth 1. Closed Draft 2020-12 input/output schemas, malformed
+  and positive self-controls, unified `fairy` dispatch, shared SWE failure
+  normalization, source-checkout docs, harness/process-card updates, adapter
+  contract updates, package references, and plugin mirrors are included.
+  Runtime package version is 0.2.29.
+
 ## 0.2.28
 
 - **Repository Fairy profiles** (#11): adds the optional, closed

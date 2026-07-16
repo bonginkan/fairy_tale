@@ -1,7 +1,7 @@
 # SKILL.md section inventory (parity checklist)
 
 - Source: `skills/fairy-tale/SKILL.md`
-- Measured: 16807 bytes / 235 lines / ~4202 est tokens
+- Measured: 17252 bytes / 241 lines / ~4313 est tokens
 - Estimation basis: est tokens = UTF-8 bytes / 4.0 (reporting only); head window enforced at 3.5 bytes/token (densest plausible tokenization); line budget uses exact lines
 - Head window: first 5000 est tokens (= 17500 bytes)
 
@@ -12,9 +12,9 @@ in SKILL.md itself or as an extracted card reachable from the router.
 |---|-------|---------|------|-------------|------------|----------------|
 | 1 | h2 | Non-negotiables | 11 | 890 | 185 | yes |
 | 2 | h2 | Residency Guard | 26 | 1631 | 174 | yes |
-| 3 | h2 | Default workflow | 45 | 2328 | 1838 | yes |
-| 4 | h2 | Mode patterns | 171 | 9679 | 1410 | yes |
-| 5 | h2 | Supporting references | 211 | 15319 | 372 | yes |
+| 3 | h2 | Default workflow | 45 | 2328 | 1949 | yes |
+| 4 | h2 | Mode patterns | 177 | 10124 | 1410 | yes |
+| 5 | h2 | Supporting references | 217 | 15764 | 372 | yes |
 
 ## References inventory
 
@@ -35,7 +35,7 @@ in SKILL.md itself or as an extracted card reachable from the router.
 | skills/fairy-tale/references/cards/evidence-table-harness.md | 293 | 7 | 73 |
 | skills/fairy-tale/references/cards/external-reconstruction-adapter-harness.md | 572 | 12 | 143 |
 | skills/fairy-tale/references/cards/fable-harness-long-coding-or-migration-tasks.md | 264 | 8 | 66 |
-| skills/fairy-tale/references/cards/fairy-fusion-harness.md | 1685 | 28 | 421 |
+| skills/fairy-tale/references/cards/fairy-fusion-harness.md | 2141 | 34 | 535 |
 | skills/fairy-tale/references/cards/finance-proposal-completeness-gate.md | 10773 | 157 | 2693 |
 | skills/fairy-tale/references/cards/general-e2e-completion-harness.md | 2030 | 30 | 508 |
 | skills/fairy-tale/references/cards/generalization-and-latent-structure-harness-hidden-rules-executable-models-and-tacit-intent.md | 3350 | 50 | 838 |
@@ -84,7 +84,7 @@ in SKILL.md itself or as an extracted card reachable from the router.
 | skills/fairy-tale/references/process/external-channel-ingestion-record.md | 1230 | 38 | 308 |
 | skills/fairy-tale/references/process/external-reconstruction-adapter-record.md | 533 | 25 | 133 |
 | skills/fairy-tale/references/process/feedback-pruning-record.md | 337 | 20 | 84 |
-| skills/fairy-tale/references/process/fusion-review-card.md | 448 | 23 | 112 |
+| skills/fairy-tale/references/process/fusion-review-card.md | 604 | 28 | 151 |
 | skills/fairy-tale/references/process/generalization-audit-record.md | 560 | 21 | 140 |
 | skills/fairy-tale/references/process/glass-slipper-gate.md | 244 | 18 | 61 |
 | skills/fairy-tale/references/process/implicit-contract-discovery-family-router.md | 1652 | 39 | 413 |

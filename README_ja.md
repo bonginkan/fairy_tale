@@ -54,13 +54,17 @@ source checkout では、個別 script の path を覚える代わりに統一 C
 ./fairy validate
 ./fairy task-card --help
 ./fairy ledger --help
+./fairy fusion --help
 ```
 
 `doctor` は呼び出し元 repo の任意 `.fairy/profile.json`、residency、adapter
 の健全性をまとめて検証し、`validate` は
 決定論的な CI suite を実行する。Task Card / Validation Ledger 操作は既存の
-`scripts/task_artifacts.py` へ委譲し、契約を複製しない。詳細は
-[Fairy CLI](docs/fairy-cli.md) を参照。skill-only installer は host executable
+`scripts/task_artifacts.py` へ委譲し、契約を複製しない。Fairy Fusion の実行と
+bounded な decision-only 自動 trigger 判定も既存 runner へ委譲する。詳細は
+[Fairy CLI](docs/fairy-cli.md) と
+[Fairy Fusion automatic trigger decisions](docs/fairy-fusion-auto-trigger.md) を参照。
+skill-only installer は host executable
 や `PATH` を変更しないため、CLI は source checkout から実行する。
 
 repo 固有の workflow rule は、closed で宣言的な

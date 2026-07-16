@@ -31,6 +31,18 @@ engine without copying its schemas or lifecycle rules:
 ./fairy ledger validate --artifact validation-ledger.json
 ```
 
+Fairy Fusion review and deterministic automatic-trigger decisions delegate to
+the existing fusion runner:
+
+```bash
+./fairy fusion --help
+./fairy fusion --auto-check --state-json state.json --output decision.json
+```
+
+The automatic check records a bounded decision and never launches reviewers or
+calls a provider. See
+[Fairy Fusion automatic trigger decisions](fairy-fusion-auto-trigger.md).
+
 The CLI resolves repository tooling relative to its own executable, so
 `validate` does not depend on the caller's current directory. `doctor` preserves
 the caller directory only as the starting point for repository profile
