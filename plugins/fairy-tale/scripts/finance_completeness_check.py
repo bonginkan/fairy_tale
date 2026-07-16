@@ -1812,6 +1812,15 @@ def _selftest() -> int:
     }
     check("finite multiplicative/divisive half-share forms share one canonical expression",
           len(equivalent_half_shares) == 1)
+    positive_share = canonical_expr(ast.parse("price*volume/2", mode="eval"))
+    negative_share = canonical_expr(ast.parse("-price*volume/2", mode="eval"))
+    check("root unary sign chains normalize by parity",
+          canonical_expr(ast.parse("--price*volume/2", mode="eval")) == positive_share
+          and canonical_expr(ast.parse("---price*volume/2", mode="eval")) == negative_share
+          and canonical_expr(ast.parse("-(+(-price*volume/2))", mode="eval")) == positive_share)
+    check("unary sign chains normalize inside additive operands",
+          canonical_expr(ast.parse("fee+-(-price*volume/2)", mode="eval"))
+          == canonical_expr(ast.parse("fee+price*volume/2", mode="eval")))
     check("zero and non-finite divisors remain fail-closed",
           safe_eval_formula("price/0", {"price": 1.0}) is None
           and safe_eval_formula("price/1e999", {"price": 1.0}) is None)

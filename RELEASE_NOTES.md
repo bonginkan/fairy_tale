@@ -111,7 +111,7 @@
   multiplication and division, so equivalent shares such as `x*0.5`, `x/2`,
   and `x*100/200` cannot mint distinct streams. Round 16 routes cancelling
   root unary-sign chains through the same coefficient normalization, so
-  `-(-x/2)` is also `x/2`. Selftest carries 146 red/green/hostile controls
+  `-(-x/2)` is also `x/2`. Selftest carries 148 red/green/hostile controls
   (every PR #75 round-1..16 review probe and an add/remove metamorphic flip);
   one hundred fifty-six sanitized
   cross-industry acceptance fixtures
