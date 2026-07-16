@@ -449,7 +449,7 @@ Checked: 2026-06-18 (UTC).
 - Taleb, "Statistical Consequences of Fat Tails":
   https://arxiv.org/abs/2001.10488
 
-## UI/UX design canon (checked 2026-07-07)
+## UI/UX design canon (checked 2026-07-16)
 
 Primary / near-primary:
 
@@ -459,8 +459,47 @@ Primary / near-primary:
   https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html
 - W3C, Understanding SC 2.5.8 Target Size (Minimum) — 24x24 CSS px, AA:
   https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html
-- NN/g, Jakob Nielsen's 10 usability heuristics:
+- W3C, Understanding SC 1.4.10 Reflow — 320 CSS px width / 256 CSS px
+  height, with exceptions for two-dimensional layouts:
+  https://www.w3.org/WAI/WCAG22/Understanding/reflow.html
+- W3C, Understanding SC 1.4.11 Non-text Contrast — 3:1 for applicable UI
+  components, states, and graphical objects:
+  https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html
+- W3C, Understanding SC 2.4.3 Focus Order and SC 2.4.7 Focus Visible:
+  https://www.w3.org/WAI/WCAG22/Understanding/focus-order.html
+  https://www.w3.org/WAI/WCAG22/Understanding/focus-visible.html
+- W3C WAI tutorials, form labels, user notifications, and data tables. Error
+  summaries are contextual/helpful rather than mandatory for every form;
+  captions/summaries are not required for every table:
+  https://www.w3.org/WAI/tutorials/forms/labels/
+  https://www.w3.org/WAI/tutorials/forms/notifications/
+  https://www.w3.org/WAI/tutorials/tables/
+  https://www.w3.org/WAI/tutorials/tables/caption-summary/
+- Design Tokens Community Group, Design Tokens Format Module 2025.10:
+  https://www.designtokens.org/tr/2025.10/format/
+- U.S. Web Design System, design tokens, spacing units, type size, layout
+  grid, forms, and tables (implementation examples, not a mandated system):
+  https://designsystem.digital.gov/design-tokens/
+  https://designsystem.digital.gov/design-tokens/color/system-tokens/
+  https://designsystem.digital.gov/design-tokens/color/theme-tokens/
+  https://designsystem.digital.gov/design-tokens/spacing-units/
+  https://designsystem.digital.gov/design-tokens/typesetting/font-size/
+  https://designsystem.digital.gov/utilities/layout-grid/
+  https://designsystem.digital.gov/components/form/
+  https://designsystem.digital.gov/components/table/
+- NN/g, Jakob Nielsen's 10 usability heuristics. The UI harness maps authored
+  dashboard and pricing/checkout completeness prompts to system status,
+  real-world match, error prevention, and recovery; it does not present those
+  prompts as WAI conformance requirements:
   https://www.nngroup.com/articles/ten-usability-heuristics/
+- NN/g, progressive disclosure:
+  https://www.nngroup.com/articles/progressive-disclosure/
+- Playwright, visual comparisons (`toHaveScreenshot`) as one concrete
+  screenshot-baseline/diff artifact pattern, not a required framework. Its
+  documentation requires baseline generation and comparison in the same
+  environment and identifies OS, hardware, settings, power, headless mode,
+  browser, and fonts as rendering variables:
+  https://playwright.dev/docs/test-snapshots
 
 Secondary field reference:
 

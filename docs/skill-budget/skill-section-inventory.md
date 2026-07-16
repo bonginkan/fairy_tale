@@ -51,7 +51,7 @@ in SKILL.md itself or as an extracted card reachable from the router.
 | skills/fairy-tale/references/cards/spatial-forge-harness-3d-cad-and-simulation-work.md | 932 | 16 | 233 |
 | skills/fairy-tale/references/cards/steady-behavior-harness.md | 761 | 14 | 190 |
 | skills/fairy-tale/references/cards/token-consumption-optimizer-harness.md | 3628 | 55 | 907 |
-| skills/fairy-tale/references/cards/ui-design-best-practices-harness.md | 3523 | 53 | 881 |
+| skills/fairy-tale/references/cards/ui-design-best-practices-harness.md | 8098 | 115 | 2024 |
 | skills/fairy-tale/references/cards/workflow-self-improvement.md | 521 | 11 | 130 |
 | skills/fairy-tale/references/creator-proxy-elaboration.md | 5082 | 78 | 1270 |
 | skills/fairy-tale/references/feedback-governance.md | 4515 | 123 | 1129 |
@@ -113,4 +113,4 @@ in SKILL.md itself or as an extracted card reachable from the router.
 | skills/fairy-tale/references/process/voice-profile-card.md | 237 | 16 | 59 |
 | skills/fairy-tale/references/process.md | 7639 | 57 | 1910 |
 | skills/fairy-tale/references/similarity-refactoring-adapter.md | 2360 | 76 | 590 |
-| skills/fairy-tale/references/sources.md | 23041 | 470 | 5760 |
+| skills/fairy-tale/references/sources.md | 25478 | 509 | 6370 |

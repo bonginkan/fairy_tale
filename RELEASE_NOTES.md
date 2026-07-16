@@ -1,5 +1,34 @@
 # Release Notes
 
+## 0.2.23
+
+- **UI Design Best-Practices Harness (build-grade expansion)** (#76): extends
+  the existing design-review lens into a construction contract for real UI
+  work. The harness now starts from the governing design system and maps
+  primitive -> semantic -> component/state tokens; inherits bounded spacing
+  and type scales instead of imposing a universal numeric grid; treats every
+  already-supported theme as a Tier A companion without inventing new themes;
+  and fixes grid, alignment, measure, density, responsive transformation,
+  information architecture, progressive disclosure, and action hierarchy
+  before component placement. New business-surface contracts separate
+  normative accessibility outcomes, conditional WAI techniques, and scoped
+  authored completeness prompts for forms, tables/data views, dashboards, and
+  pricing/checkout disclosure and recovery.
+  The accessibility floor now names WCAG 2.2 focus order/visibility, reflow at
+  320 CSS px width or 256 CSS px height as applicable, non-text contrast at
+  3:1, text contrast, target size, labels, errors, keyboard use, and reduced
+  motion. State coverage is a component x
+  viewport x supported-theme matrix. Rendered acceptance now records stable
+  screenshot baselines/diffs (framework-neutral; Playwright is an example)
+  with render-environment, revision/hash, diff/mask, and update-approval
+  provenance; baseline replacement never substitutes for defect review.
+  Code-only review discloses `visual not measured`, and design-class GUI
+  Dogfood QA findings loop back into the brief/token/component/state contract
+  before rerender. Sources expand to W3C WAI, DTCG 2025.10, USWDS, NN/g, and
+  Playwright, all checked 2026-07-16. Adds a production billing form/table
+  routing fixture while retaining both existing UI routes and the pure
+  divergent-layout negative control. Runtime package version is 0.2.23.
+
 ## 0.2.22
 
 - **Finance Proposal Completeness Gate (new card + fail-closed checker)** (#74):
