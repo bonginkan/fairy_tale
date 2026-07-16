@@ -13,6 +13,7 @@ import hashlib
 import json
 import os
 import re
+import subprocess
 import sys
 import tempfile
 import unicodedata
@@ -278,25 +279,55 @@ def profile_sha256(profile: dict[str, Any]) -> str:
     return "sha256:" + hashlib.sha256(canonical).hexdigest()
 
 
-def repository_root(start: Path) -> Path:
+def repository_root(start: Path) -> Path | None:
     resolved = resolve_path(start)
     if resolved.is_file():
         resolved = resolved.parent
-    for candidate in (resolved, *resolved.parents):
-        if (candidate / ".git").exists():
-            return candidate
-    return resolved
+    while not resolved.exists() and resolved != resolved.parent:
+        resolved = resolved.parent
+    if not resolved.is_dir():
+        resolved = resolved.parent
+    try:
+        completed = subprocess.run(
+            ["git", "-C", str(resolved), "rev-parse", "--show-toplevel"],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+    except OSError as exc:
+        raise ArtifactError(f"cannot discover Git root from {resolved}: {exc}") from exc
+    if completed.returncode != 0:
+        return None
+    root_text = completed.stdout.strip()
+    if not root_text:
+        raise ArtifactError(f"Git returned an empty repository root from {resolved}")
+    root = resolve_path(Path(root_text))
+    if not root.is_dir():
+        raise ArtifactError(f"Git repository root is not a directory: {root}")
+    return root
 
 
 def load_repo_profile(start: Path) -> dict[str, Any] | None:
     root = repository_root(start)
-    path = root / PROFILE_RELATIVE_PATH
-    if path.parent.is_symlink() or path.is_symlink():
-        raise ArtifactError(f"Fairy profile path cannot contain symlinks: {path}")
-    if not path.exists():
+    if root is None:
         return None
-    if not path.is_file():
-        raise ArtifactError(f"Fairy profile must be a regular file: {path}")
+    profile_directory = exact_path_entry(
+        root / PROFILE_RELATIVE_PATH.parent,
+        "Fairy profile directory",
+        allow_missing=True,
+        expected_kind="directory",
+    )
+    if profile_directory is None:
+        return None
+    path = exact_path_entry(
+        profile_directory / PROFILE_RELATIVE_PATH.name,
+        "Fairy profile",
+        allow_missing=True,
+        expected_kind="file",
+    )
+    if path is None:
+        return None
     raw = read_utf8(path, "Fairy profile")
     try:
         profile = json.loads(raw)
@@ -700,30 +731,51 @@ def portable_path_identity(path: Path) -> tuple[str, ...]:
     return tuple(portable_name_identity(part) for part in resolve_path(path).parts)
 
 
-def canonical_artifact_path(
-    path: Path, label: str, *, allow_missing: bool = False
-) -> Path:
+def exact_path_entry(
+    path: Path,
+    label: str,
+    *,
+    allow_missing: bool = False,
+    expected_kind: str = "file",
+) -> Path | None:
     try:
         directory_entries = os.listdir(path.parent)
     except OSError as exc:
         raise ArtifactError(f"cannot inspect {label} directory {path.parent}: {exc}") from exc
 
+    aliases = [
+        name
+        for name in directory_entries
+        if portable_name_identity(name) == portable_name_identity(path.name)
+    ]
     if path.name not in directory_entries:
-        aliases = [
-            name
-            for name in directory_entries
-            if portable_name_identity(name) == portable_name_identity(path.name)
-        ]
         if aliases:
             raise ArtifactError(
-                f"{label} filename must match exactly: stored {path.name}, found {aliases[0]}"
+                f"{label} name must match exactly: expected {path.name}, found {aliases[0]}"
             )
         if allow_missing:
-            return resolve_path(path)
-        raise ArtifactError(f"{label} not found under its exact stored filename: {path.name}")
+            return None
+        raise ArtifactError(f"{label} not found under its exact stored name: {path.name}")
+    conflicting_aliases = sorted(name for name in aliases if name != path.name)
+    if conflicting_aliases:
+        raise ArtifactError(
+            f"{label} has conflicting portable aliases: {path.name}, "
+            + ", ".join(conflicting_aliases)
+        )
     if path.is_symlink():
-        raise ArtifactError(f"{label} must be a regular file in the artifact directory")
+        raise ArtifactError(f"{label} cannot be a symlink")
+    if expected_kind == "file" and not path.is_file():
+        raise ArtifactError(f"{label} must be a regular file: {path}")
+    if expected_kind == "directory" and not path.is_dir():
+        raise ArtifactError(f"{label} must be a directory: {path}")
     return resolve_path(path)
+
+
+def canonical_artifact_path(
+    path: Path, label: str, *, allow_missing: bool = False
+) -> Path:
+    resolved = exact_path_entry(path, label, allow_missing=allow_missing)
+    return resolve_path(path) if resolved is None else resolved
 
 
 def require_distinct_paths(first: Path, second: Path, message: str) -> None:
@@ -954,6 +1006,8 @@ def command_profile_check(args: argparse.Namespace) -> int:
         )
     )
     root = repository_root(args.start)
+    if root is None:
+        raise ArtifactError(f"cannot resolve Git root from {args.start}")
     print(
         f"OK Fairy profile valid: {root / PROFILE_RELATIVE_PATH} "
         f"({profile['profile_id']}; {rule_count} rules)"
@@ -1377,6 +1431,21 @@ def command_selftest(_args: argparse.Namespace) -> int:
                 return True
             return False
 
+        def initialize_git_repo(path: Path) -> None:
+            path.mkdir(parents=True, exist_ok=True)
+            completed = subprocess.run(
+                ["git", "init", "--quiet", str(path)],
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            if completed.returncode != 0:
+                raise AssertionError(
+                    f"cannot initialize selftest Git repository {path}: "
+                    f"{completed.stderr.strip()}"
+                )
+
         def card_args(
             output: Path, *, ledger_name: str = "validation-ledger.json", markdown: Path | None = None
         ) -> argparse.Namespace:
@@ -1400,9 +1469,9 @@ def command_selftest(_args: argparse.Namespace) -> int:
             )
 
         repo_root = root / "profiled-repo"
+        initialize_git_repo(repo_root)
         profile_dir = repo_root / ".fairy"
         profile_dir.mkdir(parents=True)
-        (repo_root / ".git").mkdir()
         write_json(profile_dir / "profile.json", profile)
         loaded_profile = load_repo_profile(repo_root / "nested" / "output")
         check(loaded_profile is not None, "profile is discovered from a nested path")
@@ -1412,12 +1481,25 @@ def command_selftest(_args: argparse.Namespace) -> int:
             and loaded_profile["path"] == PROFILE_RELATIVE_PATH.as_posix(),
             "profile snapshot preserves source identity",
         )
+        shadow_directory = repo_root / "nested"
+        shadow_directory.mkdir()
+        (shadow_directory / ".git").mkdir()
+        check(
+            load_repo_profile(shadow_directory / "output") == loaded_profile,
+            "an empty nested .git marker cannot shadow the actual Git root",
+        )
         check(
             load_repo_profile(root / "unprofiled") is None,
             "missing Fairy profile falls back cleanly",
         )
+        unprofiled_repo = root / "unprofiled-repo"
+        initialize_git_repo(unprofiled_repo)
+        check(
+            load_repo_profile(unprofiled_repo) is None,
+            "a Git repository without a profile falls back cleanly",
+        )
         invalid_repo = root / "invalid-profile-repo"
-        (invalid_repo / ".git").mkdir(parents=True)
+        initialize_git_repo(invalid_repo)
         (invalid_repo / ".fairy").mkdir()
         (invalid_repo / ".fairy" / "profile.json").write_text(
             '{"schema_version":"1.0"}', encoding="utf-8"
@@ -1427,7 +1509,7 @@ def command_selftest(_args: argparse.Namespace) -> int:
             "invalid Fairy profile fails closed",
         )
         dangling_repo = root / "dangling-profile-repo"
-        (dangling_repo / ".git").mkdir(parents=True)
+        initialize_git_repo(dangling_repo)
         (dangling_repo / ".fairy").mkdir()
         dangling_profile = dangling_repo / ".fairy" / "profile.json"
         try:
@@ -1439,6 +1521,22 @@ def command_selftest(_args: argparse.Namespace) -> int:
                 rejected(lambda: load_repo_profile(dangling_repo)),
                 "dangling profile symlink fails closed",
             )
+        case_directory_repo = root / "case-directory-repo"
+        initialize_git_repo(case_directory_repo)
+        (case_directory_repo / ".FAIRY").mkdir()
+        write_json(case_directory_repo / ".FAIRY" / "profile.json", profile)
+        check(
+            rejected(lambda: load_repo_profile(case_directory_repo)),
+            "case-drifted Fairy profile directory fails closed",
+        )
+        case_filename_repo = root / "case-filename-repo"
+        initialize_git_repo(case_filename_repo)
+        (case_filename_repo / ".fairy").mkdir()
+        write_json(case_filename_repo / ".fairy" / "PROFILE.JSON", profile)
+        check(
+            rejected(lambda: load_repo_profile(case_filename_repo)),
+            "case-drifted Fairy profile filename fails closed",
+        )
 
         invalid_utf8 = root / "invalid-utf8.json"
         invalid_utf8.write_bytes(b"\xff\xfe")

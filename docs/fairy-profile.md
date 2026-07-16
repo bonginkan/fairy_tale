@@ -10,10 +10,13 @@ behavior. A present profile is fail-closed and must satisfy
 
 The first supported location is fixed at `.fairy/profile.json`. Discovery
 starts from the Task Card output directory or the directory passed to
-`profile-check`, then uses the nearest Git root. It does not read `AGENTS.md`,
-`CLAUDE.md`, or arbitrary executable configuration. The file must be regular
-UTF-8 JSON; symlinks, malformed JSON, unknown keys, duplicate rule IDs, and
-unsafe artifact paths block validation.
+`profile-check`, then uses Git's own `rev-parse --show-toplevel` result. Empty
+or malformed nested `.git` markers cannot shadow the actual repository root.
+Both `.fairy` and `profile.json` must use those exact names; case-only or
+canonically equivalent aliases block on every supported filesystem. It does
+not read `AGENTS.md`, `CLAUDE.md`, or arbitrary executable configuration. The
+file must be regular UTF-8 JSON; symlinks, malformed JSON, unknown keys,
+duplicate rule IDs, and unsafe artifact paths block validation.
 
 `fairy doctor` checks the caller repository profile before residency and
 adapter health. No profile is a successful compatibility fallback. A malformed
