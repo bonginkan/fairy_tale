@@ -83,6 +83,8 @@ Each check records a plan item, command or manual check, result, artifact paths,
 and notes. Results are exactly `pass`, `fail`, `blocked`, or `not_run`.
 Every `pass` must carry evidence: a non-empty command, at least one artifact
 path, or a concrete manual observation in notes. An all-empty pass is invalid.
+The derived Validation Ledger Markdown preserves notes so manual evidence stays
+visible to reviewers.
 `ledger-add --replace` updates an existing check explicitly.
 
 A ledger cannot finalize as `complete` while any check is not `pass`, a blocker
@@ -107,4 +109,5 @@ Schemas enforce each document's closed shape and final-state floor. Use the
 built-in validator for cross-file task-ID, back-reference, exact-name, and
 validation-plan coverage checks that JSON Schema cannot resolve by itself.
 Ledger validation performs those link checks by default; `--verify-link` remains
-accepted for explicit invocations and scripts.
+accepted for explicit invocations and scripts. Rendering a Validation Ledger
+uses the same default link validation and writes no derived view for an orphan.

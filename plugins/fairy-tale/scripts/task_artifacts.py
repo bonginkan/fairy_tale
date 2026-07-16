@@ -595,18 +595,19 @@ def ledger_markdown(ledger: dict[str, Any]) -> str:
         "",
         "## Checks",
         "",
-        "| ID | Plan item | Result | Command | Artifacts |",
-        "| --- | --- | --- | --- | --- |",
+        "| ID | Plan item | Result | Command | Artifacts | Notes |",
+        "| --- | --- | --- | --- | --- | --- |",
     ]
     for check in ledger["checks"]:
         artifacts = ", ".join(markdown_cell(item) for item in check["artifact_paths"]) or "-"
         command = markdown_cell(check["command"]) if check["command"] else "manual"
+        notes = markdown_cell(check["notes"]) if check["notes"] else "-"
         lines.append(
             f"| {markdown_cell(check['id'])} | {markdown_cell(check['plan_item'])} | "
-            f"{check['result']} | {command} | {artifacts} |"
+            f"{check['result']} | {command} | {artifacts} | {notes} |"
         )
     if not ledger["checks"]:
-        lines.append("| - | - | not_run | - | - |")
+        lines.append("| - | - | not_run | - | - | - |")
     lines.extend(
         [
             "",
@@ -747,7 +748,13 @@ def command_validate(args: argparse.Namespace) -> int:
 
 def command_render(args: argparse.Namespace) -> int:
     artifact = load_json(args.artifact)
-    require_valid(validate_artifact(artifact, path=args.artifact, verify_link=args.verify_link))
+    require_valid(
+        validate_cli_artifact(
+            artifact,
+            path=args.artifact,
+            verify_link=args.verify_link,
+        )
+    )
     rendered = (
         task_card_markdown(artifact)
         if artifact["artifact_type"] == "task_card"
@@ -1076,6 +1083,11 @@ def command_selftest(_args: argparse.Namespace) -> int:
             ),
             "manual observation can evidence a pass check",
         )
+        check(
+            "Observed the expected result in the rendered output."
+            in ledger_markdown(manual_evidence),
+            "manual evidence remains visible in the derived review view",
+        )
         artifact_evidence = json.loads(json.dumps(ledger))
         artifact_evidence["checks"][0].update(
             command="", artifact_paths=["artifacts/manual-check.txt"], notes=""
@@ -1102,6 +1114,20 @@ def command_selftest(_args: argparse.Namespace) -> int:
                 )
             ),
             "ledger validation verifies the Task Card link by default",
+        )
+        orphan_markdown = orphan_dir / "validation-ledger.md"
+        check(
+            rejected(
+                lambda: command_render(
+                    argparse.Namespace(
+                        artifact=orphan_ledger,
+                        output=orphan_markdown,
+                        verify_link=False,
+                    )
+                )
+            )
+            and not orphan_markdown.exists(),
+            "ledger rendering verifies the Task Card link before writing",
         )
 
         case_dir = root / "case-alias"
