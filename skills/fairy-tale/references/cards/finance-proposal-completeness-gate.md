@@ -59,10 +59,17 @@ gate → Closure / Negative-Space Check → reviewer sign-off.
 - **Deterministic validation — nothing is self-attested.**
   `scripts/finance_completeness_check.py` RE-EXECUTES each claim's formula
   over its stated `inputs` (restricted arithmetic evaluator) and recomputes
-  aggregates from component values via required normalized `weights`;
-  recorded `recomputed_value` fields are ignored. Non-executable formulas,
-  missing inputs, and non-finite values block. A strict schema rejects
-  unknown keys anywhere in the record so a typo can never weaken a rule.
+  aggregates from component values via required normalized `weights`; a
+  recorded `recomputed_value` must equal the checker's own execution. Every
+  formula input must be BOUND to the ledger via `input_bindings` — a cost
+  driver, a revenue driver, an expression over those, or a declared
+  assumption — and numeric bindings must reconcile, so the arithmetic can
+  never float free of the recorded economics. Constant formulas,
+  non-executable formulas, missing inputs, non-finite values, and margins
+  outside plausible range block. A strict schema rejects unknown keys
+  anywhere in the record so a typo can never weaken a rule, while requiring
+  every #74 record field (assumptions, evidence status, sensitivity,
+  cross-claim dependencies included).
   Sanitized cross-industry fixtures live in
   `fixtures/finance-completeness/cases.jsonl` (agency, SaaS, marketplace,
   managed service, hardware, channel sales), including one RED fixture per

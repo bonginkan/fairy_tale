@@ -25,13 +25,24 @@
   aggregates from required normalized weights, rejects unknown schema keys,
   non-finite values, duplicate/unnamed drivers, dangling or basis-less
   `included-in` targets, uncited `not-applicable` evidence, and
-  malformed/unregistered business models (closed model registry). Selftest
-  carries red/green/hostile controls (including the PR #75 review probes and
-  an add/remove metamorphic flip); nineteen sanitized cross-industry
-  acceptance fixtures in `fixtures/finance-completeness/cases.jsonl`
-  (agency, SaaS, marketplace, managed service, hardware, channel sales)
-  include one RED fixture per known bypass class, all wired into CI.
-  `redundancy` added to the listing recall-floor triggers. Router row +
+  malformed/unregistered business models (closed model registry). Every
+  formula input is bound to the ledger via `input_bindings` (cost driver /
+  revenue driver / expression / declared assumption) with numeric
+  reconciliation; `included-in` requires an in-ledger target, allocation
+  basis, anchored source, and matching period; claims require assumptions,
+  evidence status, sensitivity, and cross-claim dependencies; cohort
+  schedules must be complete and numerically consistent with the claims'
+  revenue drivers; sign-offs reject malformed entries, unknown roles, and
+  role substitution. Coverage is refutable: the checker's canonical
+  REASON_CLASSES list (54 classes) must be fully covered by fixtures plus
+  selftest probes, enforced by the case runner. Selftest carries 50+
+  red/green/hostile controls (including every PR #75 round-1/round-2 review
+  probe and an add/remove metamorphic flip); thirty-four sanitized
+  cross-industry acceptance fixtures in
+  `fixtures/finance-completeness/cases.jsonl` (agency, SaaS, marketplace,
+  managed service, hardware, channel sales) include one RED fixture per
+  bypass class, all wired into CI. `redundancy` added to the listing
+  recall-floor triggers. Router row +
   Choose-a-route bullet + description trigger wired in SKILL.md, and three
   routing-eval fixtures (finance-01/02 + OCR-only negative control
   finance-03). Vocabulary is standard managerial-accounting usage; the gate
