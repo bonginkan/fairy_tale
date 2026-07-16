@@ -10,16 +10,20 @@
   already-supported theme as a Tier A companion without inventing new themes;
   and fixes grid, alignment, measure, density, responsive transformation,
   information architecture, progressive disclosure, and action hierarchy
-  before component placement. New business-surface contracts cover forms,
-  tables/data views, dashboards, and pricing/checkout disclosure and recovery.
+  before component placement. New business-surface contracts separate
+  normative accessibility outcomes, conditional WAI techniques, and scoped
+  authored completeness prompts for forms, tables/data views, dashboards, and
+  pricing/checkout disclosure and recovery.
   The accessibility floor now names WCAG 2.2 focus order/visibility, reflow at
   320 CSS px width or 256 CSS px height as applicable, non-text contrast at
   3:1, text contrast, target size, labels, errors, keyboard use, and reduced
   motion. State coverage is a component x
   viewport x supported-theme matrix. Rendered acceptance now records stable
-  screenshot baselines/diffs (framework-neutral; Playwright is an example),
-  discloses `visual not measured` for code-only review, and loops design-class
-  GUI Dogfood QA findings back into the brief/token/component/state contract
+  screenshot baselines/diffs (framework-neutral; Playwright is an example)
+  with render-environment, revision/hash, diff/mask, and update-approval
+  provenance; baseline replacement never substitutes for defect review.
+  Code-only review discloses `visual not measured`, and design-class GUI
+  Dogfood QA findings loop back into the brief/token/component/state contract
   before rerender. Sources expand to W3C WAI, DTCG 2025.10, USWDS, NN/g, and
   Playwright, all checked 2026-07-16. Adds a production billing form/table
   routing fixture while retaining both existing UI routes and the pure

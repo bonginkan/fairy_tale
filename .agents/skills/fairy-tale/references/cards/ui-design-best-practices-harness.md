@@ -41,17 +41,27 @@ Dogfood QA; this harness governs how the UI is *designed and built*.
   Declare the primary task and action hierarchy for each view. Dense tables or
   repeated workflows may legitimately have coequal row actions; do not force a
   universal one-primary-button rule.
-- **Business-surface contracts.** Build the relevant contract before styling:
-  forms need persistent programmatic labels, instructions before input,
-  keyboard order, validation timing, inline errors plus a recoverable summary,
-  and preserved user input; tables need captions/headers, units and time basis,
-  sort/filter/loading/empty/error states, and an intentional small-screen
-  transformation rather than clipping; dashboards need metric definitions,
-  source/freshness, comparison basis, drill-down path, and honest empty/stale
-  states. Pricing or checkout views must expose the charged unit, period,
-  inclusions, next step, and error recovery instead of relying on visual trust
-  cues alone. W3C WAI form/table tutorials and the governing component system
-  own the detailed pattern, not an improvised local variant.
+- **Business-surface contracts.** Build only the relevant contract before
+  styling. Keep source strength explicit: normative WCAG outcomes are
+  requirements, WAI tutorial patterns are conditional techniques, and authored
+  prompts below are scoped completeness questions. Forms require programmatic
+  names, logical keyboard order, and instructions/error identification where
+  applicable. Preserve user input when feasible as a recovery technique.
+  Choose inline errors and/or a summary by context; a summary is warranted when
+  multiple, page-level, or hard-to-discover errors would otherwise impair
+  recovery, not for every form. Data tables require correctly associated
+  headers and, when surrounding context does not identify them, an accessible
+  name or caption; add units/time basis and
+  sort/filter/loading/empty/error or small-screen behavior only when the data
+  and task entail them. WAI form/table tutorials own these accessibility
+  outcomes while allowing more than one conforming technique. For dashboards,
+  ask whether metric definition, source/freshness, comparison basis,
+  drill-down, and empty/stale handling are needed; for pricing or checkout, ask
+  whether charged unit/period, inclusions, next step, and recovery are needed.
+  These are authored completeness prompts grounded in NN/g system-status,
+  real-world-match, error-prevention, and recovery heuristics plus the
+  governing product/task evidence -- not universal WAI requirements. Record a
+  reason when a listed prompt is not applicable rather than inventing a field.
 - **Established heuristics are the review lens.** Evaluate against NN/g's ten
   usability heuristics (visibility of system status; match to the real world;
   user control and freedom; consistency and standards; error prevention;
@@ -79,21 +89,27 @@ Dogfood QA; this harness governs how the UI is *designed and built*.
   behavior. A happy-path-only screen or a component with an undefined state is
   incomplete, not finished.
 - **Rendered evidence is the acceptance artifact.** Render the actual UI at
-  stable, named viewports and every supported theme/state. Keep deterministic
-  screenshots and review diffs against an accepted baseline when the project
-  has visual-regression infrastructure (Playwright `toHaveScreenshot` is one
-  example, not a mandated framework); mask or stabilize volatile content
-  explicitly, never by hiding regressions. Record viewport/theme/state and the
-  observed defect. Code-only review must disclose `visual not measured`.
+  stable, named viewports and every supported theme/state. When the project has
+  visual-regression infrastructure, bind each screenshot to a reproducible
+  named render environment (or pinned CI image/config), browser/engine and
+  fonts, baseline artifact revision or hash, diff configuration/threshold, and
+  justified mask set; Playwright `toHaveScreenshot` is one example, not a
+  mandated framework. Record the reviewer/approver identity and evidence
+  reference that authorize a baseline update. Replacing a baseline follows
+  defect review and is never itself the fix; masked regions receive separate
+  semantic/state validation where relevant. Record
+  viewport/theme/state and the observed defect. Code-only review must disclose
+  `visual not measured`.
   Hand the surface to GUI Dogfood QA for black-box task execution; design-class
   findings return to the brief/token/component/state contract, then rerender
   and rerun the affected matrix. Hand 3D/spatial work to Spatial Forge.
 
 Primary and near-primary sources (checked 2026-07-16): W3C WCAG 2.2
 Understanding SC 1.4.3, 1.4.10, 1.4.11, 2.4.3, 2.4.7, and 2.5.8 plus WAI
-form/table tutorials; DTCG Design Tokens Format 2025.10; USWDS token, layout,
-form, and table guidance; NN/g ten usability heuristics and progressive
-disclosure; Playwright visual comparisons (artifact example only). Secondary
+form/table tutorials (including their conditional-technique scope); DTCG Design
+Tokens Format 2025.10; USWDS token, layout, form, and table guidance; NN/g ten
+usability heuristics and progressive disclosure; Playwright visual comparisons
+(artifact example and same-environment constraint only). Secondary
 field reference: Laws of UX — not the original Fitts / Hick / Jakob literature;
 cite the originals when a claim depends on a specific law. URLs and source-tier
 notes live in `references/sources.md`.

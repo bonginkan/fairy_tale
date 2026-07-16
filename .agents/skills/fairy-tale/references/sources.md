@@ -468,10 +468,13 @@ Primary / near-primary:
 - W3C, Understanding SC 2.4.3 Focus Order and SC 2.4.7 Focus Visible:
   https://www.w3.org/WAI/WCAG22/Understanding/focus-order.html
   https://www.w3.org/WAI/WCAG22/Understanding/focus-visible.html
-- W3C WAI tutorials, form labels, user notifications, and data tables:
+- W3C WAI tutorials, form labels, user notifications, and data tables. Error
+  summaries are contextual/helpful rather than mandatory for every form;
+  captions/summaries are not required for every table:
   https://www.w3.org/WAI/tutorials/forms/labels/
   https://www.w3.org/WAI/tutorials/forms/notifications/
   https://www.w3.org/WAI/tutorials/tables/
+  https://www.w3.org/WAI/tutorials/tables/caption-summary/
 - Design Tokens Community Group, Design Tokens Format Module 2025.10:
   https://www.designtokens.org/tr/2025.10/format/
 - U.S. Web Design System, design tokens, spacing units, type size, layout
@@ -484,12 +487,18 @@ Primary / near-primary:
   https://designsystem.digital.gov/utilities/layout-grid/
   https://designsystem.digital.gov/components/form/
   https://designsystem.digital.gov/components/table/
-- NN/g, Jakob Nielsen's 10 usability heuristics:
+- NN/g, Jakob Nielsen's 10 usability heuristics. The UI harness maps authored
+  dashboard and pricing/checkout completeness prompts to system status,
+  real-world match, error prevention, and recovery; it does not present those
+  prompts as WAI conformance requirements:
   https://www.nngroup.com/articles/ten-usability-heuristics/
 - NN/g, progressive disclosure:
   https://www.nngroup.com/articles/progressive-disclosure/
 - Playwright, visual comparisons (`toHaveScreenshot`) as one concrete
-  screenshot-baseline/diff artifact pattern, not a required framework:
+  screenshot-baseline/diff artifact pattern, not a required framework. Its
+  documentation requires baseline generation and comparison in the same
+  environment and identifies OS, hardware, settings, power, headless mode,
+  browser, and fonts as rendering variables:
   https://playwright.dev/docs/test-snapshots
 
 Secondary field reference:
