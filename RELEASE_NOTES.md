@@ -1,5 +1,26 @@
 # Release Notes
 
+## 0.2.25
+
+- **Helix Loop Communication Harness** (#68): adds an organization-neutral
+  turn contract for active agent-to-agent implementation/review loops. Active
+  handoffs begin with the transport profile's counterpart address (raw mention,
+  stable name, and literal ID for Discord/OpenAB) and carry a repo-qualified
+  issue/PR, branch and exact head, checks, blocker, next action, expected
+  responder/checkpoint, owner-needed state, and source/run refs. Action-bearing
+  handoffs and state changes require an artifact-bound acknowledgement; a
+  missing acknowledgement gets one bounded re-notification before the loop
+  profile's escalation or reassignment path. Bare issue numbers, silence-as-
+  success, infinite mention retries, and authority inferred from mention text
+  are rejected. Cadence, stall thresholds, DND, watchdogs, roles, merge
+  authority, and same-account policy remain inputs from the existing Loop
+  Engineering profile rather than universal constants; a hard stall triggers
+  readback/escalation, never process timeout or forced termination. The card is
+  grounded in `bonginkan/north-star-os#45/#46` as deployment evidence while
+  explicitly excluding their fixed bot names, role split, and 30/20/45-minute
+  values from the universal contract. Adds positive handoff and incidental-
+  mention negative routing controls. Runtime package version is 0.2.25.
+
 ## 0.2.24
 
 - **Active DRY and clone-family consolidation gate** (#78): changes minimum

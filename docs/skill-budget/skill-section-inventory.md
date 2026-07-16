@@ -1,7 +1,7 @@
 # SKILL.md section inventory (parity checklist)
 
 - Source: `skills/fairy-tale/SKILL.md`
-- Measured: 16279 bytes / 230 lines / ~4070 est tokens
+- Measured: 16798 bytes / 235 lines / ~4200 est tokens
 - Estimation basis: est tokens = UTF-8 bytes / 4.0 (reporting only); head window enforced at 3.5 bytes/token (densest plausible tokenization); line budget uses exact lines
 - Head window: first 5000 est tokens (= 17500 bytes)
 
@@ -10,11 +10,11 @@ in SKILL.md itself or as an extracted card reachable from the router.
 
 | # | level | section | line | byte offset | est tokens | in head window |
 |---|-------|---------|------|-------------|------------|----------------|
-| 1 | h2 | Non-negotiables | 11 | 892 | 185 | yes |
-| 2 | h2 | Residency Guard | 26 | 1633 | 174 | yes |
-| 3 | h2 | Default workflow | 45 | 2330 | 1761 | yes |
-| 4 | h2 | Mode patterns | 167 | 9373 | 1354 | yes |
-| 5 | h2 | Supporting references | 206 | 14791 | 372 | yes |
+| 1 | h2 | Non-negotiables | 11 | 881 | 185 | yes |
+| 2 | h2 | Residency Guard | 26 | 1622 | 174 | yes |
+| 3 | h2 | Default workflow | 45 | 2319 | 1838 | yes |
+| 4 | h2 | Mode patterns | 171 | 9670 | 1410 | yes |
+| 5 | h2 | Supporting references | 211 | 15310 | 372 | yes |
 
 ## References inventory
 
@@ -39,6 +39,7 @@ in SKILL.md itself or as an extracted card reachable from the router.
 | skills/fairy-tale/references/cards/finance-proposal-completeness-gate.md | 10773 | 157 | 2693 |
 | skills/fairy-tale/references/cards/general-e2e-completion-harness.md | 2030 | 30 | 508 |
 | skills/fairy-tale/references/cards/generalization-and-latent-structure-harness-hidden-rules-executable-models-and-tacit-intent.md | 3350 | 50 | 838 |
+| skills/fairy-tale/references/cards/helix-loop-communication-harness.md | 4104 | 71 | 1026 |
 | skills/fairy-tale/references/cards/high-signal-research-synthesis.md | 238 | 7 | 60 |
 | skills/fairy-tale/references/cards/implementation-validation-gate.md | 4774 | 71 | 1194 |
 | skills/fairy-tale/references/cards/knowledge-crystallization-harness.md | 415 | 10 | 104 |
@@ -113,4 +114,4 @@ in SKILL.md itself or as an extracted card reachable from the router.
 | skills/fairy-tale/references/process/voice-profile-card.md | 237 | 16 | 59 |
 | skills/fairy-tale/references/process.md | 7670 | 57 | 1918 |
 | skills/fairy-tale/references/similarity-refactoring-adapter.md | 2885 | 81 | 721 |
-| skills/fairy-tale/references/sources.md | 25896 | 517 | 6474 |
+| skills/fairy-tale/references/sources.md | 26351 | 524 | 6588 |
