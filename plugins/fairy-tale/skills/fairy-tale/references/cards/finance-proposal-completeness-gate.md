@@ -91,11 +91,13 @@ gate → Closure / Negative-Space Check → reviewer sign-off.
   perturbation-tested end-to-end through bindings + formula — a `*0` hidden
   inside a binding blocks; a cost anchor that moves a margin/profit UP and
   a revenue anchor that moves revenue/forecast/operating-profit DOWN are
-  sign inversions; a cohort factor divided anywhere, repeated within one
-  expression, or multiplied across alias boundaries is inverse/compounded
-  semantics — while additive revenue streams each using a factor once, and
-  a revenue denominator that MULTIPLIES cohort factors, are correct margin
-  math; one binding never mixes revenue and cost anchors. Dependency and aggregate graphs must be
+  sign inversions; cohort usage is judged by SYMBOLIC DEGREE on the fully
+  substituted derivation — per additive term, degree above one is
+  compounding and below zero is inverse, so alias splits are caught while
+  additive streams each using a factor once, and revenue denominators that
+  multiply cohort factors, stay green; the same revenue stream (identical
+  or value-overlapping anchors) may never enter one claim twice; one
+  binding never mixes revenue and cost anchors. Dependency and aggregate graphs must be
   acyclic with no self/duplicate references; aggregate weights live in
   (0,1], must match the components' EXECUTED revenue (their UNIQUE
   revenue-bound input values, setup fees and cohort factors included,
@@ -108,7 +110,9 @@ gate → Closure / Negative-Space Check → reviewer sign-off.
   closure conditions (any unsatisfied one blocks), and cross-page
   conflicts: same-basis claims with diverging values must carry a recorded
   conflict with a locator-anchored resolution, while a `segment` identity
-  axis keeps legitimately different segments from false-blocking. Recurring claims must
+  axis — casefolded and drawn from an anchored ledger registry, never free
+  text — keeps legitimately different segments from false-blocking without
+  becoming a laundering surface. Recurring claims must
   record conversion and churn. Uncertainty impact bounds are numeric with
   locator-anchored evidence in a CLOSED, capped unit registry (#74
   defaults: 5 margin points / relative 10% of revenue; stricter

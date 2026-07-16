@@ -140,8 +140,8 @@
     {
       "path": "references/cards/finance-proposal-completeness-gate.md",
       "title": "Finance Proposal Completeness Gate",
-      "bytes": 9304,
-      "est_tokens": 2326
+      "bytes": 9550,
+      "est_tokens": 2388
     },
     {
       "path": "references/cards/general-e2e-completion-harness.md",
@@ -541,9 +541,9 @@
     },
     {
       "path": "skills/fairy-tale/references/cards/finance-proposal-completeness-gate.md",
-      "bytes": 9304,
-      "lines": 136,
-      "est_tokens": 2326
+      "bytes": 9550,
+      "lines": 140,
+      "est_tokens": 2388
     },
     {
       "path": "skills/fairy-tale/references/cards/general-e2e-completion-harness.md",

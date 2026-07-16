@@ -79,13 +79,18 @@
   revenue dedupes aliased streams so weights cannot be faked; materiality
   caps restored to the #74 defaults (5 margin points / relative 10%); a
   `segment` identity axis keeps legitimate cross-segment differences from
-  false-blocking as conflicts. Selftest carries 125+ red/green/hostile
-  controls (every PR #75 round-1..9 review probe and an add/remove
-  metamorphic flip); one hundred thirty sanitized cross-industry
-  acceptance fixtures (positive controls for bounded uncertainties,
-  per-unit recurring margins, amount-only included-in, pass-with-warnings,
-  resolved conflicts, correct recurring margins, and segment-differentiated
-  margins) in
+  false-blocking as conflicts. Round 10: cohort usage is judged by symbolic
+  degree on the fully substituted derivation (additive streams green,
+  alias-split compounding red, margins analyzed per numerator/denominator);
+  identical or value-overlapping revenue streams can never enter one claim
+  twice; segments are casefolded canonical identities from an anchored
+  ledger registry. Selftest carries 130+ red/green/hostile controls (every
+  PR #75 round-1..10 review probe and an add/remove metamorphic flip); one
+  hundred thirty-five sanitized cross-industry acceptance fixtures
+  (positive controls for bounded uncertainties, per-unit recurring margins,
+  amount-only included-in, pass-with-warnings, resolved conflicts, correct
+  recurring margins, segment-differentiated margins, and additive cohort
+  streams) in
   `fixtures/finance-completeness/cases.jsonl` (agency, SaaS, marketplace,
   managed service, hardware, channel sales), all wired into CI. `redundancy`
   added to the listing recall-floor triggers. Router row +

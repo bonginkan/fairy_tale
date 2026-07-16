@@ -77,7 +77,9 @@ LEDGER_KEYS = {
     "cohort_schedule", "signoffs", "blockers", "uncertainties",
     "observed_frame", "central_claim_inventory", "artifact_verdict",
     "materiality_threshold", "minimum_closure_conditions", "cross_page_conflicts",
+    "segments",
 }
+SEGMENT_KEYS = {"name", "source"}
 CONFLICT_KEYS = {"id", "claim_ids", "description", "resolution"}
 INVENTORY_KEYS = {"count", "claim_ids", "enumeration_basis"}
 MATERIALITY_KEYS = {"value", "unit", "basis"}
@@ -178,6 +180,9 @@ REASON_CLASSES = (
     # recurring driver completeness, and the cross-page conflict contract.
     "cross_page_conflict_unrecorded", "cross_page_conflict_malformed",
     "cross_page_conflict_unresolved", "cohort_factor_duplicated",
+    # fix-10 (PR #75 round 10): the same revenue stream may never be counted
+    # twice inside one claim's formula.
+    "duplicate_revenue_stream", "segment_undeclared",
 )
 
 # NOTE (PR #75 round 3): coverage of REASON_CLASSES is judged against the
@@ -196,6 +201,54 @@ def formula_names(formula: str) -> set[str] | None:
     except (SyntaxError, ValueError):
         return None
     return {node.id for node in ast.walk(tree) if isinstance(node, ast.Name)}
+
+
+def substituted_formula_tree(claim: dict) -> ast.AST | None:
+    """The formula AST with each input Name replaced by its binding AST
+    (assumption-bound inputs stay as leaves): the claim's full symbolic
+    derivation from ledger anchors."""
+    formula = claim.get("formula")
+    if not isinstance(formula, str) or not formula.strip():
+        return None
+    try:
+        tree = ast.parse(formula.strip(), mode="eval")
+    except (SyntaxError, ValueError):
+        return None
+    bindings = claim.get("input_bindings") or {}
+
+    class Substitute(ast.NodeTransformer):
+        def visit_Name(self, node: ast.Name):
+            binding = bindings.get(node.id)
+            if isinstance(binding, str) and not binding.strip().startswith("assumption:"):
+                try:
+                    return ast.parse(binding.strip(), mode="eval").body
+                except (SyntaxError, ValueError):
+                    return node
+            return node
+
+    return Substitute().visit(tree)
+
+
+def factor_degrees(node: ast.AST, factor: str) -> set[int]:
+    """Possible per-additive-term multiplicative degrees of `factor` in the
+    subtree: Mult sums degrees, Div subtracts, Add/Sub unions terms. Degree
+    > 1 in any term is compounding; < 0 is inverse semantics."""
+    if isinstance(node, ast.Expression):
+        return factor_degrees(node.body, factor)
+    if isinstance(node, ast.BinOp):
+        left, right = factor_degrees(node.left, factor), factor_degrees(node.right, factor)
+        if isinstance(node.op, (ast.Add, ast.Sub)):
+            return left | right
+        if isinstance(node.op, ast.Mult):
+            return {a + b for a in left for b in right}
+        if isinstance(node.op, ast.Div):
+            return {a - b for a in left for b in right}
+        return left | right
+    if isinstance(node, ast.UnaryOp):
+        return factor_degrees(node.operand, factor)
+    if isinstance(node, ast.Name):
+        return {1 if node.id == factor else 0}
+    return {0}
 
 
 def divisor_names(formula: str) -> set[str]:
@@ -619,6 +672,25 @@ def check_input_bindings(claim: dict, inputs: dict, reasons: list[str]) -> None:
     # a binding for a key the formula never consumes is a smuggling surface.
     for key in sorted(set(bindings) - set(inputs)):
         reasons.append(f"binding_unused:{cid}:{key}")
+    # The SAME revenue stream may never enter one claim twice: two inputs
+    # bound to the identical (anchor set, value) stream double-count revenue
+    # inside the formula itself (round 10).
+    seen_streams: dict[tuple, str] = {}
+    for key in sorted(inputs):
+        binding = bindings.get(key)
+        if not isinstance(binding, str) or binding.strip().startswith("assumption:"):
+            continue
+        names = formula_names(binding.strip()) or set()
+        if names and names <= REVENUE_DRIVER_KEYS and is_finite_number(inputs.get(key)):
+            value_r = round(float(inputs[key]), 9)
+            duplicate = any(
+                prev_value == value_r and (prev_names == frozenset(names) or prev_names & names)
+                for (prev_names, prev_value) in seen_streams
+            )
+            if duplicate:
+                reasons.append(f"duplicate_revenue_stream:{cid}:{key}")
+            else:
+                seen_streams[(frozenset(names), value_r)] = key
     for key, value in inputs.items():
         binding = bindings.get(key)
         if not isinstance(binding, str) or not binding.strip():
@@ -674,10 +746,11 @@ def executed_revenue(component: dict) -> float | None:
             # Dedupe by (anchor set, value): the SAME revenue stream aliased
             # into several inputs counts once — duplicate aliases can never
             # inflate executed revenue to fake a weight (round 9).
-            stream = (frozenset(names), round(float(inputs[key]), 9))
-            if stream in seen_streams:
+            value_r = round(float(inputs[key]), 9)
+            if any(prev_value == value_r and (prev_names == frozenset(names) or prev_names & names)
+                   for (prev_names, prev_value) in seen_streams):
                 continue
-            seen_streams.add(stream)
+            seen_streams.add((frozenset(names), value_r))
             total += float(inputs[key])
             found = True
     return total if found else None
@@ -920,68 +993,33 @@ def evaluate(ledger: dict) -> tuple[str, list[str]]:
                 if claim.get("metric") in ("revenue", "forecast") or "volume" in used:
                     if not {"conversion", "active_months"} <= used:
                         reasons.append(f"cohort_math_missing:{cid}")
-                # Cohort factors MULTIPLY revenue (#74): a factor sitting in a
-                # divisor position WITHIN one expression is inverse semantics.
-                # Per-expression only: a margin's revenue denominator whose
-                # binding multiplies cohort factors is CORRECT (round-8
-                # false-block); the end-to-end direction test covers cross-
-                # expression composition. A factor appearing twice in one
-                # expression compounds growth and blocks too.
+                # Cohort factors MULTIPLY revenue exactly once per stream
+                # (#74). Symbolic degree analysis on the FULLY SUBSTITUTED
+                # derivation (round 10 — replaces the per-expression counts
+                # that false-blocked additive streams and missed alias
+                # splits): per additive term, degree > 1 is compounding and
+                # degree < 0 is inverse semantics. Additive streams each
+                # using a factor once (degrees {0,1}) stay GREEN. Margins
+                # analyze numerator and denominator SEPARATELY — a revenue
+                # denominator carrying cohort factors is correct math, so the
+                # root quotient must not subtract its degrees away.
                 cohort_factors = {"conversion", "active_months"}
-                claim_bindings = claim.get("input_bindings") or {}
-
-                def transitive_cohort(node) -> set[str]:
-                    names = {n.id for n in ast.walk(node) if isinstance(n, ast.Name)}
-                    out = names & cohort_factors
-                    for name in names:
-                        b = claim_bindings.get(name)
-                        if isinstance(b, str) and not b.strip().startswith("assumption:"):
-                            out |= (formula_names(b.strip()) or set()) & cohort_factors
-                    return out
-
-                # Alias-split compounding (round 9): a Mult node whose BOTH
-                # sides carry the same cohort factor (directly or through
-                # bindings) squares growth; additive branches (separate
-                # revenue streams) each using a factor once stay GREEN.
-                formula_text2 = claim.get("formula")
-                if isinstance(formula_text2, str):
-                    try:
-                        formula_tree = ast.parse(formula_text2, mode="eval")
-                    except (SyntaxError, ValueError):
-                        formula_tree = None
-                    if formula_tree is not None:
-                        for node in ast.walk(formula_tree):
-                            if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Mult):
-                                shared = transitive_cohort(node.left) & transitive_cohort(node.right)
-                                for factor in sorted(shared):
-                                    reasons.append(f"cohort_factor_duplicated:{cid}:{factor}")
-                # An input ALIAS in the formula's divisor whose binding is a
-                # PURE cohort expression is inverse too; a revenue denominator
-                # that merely CONTAINS cohort factors alongside price/volume
-                # is correct margin math (round-8 false-block).
-                formula_text = claim.get("formula")
-                if isinstance(formula_text, str):
-                    for alias in divisor_names(formula_text):
-                        binding = claim_bindings.get(alias)
-                        if isinstance(binding, str) and not binding.strip().startswith("assumption:"):
-                            bound_names = formula_names(binding.strip()) or set()
-                            if bound_names and bound_names <= cohort_factors:
+                tree = substituted_formula_tree(claim)
+                if tree is not None:
+                    subtrees = [tree]
+                    if claim.get("metric") in MARGIN_METRICS:
+                        body = tree.body if isinstance(tree, ast.Expression) else tree
+                        if isinstance(body, ast.BinOp) and isinstance(body.op, ast.Div):
+                            subtrees = [body.left, body.right]
+                    for factor in sorted(cohort_factors):
+                        for subtree in subtrees:
+                            degrees = factor_degrees(subtree, factor)
+                            if any(d > 1 for d in degrees):
+                                reasons.append(f"cohort_factor_duplicated:{cid}:{factor}")
+                                break
+                            if any(d < 0 for d in degrees):
                                 reasons.append(f"cohort_factor_inverted:{cid}")
-                expressions = [claim.get("formula")] + list(claim_bindings.values())
-                for expression in expressions:
-                    if not isinstance(expression, str) or expression.strip().startswith("assumption:"):
-                        continue
-                    expression = expression.strip()
-                    if divisor_names(expression) & cohort_factors:
-                        reasons.append(f"cohort_factor_inverted:{cid}")
-                    try:
-                        names_in_expr = [n.id for n in ast.walk(ast.parse(expression, mode="eval"))
-                                         if isinstance(n, ast.Name)]
-                    except (SyntaxError, ValueError):
-                        continue
-                    for factor in cohort_factors:
-                        if names_in_expr.count(factor) > 1:
-                            reasons.append(f"cohort_factor_duplicated:{cid}:{factor}")
+                                break
 
     declared = ledger.get("unresolved_count")
     if not isinstance(declared, int) or isinstance(declared, bool) or declared != open_tbd:
@@ -1067,6 +1105,23 @@ def evaluate(ledger: dict) -> tuple[str, list[str]]:
         reasons.append("artifact_verdict_missing")
     elif artifact_verdict == "BLOCK":
         reasons.append("artifact_verdict_blocked")
+    # Segment identity is CANONICAL, never free text (round 10): segments a
+    # claim uses must be declared in a ledger registry with an anchored
+    # source, so a self-invented label can never split a conflict group.
+    segments_registry = ledger.get("segments")
+    declared_segments: set[str] = set()
+    if isinstance(segments_registry, list):
+        for entry in segments_registry:
+            if isinstance(entry, dict) and isinstance(entry.get("name"), str) and is_locator(entry.get("source")):
+                check_unknown_keys(entry, SEGMENT_KEYS, f"segment:{entry['name']}", reasons)
+                declared_segments.add(entry["name"].strip().casefold())
+            else:
+                reasons.append("segment_undeclared:registry_malformed")
+    for claim in claims:
+        segment = str(claim.get("segment") or "").strip()
+        if segment and segment.casefold() not in declared_segments:
+            reasons.append(f"segment_undeclared:{claim.get('claim_id', '?')}:{segment}")
+
     # Cross-page conflicts (#74): same-basis claims showing different values
     # must be RECORDED with an anchored resolution — and the record must be
     # referentially sound. Components of one aggregate are separate lines,
@@ -1093,7 +1148,9 @@ def evaluate(ledger: dict) -> tuple[str, list[str]]:
         for claim in claims:
             # segment/subject identity: two lines about DIFFERENT segments are
             # legitimately different numbers, never a conflict (round 9).
-            key = tuple(str(claim.get(f) or "").strip()
+            # Casefolded (round 10): "Enterprise" vs "enterprise" is the SAME
+            # segment — spelling drift can never dodge a conflict record.
+            key = tuple(str(claim.get(f) or "").strip().casefold()
                         for f in ("metric", "period", "currency", "unit", "tax_basis", "segment"))
             basis_groups.setdefault(key, []).append(claim)
         for group in basis_groups.values():
@@ -1271,6 +1328,7 @@ def _green_ledger() -> dict:
         "minimum_closure_conditions": [{"id": "mc1", "satisfied": True,
                                         "text": "every entailed cost row carries a resolved disposition"}],
         "cross_page_conflicts": [],
+        "segments": [],
         "claims": [{
             "claim_id": "C1", "source": "p2:table1", "metric": "gross_margin",
             "period": "FY1", "currency": "USD", "unit": "ratio", "tax_basis": "excl",
@@ -1810,6 +1868,8 @@ def _selftest() -> int:
         second["assumptions"] = [{"id": "a1", "text": "COGS from enterprise sheet p8 line 2",
                                   "evidence_status": "cited", "value": 30.0}]
         l["claims"][0]["segment"] = "self_serve"
+        l["segments"] = [{"name": "self_serve", "source": "segment definitions p2 table 1"},
+                         {"name": "enterprise", "source": "segment definitions p2 table 1"}]
         l["claims"].append(second)
         for s in l["signoffs"]:
             s["coverage"] = ["C1", "C2"]
@@ -1817,6 +1877,37 @@ def _selftest() -> int:
                                         "enumeration_basis": "every margin figure p1-p8 tables"}
     check_positive("different-segment margins with diverging values pass without a conflict record",
                    segment_positive)
+
+    # --- fix-10 probes (PR #75 round 10) ---
+    def additive_streams_positive(l):
+        recurring_forecast_no_cohort_math(l)
+        l["claims"][0]["revenue_drivers"].update(conversion=0.3, churn_monthly=0.05)
+        c = l["claims"][0]
+        c.update(formula="new_rev+expansion_rev", displayed_value=75.6, recomputed_value=75.6, rounding_rule="1dp")
+        c["inputs"] = {"new_rev": 54.0, "expansion_rev": 21.6}
+        c["input_bindings"] = {"new_rev": "price*volume*conversion*active_months*0.15",
+                               "expansion_rev": "setup_fee*volume*conversion*active_months*0.15"}
+        c["revenue_drivers"]["setup_fee"] = 4.0
+        c["assumptions"] = []
+    check_positive("additive revenue streams each using cohort factors once pass (round-10 false-block)",
+                   additive_streams_positive)
+
+    def formula_double_count(l):
+        c = l["claims"][0]
+        c.update(formula="(rev+rev2-cogs-fee)/rev", displayed_value=1.6, recomputed_value=1.6)
+        c["inputs"] = {"rev": 100.0, "rev2": 100.0, "cogs": 25.0, "fee": 15.0}
+        c["input_bindings"] = {"rev": "price*volume", "rev2": "volume*price",
+                               "cogs": "assumption:a1", "fee": "partner_fee"}
+    probe("the same revenue stream aliased twice inside one formula blocks", formula_double_count, "duplicate_revenue_stream")
+
+    def segment_case_drift(l):
+        segment_positive(l)
+        l["claims"][0]["segment"] = "Enterprise"
+        l["claims"][1]["segment"] = "enterprise"
+    probe("segment case drift cannot dodge a same-segment conflict record", segment_case_drift, "cross_page_conflict_unrecorded")
+    def undeclared_segment(l):
+        l["claims"][0]["segment"] = "made_up_label"
+    probe("a segment missing from the anchored registry blocks", undeclared_segment, "segment_undeclared")
 
     def revenue_inverted(l):
         recurring_forecast_no_cohort_math(l)
