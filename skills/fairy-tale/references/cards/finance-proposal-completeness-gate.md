@@ -23,23 +23,29 @@ gate → Closure / Negative-Space Check → reviewer sign-off.
   assumptions, evidence status, sensitivity, and cross-claim dependencies;
   unresolved counts. A central claim without a ledger record is a BLOCK.
 - **Cost disposition is a closed enum, fail-closed.** Every evidenced or
-  entailed cost driver carries exactly one disposition: `amount` (a number on
-  a stated basis), `included-in` (named other line), `not-applicable-with-
-  evidence` (requires a citable reason), or `TBD`. A `TBD` on an entailed
-  driver is an open blocker: it must surface in the unresolved count and
-  BLOCK promotion — it is never silently priced at zero. A generic "all
-  figures are assumptions" disclaimer does not convert a missing cost
-  treatment into an accepted zero.
+  entailed cost driver carries exactly one disposition: `amount` (a finite
+  number on a stated basis), `included-in` (must reference a cost line,
+  claim, or formula input that EXISTS in the same ledger, plus a substantive
+  allocation basis — a bare host name is an unsubstantiated absorption
+  claim), `not-applicable-with-evidence` (requires a citable, locator-shaped
+  anchor — page/section/contract/URL — not prose length), or `TBD`. A `TBD`
+  on an entailed driver is an open blocker: it must surface in the
+  unresolved count and BLOCK promotion — it is never silently priced at
+  zero. A generic "all figures are assumptions" disclaimer does not convert
+  a missing cost treatment into an accepted zero. Duplicate or unnamed
+  driver rows block.
 - **Unit Economics Assumption Closure (required sub-gate).** The stated
   business model entails cost rows whether or not the artifact mentions
   them: partner- or channel-led sales entails channel economics (fees,
   revenue share, partner enablement); implementation or managed service
   entails setup/onboarding, support, security, and incident-response
   treatment; recurring models entail a feasible conversion/churn cohort
-  schedule consistent with active-months claims. Each entailed row must be
-  dispositioned. `not-applicable` needs evidence (e.g. direct sales with no
-  partner in the motion) — an unsupported applicability assertion is a BLOCK,
-  and a supported one must not be false-blocked.
+  schedule consistent with active-months claims. The model registry is
+  CLOSED: a malformed or unrecognized business model blocks, because an
+  unknown motion cannot certify that nothing extra is entailed. Each
+  entailed row must be dispositioned. `not-applicable` needs evidence (e.g.
+  direct sales with no partner in the motion) — an unsupported applicability
+  assertion is a BLOCK, and a supported one must not be false-blocked.
 - **Aggregate margins inherit component coverage.** An aggregate or blended
   margin computed from component margins is only as complete as its weakest
   component: if any component has unresolved cost coverage, the aggregate is
@@ -50,13 +56,20 @@ gate → Closure / Negative-Space Check → reviewer sign-off.
   units, periods, rounding) and a business-model-completeness/negative-space
   reviewer (entailed rows, dispositions, cohort feasibility). Any change to
   the ledger or artifact invalidates both sign-offs.
-- **Deterministic validation.** `scripts/finance_completeness_check.py`
-  validates ledger records against these rules; sanitized cross-industry
-  fixtures live in `fixtures/finance-completeness/cases.jsonl` (agency,
-  SaaS, marketplace, managed service, hardware, channel sales). Promotion
-  bar: full recall on material omissions and arithmetic errors, zero
-  unsupported applicability assertions, zero false blocks on supported
-  `not-applicable` rows. Do not hardcode any single motivating artifact.
+- **Deterministic validation — nothing is self-attested.**
+  `scripts/finance_completeness_check.py` RE-EXECUTES each claim's formula
+  over its stated `inputs` (restricted arithmetic evaluator) and recomputes
+  aggregates from component values via required normalized `weights`;
+  recorded `recomputed_value` fields are ignored. Non-executable formulas,
+  missing inputs, and non-finite values block. A strict schema rejects
+  unknown keys anywhere in the record so a typo can never weaken a rule.
+  Sanitized cross-industry fixtures live in
+  `fixtures/finance-completeness/cases.jsonl` (agency, SaaS, marketplace,
+  managed service, hardware, channel sales), including one RED fixture per
+  known bypass class. Promotion bar: full recall on material omissions and
+  arithmetic errors, zero unsupported applicability assertions, zero false
+  blocks on supported `not-applicable` rows. Do not hardcode any single
+  motivating artifact.
 
 Provenance: gate contract specified in issue #74 (fail-closed unit-economics
 closure for document review). Metric vocabulary (gross margin, contribution

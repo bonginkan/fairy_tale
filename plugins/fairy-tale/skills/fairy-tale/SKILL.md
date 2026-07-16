@@ -1,6 +1,6 @@
 ---
 name: fairy-tale
-description: Fable/Mythos-informed workflow harness for budgeted, evidence-driven, validation-gated agent execution. Use for loop/spiral engineering, double-helix learning loops, evolutionary spiral operators, job automation, silent-loop auto-resume, do-not-disturb windows, usage-aware multi-agent load balancing, closure checks, negative-space discovery, excess/legacy-surface review, finance proposal completeness, e2e completion and GUI dogfood QA, creator-proxy (WWCD) elaboration, codebase migration, research synthesis, benchmark and legal reasoning, UI design best practices, UI/3D/creative work, token-consumption optimization (memoization), mechanism discovery, and defensive security process design.
+description: Fable/Mythos-informed workflow harness for budgeted, evidence-driven, validation-gated agent execution. Use for loop/spiral engineering, double-helix learning loops, evolutionary spiral operators, job automation, silent-loop auto-resume, do-not-disturb windows, usage-aware multi-agent load balancing, closure checks, negative-space discovery, excess/redundancy/legacy-surface review, finance proposal completeness, e2e completion, GUI dogfood QA, creator-proxy WWCD elaboration, codebase migration, research synthesis, benchmark/legal reasoning, UI design best practices, UI/3D/creative work, token-consumption optimization (memoization), mechanism discovery, and defensive security process design.
 ---
 
 # Fairy Tale

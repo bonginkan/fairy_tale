@@ -19,12 +19,19 @@
   schedules for recurring models). Aggregate margins inherit component
   coverage; sign-off requires heterogeneous reviewer roles
   (arithmetic/reconciliation + completeness/negative-space) bound to the same
-  immutable artifact hash. Deterministic enforcement via
-  `scripts/finance_completeness_check.py` (selftest with red/green/hostile
-  controls and an add/remove metamorphic flip) plus nine sanitized
-  cross-industry acceptance fixtures in
-  `fixtures/finance-completeness/cases.jsonl` (agency, SaaS, marketplace,
-  managed service, hardware, channel sales), both wired into CI. Router row +
+  immutable artifact hash. Enforcement is deterministic and never
+  self-attested: `scripts/finance_completeness_check.py` re-executes each
+  formula over its stated inputs (restricted AST evaluator), recomputes
+  aggregates from required normalized weights, rejects unknown schema keys,
+  non-finite values, duplicate/unnamed drivers, dangling or basis-less
+  `included-in` targets, uncited `not-applicable` evidence, and
+  malformed/unregistered business models (closed model registry). Selftest
+  carries red/green/hostile controls (including the PR #75 review probes and
+  an add/remove metamorphic flip); nineteen sanitized cross-industry
+  acceptance fixtures in `fixtures/finance-completeness/cases.jsonl`
+  (agency, SaaS, marketplace, managed service, hardware, channel sales)
+  include one RED fixture per known bypass class, all wired into CI.
+  `redundancy` added to the listing recall-floor triggers. Router row +
   Choose-a-route bullet + description trigger wired in SKILL.md, and three
   routing-eval fixtures (finance-01/02 + OCR-only negative control
   finance-03). Vocabulary is standard managerial-accounting usage; the gate
