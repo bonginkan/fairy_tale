@@ -57,6 +57,10 @@ jobs:
         run: python3 scripts/evolution_variant_check.py
       - name: E2E coverage exercise gate (self-controls)
         run: python3 scripts/e2e_coverage_check.py --selftest
+      - name: Finance completeness gate (self-controls)
+        run: python3 scripts/finance_completeness_check.py --selftest
+      - name: Finance completeness gate (acceptance cases)
+        run: python3 scripts/finance_completeness_check.py
 
   adapters:
     name: adapters (manifest validation)

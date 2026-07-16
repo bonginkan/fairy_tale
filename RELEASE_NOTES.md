@@ -1,5 +1,133 @@
 # Release Notes
 
+## 0.2.22
+
+- **Finance Proposal Completeness Gate (new card + fail-closed checker)** (#74):
+  adds `references/cards/finance-proposal-completeness-gate.md` — a fail-closed
+  completeness gate for artifacts carrying financial claims (proposals, pricing
+  models, business cases, forecasts), fired from artifact content rather than
+  task wording. Arithmetic that reconciles is not completeness: every central
+  claim needs a ledger record (metric definition, period/currency/unit/tax
+  basis, displayed vs recomputed value, revenue drivers, cost drivers); every
+  evidenced or structurally entailed cost driver carries exactly one
+  disposition out of `amount` / `included-in` / `not-applicable-with-evidence`
+  / `TBD`, with `TBD` blocking (never an accepted zero) and `not-applicable`
+  requiring citable evidence. The Unit Economics Assumption Closure sub-gate
+  derives entailed rows from the stated business model (channel economics for
+  partner-led sales; setup/onboarding, support, security, incident response
+  for implementation/managed service; feasible conversion/churn cohort
+  schedules for recurring models). Aggregate margins inherit component
+  coverage; sign-off requires heterogeneous reviewer roles
+  (arithmetic/reconciliation + completeness/negative-space) bound to the same
+  immutable artifact hash. Enforcement is deterministic and never
+  self-attested: `scripts/finance_completeness_check.py` re-executes each
+  formula over its stated inputs (restricted AST evaluator), recomputes
+  aggregates from required normalized weights, rejects unknown schema keys,
+  non-finite values, duplicate/unnamed drivers, dangling or basis-less
+  `included-in` targets, uncited `not-applicable` evidence, and
+  malformed/unregistered business models (closed model registry). Every
+  formula input is bound to the ledger via `input_bindings` (cost driver /
+  revenue driver / expression / declared assumption) with numeric
+  reconciliation; `included-in` requires an in-ledger target, allocation
+  basis, anchored source, and matching period; claims require assumptions,
+  evidence status, sensitivity, and cross-claim dependencies; cohort
+  schedules must be complete, domain-valid, and numerically consistent with
+  the claims' revenue drivers, and recurring revenue/forecast claims must
+  use conversion/active-months in their bound arithmetic; assumptions that
+  feed arithmetic record their numbers and are reconciled; amount costs must
+  be consumed by the bound math on margin/profit claims; margins must be
+  ratio-shaped and ratio-unit; sign-offs record verdict + per-claim coverage
+  per required role and reject malformed entries, unknown roles, and role
+  substitution; closure state (blockers/uncertainties) is explicit and open
+  blockers can never pass; uncertainties are structured, impact-bounded
+  records and a decision-reversing uncertainty blocks outright. The binding
+  space is closed over the executed formula (phantom inputs/bindings and
+  unconsumed assumptions block); claim sources must be locators; amounts
+  carry their own anchored source and period; included-in requires a covered
+  scope and a resolved host; margins are ratio-unit quotients over a
+  revenue-bound denominator. Reference is not effect, and perturbation
+  reaches the LEDGER anchors end-to-end through bindings (a *0 hidden inside
+  a binding blocks; cost anchors must move margins/profit DOWN; one binding
+  never mixes revenue and cost anchors); dependency/aggregate graphs must be
+  acyclic with weights in (0,1] and period-consistent components; amounts
+  carry an explicit stated basis; included-in carries the absorbed amount OR
+  an allocation basis (per the issue contract); the ledger records its
+  observed frame, a count-checked central-claim inventory, and an artifact
+  verdict (approve/pass_with_warnings/block) plus explicit minimum closure
+  conditions; anchors are direction-tested (cost up => margin down, revenue
+  drivers up => revenue up, cohort factors never in divisors); aggregate
+  weights must match component revenue shares and components share the
+  claim's basis; the central-claim inventory names exact claim IDs;
+  materiality thresholds come from a closed, capped unit registry with a
+  locator-anchored basis; uncertainty impact bounds are numeric with
+  cumulative materiality evaluated against that threshold; uncertainty
+  reversal flags are required booleans; every sign-off entry is
+  individually complete with non-empty claim-anchored coverage. Coverage
+  is refutable by execution: every class in the checker's canonical
+  REASON_CLASSES list (106 classes) must be covered by an executed RED
+  fixture in the acceptance run — deleting a rule or its fixture turns CI
+  red; no hand-maintained coverage claims. Round 8 adds: operating-profit
+  revenue direction, per-expression cohort divisor/duplication semantics
+  (correct recurring margins no longer false-block), aggregate weights
+  anchored to EXECUTED revenue (setup fees included), recurring
+  conversion/churn required, cross-page conflict records with anchored
+  resolutions, evidence-anchored numeric impacts (default cap 10%),
+  string-typed coverage, and the issue-canonical PASS /
+  PASS_WITH_WARNINGS / BLOCK verdict enum. Round 9: cohort compounding is
+  caught across alias boundaries (multiplicative composition of
+  factor-bearing branches) while additive streams stay green; executed
+  revenue dedupes aliased streams so weights cannot be faked; materiality
+  caps restored to the #74 defaults (5 margin points / relative 10%); a
+  `segment` identity axis keeps legitimate cross-segment differences from
+  false-blocking as conflicts. Round 10: cohort usage is judged by symbolic
+  degree on the fully substituted derivation (additive streams green,
+  alias-split compounding red, margins analyzed per numerator/denominator);
+  identical or value-overlapping revenue streams can never enter one claim
+  twice; segments are casefolded canonical identities from an anchored
+  ledger registry. Round 11: nonlinear cohort quotients and same-factor
+  sums inside one expression block; stream identity is fully declarative
+  (distinct anchor-set signatures — scaled/padded copies block, equal-value
+  distinct-anchor streams pass; no proximity heuristics); segment
+  canonicalization collapses whitespace and rejects registries whose
+  entries collapse to one canonical name. Round 12: cohort factors carry an
+  exact coefficient-one contract (2*conversion blocks, rate fractions
+  green); stream identity is DECLARED via an anchored `revenue_streams`
+  registry (source-backed ids, not inferred anchor sets) with exact
+  canonical-expression dedup; segment and stream canonicalization apply
+  Unicode NFKC. Round 13: cohort coefficients are position-aware share
+  contracts (numerator constants <=1, divisor constants >=1 — /2 rates
+  green, /0.5 and masked 2x red); additive cohort offsets (1+conversion)
+  block; canonical expressions fold neutral elements (*1 mints nothing);
+  stream ids are non-empty, unique across aggregate components, and
+  malformed stream_ids maps are reasoned blocks (never exceptions); ONE
+  canonical-identity normalizer (NFKC + whitespace + casefold) serves
+  registry, membership, and conflict grouping. Round 14: finite constant
+  subexpressions and arithmetic identity elements (`+0`, `-0`, `*1`, `/1`)
+  share one canonical expression, constant ratios such as `100/200` retain
+  valid fractional-share semantics, `stream_ids` is closed over executed
+  revenue inputs, and aggregate revenue plus leaf stream identity resolve
+  transitively so a nested aggregate cannot launder duplicate revenue or
+  bypass weight anchoring. Round 15 normalizes finite constant factors across
+  multiplication and division, so equivalent shares such as `x*0.5`, `x/2`,
+  and `x*100/200` cannot mint distinct streams. Round 16 routes cancelling
+  root unary-sign chains through the same coefficient normalization, so
+  `-(-x/2)` is also `x/2`. Selftest carries 148 red/green/hostile controls
+  (every PR #75 round-1..16 review probe and an add/remove metamorphic flip);
+  one hundred fifty-six sanitized
+  cross-industry acceptance fixtures
+  (positive controls for bounded uncertainties, per-unit recurring margins,
+  amount-only included-in, pass-with-warnings, resolved conflicts, correct
+  recurring margins, segment-differentiated margins, and additive cohort
+  streams) in
+  `fixtures/finance-completeness/cases.jsonl` (agency, SaaS, marketplace,
+  managed service, hardware, channel sales), all wired into CI. `redundancy`
+  added to the listing recall-floor triggers. Router row +
+  Choose-a-route bullet + description trigger wired in SKILL.md, and three
+  routing-eval fixtures (finance-01/02 + OCR-only negative control
+  finance-03). Vocabulary is standard managerial-accounting usage; the gate
+  constrains completeness and disposition, not any org-specific accounting
+  policy.
+
 ## 0.2.21
 
 - **Token Consumption Optimizer Harness (new card + record)**: adds

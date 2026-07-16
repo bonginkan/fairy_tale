@@ -66,6 +66,7 @@ REQUIRED_TRIGGERS = {
         "closure",
         "negative-space",
         "excess",
+        "redundancy",
         "migration",
         "research",
         "benchmark",

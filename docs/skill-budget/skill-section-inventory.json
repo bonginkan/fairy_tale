@@ -2,10 +2,10 @@
   "purpose": "Parity checklist for the SKILL.md router/per-card restructure: every section listed here must remain reachable (in SKILL.md or via an extracted card referenced from the router). Compare with --inventory-compare to fail closed on silent drops.",
   "skill_md": "skills/fairy-tale/SKILL.md",
   "measured": {
-    "bytes": 15829,
-    "lines": 225,
-    "chars": 15775,
-    "est_tokens": 3957,
+    "bytes": 16279,
+    "lines": 230,
+    "chars": 16223,
+    "est_tokens": 4070,
     "estimation_basis": "est tokens = UTF-8 bytes / 4.0 (reporting only); head window enforced at 3.5 bytes/token (densest plausible tokenization); line budget uses exact lines",
     "head_window_bytes": 17500,
     "head_token_budget": 5000
@@ -15,40 +15,40 @@
       "level": 2,
       "title": "Non-negotiables",
       "line": 11,
-      "byte_offset": 891,
-      "byte_end": 1632,
+      "byte_offset": 892,
+      "byte_end": 1633,
       "est_tokens": 185
     },
     {
       "level": 2,
       "title": "Residency Guard",
       "line": 26,
-      "byte_offset": 1632,
-      "byte_end": 2329,
+      "byte_offset": 1633,
+      "byte_end": 2330,
       "est_tokens": 174
     },
     {
       "level": 2,
       "title": "Default workflow",
       "line": 45,
-      "byte_offset": 2329,
-      "byte_end": 9099,
-      "est_tokens": 1692
+      "byte_offset": 2330,
+      "byte_end": 9373,
+      "est_tokens": 1761
     },
     {
       "level": 2,
       "title": "Mode patterns",
-      "line": 163,
-      "byte_offset": 9099,
-      "byte_end": 14341,
-      "est_tokens": 1310
+      "line": 167,
+      "byte_offset": 9373,
+      "byte_end": 14791,
+      "est_tokens": 1354
     },
     {
       "level": 2,
       "title": "Supporting references",
-      "line": 201,
-      "byte_offset": 14341,
-      "byte_end": 15829,
+      "line": 206,
+      "byte_offset": 14791,
+      "byte_end": 16279,
       "est_tokens": 372
     }
   ],
@@ -138,6 +138,12 @@
       "est_tokens": 421
     },
     {
+      "path": "references/cards/finance-proposal-completeness-gate.md",
+      "title": "Finance Proposal Completeness Gate",
+      "bytes": 10773,
+      "est_tokens": 2693
+    },
+    {
       "path": "references/cards/general-e2e-completion-harness.md",
       "title": "General E2E Completion Harness",
       "bytes": 2030,
@@ -218,8 +224,8 @@
     {
       "path": "references/cards/token-consumption-optimizer-harness.md",
       "title": "Token Consumption Optimizer Harness: process memoization",
-      "bytes": 3139,
-      "est_tokens": 785
+      "bytes": 3628,
+      "est_tokens": 907
     },
     {
       "path": "references/cards/ui-design-best-practices-harness.md",
@@ -534,6 +540,12 @@
       "est_tokens": 421
     },
     {
+      "path": "skills/fairy-tale/references/cards/finance-proposal-completeness-gate.md",
+      "bytes": 10773,
+      "lines": 157,
+      "est_tokens": 2693
+    },
+    {
       "path": "skills/fairy-tale/references/cards/general-e2e-completion-harness.md",
       "bytes": 2030,
       "lines": 30,
@@ -613,9 +625,9 @@
     },
     {
       "path": "skills/fairy-tale/references/cards/token-consumption-optimizer-harness.md",
-      "bytes": 3139,
-      "lines": 48,
-      "est_tokens": 785
+      "bytes": 3628,
+      "lines": 55,
+      "est_tokens": 907
     },
     {
       "path": "skills/fairy-tale/references/cards/ui-design-best-practices-harness.md",
@@ -949,9 +961,9 @@
     },
     {
       "path": "skills/fairy-tale/references/process/token-recipe-record.md",
-      "bytes": 692,
-      "lines": 19,
-      "est_tokens": 173
+      "bytes": 803,
+      "lines": 21,
+      "est_tokens": 201
     },
     {
       "path": "skills/fairy-tale/references/process/tool-contract-card.md",
