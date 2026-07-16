@@ -1,7 +1,7 @@
 # SKILL.md section inventory (parity checklist)
 
 - Source: `skills/fairy-tale/SKILL.md`
-- Measured: 16798 bytes / 235 lines / ~4200 est tokens
+- Measured: 16807 bytes / 235 lines / ~4202 est tokens
 - Estimation basis: est tokens = UTF-8 bytes / 4.0 (reporting only); head window enforced at 3.5 bytes/token (densest plausible tokenization); line budget uses exact lines
 - Head window: first 5000 est tokens (= 17500 bytes)
 
@@ -10,11 +10,11 @@ in SKILL.md itself or as an extracted card reachable from the router.
 
 | # | level | section | line | byte offset | est tokens | in head window |
 |---|-------|---------|------|-------------|------------|----------------|
-| 1 | h2 | Non-negotiables | 11 | 881 | 185 | yes |
-| 2 | h2 | Residency Guard | 26 | 1622 | 174 | yes |
-| 3 | h2 | Default workflow | 45 | 2319 | 1838 | yes |
-| 4 | h2 | Mode patterns | 171 | 9670 | 1410 | yes |
-| 5 | h2 | Supporting references | 211 | 15310 | 372 | yes |
+| 1 | h2 | Non-negotiables | 11 | 890 | 185 | yes |
+| 2 | h2 | Residency Guard | 26 | 1631 | 174 | yes |
+| 3 | h2 | Default workflow | 45 | 2328 | 1838 | yes |
+| 4 | h2 | Mode patterns | 171 | 9679 | 1410 | yes |
+| 5 | h2 | Supporting references | 211 | 15319 | 372 | yes |
 
 ## References inventory
 
