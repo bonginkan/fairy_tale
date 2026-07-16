@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/bonginkan/fairy_tale/schemas/fairy-profile.schema.json",
+  "title": "Fairy Tale Repository Profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "profile_id",
+    "required_validations",
+    "prohibited_actions",
+    "recommended_steps",
+    "artifact_paths"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "profile_id": { "$ref": "#/$defs/id" },
+    "required_validations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/validation" }
+    },
+    "prohibited_actions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/text_rule" }
+    },
+    "recommended_steps": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/text_rule" }
+    },
+    "artifact_paths": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/artifact_path" }
+    }
+  },
+  "anyOf": [
+    { "properties": { "required_validations": { "minItems": 1 } } },
+    { "properties": { "prohibited_actions": { "minItems": 1 } } },
+    { "properties": { "recommended_steps": { "minItems": 1 } } },
+    { "properties": { "artifact_paths": { "minItems": 1 } } }
+  ],
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{2,127}$"
+    },
+    "text": { "type": "string", "minLength": 1, "pattern": "\\S" },
+    "repo_relative_path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?=.*\\S)(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*[:\\\\])[^/]+(?:/[^/]+)*$"
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "description", "command"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "description": { "$ref": "#/$defs/text" },
+        "command": { "$ref": "#/$defs/text" }
+      }
+    },
+    "text_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "description"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "description": { "$ref": "#/$defs/text" }
+      }
+    },
+    "artifact_path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "description", "path"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "description": { "$ref": "#/$defs/text" },
+        "path": { "$ref": "#/$defs/repo_relative_path" }
+      }
+    }
+  }
+}

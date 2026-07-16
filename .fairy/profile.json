@@ -1,0 +1,48 @@
+{
+  "artifact_paths": [
+    {
+      "description": "Record user-visible release changes.",
+      "id": "release-notes",
+      "path": "RELEASE_NOTES.md"
+    },
+    {
+      "description": "Maintain deterministic Task Card and Ledger acceptance cases.",
+      "id": "task-fixtures",
+      "path": "fixtures/task-artifacts/cases.jsonl"
+    }
+  ],
+  "profile_id": "fairy-tale-repository",
+  "prohibited_actions": [
+    {
+      "description": "Do not force-push repository branches.",
+      "id": "no-force-push"
+    },
+    {
+      "description": "Do not delete the working branch after merge.",
+      "id": "retain-branches"
+    }
+  ],
+  "recommended_steps": [
+    {
+      "description": "Review the exact candidate head with two independent reviewers.",
+      "id": "exact-head-review"
+    },
+    {
+      "description": "Require two sign-offs and green CI before a normal merge commit.",
+      "id": "merge-gate"
+    }
+  ],
+  "required_validations": [
+    {
+      "command": "./fairy doctor",
+      "description": "Run repository residency, adapter, and profile health checks.",
+      "id": "doctor"
+    },
+    {
+      "command": "./fairy validate",
+      "description": "Run the complete repository validation registry.",
+      "id": "full-validation"
+    }
+  ],
+  "schema_version": "1.0"
+}

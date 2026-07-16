@@ -64,11 +64,17 @@ same workflow checks without memorizing individual script paths:
 ./fairy ledger --help
 ```
 
-`doctor` runs residency and adapter health checks. `validate` runs the
+`doctor` validates an optional caller-repository `.fairy/profile.json`, then
+runs residency and adapter health checks. `validate` runs the
 deterministic CI suite, while Task Card and Validation Ledger operations remain
 thin delegates to `scripts/task_artifacts.py`. See [Fairy CLI](docs/fairy-cli.md).
 The skill-only installer intentionally does not install a host executable or
 modify `PATH`; use the CLI from a source checkout.
+
+Repository-local workflow rules use the closed, declarative
+[Fairy profile](docs/fairy-profile.md). Task Cards capture the profile and
+Ledgers preserve the same snapshot; profile commands are never executed as
+hooks.
 
 Before publishing benchmark claims or making the repository public, read
 [SECURITY.md](SECURITY.md), [CONTRIBUTING.md](CONTRIBUTING.md), and

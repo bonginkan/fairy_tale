@@ -26,8 +26,11 @@ EXTRA_FILES = [
     ROOT / "install.sh",
 ]
 PACKAGE_REFERENCE_FILES = [
+    ROOT / "docs" / "fairy-profile.md",
     ROOT / "docs" / "loop-engineering-automation.md",
     ROOT / "docs" / "task-artifacts.md",
+    ROOT / "schemas" / "fairy-profile.schema.json",
+    ROOT / "schemas" / "repo-profile-snapshot.schema.json",
     ROOT / "schemas" / "task-card.schema.json",
     ROOT / "schemas" / "validation-ledger.schema.json",
     ROOT / "scripts" / "task_artifacts.py",
