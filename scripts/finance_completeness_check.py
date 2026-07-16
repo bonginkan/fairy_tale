@@ -366,6 +366,8 @@ def canonical_expr(node: ast.AST) -> str:
     constant_value = constant_expr_value(node)
     if constant_value is not None:
         return canonical_number(constant_value)
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.UAdd, ast.USub)):
+        return canonical_multiplicative_expr(node)
     if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Mult, ast.Div)):
         return canonical_multiplicative_expr(node)
     if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
@@ -1805,6 +1807,7 @@ def _selftest() -> int:
         for expression in (
             "price*volume*0.5", "price*volume/2", "price*volume*(1/2)",
             "(price*volume*4)/8", "volume*price/(4/2)", "(price/2)*volume",
+            "-(-price*volume/2)",
         )
     }
     check("finite multiplicative/divisive half-share forms share one canonical expression",
@@ -2474,6 +2477,12 @@ def _selftest() -> int:
                                      "source": "revenue model p9 table 2"})
     probe("equivalent multiplicative and divisive shares cannot mint different streams",
           equivalent_half_share, "duplicate_revenue_stream")
+
+    def cancelling_root_signs(l):
+        equivalent_half_share(l)
+        l["claims"][0]["input_bindings"]["rev2"] = "-(-price*volume/2)"
+    probe("cancelling root unary signs cannot mint a different stream",
+          cancelling_root_signs, "duplicate_revenue_stream")
     probe("an empty stream id blocks",
           lambda l: (l["claims"][0].update(stream_ids={"rev": " "}),)[0] or None
           if False else l["claims"][0].update(stream_ids={"rev": " "}), "stream_undeclared")
@@ -2568,7 +2577,7 @@ def _selftest() -> int:
     if failures:
         print("finance completeness selftest FAILED.")
         return 1
-    print("finance completeness selftest passed (green->pass; PR #75 round-1..15 hostile probes block). "
+    print("finance completeness selftest passed (green->pass; PR #75 round-1..16 hostile probes block). "
           "NOTE: coverage proof lives in the fixtures run, not here.")
     return 0
 

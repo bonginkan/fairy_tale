@@ -109,9 +109,11 @@
   transitively so a nested aggregate cannot launder duplicate revenue or
   bypass weight anchoring. Round 15 normalizes finite constant factors across
   multiplication and division, so equivalent shares such as `x*0.5`, `x/2`,
-  and `x*100/200` cannot mint distinct streams. Selftest carries 145
-  red/green/hostile controls (every PR #75 round-1..15 review probe and an
-  add/remove metamorphic flip); one hundred fifty-five sanitized
+  and `x*100/200` cannot mint distinct streams. Round 16 routes cancelling
+  root unary-sign chains through the same coefficient normalization, so
+  `-(-x/2)` is also `x/2`. Selftest carries 146 red/green/hostile controls
+  (every PR #75 round-1..16 review probe and an add/remove metamorphic flip);
+  one hundred fifty-six sanitized
   cross-industry acceptance fixtures
   (positive controls for bounded uncertainties, per-unit recurring margins,
   amount-only included-in, pass-with-warnings, resolved conflicts, correct

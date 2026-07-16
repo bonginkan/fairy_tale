@@ -108,9 +108,10 @@ gate → Closure / Negative-Space Check → reviewer sign-off.
   keys outside those executed revenue inputs. The same declared id, or the
   same canonical expression at the same value, is one stream counted twice
   and blocks; canonicalization folds finite constant subexpressions,
-  normalizes finite multiplicative/divisive factors (`x*0.5` is `x/2`), and
-  folds the arithmetic identities `+0`, `-0`, `*1`, and `/1` — while distinct
-  declared streams over any anchors pass. One
+  normalizes finite multiplicative/divisive factors (`x*0.5` is `x/2`) and
+  cancelling root unary signs, and folds the arithmetic identities `+0`,
+  `-0`, `*1`, and `/1` — while distinct declared streams over any anchors
+  pass. One
   binding never mixes revenue and cost anchors. Dependency and aggregate graphs must be
   acyclic with no self/duplicate references; aggregate weights live in
   (0,1], must match the components' transitively resolved EXECUTED revenue
