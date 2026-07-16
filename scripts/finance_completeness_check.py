@@ -255,6 +255,13 @@ def factor_degrees(node: ast.AST, factor: str) -> set[int]:
     return {0}
 
 
+def canonical_identity(value: str) -> str:
+    """One normalizer for every identity axis (registry, membership, conflict
+    grouping): Unicode NFKC + whitespace collapse + casefold. Divergent
+    normalizers are how identities leak (PR #75 round 13)."""
+    return " ".join(unicodedata.normalize("NFKC", value).split()).casefold()
+
+
 def canonical_expr(node: ast.AST) -> str:
     """Order-independent canonical form: commutative chains sort their
     operands, so `price*volume` and `volume*price` are the SAME expression.
@@ -263,14 +270,33 @@ def canonical_expr(node: ast.AST) -> str:
         return canonical_expr(node.body)
     if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Add, ast.Mult)):
         op_type = type(node.op)
-        operands: list[str] = []
+        raw_operands: list[ast.AST] = []
         def collect(n: ast.AST) -> None:
             if isinstance(n, ast.BinOp) and isinstance(n.op, op_type):
                 collect(n.left)
                 collect(n.right)
             else:
-                operands.append(canonical_expr(n))
+                raw_operands.append(n)
         collect(node)
+        # Fold constants so neutral elements can never mint a "different"
+        # expression: 1*price*volume IS price*volume (round 13).
+        constant_product = 1.0
+        constant_sum = 0.0
+        operands: list[str] = []
+        for operand in raw_operands:
+            if isinstance(operand, ast.Constant) and is_finite_number(operand.value):
+                if op_type is ast.Mult:
+                    constant_product *= float(operand.value)
+                else:
+                    constant_sum += float(operand.value)
+            else:
+                operands.append(canonical_expr(operand))
+        if op_type is ast.Mult and abs(constant_product - 1.0) > 1e-12:
+            operands.append(repr(round(constant_product, 12)))
+        if op_type is ast.Add and abs(constant_sum) > 1e-12:
+            operands.append(repr(round(constant_sum, 12)))
+        if len(operands) == 1:
+            return operands[0]
         symbol = "+" if op_type is ast.Add else "*"
         return "(" + symbol.join(sorted(operands)) + ")"
     if isinstance(node, ast.BinOp):
@@ -536,6 +562,19 @@ def check_claim_arithmetic(claim: dict, claims_by_id: dict, reasons: list[str]) 
             if executed is not None:
                 component_revenues[component_id] = executed
             total += float(weights[component_id]) * float(component_value)
+        # The same declared stream may never feed two components: that is
+        # one revenue counted twice in the blend (round 13).
+        stream_owners: dict[str, str] = {}
+        for component_id in components:
+            component = claims_by_id.get(component_id)
+            if component is None:
+                continue
+            comp_streams = component.get("stream_ids")
+            if isinstance(comp_streams, dict):
+                for stream_id in {v for v in comp_streams.values() if isinstance(v, str) and v.strip()}:
+                    if stream_id in stream_owners and stream_owners[stream_id] != component_id:
+                        reasons.append(f"duplicate_revenue_stream:{cid}:{stream_id}")
+                    stream_owners.setdefault(stream_id, component_id)
         # Weights are ANCHORED to component revenue shares, never self-declared.
         if len(component_revenues) == len(components) and sum(component_revenues.values()) > 0:
             revenue_total = sum(component_revenues.values())
@@ -742,9 +781,15 @@ def check_input_bindings(claim: dict, inputs: dict, reasons: list[str]) -> None:
     declared_streams = {
         entry["id"]
         for entry in (claim.get("_ledger_revenue_streams") or [])
-        if isinstance(entry, dict) and isinstance(entry.get("id"), str)
+        if isinstance(entry, dict) and isinstance(entry.get("id"), str) and entry["id"].strip()
     }
-    stream_ids = claim.get("stream_ids") or {}
+    stream_ids = claim.get("stream_ids")
+    if stream_ids is None:
+        stream_ids = {}
+    elif not isinstance(stream_ids, dict):
+        # A truthy non-object must be a REASONED block, never an exception.
+        reasons.append(f"stream_undeclared:{cid}:stream_ids_malformed")
+        stream_ids = {}
     seen_stream_ids: dict[str, str] = {}
     seen_canonical: dict[tuple, str] = {}
     for key in sorted(inputs):
@@ -757,7 +802,7 @@ def check_input_bindings(claim: dict, inputs: dict, reasons: list[str]) -> None:
             if scales is None or any(scale > 1 + 1e-9 for scale in scales):
                 reasons.append(f"revenue_binding_scale_invalid:{cid}:{key}")
             stream_id = stream_ids.get(key)
-            if not isinstance(stream_id, str) or stream_id not in declared_streams:
+            if not isinstance(stream_id, str) or not stream_id.strip() or stream_id not in declared_streams:
                 reasons.append(f"stream_undeclared:{cid}:{key}")
             elif stream_id in seen_stream_ids:
                 reasons.append(f"duplicate_revenue_stream:{cid}:{key}")
@@ -819,7 +864,9 @@ def executed_revenue(component: dict) -> float | None:
     total = 0.0
     found = False
     inputs = component.get("inputs") or {}
-    stream_ids = component.get("stream_ids") or {}
+    stream_ids = component.get("stream_ids")
+    if not isinstance(stream_ids, dict):
+        stream_ids = {}
     seen_ids: set[str] = set()
     for key, binding in (component.get("input_bindings") or {}).items():
         if not isinstance(binding, str) or binding.strip().startswith("assumption:"):
@@ -957,9 +1004,11 @@ def evaluate(ledger: dict) -> tuple[str, list[str]]:
     if isinstance(streams_registry, list):
         seen_stream_keys: set[str] = set()
         for entry in streams_registry:
-            if isinstance(entry, dict) and isinstance(entry.get("id"), str)                     and len(str(entry.get("description") or "").strip()) >= 10                     and is_locator(entry.get("source")):
+            if isinstance(entry, dict) and isinstance(entry.get("id"), str) and entry["id"].strip() \
+                    and len(str(entry.get("description") or "").strip()) >= 10 \
+                    and is_locator(entry.get("source")):
                 check_unknown_keys(entry, STREAM_KEYS, f"stream:{entry['id']}", reasons)
-                canon_id = " ".join(unicodedata.normalize("NFKC", entry["id"]).split()).casefold()
+                canon_id = canonical_identity(entry["id"])
                 if canon_id in seen_stream_keys:
                     reasons.append(f"stream_undeclared:registry_duplicate:{canon_id}")
                 seen_stream_keys.add(canon_id)
@@ -1155,11 +1204,13 @@ def evaluate(ledger: dict) -> tuple[str, list[str]]:
                     for factor in cohort_factors:
                         if expr_names.count(factor) > 1:
                             reasons.append(f"cohort_factor_duplicated:{cid}:{factor}")
-                    # Exact coefficient contract (round 12): a cohort factor
-                    # counts ONCE at coefficient one. A cohort-bearing
-                    # multiplicative chain may not carry an integer constant
-                    # > 1 (2*conversion is 2x); fractional rate constants
-                    # (<=1) partition a stream and stay green.
+                    # Exact coefficient contract (rounds 12-13): a cohort
+                    # factor counts ONCE at coefficient one. The judgment is
+                    # the term's NET constant multiplier (anchors=1), so /2
+                    # (a 0.5 rate) is green while 2*conversion AND
+                    # conversion/0.5 (net 2) block. The factor must also be a
+                    # pure multiplicative leaf: 1+conversion (an additive
+                    # offset) is not cohort multiplication.
                     def mult_terms(node):
                         for term in ([node] if not (isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Add, ast.Sub)))
                                      else []):
@@ -1171,10 +1222,32 @@ def evaluate(ledger: dict) -> tuple[str, list[str]]:
                         term_names = {n.id for n in ast.walk(term) if isinstance(n, ast.Name)}
                         if not (term_names & cohort_factors):
                             continue
+                        # Share-like constants only (round 13): a numerator
+                        # constant > 1 inflates, a divisor constant < 1
+                        # inflates; /2 (a 0.5 rate) is green. Position-aware
+                        # so a masking share (2*x*0.3) cannot hide the 2x.
+                        def constant_growth(node, inverted=False) -> bool:
+                            if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
+                                return constant_growth(node.left, inverted) or constant_growth(node.right, not inverted)
+                            if isinstance(node, ast.BinOp):
+                                return constant_growth(node.left, inverted) or constant_growth(node.right, inverted)
+                            if isinstance(node, ast.UnaryOp):
+                                return constant_growth(node.operand, inverted)
+                            if isinstance(node, ast.Constant) and is_finite_number(node.value):
+                                value = abs(float(node.value))
+                                return (value > 1 + 1e-9) if not inverted else (value < 1 - 1e-9)
+                            return False
+                        if constant_growth(term):
+                            reasons.append(f"cohort_factor_duplicated:{cid}:coefficient")
+                        # non-multiplicative use: the factor under an Add/Sub
+                        # nested INSIDE the term (the term itself is not an
+                        # additive node by construction).
                         for node in ast.walk(term):
-                            if isinstance(node, ast.Constant) and is_finite_number(node.value) and float(node.value) > 1 + 1e-9:
-                                reasons.append(f"cohort_factor_duplicated:{cid}:coefficient")
-                                break
+                            if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Add, ast.Sub)):
+                                inner = {n.id for n in ast.walk(node) if isinstance(n, ast.Name)}
+                                if inner & cohort_factors:
+                                    reasons.append(f"cohort_factor_inverted:{cid}")
+                                    break
 
     declared = ledger.get("unresolved_count")
     if not isinstance(declared, int) or isinstance(declared, bool) or declared != open_tbd:
@@ -1263,8 +1336,7 @@ def evaluate(ledger: dict) -> tuple[str, list[str]]:
     # Segment identity is CANONICAL, never free text (round 10): segments a
     # claim uses must be declared in a ledger registry with an anchored
     # source, so a self-invented label can never split a conflict group.
-    def canonical_segment(value: str) -> str:
-        return " ".join(unicodedata.normalize("NFKC", value).split()).casefold()
+    canonical_segment = canonical_identity
 
     segments_registry = ledger.get("segments")
     declared_segments: set[str] = set()
@@ -1313,7 +1385,7 @@ def evaluate(ledger: dict) -> tuple[str, list[str]]:
             # legitimately different numbers, never a conflict (round 9).
             # Casefolded (round 10): "Enterprise" vs "enterprise" is the SAME
             # segment — spelling drift can never dodge a conflict record.
-            key = tuple(" ".join(str(claim.get(f) or "").split()).casefold()
+            key = tuple(canonical_identity(str(claim.get(f) or ""))
                         for f in ("metric", "period", "currency", "unit", "tax_basis", "segment"))
             basis_groups.setdefault(key, []).append(claim)
         for group in basis_groups.values():
@@ -2117,6 +2189,82 @@ def _selftest() -> int:
         c["inputs"] = {"rev": 216.0}
         c["input_bindings"] = {"rev": "price*volume*2*conversion*active_months*0.3"}
     probe("an integer coefficient on a cohort factor (2*conversion) blocks", coefficient_double, "cohort_factor_duplicated:C1:coefficient")
+
+    # --- fix-13 probes (PR #75 round 13) ---
+    def recurring_stream_base(l):
+        recurring_forecast_no_cohort_math(l)
+        l["claims"][0]["revenue_drivers"].update(conversion=0.3, churn_monthly=0.05)
+        l["claims"][0]["assumptions"] = []
+        l["claims"][0]["stream_ids"] = {"rev": "core_subscription"}
+
+    def half_rate(l):
+        recurring_stream_base(l)
+        c = l["claims"][0]
+        c.update(formula="rev", displayed_value=18.0, recomputed_value=18.0, rounding_rule="1dp")
+        c["inputs"] = {"rev": 18.0}
+        c["input_bindings"] = {"rev": "price*volume*conversion*active_months/2/10"}
+    check_positive("a 0.5 rate written as /2 passes (share-like divisor)", half_rate)
+
+    def inflating_divisor(l):
+        recurring_stream_base(l)
+        c = l["claims"][0]
+        c.update(formula="rev", displayed_value=216.0, recomputed_value=216.0, rounding_rule="1dp")
+        c["inputs"] = {"rev": 216.0}
+        c["input_bindings"] = {"rev": "price*volume*conversion/0.5*active_months*0.3"}
+    probe("a divisor constant below one inflates and blocks (conversion/0.5)",
+          inflating_divisor, "cohort_factor_duplicated:C1:coefficient")
+
+    def masked_double(l):
+        recurring_stream_base(l)
+        c = l["claims"][0]
+        c.update(formula="rev", displayed_value=216.0, recomputed_value=216.0, rounding_rule="1dp")
+        c["inputs"] = {"rev": 216.0}
+        c["input_bindings"] = {"rev": "price*volume*2*conversion*active_months*0.3"}
+    probe("a 2x coefficient cannot hide behind a masking share (2*x*0.3)",
+          masked_double, "cohort_factor_duplicated:C1:coefficient")
+
+    def additive_offset(l):
+        recurring_stream_base(l)
+        c = l["claims"][0]
+        c.update(formula="rev", displayed_value=130.0, recomputed_value=130.0, rounding_rule="1dp")
+        c["inputs"] = {"rev": 130.0}
+        c["input_bindings"] = {"rev": "price*volume*(1+conversion)"}
+    probe("an additive cohort offset (1+conversion) is not cohort multiplication",
+          additive_offset, "cohort_factor_inverted")
+
+    def neutral_element(l):
+        c = l["claims"][0]
+        c.update(formula="(rev+rev2-cogs-fee)/rev", displayed_value=1.6, recomputed_value=1.6)
+        c["inputs"] = {"rev": 100.0, "rev2": 100.0, "cogs": 25.0, "fee": 15.0}
+        c["input_bindings"] = {"rev": "price*volume", "rev2": "1*price*volume",
+                               "cogs": "assumption:a1", "fee": "partner_fee"}
+        c["stream_ids"] = {"rev": "core_subscription", "rev2": "s2"}
+        l["revenue_streams"].append({"id": "s2", "description": "allegedly different stream",
+                                     "source": "revenue model p9 table 2"})
+    probe("the *1 neutral element cannot mint a different stream", neutral_element, "duplicate_revenue_stream")
+    probe("an empty stream id blocks",
+          lambda l: (l["claims"][0].update(stream_ids={"rev": " "}),)[0] or None
+          if False else l["claims"][0].update(stream_ids={"rev": " "}), "stream_undeclared")
+    probe("a truthy non-object stream_ids is a reasoned block, never an exception",
+          lambda l: l["claims"][0].update(stream_ids=["oops"]), "stream_undeclared")
+
+    def cross_component_stream(l):
+        aggregate_base(l)
+        for claim in l["claims"][1:]:
+            claim["stream_ids"] = {"rev": "core_subscription"}
+        l["central_claim_inventory"]["claim_ids"] = ["C0", "C1", "C2"]
+        l["central_claim_inventory"]["count"] = 3
+    probe("the same declared stream feeding two aggregate components blocks",
+          cross_component_stream, "duplicate_revenue_stream")
+
+    def nfkc_grouping(l):
+        segment_positive(l)
+        # both claims REGISTER distinct-looking segments that NFKC-collapse:
+        # grouping must see one segment and demand a conflict record.
+        l["claims"][0]["segment"] = "enterprise"
+        l["claims"][1]["segment"] = "\uff45\uff4e\uff54\uff45\uff52\uff50\uff52\uff49\uff53\uff45"
+    probe("NFKC-equivalent claim segments group together in conflict detection",
+          nfkc_grouping, "cross_page_conflict_unrecorded")
 
     def registry_whitespace_launder(l):
         segment_positive(l)

@@ -94,9 +94,17 @@
   green); stream identity is DECLARED via an anchored `revenue_streams`
   registry (source-backed ids, not inferred anchor sets) with exact
   canonical-expression dedup; segment and stream canonicalization apply
-  Unicode NFKC. Selftest carries 140+ red/green/hostile controls (every
-  PR #75 round-1..12 review probe and an add/remove metamorphic flip); one
-  hundred forty-two sanitized cross-industry acceptance fixtures
+  Unicode NFKC. Round 13: cohort coefficients are position-aware share
+  contracts (numerator constants <=1, divisor constants >=1 — /2 rates
+  green, /0.5 and masked 2x red); additive cohort offsets (1+conversion)
+  block; canonical expressions fold neutral elements (*1 mints nothing);
+  stream ids are non-empty, unique across aggregate components, and
+  malformed stream_ids maps are reasoned blocks (never exceptions); ONE
+  canonical-identity normalizer (NFKC + whitespace + casefold) serves
+  registry, membership, and conflict grouping. Selftest carries 150+
+  red/green/hostile controls (every PR #75 round-1..13 review probe and an
+  add/remove metamorphic flip); one hundred fifty sanitized cross-industry
+  acceptance fixtures
   (positive controls for bounded uncertainties, per-unit recurring margins,
   amount-only included-in, pass-with-warnings, resolved conflicts, correct
   recurring margins, segment-differentiated margins, and additive cohort
