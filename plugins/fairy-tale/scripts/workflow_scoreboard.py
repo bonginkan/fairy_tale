@@ -145,15 +145,9 @@ ROUTING_LEDGER_IDENTITY_KEYS = {
     "cases_sha256",
     "repo_commit",
 }
-ROUTING_LEDGER_CLASS_MARKERS = {
-    "eval_inputs_committed_at_repo_commit",
-    "skill_md_sha256",
-    "system_prompt_sha256",
-    "cases_sha256",
-}
+ROUTING_LEDGER_ARTIFACT_TYPE = "routing_eval_ledger"
+ROUTING_LEDGER_CLASS_FIELDS = {"artifact_type"}
 ROUTING_RESULT_MARKERS = {
-    "category",
-    "classification",
     "expected_cards",
     "extra_cards",
     "got_cards",
@@ -168,13 +162,13 @@ ROUTING_SUMMARY_MARKERS = {
     "invalid_path_outputs",
     "overfire",
     "per_card_utilization",
-    "per_category",
     "scope_gate_54_regression",
     "underfire",
 }
 ROUTING_LEDGER_GENERIC_FIELDS = {
     "claude_cli_version",
     "command",
+    "eval_inputs_committed_at_repo_commit",
     "generated_at_utc",
     "isolation",
     "issue",
@@ -183,10 +177,15 @@ ROUTING_LEDGER_GENERIC_FIELDS = {
     "results",
     "run_policy",
     "schema_version",
+    "skill_md_sha256",
     "summary",
+    "system_prompt_sha256",
+    "cases_sha256",
     "token_note",
 }
 ROUTING_RESULT_GENERIC_FIELDS = {
+    "category",
+    "classification",
     "cost_usd",
     "exit_code",
     "id",
@@ -194,7 +193,7 @@ ROUTING_RESULT_GENERIC_FIELDS = {
     "pass",
     "tokens",
 }
-ROUTING_SUMMARY_GENERIC_FIELDS = {"accuracy", "passed", "total"}
+ROUTING_SUMMARY_GENERIC_FIELDS = {"accuracy", "passed", "per_category", "total"}
 
 COMPARISON_MODES = {"paired_local", "paired_external_baseline", "unpaired"}
 TASK_KINDS = {"benchmark", "normal"}
@@ -504,7 +503,7 @@ def is_routing_eval_ledger(value: Any) -> bool:
     summary = value.get("summary")
     if not isinstance(results, list) or not isinstance(summary, dict):
         return False
-    top_level_signal = bool(ROUTING_LEDGER_CLASS_MARKERS & set(value))
+    top_level_signal = value.get("artifact_type") == ROUTING_LEDGER_ARTIFACT_TYPE
     result_signal = any(
         isinstance(result, dict) and bool(ROUTING_RESULT_MARKERS & set(result))
         for result in results
@@ -763,6 +762,8 @@ def validate_entry(
 
 
 def routing_expected(ledger: dict[str, Any]) -> dict[str, Any]:
+    if ledger.get("artifact_type") != ROUTING_LEDGER_ARTIFACT_TYPE:
+        raise ArtifactError("routing ledger artifact_type must be routing_eval_ledger")
     results = ledger.get("results")
     summary = ledger.get("summary")
     if not isinstance(results, list) or not isinstance(summary, dict):
@@ -1431,10 +1432,31 @@ def selftest(scoreboard_path: Path = DEFAULT_SCOREBOARD) -> int:
             check(identity_key in str(exc), f"malformed routing identity {identity_key} blocks")
         else:
             raise AssertionError(f"malformed routing identity {identity_key} blocks")
+    mutated_ledger = copy.deepcopy(routing_ledger)
+    mutated_ledger.pop("artifact_type")
     check(
-        set(routing_ledger) - ROUTING_LEDGER_GENERIC_FIELDS
-        == ROUTING_LEDGER_CLASS_MARKERS,
-        "routing top-level marker inventory covers the producer artifact",
+        is_routing_eval_ledger(mutated_ledger),
+        "routing classification survives missing artifact_type",
+    )
+    try:
+        routing_expected(mutated_ledger)
+    except ArtifactError as exc:
+        check("artifact_type" in str(exc), "missing routing artifact_type blocks")
+    else:
+        raise AssertionError("missing routing artifact_type blocks")
+    mutated_ledger = copy.deepcopy(routing_ledger)
+    mutated_ledger["artifact_type"] = "generic_benchmark"
+    try:
+        routing_expected(mutated_ledger)
+    except ArtifactError as exc:
+        check("artifact_type" in str(exc), "wrong routing artifact_type blocks")
+    else:
+        raise AssertionError("wrong routing artifact_type blocks")
+    check(
+        not (ROUTING_LEDGER_CLASS_FIELDS & ROUTING_LEDGER_GENERIC_FIELDS)
+        and set(routing_ledger)
+        == ROUTING_LEDGER_CLASS_FIELDS | ROUTING_LEDGER_GENERIC_FIELDS,
+        "routing top-level producer fields have an explicit semantic partition",
     )
     routing_result_fields = {
         key
@@ -1442,14 +1464,16 @@ def selftest(scoreboard_path: Path = DEFAULT_SCOREBOARD) -> int:
         for key in result
     }
     check(
-        routing_result_fields - ROUTING_RESULT_GENERIC_FIELDS
-        == ROUTING_RESULT_MARKERS,
-        "routing row marker inventory covers the producer artifact",
+        not (ROUTING_RESULT_MARKERS & ROUTING_RESULT_GENERIC_FIELDS)
+        and routing_result_fields
+        == ROUTING_RESULT_MARKERS | ROUTING_RESULT_GENERIC_FIELDS,
+        "routing row producer fields have an explicit semantic partition",
     )
     check(
-        set(routing_ledger["summary"]) - ROUTING_SUMMARY_GENERIC_FIELDS
-        == ROUTING_SUMMARY_MARKERS,
-        "routing summary marker inventory covers the producer artifact",
+        not (ROUTING_SUMMARY_MARKERS & ROUTING_SUMMARY_GENERIC_FIELDS)
+        and set(routing_ledger["summary"])
+        == ROUTING_SUMMARY_MARKERS | ROUTING_SUMMARY_GENERIC_FIELDS,
+        "routing summary producer fields have an explicit semantic partition",
     )
     with tempfile.TemporaryDirectory(prefix=".scoreboard-generic-", dir=ROOT) as directory:
         artifact_index = 0
@@ -1510,6 +1534,44 @@ def selftest(scoreboard_path: Path = DEFAULT_SCOREBOARD) -> int:
                 "cases_sha256": "2" * 64,
             },
             {
+                "skill_md_sha256": "0" * 64,
+                "system_prompt_sha256": "1" * 64,
+                "cases_sha256": "2" * 64,
+                "results": [
+                    {
+                        "case_id": "case-a",
+                        "outcome": "pass",
+                        "category": "general_benchmark",
+                        "classification": "pass",
+                    }
+                ],
+            },
+            {
+                "skill_md_sha256": "0" * 64,
+                "system_prompt_sha256": "1" * 64,
+                "cases_sha256": "2" * 64,
+                "summary": {
+                    "passed": 1,
+                    "total": 1,
+                    "per_category": {"general_benchmark": {"passed": 1, "total": 1}},
+                },
+            },
+            {
+                "results": [
+                    {
+                        "case_id": "case-a",
+                        "outcome": "pass",
+                        "category": "general_benchmark",
+                        "classification": "pass",
+                    }
+                ],
+                "summary": {
+                    "passed": 1,
+                    "total": 1,
+                    "per_category": {"general_benchmark": {"passed": 1, "total": 1}},
+                },
+            },
+            {
                 "results": [
                     {
                         "case_id": "case-a",
@@ -1549,6 +1611,7 @@ def selftest(scoreboard_path: Path = DEFAULT_SCOREBOARD) -> int:
             "partial routing signatures cannot evade kind and binding validation",
         )
         stripped_routing_ledger = copy.deepcopy(routing_ledger)
+        stripped_routing_ledger.pop("artifact_type", None)
         for marker in ("skill_md_sha256", "system_prompt_sha256", "cases_sha256"):
             stripped_routing_ledger.pop(marker, None)
         for result in stripped_routing_ledger["results"]:

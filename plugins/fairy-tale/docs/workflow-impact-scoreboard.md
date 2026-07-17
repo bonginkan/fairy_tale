@@ -120,13 +120,16 @@ non-empty model, lowercase 64-hex skill/system/case SHA-256 identities, a
 pinned lowercase repository commit, valid routing rows, and a matching summary
 before any aggregate is accepted. Generic `model` and `repo_commit` metadata
 and execution metadata such as `run_policy` and `token_note` are not routing
-class signals, alone or together. Classification requires a routing-specific
-marker in at least two of three independent groups (digest, row, summary), so
-partial routing evidence still fails closed while an ordinary benchmark
-payload remains a `run_output`. The marker groups cover every routing-specific
-field emitted by the committed producer artifact; self-controls compare that
-inventory mechanically so a newly added producer field cannot be omitted
-silently.
+class signals, alone or together. Generic reproducibility digests and benchmark
+category / classification / per-category metadata are likewise not routing
+signals. Classification requires a routing-specific marker in at least two of
+three independent groups: the exact content `artifact_type`, routing
+outcome/card/path-specific result fields, and routing
+outcome/path/utilization-specific summary fields. Partial routing evidence
+therefore fails closed while an ordinary benchmark payload remains a
+`run_output`. Producer coverage and semantic classification are separate:
+self-controls require every emitted field to appear in an explicit generic or
+routing-specific partition, with no overlap or unclassified complement.
 
 The committed sample consumes
 `docs/skill-budget/routing-eval-20260702.json`. That legacy run is measured but

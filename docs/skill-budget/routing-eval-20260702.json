@@ -1,5 +1,6 @@
 {
   "schema_version": 1,
+  "artifact_type": "routing_eval_ledger",
   "issue": "#59 routing-precision eval (parity evidence for #57)",
   "generated_at_utc": "2026-07-02T05:11:58+00:00",
   "model": "claude-fable-5",

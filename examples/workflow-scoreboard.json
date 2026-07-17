@@ -81,7 +81,7 @@
       "source_type": "repository",
       "evidence_kind": "measured_run",
       "artifact_path": "docs/skill-budget/routing-eval-20260702.json",
-      "artifact_sha256": "sha256:d5696f4b89043703f62270b42335edbe563ab9ab525a541104858f03b60b6726",
+      "artifact_sha256": "sha256:fe2bd35b7c57958848480ee2215975fa3d9cb62c715f874db3b79bb9f4e92905",
       "note": "Measured routing-evaluation ledger consumed by the scoreboard parity gate."
     }
   ],
@@ -413,7 +413,7 @@
             "path": "docs/skill-budget/routing-eval-20260702.json",
             "visibility": "repository",
             "disclosure": "full",
-            "sha256": "sha256:d5696f4b89043703f62270b42335edbe563ab9ab525a541104858f03b60b6726"
+            "sha256": "sha256:fe2bd35b7c57958848480ee2215975fa3d9cb62c715f874db3b79bb9f4e92905"
           },
           "card_telemetry": [
             {"card_path": "references/cards/benchmark-delta-harness.md", "fired_count": 1, "contribution": "unknown", "attributed_tokens": null, "token_unavailable_reason": "The routing ledger records aggregate tokens, not per-card attribution.", "evidence_refs": ["docs/skill-budget/routing-eval-20260702.json#/summary/per_card_utilization"]},
@@ -443,7 +443,7 @@
       "entry_id": "routing-eval-20260702",
       "condition": "fairy_tale",
       "ledger_path": "docs/skill-budget/routing-eval-20260702.json",
-      "ledger_sha256": "sha256:d5696f4b89043703f62270b42335edbe563ab9ab525a541104858f03b60b6726"
+      "ledger_sha256": "sha256:fe2bd35b7c57958848480ee2215975fa3d9cb62c715f874db3b79bb9f4e92905"
     }
   ]
 }
