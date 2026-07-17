@@ -40,7 +40,7 @@ Minimum fields:
 - `metrics` or a reason why measurement is pending
 
 Record cross-task impact in the canonical
-[Workflow Impact Scoreboard](../../../docs/workflow-impact-scoreboard.md).
+[Workflow Impact Scoreboard](https://github.com/bonginkan/fairy_tale/blob/main/docs/workflow-impact-scoreboard.md).
 Paired entries must keep model, prompt, scorer, sample, budget, retry, and
 safety conditions comparable; unpaired or example entries cannot establish
 uplift. Per-card utilization, contribution, token cost, regressions, and
@@ -67,7 +67,7 @@ session summary. First assign credit to the smallest actionable fault:
    confirmation tied to the localized fault.
 
 Record this route with the step-level skill adaptation template in
-`skills/fairy-tale/references/process.md`. This follows the SkillAdaptor lesson
+`process.md`. This follows the SkillAdaptor lesson
 that stable skill maintenance comes from step-level failure attribution,
 responsible-skill linking, targeted modification, and explicit qualification,
 not from broad trajectory-level reflection.

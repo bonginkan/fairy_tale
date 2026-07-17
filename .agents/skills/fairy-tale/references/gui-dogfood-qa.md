@@ -12,9 +12,10 @@ completed e2e.
 
 It is distilled from two browser-dogfood skills and reconciled with fairy_tale's
 closure / presence-vs-exercise discipline:
-- NousResearch **hermes-agent** `skills/dogfood/SKILL.md` (the 5-phase
-  plan → explore → collect → categorize → report loop; "silent JS errors are
-  high-value findings").
+- NousResearch **hermes-agent**
+  [`skills/dogfood/SKILL.md`](https://github.com/NousResearch/hermes-agent/blob/main/skills/dogfood/SKILL.md)
+  (the 5-phase plan → explore → collect → categorize → report loop; "silent JS
+  errors are high-value findings").
 - Vercel **vercel-labs/agent-browser** `skill-data/dogfood` (repro-graded evidence;
   "test as a user, never read the app's source"; depth over count).
 
