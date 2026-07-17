@@ -30,12 +30,12 @@ Install the Claude Code plugin directly from GitHub:
 /plugin install fairy-tale@fairy-tale-marketplace
 ```
 
-Codex's current plugin marketplace documentation supports GitHub shorthand
-marketplaces such as `owner/repo`. Add the repository as a marketplace, then
-install `fairy-tale` from the plugin directory:
+Codex's current plugin CLI supports GitHub shorthand marketplaces such as
+`owner/repo`. Add the repository as a marketplace, then install `fairy-tale`:
 
 ```text
 codex plugin marketplace add bonginkan/fairy_tale
+codex plugin add fairy-tale@fairy-tale-marketplace
 ```
 
 If your Codex build does not expose the plugin CLI yet, use the plugin
