@@ -499,17 +499,18 @@ def validate_telemetry(value: Any, path: str, condition: Any, errors: list[str])
 def is_routing_eval_ledger(value: Any) -> bool:
     if not isinstance(value, dict):
         return False
+    if value.get("artifact_type") == ROUTING_LEDGER_ARTIFACT_TYPE:
+        return True
     results = value.get("results")
     summary = value.get("summary")
     if not isinstance(results, list) or not isinstance(summary, dict):
         return False
-    top_level_signal = value.get("artifact_type") == ROUTING_LEDGER_ARTIFACT_TYPE
     result_signal = any(
         isinstance(result, dict) and bool(ROUTING_RESULT_MARKERS & set(result))
         for result in results
     )
     summary_signal = bool(ROUTING_SUMMARY_MARKERS & set(summary))
-    return top_level_signal or (result_signal and summary_signal)
+    return result_signal and summary_signal
 
 
 def validate_artifact_source(
@@ -1597,22 +1598,45 @@ def selftest(scoreboard_path: Path = DEFAULT_SCOREBOARD) -> int:
                 not validate_as_run_output(generic_payload),
                 f"generic routing-like metadata variant {index} remains run_output",
             )
-        declared_routing_payload = {
-            **generic_payload_base,
-            "artifact_type": ROUTING_LEDGER_ARTIFACT_TYPE,
-        }
-        declared_routing_errors = validate_as_run_output(
-            declared_routing_payload,
-            falsify_metrics=True,
+        declared_routing_variants = (
+            (
+                "well-shaped",
+                {
+                    **generic_payload_base,
+                    "artifact_type": ROUTING_LEDGER_ARTIFACT_TYPE,
+                },
+            ),
+            ("type-only", {"artifact_type": ROUTING_LEDGER_ARTIFACT_TYPE}),
+            (
+                "malformed-results",
+                {
+                    "artifact_type": ROUTING_LEDGER_ARTIFACT_TYPE,
+                    "results": {},
+                    "summary": {},
+                },
+            ),
+            (
+                "malformed-summary",
+                {
+                    "artifact_type": ROUTING_LEDGER_ARTIFACT_TYPE,
+                    "results": [],
+                    "summary": [],
+                },
+            ),
         )
-        check(
-            any(
-                "routing ledger content must use kind" in error
-                for error in declared_routing_errors
+        for label, declared_routing_payload in declared_routing_variants:
+            declared_routing_errors = validate_as_run_output(
+                declared_routing_payload,
+                falsify_metrics=True,
             )
-            and any("missing binding" in error for error in declared_routing_errors),
-            "declared routing artifact_type is a hard kind and binding signal",
-        )
+            check(
+                any(
+                    "routing ledger content must use kind" in error
+                    for error in declared_routing_errors
+                )
+                and any("missing binding" in error for error in declared_routing_errors),
+                f"declared routing artifact_type is a hard signal for {label} content",
+            )
         partial_routing_ledger = copy.deepcopy(routing_ledger)
         for result in partial_routing_ledger["results"]:
             result.pop("invalid_paths", None)

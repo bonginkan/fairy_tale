@@ -123,8 +123,8 @@ and execution metadata such as `run_policy` and `token_note` are not routing
 class signals, alone or together. Generic reproducibility digests and benchmark
 category / classification / per-category metadata are likewise not routing
 signals. An exact content `artifact_type: routing_eval_ledger` declaration is a
-hard routing signal. For legacy artifacts without that declaration, both
-routing outcome/card/path-specific result fields and routing
+shape-independent hard routing signal. For legacy artifacts without that
+declaration, both routing outcome/card/path-specific result fields and routing
 outcome/path/utilization-specific summary fields are required. Partial routing
 evidence therefore fails closed while an ordinary benchmark payload remains a
 `run_output`. Producer coverage and semantic classification are separate:
