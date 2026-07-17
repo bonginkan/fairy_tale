@@ -7,6 +7,7 @@ import html
 import re
 import tempfile
 from pathlib import Path
+from urllib.parse import unquote, urlsplit
 
 from task_artifacts import ArtifactError, exact_path_entry
 
@@ -321,13 +322,12 @@ def _block_masked_lines(
                 html_end = ""
             paragraph_depth = None
             continue
-        if (
+        type_6_html = HTML_BLOCK_TAG_RE.match(line)
+        type_7_html = (
             paragraph_depth != container_depth
-            and (
-                HTML_BLOCK_TAG_RE.match(line)
-                or HTML_COMPLETE_TAG_RE.match(line)
-            )
-        ):
+            and HTML_COMPLETE_TAG_RE.match(line)
+        )
+        if type_6_html or type_7_html:
             html_until_blank = True
             html_depth = container_depth
             masked.append(("", container_depth))
@@ -679,7 +679,20 @@ def _inline_destinations(value: str) -> list[str]:
         index += 1
 
     destinations: list[str] = []
-    for start, closing, _, destination, _ in candidates:
+    for start, closing, end, destination, is_image in candidates:
+        nested_in_image = any(
+            image_start < start and end <= image_closing
+            for (
+                image_start,
+                image_closing,
+                _,
+                _,
+                parent_is_image,
+            ) in candidates
+            if parent_is_image
+        )
+        if nested_in_image:
+            continue
         nested_link = any(
             start < child_start
             and child_end <= closing
@@ -692,7 +705,7 @@ def _inline_destinations(value: str) -> list[str]:
                 child_is_image,
             ) in candidates
         )
-        if not nested_link:
+        if is_image or not nested_link:
             destinations.append(destination)
     return destinations
 
@@ -922,14 +935,25 @@ def _markdown_destination_path(destination: str) -> Path | None:
     if raw.startswith("<") and raw.endswith(">"):
         raw = raw[1:-1]
     raw = _decode_commonmark_entities(_decode_commonmark_escapes(raw))
-    if "://" in raw or raw.startswith("#"):
+    if "\\" in raw:
+        return Path(raw)
+    try:
+        uri = urlsplit(raw)
+    except ValueError:
+        return Path(raw) if raw.endswith(".md") else None
+    if uri.scheme or uri.netloc:
         return None
-    raw = raw.split("#", 1)[0]
-    if "://" in raw or raw.startswith("#"):
+    try:
+        path = unquote(uri.path, errors="strict")
+    except UnicodeDecodeError:
+        path = uri.path
+    if any(ord(char) < 32 for char in path):
+        path = uri.path
+    if not path:
         return None
-    if not raw.endswith(".md"):
+    if not path.endswith(".md"):
         return None
-    return Path(raw)
+    return Path(path)
 
 
 def markdown_references(
@@ -1070,6 +1094,10 @@ def selftest_skill_markdown_refs() -> tuple[list[str], int]:
         )
         (references / "local file.md").write_text(
             "# Local numeric entity\n",
+            encoding="utf-8",
+        )
+        (references / "other.md").write_text(
+            "# Other local target\n",
             encoding="utf-8",
         )
         (beta / "SKILL.md").write_text("# Beta\n", encoding="utf-8")
@@ -1330,6 +1358,60 @@ def selftest_skill_markdown_refs() -> tuple[list[str], int]:
         controls += 1
         if findings:
             errors.append("CommonMark entity destinations were not decoded")
+
+        findings = findings_for(
+            base
+            + "\nparagraph\n"
+            + "<div>\n"
+            + "[literal](references/missing.md)\n"
+            + "</div>\n"
+        )
+        controls += 1
+        if findings:
+            errors.append("type-6 HTML block did not interrupt the paragraph")
+
+        findings = findings_for(
+            base + "\n[query](references/missing.md?view=1)\n"
+        )
+        controls += 1
+        if not any(
+            "references/missing.md is dangling" in item for item in findings
+        ):
+            errors.append("local URI query hid a dangling Markdown path")
+
+        findings = findings_for(
+            base
+            + "\n[email](mailto:someone.md)\n"
+            + "[authority](//example.com/guide.md)\n"
+        )
+        controls += 1
+        if findings:
+            errors.append("external URI scheme or authority was treated as local")
+
+        findings = findings_for(
+            base + "\n[percent](references/local%20file.md)\n"
+        )
+        controls += 1
+        if findings:
+            errors.append("percent-encoded local URI path was not decoded")
+
+        findings = findings_for(
+            base + "\n[escape](%2e%2e%2f%2e%2e%2foutside.md)\n"
+        )
+        controls += 1
+        if not any("escapes package root" in item for item in findings):
+            errors.append("percent-encoded traversal was not rejected")
+
+        findings = findings_for(
+            base
+            + "\n![[[inner](references/local.md)]"
+            + "(references/other.md)](references/missing.md)\n"
+        )
+        controls += 1
+        if not any(
+            "references/missing.md is dangling" in item for item in findings
+        ):
+            errors.append("outer image destination was hidden by alt-text links")
 
         findings = findings_for(
             base + "\n[windows](references\\local.md)\n"
