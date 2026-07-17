@@ -67,6 +67,7 @@ COMMONMARK_ENTITY_RE = re.compile(
     r"[A-Za-z][A-Za-z0-9]{1,31});"
 )
 WINDOWS_DRIVE_PATH_RE = re.compile(r"^[A-Za-z]:[\\/]")
+URI_SCHEME_PREFIX_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:")
 DISTRIBUTED_SKILL_NAMES = (
     "fairy-tale",
     "fairy-tale-benchmark-feedback",
@@ -938,6 +939,8 @@ def _markdown_destination_path(destination: str) -> Path | None:
     raw = _decode_commonmark_entities(_decode_commonmark_escapes(raw))
     if WINDOWS_DRIVE_PATH_RE.match(raw):
         return Path(raw)
+    if URI_SCHEME_PREFIX_RE.match(raw) or raw.startswith("//"):
+        return None
     try:
         uri = urlsplit(raw)
     except ValueError:
@@ -1032,7 +1035,11 @@ def validate_skill_markdown_refs(
             for ref in markdown_references(package_root, skill_dir, source):
                 checked_refs += 1
                 ref_label = ref.as_posix()
-                if ref.is_absolute() or "\\" in str(ref):
+                if (
+                    ref.is_absolute()
+                    or WINDOWS_DRIVE_PATH_RE.match(ref_label)
+                    or "\\" in str(ref)
+                ):
                     errors.append(
                         f"{source_label}: unsafe Markdown reference: {ref_label}"
                     )
@@ -1101,6 +1108,9 @@ def selftest_skill_markdown_refs() -> tuple[list[str], int]:
             "# Other local target\n",
             encoding="utf-8",
         )
+        drive_target = alpha / "C:" / "outside.md"
+        drive_target.parent.mkdir()
+        drive_target.write_text("# Drive-like local target\n", encoding="utf-8")
         (beta / "SKILL.md").write_text("# Beta\n", encoding="utf-8")
         alpha_skill = alpha / "SKILL.md"
         base = (
@@ -1429,11 +1439,35 @@ def selftest_skill_markdown_refs() -> tuple[list[str], int]:
             errors.append("external URI backslash was treated as a local path")
 
         findings = findings_for(
+            base
+            + "\n[external-invalid-authority](https://[example.com/foo.md)\n"
+            + "[external-fullwidth-slash](https://example.com／foo.md)\n"
+            + "[authority-invalid-host](//[example.com/foo.md)\n"
+        )
+        controls += 1
+        if findings:
+            errors.append("malformed external URI was treated as a local path")
+
+        findings = findings_for(
             base + "\n[drive](C:\\outside.md)\n"
         )
         controls += 1
         if not any("unsafe Markdown reference" in item for item in findings):
             errors.append("Windows drive path was not rejected")
+
+        findings = findings_for(
+            base + "\n[drive-forward](C:/outside.md)\n"
+        )
+        controls += 1
+        if not any("unsafe Markdown reference" in item for item in findings):
+            errors.append("forward-slash Windows drive path was not rejected")
+
+        findings = findings_for(
+            base + "\n[drive-percent](%43%3A%2Foutside.md)\n"
+        )
+        controls += 1
+        if not any("unsafe Markdown reference" in item for item in findings):
+            errors.append("percent-encoded Windows drive path was not rejected")
 
         linked_source = Path(tmp) / "linked-skill-source"
         linked_source.mkdir()
