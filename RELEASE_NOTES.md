@@ -19,7 +19,8 @@
   fields fail closed when absent or malformed without treating generic
   model/results/summary or execution-policy metadata as routing evidence.
   Routing classification requires marker presence across two independent
-  structural groups, including partial routing signatures.
+  structural groups, including partial routing signatures, and mechanically
+  checks marker-family coverage against the committed producer artifact.
   Malformed nested values produce field-scoped validation errors before
   derived operations. The derived
   Markdown review view preserves regression and complete card outcome/token

@@ -123,7 +123,10 @@ and execution metadata such as `run_policy` and `token_note` are not routing
 class signals, alone or together. Classification requires a routing-specific
 marker in at least two of three independent groups (digest, row, summary), so
 partial routing evidence still fails closed while an ordinary benchmark
-payload remains a `run_output`.
+payload remains a `run_output`. The marker groups cover every routing-specific
+field emitted by the committed producer artifact; self-controls compare that
+inventory mechanically so a newly added producer field cannot be omitted
+silently.
 
 The committed sample consumes
 `docs/skill-budget/routing-eval-20260702.json`. That legacy run is measured but

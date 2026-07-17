@@ -146,12 +146,55 @@ ROUTING_LEDGER_IDENTITY_KEYS = {
     "repo_commit",
 }
 ROUTING_LEDGER_CLASS_MARKERS = {
+    "eval_inputs_committed_at_repo_commit",
     "skill_md_sha256",
     "system_prompt_sha256",
     "cases_sha256",
 }
-ROUTING_RESULT_MARKERS = {"expected_cards", "got_cards", "invalid_paths"}
-ROUTING_SUMMARY_MARKERS = {"per_card_utilization", "invalid_path_outputs"}
+ROUTING_RESULT_MARKERS = {
+    "category",
+    "classification",
+    "expected_cards",
+    "extra_cards",
+    "got_cards",
+    "invalid_paths",
+    "missing_cards",
+    "overfire",
+    "underfire",
+}
+ROUTING_SUMMARY_MARKERS = {
+    "invalid_card_path",
+    "invalid_output",
+    "invalid_path_outputs",
+    "overfire",
+    "per_card_utilization",
+    "per_category",
+    "scope_gate_54_regression",
+    "underfire",
+}
+ROUTING_LEDGER_GENERIC_FIELDS = {
+    "claude_cli_version",
+    "command",
+    "generated_at_utc",
+    "isolation",
+    "issue",
+    "model",
+    "repo_commit",
+    "results",
+    "run_policy",
+    "schema_version",
+    "summary",
+    "token_note",
+}
+ROUTING_RESULT_GENERIC_FIELDS = {
+    "cost_usd",
+    "exit_code",
+    "id",
+    "parse_error",
+    "pass",
+    "tokens",
+}
+ROUTING_SUMMARY_GENERIC_FIELDS = {"accuracy", "passed", "total"}
 
 COMPARISON_MODES = {"paired_local", "paired_external_baseline", "unpaired"}
 TASK_KINDS = {"benchmark", "normal"}
@@ -1388,7 +1431,65 @@ def selftest(scoreboard_path: Path = DEFAULT_SCOREBOARD) -> int:
             check(identity_key in str(exc), f"malformed routing identity {identity_key} blocks")
         else:
             raise AssertionError(f"malformed routing identity {identity_key} blocks")
+    check(
+        set(routing_ledger) - ROUTING_LEDGER_GENERIC_FIELDS
+        == ROUTING_LEDGER_CLASS_MARKERS,
+        "routing top-level marker inventory covers the producer artifact",
+    )
+    routing_result_fields = {
+        key
+        for result in routing_ledger["results"]
+        for key in result
+    }
+    check(
+        routing_result_fields - ROUTING_RESULT_GENERIC_FIELDS
+        == ROUTING_RESULT_MARKERS,
+        "routing row marker inventory covers the producer artifact",
+    )
+    check(
+        set(routing_ledger["summary"]) - ROUTING_SUMMARY_GENERIC_FIELDS
+        == ROUTING_SUMMARY_MARKERS,
+        "routing summary marker inventory covers the producer artifact",
+    )
     with tempfile.TemporaryDirectory(prefix=".scoreboard-generic-", dir=ROOT) as directory:
+        artifact_index = 0
+
+        def validate_as_run_output(
+            payload: dict[str, Any],
+            *,
+            falsify_metrics: bool = False,
+        ) -> list[str]:
+            nonlocal artifact_index
+            artifact_path = Path(directory) / f"run-output-{artifact_index}.json"
+            artifact_index += 1
+            artifact_path.write_text(
+                json.dumps(payload, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            mutated_scoreboard = copy.deepcopy(scoreboard)
+            run = mutated_scoreboard["entries"][2]["runs"][0]
+            source_ref = run["artifact"]["source_ref"]
+            relative_path = artifact_path.relative_to(ROOT).as_posix()
+            artifact_hash = sha256_file(artifact_path)
+            run["artifact"].update(
+                kind="run_output",
+                path=relative_path,
+                sha256=artifact_hash,
+            )
+            if falsify_metrics:
+                run["metrics"].update(pass_count=0, score=0.0, cost_usd=0.0)
+            source = next(
+                source
+                for source in mutated_scoreboard["source_refs"]
+                if source["source_id"] == source_ref
+            )
+            source.update(
+                artifact_path=relative_path,
+                artifact_sha256=artifact_hash,
+            )
+            mutated_scoreboard["routing_eval_bindings"] = []
+            return validate_scoreboard(mutated_scoreboard)
+
         generic_payload_base = {
             "model": "example-model",
             "repo_commit": "0" * 40,
@@ -1429,71 +1530,40 @@ def selftest(scoreboard_path: Path = DEFAULT_SCOREBOARD) -> int:
             },
         )
         for index, metadata in enumerate(generic_metadata_variants):
-            generic_path = Path(directory) / f"generic-run-{index}.json"
             generic_payload = {**generic_payload_base, **metadata}
-            generic_path.write_text(
-                json.dumps(generic_payload, indent=2) + "\n",
-                encoding="utf-8",
-            )
-            generic_scoreboard = copy.deepcopy(scoreboard)
-            generic_run = generic_scoreboard["entries"][2]["runs"][0]
-            source_ref = generic_run["artifact"]["source_ref"]
-            generic_relative_path = generic_path.relative_to(ROOT).as_posix()
-            generic_hash = sha256_file(generic_path)
-            generic_run["artifact"].update(
-                kind="run_output",
-                path=generic_relative_path,
-                sha256=generic_hash,
-            )
-            generic_source = next(
-                source
-                for source in generic_scoreboard["source_refs"]
-                if source["source_id"] == source_ref
-            )
-            generic_source.update(
-                artifact_path=generic_relative_path,
-                artifact_sha256=generic_hash,
-            )
-            generic_scoreboard["routing_eval_bindings"] = []
             check(
-                not validate_scoreboard(generic_scoreboard),
+                not validate_as_run_output(generic_payload),
                 f"generic routing-like metadata variant {index} remains run_output",
             )
-        partial_routing_path = Path(directory) / "partial-routing-ledger.json"
         partial_routing_ledger = copy.deepcopy(routing_ledger)
         for result in partial_routing_ledger["results"]:
             result.pop("invalid_paths", None)
         partial_routing_ledger["summary"].pop("invalid_path_outputs", None)
-        partial_routing_path.write_text(
-            json.dumps(partial_routing_ledger, indent=2) + "\n",
-            encoding="utf-8",
+        partial_errors = validate_as_run_output(
+            partial_routing_ledger,
+            falsify_metrics=True,
         )
-        partial_scoreboard = copy.deepcopy(scoreboard)
-        partial_run = partial_scoreboard["entries"][2]["runs"][0]
-        partial_source_ref = partial_run["artifact"]["source_ref"]
-        partial_relative_path = partial_routing_path.relative_to(ROOT).as_posix()
-        partial_hash = sha256_file(partial_routing_path)
-        partial_run["artifact"].update(
-            kind="run_output",
-            path=partial_relative_path,
-            sha256=partial_hash,
-        )
-        partial_run["metrics"].update(pass_count=0, score=0.0, cost_usd=0.0)
-        partial_source = next(
-            source
-            for source in partial_scoreboard["source_refs"]
-            if source["source_id"] == partial_source_ref
-        )
-        partial_source.update(
-            artifact_path=partial_relative_path,
-            artifact_sha256=partial_hash,
-        )
-        partial_scoreboard["routing_eval_bindings"] = []
-        partial_errors = validate_scoreboard(partial_scoreboard)
         check(
             any("routing ledger content must use kind" in error for error in partial_errors)
             and any("missing binding" in error for error in partial_errors),
             "partial routing signatures cannot evade kind and binding validation",
+        )
+        stripped_routing_ledger = copy.deepcopy(routing_ledger)
+        for marker in ("skill_md_sha256", "system_prompt_sha256", "cases_sha256"):
+            stripped_routing_ledger.pop(marker, None)
+        for result in stripped_routing_ledger["results"]:
+            for marker in ("expected_cards", "got_cards", "invalid_paths"):
+                result.pop(marker, None)
+        for marker in ("per_card_utilization", "invalid_path_outputs"):
+            stripped_routing_ledger["summary"].pop(marker, None)
+        stripped_errors = validate_as_run_output(
+            stripped_routing_ledger,
+            falsify_metrics=True,
+        )
+        check(
+            any("routing ledger content must use kind" in error for error in stripped_errors)
+            and any("missing binding" in error for error in stripped_errors),
+            "remaining producer routing fields cannot evade kind and binding validation",
         )
     mutated_ledger = copy.deepcopy(routing_ledger)
     mutated_ledger["summary"]["passed"] -= 1
