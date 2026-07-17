@@ -1,5 +1,18 @@
 # Release Notes
 
+## 0.2.31
+
+- **Cross-file distributable Markdown reference gate** (#7): broadens CI and
+  install-smoke validation from `SKILL.md` alone to every Markdown file in all
+  three distributed skills. Inline-code and standard Markdown-link
+  destinations resolve through one shared package-contained resolver with
+  exact portable path names, symlink rejection, ambiguity detection, and
+  positive/hostile controls for links, nested code spans, dangling targets,
+  package escapes, and case aliases. Previously dangling repo-only references
+  now use installed-skill paths or explicit public source URLs. The README
+  records the literal local adapter-manifest validation command. Runtime
+  package version is 0.2.31.
+
 ## 0.2.30
 
 - **Measured workflow impact scoreboard** (#13): adds a strict JSON scoreboard

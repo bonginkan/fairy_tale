@@ -2,19 +2,24 @@
 """Fail-closed distribution-parity check for the Fairy Tale skill.
 
 The canonical skill tree and its distribution mirrors must stay byte-identical,
-and inline ``references/*.md`` links in SKILL.md must resolve. This enforces, in
-CI, the 4-copy parity that was previously maintained by hand (and therefore
-drifted under concurrent edits). Exits non-zero on any drift so a PR that
-updates one copy but not all four fails fast.
+and inline Markdown references across every distributable skill file must
+resolve. This enforces, in CI, the 4-copy parity that was previously maintained
+by hand (and therefore drifted under concurrent edits). Exits non-zero on any
+drift so a PR that updates one copy but not all four fails fast.
 """
 
 from __future__ import annotations
 
-import re
 import sys
 from pathlib import Path
 
+from skill_markdown_refs import (
+    selftest_skill_markdown_refs,
+    validate_skill_markdown_refs,
+)
+
 ROOT = Path(__file__).resolve().parents[1]
+SKILL_PACKAGE_ROOT = ROOT / "skills"
 
 # Canonical skill tree + its distribution mirrors.
 CANONICAL = ROOT / "skills" / "fairy-tale"
@@ -41,10 +46,6 @@ COMPANION_SKIP_FILES = {".DS_Store"}
 # ships no non-.md files, so nothing is lost by delegating it to check_parity().
 COMPANION_EXCLUDE_TOP = {"skills"}
 
-# Inline-reference form used inside SKILL.md, e.g. `references/process.md`.
-REF_RE = re.compile(r"`(references/[A-Za-z0-9._/\-]+\.md)`")
-
-
 def md_files(base: Path) -> dict[Path, Path]:
     """Map relative path -> absolute path for every *.md under ``base``."""
     return {p.relative_to(base): p for p in base.rglob("*.md") if p.is_file()}
@@ -68,17 +69,6 @@ def check_parity() -> list[str]:
         for rel in sorted(set(canonical) & set(mirrored)):
             if canonical[rel].read_bytes() != mirrored[rel].read_bytes():
                 errors.append(f"{rel_mirror}: byte mismatch {rel}")
-    return errors
-
-
-def check_inline_refs() -> list[str]:
-    errors: list[str] = []
-    skill = CANONICAL / "SKILL.md"
-    if not skill.exists():
-        return [f"missing {skill.relative_to(ROOT)}"]
-    for ref in sorted(set(REF_RE.findall(skill.read_text(encoding="utf-8")))):
-        if not (CANONICAL / ref).exists():
-            errors.append(f"SKILL.md dangling inline ref: {ref}")
     return errors
 
 
@@ -125,7 +115,16 @@ def check_companion_parity() -> tuple[list[str], int]:
 
 def main() -> int:
     companion_errors, companions = check_companion_parity()
-    errors = check_parity() + check_inline_refs() + companion_errors
+    ref_errors, markdown_files, markdown_refs = validate_skill_markdown_refs(
+        SKILL_PACKAGE_ROOT
+    )
+    ref_selftest_errors, ref_controls = selftest_skill_markdown_refs()
+    errors = (
+        check_parity()
+        + ref_errors
+        + ref_selftest_errors
+        + companion_errors
+    )
     if errors:
         print("Fairy Tale distribution parity FAILED:")
         for err in errors:
@@ -135,7 +134,8 @@ def main() -> int:
     print(
         f"Fairy Tale distribution parity OK: {copies} skill copies byte-identical "
         f"(*.md), {companions} mirrored companion artifacts byte-identical, and "
-        "SKILL.md inline references resolve."
+        f"{markdown_refs} Markdown references across {markdown_files} packaged "
+        f"Markdown files resolve ({ref_controls} negative/positive controls)."
     )
     return 0
 

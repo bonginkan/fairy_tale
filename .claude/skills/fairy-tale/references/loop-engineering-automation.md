@@ -1,13 +1,14 @@
 # Loop Engineering and Job Automation
 
 Status: canonical operating model for Fairy Tale loop engineering and job
-automation. It complements `docs/agentic-loop-design.md`, which is an
-evaluation design for task-level observe-act-validate loops. This document is
-for persistent repo/channel/job operation.
+automation. In the repository, it complements the
+[agentic loop evaluation design](https://github.com/bonginkan/fairy_tale/blob/main/docs/agentic-loop-design.md)
+for task-level observe-act-validate loops. This document is for persistent
+repo/channel/job operation.
 
 ## Source-Derived Principles
 
-Checked sources are listed in `skills/fairy-tale/references/sources.md`.
+Checked sources are listed in the installed skill's `references/sources.md`.
 The implementation primitives are:
 
 - Keep the main loop simple and composable. Anthropic's agent guidance favors

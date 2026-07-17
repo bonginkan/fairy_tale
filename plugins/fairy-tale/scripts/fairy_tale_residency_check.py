@@ -351,11 +351,22 @@ INSTALL_SMOKE_FILES = with_plugin_mirrors(
     {
         Path("scripts/install_smoke_test.py"): (
             "install.sh",
-            "inline_markdown_refs",
+            "validate_skill_markdown_refs",
             "loop-engineering-automation.md",
         ),
+        Path("scripts/skill_markdown_refs.py"): (
+            "DISTRIBUTED_SKILL_NAMES",
+            "_block_masked_lines",
+            "_inline_destinations",
+            "REFERENCE_DEFINITION_RE",
+            "markdown_references",
+            "validate_skill_markdown_refs",
+        ),
     },
-    mirror=(Path("scripts/install_smoke_test.py"),),
+    mirror=(
+        Path("scripts/install_smoke_test.py"),
+        Path("scripts/skill_markdown_refs.py"),
+    ),
 )
 
 STANDING_INSTRUCTION = (

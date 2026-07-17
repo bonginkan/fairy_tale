@@ -4,47 +4,25 @@
 from __future__ import annotations
 
 import argparse
-import re
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
+from skill_markdown_refs import (
+    DISTRIBUTED_SKILL_NAMES,
+    validate_skill_markdown_refs,
+)
+
 
 ROOT = Path(__file__).resolve().parents[1]
-REQUIRED_SKILLS = (
-    "fairy-tale",
-    "fairy-tale-benchmark-feedback",
-    "fairy-tale-legal-feedback",
-)
+REQUIRED_SKILLS = DISTRIBUTED_SKILL_NAMES
 REQUIRED_INSTALLED_FILES = (
     Path("fairy-tale") / "references" / "loop-engineering-automation.md",
     Path("fairy-tale") / "references" / "feedback-governance.md",
     Path("fairy-tale") / "references" / "openmythos-external-adapter.md",
     Path("fairy-tale") / "references" / "similarity-refactoring-adapter.md",
 )
-INLINE_CODE_RE = re.compile(r"`([^`\n]+)`")
-
-
-def inline_markdown_refs(skill_file: Path) -> list[Path]:
-    refs: list[Path] = []
-    text = skill_file.read_text(encoding="utf-8")
-    for match in INLINE_CODE_RE.finditer(text):
-        raw = match.group(1).strip()
-        if "://" in raw or raw.startswith("#") or not raw.endswith(".md"):
-            continue
-        if any(char.isspace() for char in raw):
-            continue
-        refs.append(Path(raw))
-    return sorted(set(refs))
-
-
-def resolve_ref(skill_dir: Path, ref: Path) -> Path:
-    if ref.is_absolute():
-        return ref
-    return (skill_dir / ref).resolve()
-
-
 def run_install(target: Path, source: Path) -> None:
     subprocess.run(
         [
@@ -73,20 +51,8 @@ def validate_install(target: Path) -> list[str]:
         if not (target / required).exists():
             failures.append(f"missing required installed companion: {required}")
 
-    fairy_skill_dir = target / "fairy-tale"
-    fairy_skill_file = fairy_skill_dir / "SKILL.md"
-    if not fairy_skill_file.exists():
-        return failures
-
-    for ref in inline_markdown_refs(fairy_skill_file):
-        path = resolve_ref(fairy_skill_dir, ref)
-        try:
-            path.relative_to(target.resolve())
-        except ValueError:
-            failures.append(f"reference escapes install target: {ref}")
-            continue
-        if not path.exists():
-            failures.append(f"missing markdown reference from SKILL.md: {ref}")
+    ref_failures, _, _ = validate_skill_markdown_refs(target)
+    failures.extend(ref_failures)
     return failures
 
 

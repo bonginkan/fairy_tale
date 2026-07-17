@@ -10,13 +10,13 @@ import tarfile
 from pathlib import Path
 
 import fairy_tale_residency_check
+from skill_markdown_refs import DISTRIBUTED_SKILL_NAMES
 
 
 ROOT = Path(__file__).resolve().parents[1]
 SKILL_DIRS = [
-    ROOT / "skills" / "fairy-tale",
-    ROOT / "skills" / "fairy-tale-benchmark-feedback",
-    ROOT / "skills" / "fairy-tale-legal-feedback",
+    ROOT / "skills" / name
+    for name in DISTRIBUTED_SKILL_NAMES
 ]
 EXTRA_FILES = [
     ROOT / "LICENSE",

@@ -91,6 +91,12 @@ that Fairy Tale is still resident in the repo skills and plugin package:
 python3 scripts/fairy_tale_residency_check.py
 ```
 
+Validate adapter manifests with the same command used by the CI adapter job:
+
+```bash
+cargo run --manifest-path crates/fairy-adapter-runner/Cargo.toml -- validate
+```
+
 Use `--check-installed --strict-installed` when you also want to require
 machine-level Codex, Claude Code, and AGENTS skill installs.
 
