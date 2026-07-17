@@ -15,10 +15,13 @@ MARKDOWN_LINK_RE = re.compile(
     r"""\]\(\s*(?P<destination><[^>\n]+>|[^\s)\n]+)"""
     r"""(?:\s+[^)\n]+)?\s*\)"""
 )
-REFERENCE_DEFINITION_RE = re.compile(
-    r"""^[ \t]{0,3}\[[^\]\n]+\]:[ \t]*"""
-    r"""(?P<destination><[^>\n]+>|[^\s\n]+)(?:[ \t]+.*)?$""",
-    re.MULTILINE,
+REFERENCE_DEFINITION_RE = re.compile(r"^ {0,3}\[")
+FENCE_OPEN_RE = re.compile(r"^ {0,3}(?P<fence>`{3,}|~{3,})")
+BLOCK_START_RE = re.compile(
+    r"^ {0,3}(?:#{1,6}(?:[ \t]+|$)|>|(?:[*+-]|\d{1,9}[.)])(?:[ \t]+|$))"
+)
+THEMATIC_BREAK_RE = re.compile(
+    r"^ {0,3}(?:(?:\*[ \t]*){3,}|(?:-[ \t]*){3,}|(?:_[ \t]*){3,})$"
 )
 DISTRIBUTED_SKILL_NAMES = (
     "fairy-tale",
@@ -111,6 +114,240 @@ def _exact_candidate(
     return current, None
 
 
+def _code_masked_lines(text: str, *, mask_indented: bool) -> list[str]:
+    """Mask fenced code, plus indented code when scanning inline syntax."""
+    masked: list[str] = []
+    fence_char = ""
+    fence_length = 0
+    for line in text.splitlines():
+        if fence_char:
+            closing = re.match(
+                rf"^ {{0,3}}{re.escape(fence_char)}"
+                rf"{{{fence_length},}}[ \t]*$",
+                line,
+            )
+            if closing:
+                fence_char = ""
+                fence_length = 0
+            masked.append("")
+            continue
+        opening = FENCE_OPEN_RE.match(line)
+        if opening:
+            marker = opening.group("fence")
+            fence_char = marker[0]
+            fence_length = len(marker)
+            masked.append("")
+            continue
+        if mask_indented and (line.startswith("    ") or line.startswith("\t")):
+            masked.append("")
+            continue
+        masked.append(line)
+    return masked
+
+
+def _reference_label_and_tail(
+    lines: list[str],
+    start: int,
+) -> tuple[str, str, int] | None:
+    """Parse a possibly multiline reference label and its post-colon tail."""
+    opening = REFERENCE_DEFINITION_RE.match(lines[start])
+    if not opening:
+        return None
+    label: list[str] = []
+    line_index = start
+    offset = opening.end()
+    while line_index < len(lines):
+        line = lines[line_index]
+        if line_index > start:
+            if not line.strip():
+                return None
+            label.append(" ")
+            offset = 0
+        escaped = False
+        while offset < len(line):
+            char = line[offset]
+            if escaped:
+                label.append(char)
+                escaped = False
+            elif char == "\\":
+                label.append(char)
+                escaped = True
+            elif char == "[":
+                return None
+            elif char == "]":
+                remainder = line[offset + 1 :]
+                if not remainder.startswith(":"):
+                    return None
+                normalized = " ".join("".join(label).split()).casefold()
+                if not normalized or len(normalized) > 999:
+                    return None
+                return normalized, remainder[1:].lstrip(" \t"), line_index
+            else:
+                label.append(char)
+            offset += 1
+        line_index += 1
+    return None
+
+
+def _destination_and_remainder(
+    value: str,
+) -> tuple[str, str, bool] | None:
+    """Parse one CommonMark destination and retain its separator state."""
+    value = value.lstrip(" \t")
+    if not value:
+        return None
+    if value.startswith("<"):
+        escaped = False
+        for index, char in enumerate(value[1:], start=1):
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == "<":
+                return None
+            elif char == ">":
+                remainder = value[index + 1 :]
+                if not remainder.strip(" \t"):
+                    remainder = ""
+                separated = not remainder or remainder[0] in " \t"
+                return value[: index + 1], remainder, separated
+        return None
+
+    escaped = False
+    depth = 0
+    end = 0
+    for index, char in enumerate(value):
+        if escaped:
+            escaped = False
+        elif char == "\\":
+            escaped = True
+        elif char in " \t":
+            break
+        elif char == "(":
+            depth += 1
+        elif char == ")":
+            if depth == 0:
+                return None
+            depth -= 1
+        elif char in "<>":
+            return None
+        end = index + 1
+    if end == 0 or depth:
+        return None
+    remainder = value[end:]
+    if not remainder.strip(" \t"):
+        remainder = ""
+    separated = not remainder or remainder[0] in " \t"
+    return value[:end], remainder, separated
+
+
+def _title_end(
+    lines: list[str],
+    start: int,
+    value: str,
+) -> int | None:
+    """Return the final line of a valid, blank-free CommonMark title."""
+    value = value.lstrip(" \t")
+    pairs = {'"': '"', "'": "'", "(": ")"}
+    closer = pairs.get(value[:1])
+    if closer is None:
+        return None
+    line_index = start
+    offset = 1
+    while line_index < len(lines):
+        line = value if line_index == start else lines[line_index]
+        if line_index > start and not line.strip():
+            return None
+        escaped = False
+        while offset < len(line):
+            char = line[offset]
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == closer:
+                if line[offset + 1 :].strip(" \t"):
+                    return None
+                return line_index
+            elif closer == ")" and char == "(":
+                return None
+            offset += 1
+        line_index += 1
+        offset = 0
+    return None
+
+
+def _parse_reference_definition(
+    lines: list[str],
+    start: int,
+) -> tuple[str, str, int] | None:
+    """Parse one complete definition and return label, destination, line count."""
+    label_and_tail = _reference_label_and_tail(lines, start)
+    if label_and_tail is None:
+        return None
+    label, tail, line_index = label_and_tail
+    destination = _destination_and_remainder(tail)
+    if destination is None:
+        if tail or line_index + 1 >= len(lines):
+            return None
+        line_index += 1
+        destination = _destination_and_remainder(lines[line_index])
+        if destination is None:
+            return None
+
+    raw_destination, remainder, separated = destination
+    end_index = line_index
+    if remainder:
+        if not separated:
+            return None
+        title_end = _title_end(lines, line_index, remainder)
+        if title_end is None:
+            return None
+        end_index = title_end
+    elif line_index + 1 < len(lines):
+        next_line = lines[line_index + 1].lstrip(" \t")
+        if next_line[:1] in {'"', "'", "("}:
+            title_end = _title_end(lines, line_index + 1, next_line)
+            if title_end is not None:
+                end_index = title_end
+    return label, raw_destination, end_index - start + 1
+
+
+def _reference_definition_destinations(text: str) -> list[str]:
+    """Extract first-wins definitions without crossing code or paragraphs."""
+    lines = _code_masked_lines(text, mask_indented=False)
+    definitions: dict[str, str] = {}
+    paragraph_open = False
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        if not line.strip():
+            paragraph_open = False
+            index += 1
+            continue
+
+        if not paragraph_open:
+            definition = _parse_reference_definition(lines, index)
+            if definition is not None:
+                label, destination, consumed = definition
+                definitions.setdefault(label, destination)
+                paragraph_open = False
+                index += consumed
+                continue
+
+        if (
+            line.startswith("    ")
+            or line.startswith("\t")
+            or BLOCK_START_RE.match(line)
+            or THEMATIC_BREAK_RE.match(line)
+        ):
+            paragraph_open = False
+        else:
+            paragraph_open = True
+        index += 1
+    return list(definitions.values())
+
+
 def markdown_references(
     package_root: Path,
     skill_dir: Path,
@@ -125,12 +362,13 @@ def markdown_references(
     """
     refs: set[Path] = set()
     text = source.read_text(encoding="utf-8")
-    for match in INLINE_CODE_RE.finditer(text):
+    inline_text = "\n".join(_code_masked_lines(text, mask_indented=True))
+    for match in INLINE_CODE_RE.finditer(inline_text):
         raw = match.group("value").strip()
         if (
             match.start() > 0
-            and text[match.start() - 1] == "["
-            and text[match.end() :].startswith("](")
+            and inline_text[match.start() - 1] == "["
+            and inline_text[match.end() :].startswith("](")
         ):
             continue
         if (
@@ -144,14 +382,18 @@ def markdown_references(
         candidates = _candidate_paths(package_root, skill_dir, source, ref)
         if "/" in raw or "\\" in raw or any(path.is_file() for path in candidates):
             refs.add(ref)
-    for pattern in (MARKDOWN_LINK_RE, REFERENCE_DEFINITION_RE):
-        for match in pattern.finditer(text):
-            raw = match.group("destination").strip().strip("<>")
-            if "://" in raw or raw.startswith("#"):
-                continue
-            raw = raw.split("#", 1)[0]
-            if raw.endswith(".md"):
-                refs.add(Path(raw))
+    destinations = [
+        match.group("destination")
+        for match in MARKDOWN_LINK_RE.finditer(inline_text)
+    ]
+    destinations.extend(_reference_definition_destinations(text))
+    for destination in destinations:
+        raw = destination.strip().strip("<>")
+        if "://" in raw or raw.startswith("#"):
+            continue
+        raw = raw.split("#", 1)[0]
+        if raw.endswith(".md"):
+            refs.add(Path(raw))
     return sorted(refs, key=lambda path: path.as_posix())
 
 
@@ -242,8 +484,37 @@ def selftest_skill_markdown_refs() -> tuple[list[str], int]:
             "`../beta/SKILL.md`\n"
             "[local](references/local.md)\n"
             "[local with title](references/local.md \"Local reference\")\n"
+            "\n"
             "[local-ref]: references/local.md \"Local definition\"\n"
+            "[multiline-ref]:\n"
+            "  references/local.md\n"
+            "[angle-ref]: <references/local.md>\n"
+            "[next-title-ref]: references/local.md\n"
+            "  \"Local title\"\n"
+            "[spaced-next-title-ref]:\n"
+            "  references/local.md  \n"
+            "  'Spaced local title'\n"
+            "[multiline-title-ref]: references/local.md '\n"
+            "Local\n"
+            "definition\n"
+            "'\n"
+            "[\n"
+            "multiline-label\n"
+            "]: references/local.md\n"
+            "[external-ref]: https://example.com/guide.md\n"
+            "[duplicate-ref]: references/local.md\n"
+            "[duplicate-ref]: references/missing.md\n"
+            "[invalid-trailing]: references/missing.md \"title\" trailing\n"
+            "\n"
             "[local via definition][local-ref]\n"
+            "```\n"
+            "[fenced-ref]: references/missing.md\n"
+            "`references/missing.md`\n"
+            "[fenced](references/missing.md)\n"
+            "```\n"
+            "Paragraph remains open\n"
+            "[paragraph-ref]: references/missing.md\n"
+            "\n"
             "``references/local.md``\n"
             "`report.md`\n"
             "[external](https://example.com/guide.md)\n"
@@ -298,7 +569,7 @@ def selftest_skill_markdown_refs() -> tuple[list[str], int]:
             errors.append("case-alias Markdown reference was not rejected")
 
         alpha_skill.write_text(
-            base + "[missing-ref]: references/missing.md\n",
+            base + "\n[missing-ref]: references/missing.md\n",
             encoding="utf-8",
         )
         findings, _, _ = validate_skill_markdown_refs(
@@ -309,6 +580,19 @@ def selftest_skill_markdown_refs() -> tuple[list[str], int]:
             "references/missing.md is dangling" in item for item in findings
         ):
             errors.append("dangling reference-style link was not rejected")
+
+        alpha_skill.write_text(
+            base + "\n[missing-multiline]:\n  references/missing.md\n",
+            encoding="utf-8",
+        )
+        findings, _, _ = validate_skill_markdown_refs(
+            package_root, ("alpha", "beta")
+        )
+        controls += 1
+        if not any(
+            "references/missing.md is dangling" in item for item in findings
+        ):
+            errors.append("multiline reference-style link was not rejected")
 
         linked_source = Path(tmp) / "linked-skill-source"
         linked_source.mkdir()
