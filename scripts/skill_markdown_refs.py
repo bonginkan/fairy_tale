@@ -15,6 +15,11 @@ MARKDOWN_LINK_RE = re.compile(
     r"""\]\(\s*(?P<destination><[^>\n]+>|[^\s)\n]+)"""
     r"""(?:\s+[^)\n]+)?\s*\)"""
 )
+REFERENCE_DEFINITION_RE = re.compile(
+    r"""^[ \t]{0,3}\[[^\]\n]+\]:[ \t]*"""
+    r"""(?P<destination><[^>\n]+>|[^\s\n]+)(?:[ \t]+.*)?$""",
+    re.MULTILINE,
+)
 DISTRIBUTED_SKILL_NAMES = (
     "fairy-tale",
     "fairy-tale-benchmark-feedback",
@@ -25,13 +30,33 @@ DISTRIBUTED_SKILL_NAMES = (
 def skill_dirs(
     package_root: Path,
     skill_names: tuple[str, ...],
-) -> list[Path]:
-    """Return expected distributable skill directories that currently exist."""
-    return sorted(
-        package_root / name
-        for name in skill_names
-        if (package_root / name / "SKILL.md").is_file()
-    )
+) -> tuple[list[Path], list[str]]:
+    """Return exact, non-symlink distributable skill roots and findings."""
+    directories: list[Path] = []
+    errors: list[str] = []
+    for name in sorted(skill_names):
+        try:
+            skill_dir = exact_path_entry(
+                package_root / name,
+                f"distributable skill root {name}",
+                allow_missing=True,
+                expected_kind="directory",
+            )
+            if skill_dir is None:
+                errors.append(f"missing distributable skill: {name}/SKILL.md")
+                continue
+            skill_file = exact_path_entry(
+                skill_dir / "SKILL.md",
+                f"distributable skill entrypoint {name}/SKILL.md",
+                allow_missing=True,
+            )
+            if skill_file is None:
+                errors.append(f"missing distributable skill: {name}/SKILL.md")
+                continue
+            directories.append(skill_dir)
+        except ArtifactError as exc:
+            errors.append(str(exc))
+    return directories, errors
 
 
 def _candidate_paths(
@@ -119,13 +144,14 @@ def markdown_references(
         candidates = _candidate_paths(package_root, skill_dir, source, ref)
         if "/" in raw or "\\" in raw or any(path.is_file() for path in candidates):
             refs.add(ref)
-    for match in MARKDOWN_LINK_RE.finditer(text):
-        raw = match.group("destination").strip().strip("<>")
-        if "://" in raw or raw.startswith("#"):
-            continue
-        raw = raw.split("#", 1)[0]
-        if raw.endswith(".md"):
-            refs.add(Path(raw))
+    for pattern in (MARKDOWN_LINK_RE, REFERENCE_DEFINITION_RE):
+        for match in pattern.finditer(text):
+            raw = match.group("destination").strip().strip("<>")
+            if "://" in raw or raw.startswith("#"):
+                continue
+            raw = raw.split("#", 1)[0]
+            if raw.endswith(".md"):
+                refs.add(Path(raw))
     return sorted(refs, key=lambda path: path.as_posix())
 
 
@@ -138,12 +164,8 @@ def validate_skill_markdown_refs(
     errors: list[str] = []
     checked_files = 0
     checked_refs = 0
-    directories = skill_dirs(package_root, skill_names)
-    missing_skills = sorted(set(skill_names) - {path.name for path in directories})
-    errors.extend(
-        f"missing distributable skill: {name}/SKILL.md"
-        for name in missing_skills
-    )
+    directories, skill_errors = skill_dirs(package_root, skill_names)
+    errors.extend(skill_errors)
     if not directories:
         return errors, 0, 0
 
@@ -220,6 +242,8 @@ def selftest_skill_markdown_refs() -> tuple[list[str], int]:
             "`../beta/SKILL.md`\n"
             "[local](references/local.md)\n"
             "[local with title](references/local.md \"Local reference\")\n"
+            "[local-ref]: references/local.md \"Local definition\"\n"
+            "[local via definition][local-ref]\n"
             "``references/local.md``\n"
             "`report.md`\n"
             "[external](https://example.com/guide.md)\n"
@@ -272,4 +296,28 @@ def selftest_skill_markdown_refs() -> tuple[list[str], int]:
         controls += 1
         if not any("name must match exactly" in item for item in findings):
             errors.append("case-alias Markdown reference was not rejected")
+
+        alpha_skill.write_text(
+            base + "[missing-ref]: references/missing.md\n",
+            encoding="utf-8",
+        )
+        findings, _, _ = validate_skill_markdown_refs(
+            package_root, ("alpha", "beta")
+        )
+        controls += 1
+        if not any(
+            "references/missing.md is dangling" in item for item in findings
+        ):
+            errors.append("dangling reference-style link was not rejected")
+
+        linked_source = Path(tmp) / "linked-skill-source"
+        linked_source.mkdir()
+        (linked_source / "SKILL.md").write_text("# Linked\n", encoding="utf-8")
+        (package_root / "linked").symlink_to(
+            linked_source, target_is_directory=True
+        )
+        findings, _, _ = validate_skill_markdown_refs(package_root, ("linked",))
+        controls += 1
+        if not any("skill root linked cannot be a symlink" in item for item in findings):
+            errors.append("symlinked distributable skill root was not rejected")
     return errors, controls

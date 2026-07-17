@@ -357,6 +357,7 @@ INSTALL_SMOKE_FILES = with_plugin_mirrors(
         Path("scripts/skill_markdown_refs.py"): (
             "DISTRIBUTED_SKILL_NAMES",
             "MARKDOWN_LINK_RE",
+            "REFERENCE_DEFINITION_RE",
             "markdown_references",
             "validate_skill_markdown_refs",
         ),
