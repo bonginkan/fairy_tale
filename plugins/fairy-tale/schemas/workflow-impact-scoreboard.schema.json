@@ -65,13 +65,61 @@
     "source": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["url", "checked_at", "source_type", "note"],
+      "required": [
+        "source_id",
+        "url",
+        "checked_at",
+        "source_type",
+        "evidence_kind",
+        "artifact_path",
+        "artifact_sha256",
+        "note"
+      ],
       "properties": {
+        "source_id": {"$ref": "#/$defs/portable_id"},
         "url": {"type": "string", "format": "uri", "pattern": "^https://"},
         "checked_at": {"type": "string", "format": "date"},
         "source_type": {"enum": ["official", "repository", "public_report"]},
+        "evidence_kind": {"enum": ["context", "example_run", "measured_run", "official_run"]},
+        "artifact_path": {
+          "oneOf": [
+            {"$ref": "#/$defs/repo_path"},
+            {"type": "null"}
+          ]
+        },
+        "artifact_sha256": {
+          "oneOf": [
+            {"$ref": "#/$defs/sha256"},
+            {"type": "null"}
+          ]
+        },
         "note": {"$ref": "#/$defs/nonempty_text"}
-      }
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"evidence_kind": {"const": "context"}}},
+          "then": {
+            "properties": {
+              "artifact_path": {"type": "null"},
+              "artifact_sha256": {"type": "null"}
+            }
+          },
+          "else": {
+            "properties": {
+              "artifact_path": {"$ref": "#/$defs/repo_path"},
+              "artifact_sha256": {"$ref": "#/$defs/sha256"}
+            }
+          }
+        },
+        {
+          "if": {"properties": {"evidence_kind": {"const": "official_run"}}},
+          "then": {"properties": {"source_type": {"const": "official"}}}
+        },
+        {
+          "if": {"properties": {"evidence_kind": {"enum": ["example_run", "measured_run"]}}},
+          "then": {"properties": {"source_type": {"const": "repository"}}}
+        }
+      ]
     },
     "entry": {
       "type": "object",
@@ -263,9 +311,10 @@
     "artifact": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind", "path", "visibility", "disclosure", "sha256"],
+      "required": ["kind", "source_ref", "path", "visibility", "disclosure", "sha256"],
       "properties": {
         "kind": {"enum": ["run_output", "example", "routing_eval_ledger"]},
+        "source_ref": {"$ref": "#/$defs/portable_id"},
         "path": {"$ref": "#/$defs/repo_path"},
         "visibility": {"enum": ["repository", "private", "local"]},
         "disclosure": {"enum": ["full", "redacted"]},

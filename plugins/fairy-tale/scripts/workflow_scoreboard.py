@@ -48,6 +48,8 @@ ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_VERSION = "1.0"
 DEFAULT_SCOREBOARD = ROOT / "examples" / "workflow-scoreboard.json"
 SHA_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
+RAW_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+COMMIT_RE = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
 
 SCOREBOARD_KEYS = {
     "schema_version",
@@ -58,7 +60,16 @@ SCOREBOARD_KEYS = {
     "entries",
     "routing_eval_bindings",
 }
-SOURCE_KEYS = {"url", "checked_at", "source_type", "note"}
+SOURCE_KEYS = {
+    "source_id",
+    "url",
+    "checked_at",
+    "source_type",
+    "evidence_kind",
+    "artifact_path",
+    "artifact_sha256",
+    "note",
+}
 ENTRY_KEYS = {
     "entry_id",
     "task_kind",
@@ -116,7 +127,7 @@ TOKEN_KEYS = {
     "total_tokens",
 }
 REGRESSION_KEYS = {"status", "note"}
-ARTIFACT_KEYS = {"kind", "path", "visibility", "disclosure", "sha256"}
+ARTIFACT_KEYS = {"kind", "source_ref", "path", "visibility", "disclosure", "sha256"}
 TELEMETRY_KEYS = {
     "card_path",
     "fired_count",
@@ -127,14 +138,19 @@ TELEMETRY_KEYS = {
 }
 BINDING_KEYS = {"entry_id", "condition", "ledger_path", "ledger_sha256"}
 ROUTING_LEDGER_IDENTITY_KEYS = {
-    "results",
-    "summary",
     "model",
     "skill_md_sha256",
     "system_prompt_sha256",
     "cases_sha256",
     "repo_commit",
 }
+ROUTING_LEDGER_TOP_LEVEL_MARKERS = ROUTING_LEDGER_IDENTITY_KEYS | {
+    "run_policy",
+    "token_note",
+    "eval_inputs_committed_at_repo_commit",
+}
+ROUTING_RESULT_MARKERS = {"expected_cards", "got_cards", "invalid_paths"}
+ROUTING_SUMMARY_MARKERS = {"per_card_utilization", "invalid_path_outputs"}
 
 COMPARISON_MODES = {"paired_local", "paired_external_baseline", "unpaired"}
 TASK_KINDS = {"benchmark", "normal"}
@@ -143,6 +159,12 @@ CONDITIONS = {"baseline", "fairy_tale"}
 VALIDATION_RESULTS = {"pass", "fail"}
 CONTRIBUTIONS = {"helpful", "neutral", "harmful", "unknown"}
 ARTIFACT_KINDS = {"run_output", "example", "routing_eval_ledger"}
+SOURCE_EVIDENCE_KINDS = {"context", "example_run", "measured_run", "official_run"}
+SOURCE_KIND_TO_EVIDENCE_KIND = {
+    "example": "example_run",
+    "measured_local": "measured_run",
+    "official_external": "official_run",
+}
 
 
 def finite_number(value: Any) -> bool:
@@ -213,13 +235,40 @@ def validate_source(value: Any, index: int, errors: list[str]) -> None:
     source = object_shape(value, path=path, keys=SOURCE_KEYS, errors=errors)
     if source is None:
         return
+    if not valid_id(source.get("source_id")):
+        add(errors, f"{path}.source_id", "must be a portable identifier")
     parsed_url = urlparse(source.get("url") if isinstance(source.get("url"), str) else "")
     if parsed_url.scheme != "https" or not parsed_url.netloc:
         add(errors, f"{path}.url", "must be an HTTPS URL")
     if not valid_date(source.get("checked_at")):
         add(errors, f"{path}.checked_at", "must be an ISO calendar date")
-    if not enum_member(source.get("source_type"), {"official", "repository", "public_report"}):
+    source_type = source.get("source_type")
+    evidence_kind = source.get("evidence_kind")
+    if not enum_member(source_type, {"official", "repository", "public_report"}):
         add(errors, f"{path}.source_type", "must be official, repository, or public_report")
+    if not enum_member(evidence_kind, SOURCE_EVIDENCE_KINDS):
+        add(errors, f"{path}.evidence_kind", "must be context, example_run, measured_run, or official_run")
+    artifact_path = source.get("artifact_path")
+    artifact_sha256 = source.get("artifact_sha256")
+    if evidence_kind == "context":
+        if artifact_path is not None or artifact_sha256 is not None:
+            add(errors, path, "context sources cannot bind a run artifact")
+    elif enum_member(evidence_kind, SOURCE_EVIDENCE_KINDS - {"context"}):
+        if not repo_relative_path(artifact_path):
+            add(errors, f"{path}.artifact_path", "must be a portable repository-relative path")
+        if not isinstance(artifact_sha256, str) or not SHA_RE.fullmatch(artifact_sha256):
+            add(errors, f"{path}.artifact_sha256", "must be a lowercase sha256 digest")
+    expected_source_type = (
+        {
+            "example_run": "repository",
+            "measured_run": "repository",
+            "official_run": "official",
+        }.get(evidence_kind)
+        if isinstance(evidence_kind, str)
+        else None
+    )
+    if expected_source_type is not None and source_type != expected_source_type:
+        add(errors, f"{path}.source_type", f"must be {expected_source_type} for {evidence_kind}")
     if not has_text(source.get("note")):
         add(errors, f"{path}.note", "must be non-empty")
 
@@ -335,6 +384,8 @@ def validate_artifact(value: Any, path: str, errors: list[str]) -> Path | None:
     artifact = object_shape(value, path=path, keys=ARTIFACT_KEYS, errors=errors)
     if artifact is None:
         return None
+    if not valid_id(artifact.get("source_ref")):
+        add(errors, f"{path}.source_ref", "must be a portable source identifier")
     visibility = artifact.get("visibility")
     disclosure = artifact.get("disclosure")
     if not enum_member(artifact.get("kind"), ARTIFACT_KINDS):
@@ -403,15 +454,59 @@ def validate_telemetry(value: Any, path: str, condition: Any, errors: list[str])
 
 
 def is_routing_eval_ledger(value: Any) -> bool:
-    return (
-        isinstance(value, dict)
-        and ROUTING_LEDGER_IDENTITY_KEYS <= set(value)
-        and isinstance(value.get("results"), list)
-        and isinstance(value.get("summary"), dict)
+    if not isinstance(value, dict):
+        return False
+    results = value.get("results")
+    summary = value.get("summary")
+    if not isinstance(results, list) or not isinstance(summary, dict):
+        return False
+    top_level_signal = bool(ROUTING_LEDGER_TOP_LEVEL_MARKERS & set(value))
+    result_signal = any(
+        isinstance(result, dict) and bool(ROUTING_RESULT_MARKERS & set(result))
+        for result in results
     )
+    summary_signal = bool(ROUTING_SUMMARY_MARKERS & set(summary))
+    return top_level_signal or result_signal or summary_signal
 
 
-def validate_run(value: Any, path: str, task_kind: Any, errors: list[str]) -> bool:
+def validate_artifact_source(
+    artifact: dict[str, Any],
+    source_kind: Any,
+    sources: dict[str, dict[str, Any]],
+    path: str,
+    errors: list[str],
+) -> None:
+    source_ref = artifact.get("source_ref")
+    if not valid_id(source_ref):
+        return
+    source = sources.get(source_ref)
+    if source is None:
+        add(errors, f"{path}.source_ref", "must reference a declared source")
+        return
+    expected_evidence_kind = (
+        SOURCE_KIND_TO_EVIDENCE_KIND.get(source_kind)
+        if isinstance(source_kind, str)
+        else None
+    )
+    if expected_evidence_kind is not None and source.get("evidence_kind") != expected_evidence_kind:
+        add(
+            errors,
+            f"{path}.source_ref",
+            f"must reference {expected_evidence_kind} provenance for source_kind {source_kind}",
+        )
+    if source.get("artifact_path") != artifact.get("path"):
+        add(errors, f"{path}.path", "must match the bound source artifact path")
+    if source.get("artifact_sha256") != artifact.get("sha256"):
+        add(errors, f"{path}.sha256", "must match the bound source artifact hash")
+
+
+def validate_run(
+    value: Any,
+    path: str,
+    task_kind: Any,
+    sources: dict[str, dict[str, Any]],
+    errors: list[str],
+) -> bool:
     run = object_shape(value, path=path, keys=RUN_KEYS, errors=errors)
     if run is None:
         return False
@@ -446,6 +541,8 @@ def validate_run(value: Any, path: str, task_kind: Any, errors: list[str]) -> bo
         if not has_text(regression.get("note")):
             add(errors, f"{path}.regression.note", "must be non-empty")
     resolved_artifact = validate_artifact(run.get("artifact"), f"{path}.artifact", errors)
+    artifact = run.get("artifact") if isinstance(run.get("artifact"), dict) else {}
+    validate_artifact_source(artifact, source_kind, sources, f"{path}.artifact", errors)
     validate_telemetry(run.get("card_telemetry"), f"{path}.card_telemetry", condition, errors)
     text_list(run.get("validation_evidence"), path=f"{path}.validation_evidence", errors=errors)
     telemetry = run.get("card_telemetry")
@@ -470,7 +567,6 @@ def validate_run(value: Any, path: str, task_kind: Any, errors: list[str]) -> bo
             and sum(attributed) > total_tokens
         ):
             add(errors, f"{path}.card_telemetry", "attributed tokens cannot exceed total run tokens")
-    artifact = run.get("artifact") if isinstance(run.get("artifact"), dict) else {}
     artifact_kind = artifact.get("kind")
     artifact_payload: Any = None
     if artifact.get("visibility") == "repository" and resolved_artifact is not None:
@@ -487,6 +583,11 @@ def validate_run(value: Any, path: str, task_kind: Any, errors: list[str]) -> bo
             add(errors, f"{path}.artifact.kind", "routing_eval_ledger content contract is missing")
     elif routing_ledger:
         add(errors, f"{path}.artifact.kind", "routing ledger content must use kind routing_eval_ledger")
+    if routing_ledger:
+        try:
+            routing_expected(artifact_payload)
+        except ArtifactError as exc:
+            add(errors, f"{path}.artifact", str(exc))
     if source_kind == "example":
         if artifact_kind != "example":
             add(errors, f"{path}.artifact.kind", "example runs require artifact kind example")
@@ -513,7 +614,12 @@ def validate_run(value: Any, path: str, task_kind: Any, errors: list[str]) -> bo
     return artifact_kind == "routing_eval_ledger" or routing_ledger
 
 
-def validate_entry(value: Any, index: int, errors: list[str]) -> list[str]:
+def validate_entry(
+    value: Any,
+    index: int,
+    sources: dict[str, dict[str, Any]],
+    errors: list[str],
+) -> list[str]:
     path = f"entries[{index}]"
     entry = object_shape(value, path=path, keys=ENTRY_KEYS, errors=errors)
     if entry is None:
@@ -538,7 +644,13 @@ def validate_entry(value: Any, index: int, errors: list[str]) -> list[str]:
         return []
     routing_conditions: list[str] = []
     for run_index, run in enumerate(runs):
-        routing_ledger = validate_run(run, f"{path}.runs[{run_index}]", entry.get("task_kind"), errors)
+        routing_ledger = validate_run(
+            run,
+            f"{path}.runs[{run_index}]",
+            entry.get("task_kind"),
+            sources,
+            errors,
+        )
         if routing_ledger and isinstance(run, dict) and enum_member(run.get("condition"), CONDITIONS):
             routing_conditions.append(run["condition"])
     conditions = [
@@ -611,6 +723,15 @@ def routing_expected(ledger: dict[str, Any]) -> dict[str, Any]:
     summary = ledger.get("summary")
     if not isinstance(results, list) or not isinstance(summary, dict):
         raise ArtifactError("routing ledger must contain results and summary")
+    if not has_text(ledger.get("model")):
+        raise ArtifactError("routing ledger model must be non-empty")
+    for key in ("skill_md_sha256", "system_prompt_sha256", "cases_sha256"):
+        value = ledger.get(key)
+        if not isinstance(value, str) or not RAW_SHA256_RE.fullmatch(value):
+            raise ArtifactError(f"routing ledger {key} must be a lowercase 64-hex SHA-256")
+    repo_commit = ledger.get("repo_commit")
+    if not isinstance(repo_commit, str) or not COMMIT_RE.fullmatch(repo_commit):
+        raise ArtifactError("routing ledger repo_commit must be a pinned lowercase commit identity")
     token_keys = {
         "input_tokens": "input_tokens",
         "output_tokens": "output_tokens",
@@ -669,9 +790,9 @@ def routing_expected(ledger: dict[str, Any]) -> dict[str, Any]:
         if summary.get(key) != expected_value:
             raise ArtifactError(f"routing ledger summary {key} does not match result rows")
     prompt_version = (
-        f"skill_sha256:{ledger.get('skill_md_sha256')};"
-        f"system_prompt_sha256:{ledger.get('system_prompt_sha256')};"
-        f"cases_sha256:{ledger.get('cases_sha256')}"
+        f"skill_sha256:{ledger['skill_md_sha256']};"
+        f"system_prompt_sha256:{ledger['system_prompt_sha256']};"
+        f"cases_sha256:{ledger['cases_sha256']}"
     )
     return {
         "pass_count": passed,
@@ -681,9 +802,9 @@ def routing_expected(ledger: dict[str, Any]) -> dict[str, Any]:
         "tokens": tokens,
         "utilization": utilization,
         "sample_ids": sample_ids,
-        "model": ledger.get("model"),
+        "model": ledger["model"],
         "prompt_version": prompt_version,
-        "scorer_version": f"scripts/routing_eval.py@{ledger.get('repo_commit')}",
+        "scorer_version": f"scripts/routing_eval.py@{repo_commit}",
     }
 
 
@@ -788,11 +909,17 @@ def validate_scoreboard(scoreboard: Any) -> list[str]:
     if not valid_utc_timestamp(document.get("generated_at_utc")):
         add(errors, "scoreboard.generated_at_utc", "must be an explicit UTC timestamp ending in Z")
     sources = document.get("source_refs")
+    source_registry: dict[str, dict[str, Any]] = {}
     if not isinstance(sources, list) or not sources:
         add(errors, "scoreboard.source_refs", "must be a non-empty list")
     else:
         for index, source in enumerate(sources):
             validate_source(source, index, errors)
+            if isinstance(source, dict) and valid_id(source.get("source_id")):
+                source_id = source["source_id"]
+                if source_id in source_registry:
+                    add(errors, f"source_refs[{index}].source_id", "duplicate source id")
+                source_registry[source_id] = source
     entries_raw = document.get("entries")
     entries: dict[str, dict[str, Any]] = {}
     run_ids: set[str] = set()
@@ -801,7 +928,7 @@ def validate_scoreboard(scoreboard: Any) -> list[str]:
         add(errors, "scoreboard.entries", "must be a non-empty list")
     else:
         for index, entry in enumerate(entries_raw):
-            routing_conditions = validate_entry(entry, index, errors)
+            routing_conditions = validate_entry(entry, index, source_registry, errors)
             if isinstance(entry, dict) and valid_id(entry.get("entry_id")):
                 if entry["entry_id"] in entries:
                     add(errors, f"entries[{index}].entry_id", "duplicate entry id")
@@ -851,18 +978,21 @@ def escape_cell(value: Any) -> str:
 
 def render_markdown(scoreboard: dict[str, Any], *, include_examples: bool = False) -> str:
     entries = measured_entries(scoreboard, include_examples=include_examples)
+    sources = {source["source_id"]: source for source in scoreboard["source_refs"]}
     lines = [
         f"# Workflow impact scoreboard: {scoreboard['scoreboard_id']}",
         "",
         f"Generated: `{scoreboard['generated_at_utc']}`",
         "",
-        "| Entry | Kind | Condition | Source | Validation | Pass rate | Elapsed (s) | Cost (USD) | Tokens | Artifact |",
-        "|---|---|---|---|---|---:|---:|---:|---:|---|",
+        "| Entry | Kind | Condition | Source | Provenance | Validation | Pass rate | Elapsed (s) | Cost (USD) | Tokens | Artifact |",
+        "|---|---|---|---|---|---|---:|---:|---:|---:|---|",
     ]
     for entry in entries:
         for run in entry["runs"]:
             metrics = run["metrics"]
             rate = metrics["pass_count"] / metrics["total_count"]
+            source_ref = run["artifact"]["source_ref"]
+            provenance = f"{source_ref}: {sources[source_ref]['url']}"
             lines.append(
                 "| "
                 + " | ".join(
@@ -872,6 +1002,7 @@ def render_markdown(scoreboard: dict[str, Any], *, include_examples: bool = Fals
                         entry["task_kind"],
                         run["condition"],
                         run["source_kind"],
+                        provenance,
                         metrics["validation_result"],
                         f"{rate:.4f}",
                         metrics["elapsed_seconds"],
@@ -882,6 +1013,66 @@ def render_markdown(scoreboard: dict[str, Any], *, include_examples: bool = Fals
                 )
                 + " |"
             )
+    lines.extend(
+        [
+            "",
+            "## Run governance evidence",
+            "",
+            "| Entry | Run | Condition | Regression | Regression note | Validation evidence |",
+            "|---|---|---|---|---|---|",
+        ]
+    )
+    for entry in entries:
+        for run in entry["runs"]:
+            regression = run["regression"]
+            lines.append(
+                "| "
+                + " | ".join(
+                    escape_cell(value)
+                    for value in (
+                        entry["entry_id"],
+                        run["run_id"],
+                        run["condition"],
+                        regression["status"],
+                        regression["note"],
+                        "; ".join(run["validation_evidence"]),
+                    )
+                )
+                + " |"
+            )
+    lines.extend(
+        [
+            "",
+            "### Card telemetry",
+            "",
+            "| Entry | Run | Card | Fires | Contribution | Attributed tokens | Token unavailable reason | Evidence refs |",
+            "|---|---|---|---:|---|---:|---|---|",
+        ]
+    )
+    card_rows = 0
+    for entry in entries:
+        for run in entry["runs"]:
+            for item in run["card_telemetry"]:
+                lines.append(
+                    "| "
+                    + " | ".join(
+                        escape_cell(value)
+                        for value in (
+                            entry["entry_id"],
+                            run["run_id"],
+                            item["card_path"],
+                            item["fired_count"],
+                            item["contribution"],
+                            item["attributed_tokens"],
+                            item["token_unavailable_reason"],
+                            "; ".join(item["evidence_refs"]),
+                        )
+                    )
+                    + " |"
+                )
+                card_rows += 1
+    if not card_rows:
+        lines.append("| n/a | n/a | No card telemetry recorded | n/a | n/a | n/a | n/a | n/a |")
     lines.extend(["", "## Comparison deltas", ""])
     paired = 0
     for entry in entries:
@@ -946,6 +1137,7 @@ def schema_sync_errors() -> list[str]:
             errors.append(f"schema {name} keys drift from runtime")
     enum_checks = {
         ("source", "source_type"): {"official", "repository", "public_report"},
+        ("source", "evidence_kind"): SOURCE_EVIDENCE_KINDS,
         ("entry", "task_kind"): TASK_KINDS,
         ("entry", "comparison_mode"): COMPARISON_MODES,
         ("run", "condition"): CONDITIONS,
@@ -987,12 +1179,47 @@ def selftest(scoreboard_path: Path = DEFAULT_SCOREBOARD) -> int:
     markdown = render_markdown(scoreboard)
     check("No measured paired comparison" in markdown, "unpaired measured data never claims uplift")
     check("routing-eval-20260702.json" in markdown, "measured routing artifact is visible")
+    check(
+        "No isolated without-skill baseline was recorded" in markdown
+        and "references/cards/benchmark-delta-harness.md" in markdown
+        and "The routing ledger records aggregate tokens" in markdown,
+        "regression and card evidence survive the default review view",
+    )
+    mutation = copy.deepcopy(scoreboard)
+    governed_run = mutation["entries"][0]["runs"][1]
+    governed_run["regression"] = {
+        "status": "observed",
+        "note": "SEVERE-REGRESSION-EVIDENCE",
+    }
+    governed_run["card_telemetry"][0]["contribution"] = "harmful"
+    governed_run["card_telemetry"][0]["evidence_refs"] = ["CARD-HARM-EVIDENCE"]
+    governed_markdown = render_markdown(mutation, include_examples=True)
+    check(
+        all(
+            marker in governed_markdown
+            for marker in (
+                "observed",
+                "SEVERE-REGRESSION-EVIDENCE",
+                "harmful",
+                "CARD-HARM-EVIDENCE",
+                "references/cards/benchmark-delta-harness.md",
+            )
+        ),
+        "observed regression and harmful card evidence survive review rendering",
+    )
 
     mutation = copy.deepcopy(scoreboard)
     mutation["surprise"] = True
     check(any("unknown keys" in item for item in validate_scoreboard(mutation)), "unknown root key blocks")
+    mutation = copy.deepcopy(scoreboard)
+    mutation["source_refs"].append(copy.deepcopy(mutation["source_refs"][0]))
+    check(any("duplicate source id" in item for item in validate_scoreboard(mutation)), "source ids are unique")
+    mutation = copy.deepcopy(scoreboard)
+    mutation["entries"][0]["runs"][0]["artifact"]["source_ref"] = "missing-source"
+    check(any("declared source" in item for item in validate_scoreboard(mutation)), "artifact source references cannot dangle")
     malformed_fields = [
         (("source_refs", 0, "source_type"), {}, "source_refs[0].source_type"),
+        (("source_refs", 0, "evidence_kind"), {}, "source_refs[0].evidence_kind"),
         (("entries", 0, "task_kind"), {}, "entries[0].task_kind"),
         (("entries", 0, "comparison_mode"), {}, "entries[0].comparison_mode"),
         (("entries", 0, "runs", 0, "source_kind"), {}, "entries[0].runs[0].source_kind"),
@@ -1002,6 +1229,7 @@ def selftest(scoreboard_path: Path = DEFAULT_SCOREBOARD) -> int:
         (("entries", 0, "runs", 0, "artifact", "visibility"), {}, "entries[0].runs[0].artifact.visibility"),
         (("entries", 0, "runs", 0, "artifact", "disclosure"), {}, "entries[0].runs[0].artifact.disclosure"),
         (("entries", 0, "runs", 0, "artifact", "kind"), {}, "entries[0].runs[0].artifact.kind"),
+        (("entries", 0, "runs", 0, "artifact", "source_ref"), {}, "entries[0].runs[0].artifact.source_ref"),
         (("entries", 0, "runs", 1, "card_telemetry", 0, "contribution"), {}, "entries[0].runs[1].card_telemetry[0].contribution"),
         (("routing_eval_bindings", 0, "condition"), {}, "routing_eval_bindings[0].condition"),
         (("entries", 0, "runs", 1, "card_telemetry", 0, "card_path"), {}, "entries[0].runs[1].card_telemetry[0].card_path"),
@@ -1035,6 +1263,36 @@ def selftest(scoreboard_path: Path = DEFAULT_SCOREBOARD) -> int:
         "example artifacts cannot be relabeled as a measured pair",
     )
     mutation = copy.deepcopy(scoreboard)
+    mutation["entries"] = [mutation["entries"][0]]
+    mutation["routing_eval_bindings"] = []
+    external_entry = mutation["entries"][0]
+    external_entry["comparison_mode"] = "paired_external_baseline"
+    baseline_run, treated_run = external_entry["runs"]
+    baseline_path = "adapters/workflow-scoreboard.adapter.json"
+    treated_path = "schemas/workflow-impact-scoreboard.schema.json"
+    baseline_run["source_kind"] = "official_external"
+    baseline_run["artifact"] = {
+        "kind": "run_output",
+        "source_ref": "claude-skill-eval-guidance",
+        "path": baseline_path,
+        "visibility": "repository",
+        "disclosure": "full",
+        "sha256": sha256_file(ROOT / baseline_path),
+    }
+    treated_run["source_kind"] = "measured_local"
+    treated_run["artifact"] = {
+        "kind": "run_output",
+        "source_ref": "benchmark-validation-plan",
+        "path": treated_path,
+        "visibility": "repository",
+        "disclosure": "full",
+        "sha256": sha256_file(ROOT / treated_path),
+    }
+    check(
+        sum("must reference" in item and ".source_ref:" in item for item in validate_scoreboard(mutation)) == 2,
+        "arbitrary repository files cannot self-label as official or measured evidence",
+    )
+    mutation = copy.deepcopy(scoreboard)
     mutation["entries"][0]["runs"][0]["isolation"]["fresh_session"] = False
     check(any("require a fresh session" in item for item in validate_scoreboard(mutation)), "non-isolated pair blocks")
     mutation = copy.deepcopy(scoreboard)
@@ -1066,6 +1324,11 @@ def selftest(scoreboard_path: Path = DEFAULT_SCOREBOARD) -> int:
     mutation = copy.deepcopy(scoreboard)
     measured = mutation["entries"][2]["runs"][0]
     measured["artifact"]["path"] = "plugins/fairy-tale/docs/skill-budget/routing-eval-20260702.json"
+    next(
+        source
+        for source in mutation["source_refs"]
+        if source["source_id"] == measured["artifact"]["source_ref"]
+    )["artifact_path"] = measured["artifact"]["path"]
     measured["metrics"].update(pass_count=0, validation_result="fail", score=0, cost_usd=0)
     mutation["routing_eval_bindings"] = []
     check(
@@ -1096,6 +1359,34 @@ def selftest(scoreboard_path: Path = DEFAULT_SCOREBOARD) -> int:
     mutation["entries"][2]["comparison_contract"]["model"] = "unbound-model"
     check(any("comparison_contract.model" in item for item in validate_scoreboard(mutation)), "routing model identity drift blocks")
     routing_ledger = load_json_file(ROOT / scoreboard["routing_eval_bindings"][0]["ledger_path"])
+    for identity_key in ("skill_md_sha256", "system_prompt_sha256", "cases_sha256", "repo_commit"):
+        mutated_ledger = copy.deepcopy(routing_ledger)
+        mutated_ledger.pop(identity_key)
+        check(
+            is_routing_eval_ledger(mutated_ledger),
+            f"routing classification survives missing {identity_key}",
+        )
+        try:
+            routing_expected(mutated_ledger)
+        except ArtifactError as exc:
+            check(identity_key in str(exc), f"missing routing identity {identity_key} blocks")
+        else:
+            raise AssertionError(f"missing routing identity {identity_key} blocks")
+    for identity_key, invalid_value in (
+        ("model", " "),
+        ("skill_md_sha256", "A" * 64),
+        ("system_prompt_sha256", "short"),
+        ("cases_sha256", "sha256:" + "0" * 64),
+        ("repo_commit", "not-a-commit"),
+    ):
+        mutated_ledger = copy.deepcopy(routing_ledger)
+        mutated_ledger[identity_key] = invalid_value
+        try:
+            routing_expected(mutated_ledger)
+        except ArtifactError as exc:
+            check(identity_key in str(exc), f"malformed routing identity {identity_key} blocks")
+        else:
+            raise AssertionError(f"malformed routing identity {identity_key} blocks")
     mutated_ledger = copy.deepcopy(routing_ledger)
     mutated_ledger["summary"]["passed"] -= 1
     try:
@@ -1116,6 +1407,7 @@ def selftest(scoreboard_path: Path = DEFAULT_SCOREBOARD) -> int:
     measured = mutation["entries"][2]["runs"][0]
     measured["artifact"] = {
         "kind": "run_output",
+        "source_ref": "routing-eval-20260702-artifact",
         "path": "/Users/example/private.json",
         "visibility": "local",
         "disclosure": "redacted",

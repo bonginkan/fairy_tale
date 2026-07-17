@@ -26,6 +26,7 @@ EXTRA_FILES = [
     ROOT / "install.sh",
 ]
 PACKAGE_REFERENCE_FILES = [
+    ROOT / "adapters" / "workflow-scoreboard.adapter.json",
     ROOT / "docs" / "fairy-profile.md",
     ROOT / "docs" / "fairy-fusion-auto-trigger.md",
     ROOT / "docs" / "loop-engineering-automation.md",

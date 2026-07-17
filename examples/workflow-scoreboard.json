@@ -5,22 +5,84 @@
   "generated_at_utc": "2026-07-17T00:00:00Z",
   "source_refs": [
     {
+      "source_id": "claude-skill-eval-guidance",
       "url": "https://code.claude.com/docs/en/skills",
       "checked_at": "2026-07-17",
       "source_type": "official",
+      "evidence_kind": "context",
+      "artifact_path": null,
+      "artifact_sha256": null,
       "note": "Official skill evaluation guidance: isolate each case in a fresh session, compare with-skill and without-skill conditions, and record pass rate, duration, and tokens."
     },
     {
+      "source_id": "benchmark-validation-plan",
       "url": "https://github.com/bonginkan/fairy_tale/blob/main/docs/benchmark-validation-plan.md",
       "checked_at": "2026-07-17",
       "source_type": "repository",
+      "evidence_kind": "context",
+      "artifact_path": null,
+      "artifact_sha256": null,
       "note": "Repository comparison contract for model, prompt, scorer, budget, retries, and safety parity."
     },
     {
+      "source_id": "feedback-governance",
       "url": "https://github.com/bonginkan/fairy_tale/blob/main/docs/feedback-governance.md",
       "checked_at": "2026-07-17",
       "source_type": "repository",
+      "evidence_kind": "context",
+      "artifact_path": null,
+      "artifact_sha256": null,
       "note": "Measured outcomes and regressions govern feedback promotion and pruning."
+    },
+    {
+      "source_id": "example-benchmark-baseline-artifact",
+      "url": "https://github.com/bonginkan/fairy_tale/blob/main/examples/workflow-scoreboard/benchmark-baseline.json",
+      "checked_at": "2026-07-17",
+      "source_type": "repository",
+      "evidence_kind": "example_run",
+      "artifact_path": "examples/workflow-scoreboard/benchmark-baseline.json",
+      "artifact_sha256": "sha256:d9fff8cc261dd2ca837a6d9e145113d2a07be528830e62c08bb9b0a4e7cb9024",
+      "note": "Immutable illustrative benchmark baseline artifact."
+    },
+    {
+      "source_id": "example-benchmark-fairy-tale-artifact",
+      "url": "https://github.com/bonginkan/fairy_tale/blob/main/examples/workflow-scoreboard/benchmark-fairy-tale.json",
+      "checked_at": "2026-07-17",
+      "source_type": "repository",
+      "evidence_kind": "example_run",
+      "artifact_path": "examples/workflow-scoreboard/benchmark-fairy-tale.json",
+      "artifact_sha256": "sha256:856ed25bf0d43e4954df2b288a8aec4c48a0f74d25cd19dde0b40a061fa220bc",
+      "note": "Immutable illustrative Fairy Tale benchmark artifact."
+    },
+    {
+      "source_id": "example-normal-baseline-artifact",
+      "url": "https://github.com/bonginkan/fairy_tale/blob/main/examples/workflow-scoreboard/normal-baseline.json",
+      "checked_at": "2026-07-17",
+      "source_type": "repository",
+      "evidence_kind": "example_run",
+      "artifact_path": "examples/workflow-scoreboard/normal-baseline.json",
+      "artifact_sha256": "sha256:763334e621eb3fb3bf723a91628a4c33190eadc344f78fe45194e5ba9f9140f9",
+      "note": "Immutable illustrative normal-task baseline artifact."
+    },
+    {
+      "source_id": "example-normal-fairy-tale-artifact",
+      "url": "https://github.com/bonginkan/fairy_tale/blob/main/examples/workflow-scoreboard/normal-fairy-tale.json",
+      "checked_at": "2026-07-17",
+      "source_type": "repository",
+      "evidence_kind": "example_run",
+      "artifact_path": "examples/workflow-scoreboard/normal-fairy-tale.json",
+      "artifact_sha256": "sha256:38ea9355396897680d6187319d5114014263e209211e840c3cab44a3708ad0f4",
+      "note": "Immutable illustrative Fairy Tale normal-task artifact."
+    },
+    {
+      "source_id": "routing-eval-20260702-artifact",
+      "url": "https://github.com/bonginkan/fairy_tale/blob/main/docs/skill-budget/routing-eval-20260702.json",
+      "checked_at": "2026-07-17",
+      "source_type": "repository",
+      "evidence_kind": "measured_run",
+      "artifact_path": "docs/skill-budget/routing-eval-20260702.json",
+      "artifact_sha256": "sha256:d5696f4b89043703f62270b42335edbe563ab9ab525a541104858f03b60b6726",
+      "note": "Measured routing-evaluation ledger consumed by the scoreboard parity gate."
     }
   ],
   "entries": [
@@ -79,6 +141,7 @@
           },
           "artifact": {
             "kind": "example",
+            "source_ref": "example-benchmark-baseline-artifact",
             "path": "examples/workflow-scoreboard/benchmark-baseline.json",
             "visibility": "repository",
             "disclosure": "full",
@@ -122,6 +185,7 @@
           },
           "artifact": {
             "kind": "example",
+            "source_ref": "example-benchmark-fairy-tale-artifact",
             "path": "examples/workflow-scoreboard/benchmark-fairy-tale.json",
             "visibility": "repository",
             "disclosure": "full",
@@ -197,6 +261,7 @@
           },
           "artifact": {
             "kind": "example",
+            "source_ref": "example-normal-baseline-artifact",
             "path": "examples/workflow-scoreboard/normal-baseline.json",
             "visibility": "repository",
             "disclosure": "full",
@@ -240,6 +305,7 @@
           },
           "artifact": {
             "kind": "example",
+            "source_ref": "example-normal-fairy-tale-artifact",
             "path": "examples/workflow-scoreboard/normal-fairy-tale.json",
             "visibility": "repository",
             "disclosure": "full",
@@ -343,6 +409,7 @@
           },
           "artifact": {
             "kind": "routing_eval_ledger",
+            "source_ref": "routing-eval-20260702-artifact",
             "path": "docs/skill-budget/routing-eval-20260702.json",
             "visibility": "repository",
             "disclosure": "full",

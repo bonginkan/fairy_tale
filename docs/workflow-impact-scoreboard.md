@@ -68,11 +68,21 @@ Every run binds to an artifact path and SHA-256. Repository artifacts must use
 an exact, portable repository-relative path and must exist under that name.
 Private or local artifacts use a non-sensitive `redacted/...` locator and a
 hash; never publish an absolute host path. Missing cost, elapsed, score, budget,
-or token data requires a specific unavailability reason. Example runs are
-bound in both directions: `source_kind=example` requires artifact kind
-`example` and a matching `example: true` repository payload, while either
-example declaration prevents relabeling as measured or official evidence.
-They never enter measured aggregates by default.
+or token data requires a specific unavailability reason.
+
+Artifact provenance is an explicit registry binding, not a run label. Every
+artifact names one `source_ref`; the referenced source records an evidence kind
+and the same immutable artifact path and SHA-256. `official_external` requires
+an `official_run` source with an HTTPS official locator, `measured_local`
+requires `measured_run`, and examples require `example_run`. Context citations
+cannot be reused as run evidence. Reviewers still assess whether a declared
+official locator is authoritative; the machine gate guarantees that the run,
+locator, and immutable artifact cannot silently drift apart.
+
+Example runs are also bound in both directions: `source_kind=example` requires
+artifact kind `example` and a matching `example: true` repository payload,
+while either example declaration prevents relabeling as measured or official
+evidence. They never enter measured aggregates by default.
 
 Nested input types fail closed with field-qualified validation errors before
 enum membership, duplicate detection, arithmetic, path handling, or binding
@@ -101,10 +111,14 @@ evaluator. For each binding, validation recomputes and compares:
 - the complete per-card utilization map.
 
 Routing ledgers are identified by explicit artifact kind
-`routing_eval_ledger` and the matching JSON content contract, never by a
-filename or directory prefix. The declaration and content signature are
-checked in both directions. Every run with either identity requires exactly one
-binding, including byte-identical mirrors or renamed copies.
+`routing_eval_ledger` and stable `results` / `summary` routing structure, never
+by a filename, directory prefix, or by the presence of fields whose absence
+must fail. The declaration and content signature are checked in both
+directions. Every run with either identity requires exactly one binding,
+including byte-identical mirrors or renamed copies. The ledger must provide a
+non-empty model, lowercase 64-hex skill/system/case SHA-256 identities, a
+pinned lowercase repository commit, valid routing rows, and a matching summary
+before any aggregate is accepted.
 
 The committed sample consumes
 `docs/skill-budget/routing-eval-20260702.json`. That legacy run is measured but
@@ -119,6 +133,12 @@ but cannot establish benefit. A regression note is required for every run,
 including an explicit `unknown` when no valid comparison exists. See
 [Feedback Governance](feedback-governance.md) and the
 [Benchmark Validation Plan](benchmark-validation-plan.md).
+
+The Markdown review view shows the bound source identity and locator and
+preserves each run's regression status and note, validation evidence, and
+complete card path / fire count / contribution / token attribution / evidence
+references. A positive comparison delta is never rendered without the
+governance evidence needed to evaluate harm or prune a card.
 
 ## Sources
 
