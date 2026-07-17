@@ -509,7 +509,7 @@ def is_routing_eval_ledger(value: Any) -> bool:
         for result in results
     )
     summary_signal = bool(ROUTING_SUMMARY_MARKERS & set(summary))
-    return sum((top_level_signal, result_signal, summary_signal)) >= 2
+    return top_level_signal or (result_signal and summary_signal)
 
 
 def validate_artifact_source(
@@ -1597,6 +1597,22 @@ def selftest(scoreboard_path: Path = DEFAULT_SCOREBOARD) -> int:
                 not validate_as_run_output(generic_payload),
                 f"generic routing-like metadata variant {index} remains run_output",
             )
+        declared_routing_payload = {
+            **generic_payload_base,
+            "artifact_type": ROUTING_LEDGER_ARTIFACT_TYPE,
+        }
+        declared_routing_errors = validate_as_run_output(
+            declared_routing_payload,
+            falsify_metrics=True,
+        )
+        check(
+            any(
+                "routing ledger content must use kind" in error
+                for error in declared_routing_errors
+            )
+            and any("missing binding" in error for error in declared_routing_errors),
+            "declared routing artifact_type is a hard kind and binding signal",
+        )
         partial_routing_ledger = copy.deepcopy(routing_ledger)
         for result in partial_routing_ledger["results"]:
             result.pop("invalid_paths", None)

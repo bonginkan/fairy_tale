@@ -18,11 +18,10 @@
   independently of its required prompt/case/scorer identity fields, and those
   fields fail closed when absent or malformed without treating generic
   model/results/summary or execution-policy metadata as routing evidence.
-  Routing classification requires marker presence across two of three
-  independent semantic groups: exact content type, routing outcome/card/path
-  result fields, and routing outcome/path/utilization summary fields. Generic
-  reproducibility digests and category/classification metadata do not classify
-  an artifact. Producer field
+  An exact routing content type is a hard class signal; legacy artifacts
+  without it require both routing outcome/card/path result fields and routing
+  outcome/path/utilization summary fields. Generic reproducibility digests and
+  category/classification metadata do not classify an artifact. Producer field
   coverage is checked separately through an explicit, disjoint generic versus
   routing-specific partition, including partial routing signatures.
   Malformed nested values produce field-scoped validation errors before
