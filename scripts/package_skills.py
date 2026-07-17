@@ -26,18 +26,28 @@ EXTRA_FILES = [
     ROOT / "install.sh",
 ]
 PACKAGE_REFERENCE_FILES = [
+    ROOT / "adapters" / "workflow-scoreboard.adapter.json",
     ROOT / "docs" / "fairy-profile.md",
     ROOT / "docs" / "fairy-fusion-auto-trigger.md",
     ROOT / "docs" / "loop-engineering-automation.md",
     ROOT / "docs" / "task-artifacts.md",
+    ROOT / "docs" / "workflow-impact-scoreboard.md",
+    ROOT / "docs" / "skill-budget" / "routing-eval-20260702.json",
+    ROOT / "examples" / "workflow-scoreboard.json",
+    ROOT / "examples" / "workflow-scoreboard" / "benchmark-baseline.json",
+    ROOT / "examples" / "workflow-scoreboard" / "benchmark-fairy-tale.json",
+    ROOT / "examples" / "workflow-scoreboard" / "normal-baseline.json",
+    ROOT / "examples" / "workflow-scoreboard" / "normal-fairy-tale.json",
     ROOT / "schemas" / "fairy-profile.schema.json",
     ROOT / "schemas" / "fairy-fusion-auto-check-input.schema.json",
     ROOT / "schemas" / "fairy-fusion-trigger-decision.schema.json",
     ROOT / "schemas" / "repo-profile-snapshot.schema.json",
     ROOT / "schemas" / "task-card.schema.json",
     ROOT / "schemas" / "validation-ledger.schema.json",
+    ROOT / "schemas" / "workflow-impact-scoreboard.schema.json",
     ROOT / "scripts" / "task_artifacts.py",
     ROOT / "scripts" / "fairy_fusion_review.py",
+    ROOT / "scripts" / "workflow_scoreboard.py",
 ]
 
 

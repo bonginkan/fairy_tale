@@ -1,0 +1,76 @@
+{
+  "schema_version": "1.0",
+  "id": "workflow-scoreboard",
+  "name": "Workflow Impact Scoreboard Adapter",
+  "kind": "evaluation-harness",
+  "source": {
+    "upstream": "https://github.com/bonginkan/fairy_tale",
+    "license": "Apache-2.0",
+    "notes": "Strict, evidence-bound comparison records for benchmark and ordinary workflow impact."
+  },
+  "capabilities": [
+    "with-skill versus without-skill comparison records",
+    "cost, elapsed-time, token, validation, and regression evidence",
+    "per-card utilization and outcome telemetry",
+    "routing-evaluation ledger parity",
+    "derived Markdown summaries"
+  ],
+  "entrypoints": {
+    "import": "scripts/workflow_scoreboard.py",
+    "construct": "examples/workflow-scoreboard.json",
+    "run": "python3 scripts/workflow_scoreboard.py validate --scoreboard examples/workflow-scoreboard.json",
+    "optional": [
+      "python3 scripts/workflow_scoreboard.py summarize --scoreboard examples/workflow-scoreboard.json --output scoreboard.md"
+    ]
+  },
+  "contracts": {
+    "inputs": [
+      "strict workflow-impact scoreboard JSON",
+      "paired or explicitly unpaired run records",
+      "immutable artifact locators and SHA-256 identities",
+      "optional routing-evaluation ledger bindings"
+    ],
+    "outputs": [
+      "reasoned validation result",
+      "measured-run Markdown table",
+      "paired pass-rate, elapsed, cost, and token deltas"
+    ],
+    "evidence": [
+      "comparison contract",
+      "validation counts and score",
+      "cost, duration, and token totals",
+      "regression note",
+      "per-card utilization and contribution",
+      "artifact path and SHA-256"
+    ]
+  },
+  "safety": {
+    "boundaries": [
+      "Examples are excluded from measured aggregates by default.",
+      "Unpaired runs never claim uplift.",
+      "Private or local artifact paths are redacted and never expose host paths.",
+      "A fired card is not assumed to have helped."
+    ],
+    "forbidden_claims": [
+      "An example entry is measured evidence.",
+      "An unpaired run proves Fairy Tale uplift.",
+      "Card utilization alone proves contribution.",
+      "Missing cost, elapsed, or token values may be silently estimated."
+    ]
+  },
+  "validation": {
+    "checks": [
+      "schema and runtime key sets stay synchronized",
+      "sample benchmark and normal-task pairs validate",
+      "routing ledger aggregates and card utilization match exactly",
+      "example rows stay outside measured aggregates",
+      "input/output path aliases fail before writing"
+    ],
+    "minimum_artifacts": [
+      "scoreboard schema",
+      "validator and self-controls",
+      "sample scoreboard",
+      "workflow impact documentation"
+    ]
+  }
+}

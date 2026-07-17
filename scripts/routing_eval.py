@@ -480,6 +480,7 @@ def run_eval(args: argparse.Namespace) -> int:
         results.sort(key=lambda r: [c["id"] for c in cases].index(r["id"]))
         ledger = {
             "schema_version": 1,
+            "artifact_type": "routing_eval_ledger",
             "issue": "#59 routing-precision eval (parity evidence for #57)",
             "generated_at_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(
                 timespec="seconds"

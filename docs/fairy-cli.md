@@ -43,6 +43,16 @@ The automatic check records a bounded decision and never launches reviewers or
 calls a provider. See
 [Fairy Fusion automatic trigger decisions](fairy-fusion-auto-trigger.md).
 
+Workflow impact scoreboard operations also delegate to their canonical
+validator. JSON remains the source of truth; Markdown is a derived view:
+
+```bash
+./fairy scoreboard validate --scoreboard examples/workflow-scoreboard.json
+./fairy scoreboard summarize --scoreboard examples/workflow-scoreboard.json
+```
+
+See [Workflow Impact Scoreboard](workflow-impact-scoreboard.md).
+
 The CLI resolves repository tooling relative to its own executable, so
 `validate` does not depend on the caller's current directory. `doctor` preserves
 the caller directory only as the starting point for repository profile

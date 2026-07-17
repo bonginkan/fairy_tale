@@ -39,6 +39,14 @@ Minimum fields:
 - `evidence`
 - `metrics` or a reason why measurement is pending
 
+Record cross-task impact in the canonical
+[Workflow Impact Scoreboard](../../../docs/workflow-impact-scoreboard.md).
+Paired entries must keep model, prompt, scorer, sample, budget, retry, and
+safety conditions comparable; unpaired or example entries cannot establish
+uplift. Per-card utilization, contribution, token cost, regressions, and
+artifact identity feed promotion and pruning decisions without treating a
+fired card as proof that it helped.
+
 ## Step-Level Skill Adaptation Route
 
 Do not update the default skill from a whole failed trajectory or a vague

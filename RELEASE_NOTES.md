@@ -1,5 +1,38 @@
 # Release Notes
 
+## 0.2.30
+
+- **Measured workflow impact scoreboard** (#13): adds a strict JSON scoreboard
+  for benchmark and normal-task runs, with isolated baseline / Fairy Tale
+  comparison contracts, pass counts and scores, elapsed time, cost, complete
+  token totals, regression notes, immutable artifact identity, and per-card
+  utilization / contribution telemetry. Example runs are excluded from
+  measured aggregates by default, with bidirectional source-label / artifact
+  marker validation preventing illustrative artifacts from being relabeled as
+  measured evidence; unpaired runs cannot claim uplift; private paths are
+  redacted. The committed sample consumes the routing-evaluation
+  ledger by SHA-256 and recomputes its pass rate, cost, tokens, and complete
+  card utilization map. Every run artifact binds to a typed source-registry
+  record with the same path and SHA-256; official, measured, example, and
+  context evidence cannot be interchanged. Routing structure is recognized
+  independently of its required prompt/case/scorer identity fields, and those
+  fields fail closed when absent or malformed without treating generic
+  model/results/summary or execution-policy metadata as routing evidence.
+  An exact routing content type is a shape-independent hard class signal;
+  legacy artifacts without it require both routing outcome/card/path result
+  fields and routing outcome/path/utilization summary fields. Generic
+  reproducibility digests and category/classification metadata do not classify
+  an artifact. Producer field
+  coverage is checked separately through an explicit, disjoint generic versus
+  routing-specific partition, including partial routing signatures.
+  Malformed nested values produce field-scoped validation errors before
+  derived operations. The derived
+  Markdown review view preserves regression and complete card outcome/token
+  evidence alongside deltas. `fairy scoreboard` thin dispatch, strict
+  schema/runtime parity controls, feedback-governance link, adapter, package
+  references, and plugin mirrors are included. Runtime package version is
+  0.2.30.
+
 ## 0.2.29
 
 - **Bounded Fairy Fusion automatic trigger decisions** (#12): adds
