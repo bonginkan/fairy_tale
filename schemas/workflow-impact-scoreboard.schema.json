@@ -263,8 +263,9 @@
     "artifact": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["path", "visibility", "disclosure", "sha256"],
+      "required": ["kind", "path", "visibility", "disclosure", "sha256"],
       "properties": {
+        "kind": {"enum": ["run_output", "example", "routing_eval_ledger"]},
         "path": {"$ref": "#/$defs/repo_path"},
         "visibility": {"enum": ["repository", "private", "local"]},
         "disclosure": {"enum": ["full", "redacted"]},

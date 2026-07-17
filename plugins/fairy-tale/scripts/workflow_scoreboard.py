@@ -116,7 +116,7 @@ TOKEN_KEYS = {
     "total_tokens",
 }
 REGRESSION_KEYS = {"status", "note"}
-ARTIFACT_KEYS = {"path", "visibility", "disclosure", "sha256"}
+ARTIFACT_KEYS = {"kind", "path", "visibility", "disclosure", "sha256"}
 TELEMETRY_KEYS = {
     "card_path",
     "fired_count",
@@ -126,6 +126,15 @@ TELEMETRY_KEYS = {
     "evidence_refs",
 }
 BINDING_KEYS = {"entry_id", "condition", "ledger_path", "ledger_sha256"}
+ROUTING_LEDGER_IDENTITY_KEYS = {
+    "results",
+    "summary",
+    "model",
+    "skill_md_sha256",
+    "system_prompt_sha256",
+    "cases_sha256",
+    "repo_commit",
+}
 
 COMPARISON_MODES = {"paired_local", "paired_external_baseline", "unpaired"}
 TASK_KINDS = {"benchmark", "normal"}
@@ -133,10 +142,15 @@ SOURCE_KINDS = {"measured_local", "official_external", "example"}
 CONDITIONS = {"baseline", "fairy_tale"}
 VALIDATION_RESULTS = {"pass", "fail"}
 CONTRIBUTIONS = {"helpful", "neutral", "harmful", "unknown"}
+ARTIFACT_KINDS = {"run_output", "example", "routing_eval_ledger"}
 
 
 def finite_number(value: Any) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
+
+def enum_member(value: Any, allowed: set[str]) -> bool:
+    return isinstance(value, str) and value in allowed
 
 
 def valid_date(value: Any) -> bool:
@@ -204,7 +218,7 @@ def validate_source(value: Any, index: int, errors: list[str]) -> None:
         add(errors, f"{path}.url", "must be an HTTPS URL")
     if not valid_date(source.get("checked_at")):
         add(errors, f"{path}.checked_at", "must be an ISO calendar date")
-    if source.get("source_type") not in {"official", "repository", "public_report"}:
+    if not enum_member(source.get("source_type"), {"official", "repository", "public_report"}):
         add(errors, f"{path}.source_type", "must be official, repository, or public_report")
     if not has_text(source.get("note")):
         add(errors, f"{path}.note", "must be non-empty")
@@ -218,7 +232,12 @@ def validate_contract(value: Any, path: str, errors: list[str]) -> None:
         if not has_text(contract.get(key)):
             add(errors, f"{path}.{key}", "must be non-empty")
     text_list(contract.get("sample_ids"), path=f"{path}.sample_ids", errors=errors)
-    if isinstance(contract.get("sample_ids"), list) and len(contract["sample_ids"]) != len(set(contract["sample_ids"])):
+    sample_ids = contract.get("sample_ids")
+    if (
+        isinstance(sample_ids, list)
+        and all(has_text(item) for item in sample_ids)
+        and len(sample_ids) != len(set(sample_ids))
+    ):
         add(errors, f"{path}.sample_ids", "must be unique")
     budget_values = [contract.get(key) for key in ("max_output_tokens", "wall_clock_budget_seconds", "tool_budget")]
     for key, value_item in zip(("max_output_tokens", "wall_clock_budget_seconds", "tool_budget"), budget_values):
@@ -269,7 +288,7 @@ def validate_metrics(value: Any, path: str, errors: list[str]) -> None:
     if not isinstance(passes, int) or isinstance(passes, bool) or passes < 0 or (isinstance(total, int) and passes > total):
         add(errors, f"{path}.pass_count", "must be an integer between zero and total_count")
     expected_result = "pass" if isinstance(passes, int) and passes == total else "fail"
-    if metrics.get("validation_result") not in VALIDATION_RESULTS:
+    if not enum_member(metrics.get("validation_result"), VALIDATION_RESULTS):
         add(errors, f"{path}.validation_result", "must be pass or fail")
     elif metrics["validation_result"] != expected_result:
         add(errors, f"{path}.validation_result", f"must be {expected_result} for the recorded counts")
@@ -318,9 +337,11 @@ def validate_artifact(value: Any, path: str, errors: list[str]) -> Path | None:
         return None
     visibility = artifact.get("visibility")
     disclosure = artifact.get("disclosure")
-    if visibility not in {"repository", "private", "local"}:
+    if not enum_member(artifact.get("kind"), ARTIFACT_KINDS):
+        add(errors, f"{path}.kind", "must be run_output, example, or routing_eval_ledger")
+    if not enum_member(visibility, {"repository", "private", "local"}):
         add(errors, f"{path}.visibility", "must be repository, private, or local")
-    if disclosure not in {"full", "redacted"}:
+    if not enum_member(disclosure, {"full", "redacted"}):
         add(errors, f"{path}.disclosure", "must be full or redacted")
     digest = artifact.get("sha256")
     if not isinstance(digest, str) or not SHA_RE.fullmatch(digest):
@@ -334,7 +355,7 @@ def validate_artifact(value: Any, path: str, errors: list[str]) -> Path | None:
             if digest != actual:
                 add(errors, f"{path}.sha256", f"does not match {artifact.get('path')}: {actual}")
         return resolved
-    elif visibility in {"private", "local"}:
+    elif enum_member(visibility, {"private", "local"}):
         if disclosure != "redacted":
             add(errors, f"{path}.disclosure", "private/local artifacts must be redacted")
         stored_path = artifact.get("path")
@@ -360,13 +381,14 @@ def validate_telemetry(value: Any, path: str, condition: Any, errors: list[str])
             add(errors, f"{item_path}.card_path", "must be relative to skills/fairy-tale and under references/cards")
         elif not (ROOT / "skills" / "fairy-tale" / card_path).is_file():
             add(errors, f"{item_path}.card_path", "does not exist in the canonical skill")
-        if card_path in seen:
-            add(errors, f"{item_path}.card_path", "duplicate card telemetry")
-        seen.add(card_path)
+        if isinstance(card_path, str):
+            if card_path in seen:
+                add(errors, f"{item_path}.card_path", "duplicate card telemetry")
+            seen.add(card_path)
         count = item.get("fired_count")
         if not isinstance(count, int) or isinstance(count, bool) or count < 1:
             add(errors, f"{item_path}.fired_count", "must be a positive integer")
-        if item.get("contribution") not in CONTRIBUTIONS:
+        if not enum_member(item.get("contribution"), CONTRIBUTIONS):
             add(errors, f"{item_path}.contribution", "must be helpful, neutral, harmful, or unknown")
         tokens = item.get("attributed_tokens")
         reason = item.get("token_unavailable_reason")
@@ -380,32 +402,46 @@ def validate_telemetry(value: Any, path: str, condition: Any, errors: list[str])
         text_list(item.get("evidence_refs"), path=f"{item_path}.evidence_refs", errors=errors)
 
 
-def validate_run(value: Any, path: str, task_kind: Any, errors: list[str]) -> None:
+def is_routing_eval_ledger(value: Any) -> bool:
+    return (
+        isinstance(value, dict)
+        and ROUTING_LEDGER_IDENTITY_KEYS <= set(value)
+        and isinstance(value.get("results"), list)
+        and isinstance(value.get("summary"), dict)
+    )
+
+
+def validate_run(value: Any, path: str, task_kind: Any, errors: list[str]) -> bool:
     run = object_shape(value, path=path, keys=RUN_KEYS, errors=errors)
     if run is None:
-        return
+        return False
     if not valid_id(run.get("run_id")):
         add(errors, f"{path}.run_id", "must be a portable identifier")
     condition = run.get("condition")
-    if condition not in CONDITIONS:
+    condition_valid = enum_member(condition, CONDITIONS)
+    if not condition_valid:
         add(errors, f"{path}.condition", "must be baseline or fairy_tale")
-    if run.get("source_kind") not in SOURCE_KINDS:
+    source_kind = run.get("source_kind")
+    source_kind_valid = enum_member(source_kind, SOURCE_KINDS)
+    if not source_kind_valid:
         add(errors, f"{path}.source_kind", "must be measured_local, official_external, or example")
     isolation = object_shape(run.get("isolation"), path=f"{path}.isolation", keys=ISOLATION_KEYS, errors=errors)
     if isolation is not None:
         if not isinstance(isolation.get("fresh_session"), bool):
             add(errors, f"{path}.isolation.fresh_session", "must be boolean")
         expected_state = "disabled" if condition == "baseline" else "enabled"
-        if isolation.get("skill_state") not in {"disabled", "enabled", "external", "not_applicable"}:
+        skill_state = isolation.get("skill_state")
+        skill_state_valid = enum_member(skill_state, {"disabled", "enabled", "external", "not_applicable"})
+        if not skill_state_valid:
             add(errors, f"{path}.isolation.skill_state", "invalid skill state")
-        elif run.get("source_kind") != "official_external" and isolation["skill_state"] != expected_state:
+        elif condition_valid and source_kind_valid and source_kind != "official_external" and skill_state != expected_state:
             add(errors, f"{path}.isolation.skill_state", f"must be {expected_state} for this condition")
         if not has_text(isolation.get("note")):
             add(errors, f"{path}.isolation.note", "must be non-empty")
     validate_metrics(run.get("metrics"), f"{path}.metrics", errors)
     regression = object_shape(run.get("regression"), path=f"{path}.regression", keys=REGRESSION_KEYS, errors=errors)
     if regression is not None:
-        if regression.get("status") not in {"none", "observed", "unknown"}:
+        if not enum_member(regression.get("status"), {"none", "observed", "unknown"}):
             add(errors, f"{path}.regression.status", "must be none, observed, or unknown")
         if not has_text(regression.get("note")):
             add(errors, f"{path}.regression.note", "must be non-empty")
@@ -418,13 +454,24 @@ def validate_run(value: Any, path: str, task_kind: Any, errors: list[str]) -> No
         attributed = [
             item.get("attributed_tokens")
             for item in telemetry
-            if isinstance(item, dict) and item.get("attributed_tokens") is not None
+            if (
+                isinstance(item, dict)
+                and isinstance(item.get("attributed_tokens"), int)
+                and not isinstance(item.get("attributed_tokens"), bool)
+                and item.get("attributed_tokens") >= 0
+            )
         ]
         total_tokens = metrics.get("tokens", {}).get("total_tokens") if isinstance(metrics.get("tokens"), dict) else None
-        if attributed and total_tokens is not None and sum(attributed) > total_tokens:
+        if (
+            attributed
+            and isinstance(total_tokens, int)
+            and not isinstance(total_tokens, bool)
+            and total_tokens >= 0
+            and sum(attributed) > total_tokens
+        ):
             add(errors, f"{path}.card_telemetry", "attributed tokens cannot exceed total run tokens")
-    source_kind = run.get("source_kind")
     artifact = run.get("artifact") if isinstance(run.get("artifact"), dict) else {}
+    artifact_kind = artifact.get("kind")
     artifact_payload: Any = None
     if artifact.get("visibility") == "repository" and resolved_artifact is not None:
         try:
@@ -432,7 +479,17 @@ def validate_run(value: Any, path: str, task_kind: Any, errors: list[str]) -> No
         except ArtifactError as exc:
             if source_kind == "example":
                 add(errors, f"{path}.artifact", str(exc))
+    routing_ledger = is_routing_eval_ledger(artifact_payload)
+    if artifact_kind == "routing_eval_ledger":
+        if artifact.get("visibility") != "repository" or resolved_artifact is None:
+            add(errors, f"{path}.artifact.kind", "routing_eval_ledger requires a repository artifact")
+        elif not routing_ledger:
+            add(errors, f"{path}.artifact.kind", "routing_eval_ledger content contract is missing")
+    elif routing_ledger:
+        add(errors, f"{path}.artifact.kind", "routing ledger content must use kind routing_eval_ledger")
     if source_kind == "example":
+        if artifact_kind != "example":
+            add(errors, f"{path}.artifact.kind", "example runs require artifact kind example")
         if artifact.get("visibility") != "repository" or resolved_artifact is None:
             add(errors, f"{path}.artifact", "example runs require a repository artifact")
         elif artifact_payload is not None:
@@ -446,27 +503,31 @@ def validate_run(value: Any, path: str, task_kind: Any, errors: list[str]) -> No
             ):
                 add(errors, f"{path}.artifact", "example marker, condition, and task kind must match the run")
     elif (
-        source_kind in SOURCE_KINDS
-        and isinstance(artifact_payload, dict)
-        and artifact_payload.get("example") is True
+        enum_member(source_kind, SOURCE_KINDS)
+        and (
+            artifact_kind == "example"
+            or (isinstance(artifact_payload, dict) and artifact_payload.get("example") is True)
+        )
     ):
-        add(errors, f"{path}.source_kind", "repository artifacts marked example:true must use source_kind example")
+        add(errors, f"{path}.source_kind", "artifacts declared or marked as examples must use source_kind example")
+    return artifact_kind == "routing_eval_ledger" or routing_ledger
 
 
-def validate_entry(value: Any, index: int, errors: list[str]) -> None:
+def validate_entry(value: Any, index: int, errors: list[str]) -> list[str]:
     path = f"entries[{index}]"
     entry = object_shape(value, path=path, keys=ENTRY_KEYS, errors=errors)
     if entry is None:
-        return
+        return []
     for key in ("entry_id", "task_id"):
         if not valid_id(entry.get(key)):
             add(errors, f"{path}.{key}", "must be a portable identifier")
-    if entry.get("task_kind") not in TASK_KINDS:
+    if not enum_member(entry.get("task_kind"), TASK_KINDS):
         add(errors, f"{path}.task_kind", "must be benchmark or normal")
     if not has_text(entry.get("task_family")):
         add(errors, f"{path}.task_family", "must be non-empty")
     mode = entry.get("comparison_mode")
-    if mode not in COMPARISON_MODES:
+    mode_valid = enum_member(mode, COMPARISON_MODES)
+    if not mode_valid:
         add(errors, f"{path}.comparison_mode", "invalid comparison mode")
     if not has_text(entry.get("comparison_note")):
         add(errors, f"{path}.comparison_note", "must be non-empty")
@@ -474,20 +535,31 @@ def validate_entry(value: Any, index: int, errors: list[str]) -> None:
     runs = entry.get("runs")
     if not isinstance(runs, list) or not runs:
         add(errors, f"{path}.runs", "must be a non-empty list")
-        return
+        return []
+    routing_conditions: list[str] = []
     for run_index, run in enumerate(runs):
-        validate_run(run, f"{path}.runs[{run_index}]", entry.get("task_kind"), errors)
-    conditions = [run.get("condition") for run in runs if isinstance(run, dict)]
+        routing_ledger = validate_run(run, f"{path}.runs[{run_index}]", entry.get("task_kind"), errors)
+        if routing_ledger and isinstance(run, dict) and enum_member(run.get("condition"), CONDITIONS):
+            routing_conditions.append(run["condition"])
+    conditions = [
+        run.get("condition")
+        for run in runs
+        if isinstance(run, dict) and enum_member(run.get("condition"), CONDITIONS)
+    ]
     if len(conditions) != len(set(conditions)):
         add(errors, f"{path}.runs", "conditions must be unique")
     if mode == "unpaired" and len(runs) != 1:
         add(errors, f"{path}.runs", "unpaired entries require exactly one run")
-    if mode in {"paired_local", "paired_external_baseline"} and set(conditions) != CONDITIONS:
+    if enum_member(mode, {"paired_local", "paired_external_baseline"}) and set(conditions) != CONDITIONS:
         add(errors, f"{path}.runs", "paired entries require one baseline and one fairy_tale run")
     if mode == "paired_local" and any(run.get("source_kind") == "official_external" for run in runs if isinstance(run, dict)):
         add(errors, f"{path}.runs", "paired_local cannot use an official external run")
     if mode == "paired_local":
-        source_kinds = {run.get("source_kind") for run in runs if isinstance(run, dict)}
+        source_kinds = {
+            run.get("source_kind")
+            for run in runs
+            if isinstance(run, dict) and enum_member(run.get("source_kind"), SOURCE_KINDS)
+        }
         if source_kinds not in ({"measured_local"}, {"example"}):
             add(errors, f"{path}.runs", "paired_local runs must both be measured_local or both be examples")
     if mode == "paired_external_baseline":
@@ -497,7 +569,7 @@ def validate_entry(value: Any, index: int, errors: list[str]) -> None:
             add(errors, f"{path}.runs", "paired_external_baseline requires an official external baseline")
         if fairy.get("source_kind") != "measured_local":
             add(errors, f"{path}.runs", "paired_external_baseline requires a measured_local Fairy Tale run")
-    if mode in {"paired_local", "paired_external_baseline"}:
+    if enum_member(mode, {"paired_local", "paired_external_baseline"}):
         artifact_paths = [
             run.get("artifact", {}).get("path")
             for run in runs
@@ -531,6 +603,7 @@ def validate_entry(value: Any, index: int, errors: list[str]) -> None:
                     or tokens.get("total_tokens") is None
                 ):
                     add(errors, f"{path}.runs[{run_index}].metrics", "measured paired runs require elapsed, cost, and token totals")
+    return routing_conditions
 
 
 def routing_expected(ledger: dict[str, Any]) -> dict[str, Any]:
@@ -624,8 +697,14 @@ def validate_routing_binding(
     binding = object_shape(value, path=path, keys=BINDING_KEYS, errors=errors)
     if binding is None:
         return
-    if binding.get("condition") not in CONDITIONS:
+    condition = binding.get("condition")
+    condition_valid = enum_member(condition, CONDITIONS)
+    if not condition_valid:
         add(errors, f"{path}.condition", "must be baseline or fairy_tale")
+    entry_id = binding.get("entry_id")
+    entry_id_valid = valid_id(entry_id)
+    if not entry_id_valid:
+        add(errors, f"{path}.entry_id", "must be a portable identifier")
     digest = binding.get("ledger_sha256")
     if not isinstance(digest, str) or not SHA_RE.fullmatch(digest):
         add(errors, f"{path}.ledger_sha256", "must be a lowercase sha256 digest")
@@ -633,7 +712,9 @@ def validate_routing_binding(
     if not repo_relative_path(ledger_path):
         add(errors, f"{path}.ledger_path", "must be a portable repository-relative path")
         return
-    entry = entries.get(binding.get("entry_id"))
+    if not entry_id_valid or not condition_valid:
+        return
+    entry = entries.get(entry_id)
     if entry is None:
         add(errors, f"{path}.entry_id", "must reference an existing entry")
         return
@@ -641,7 +722,7 @@ def validate_routing_binding(
         (
             item
             for item in entry.get("runs", [])
-            if isinstance(item, dict) and item.get("condition") == binding.get("condition")
+            if isinstance(item, dict) and item.get("condition") == condition
         ),
         None,
     )
@@ -678,7 +759,12 @@ def validate_routing_binding(
     observed = {
         item.get("card_path"): item.get("fired_count")
         for item in telemetry
-        if isinstance(item, dict)
+        if (
+            isinstance(item, dict)
+            and isinstance(item.get("card_path"), str)
+            and isinstance(item.get("fired_count"), int)
+            and not isinstance(item.get("fired_count"), bool)
+        )
     }
     if observed != expected["utilization"]:
         add(errors, f"{path}.card_telemetry", "must exactly match routing ledger utilization")
@@ -710,15 +796,17 @@ def validate_scoreboard(scoreboard: Any) -> list[str]:
     entries_raw = document.get("entries")
     entries: dict[str, dict[str, Any]] = {}
     run_ids: set[str] = set()
+    routing_runs: set[tuple[str, str]] = set()
     if not isinstance(entries_raw, list) or not entries_raw:
         add(errors, "scoreboard.entries", "must be a non-empty list")
     else:
         for index, entry in enumerate(entries_raw):
-            validate_entry(entry, index, errors)
+            routing_conditions = validate_entry(entry, index, errors)
             if isinstance(entry, dict) and valid_id(entry.get("entry_id")):
                 if entry["entry_id"] in entries:
                     add(errors, f"entries[{index}].entry_id", "duplicate entry id")
                 entries[entry["entry_id"]] = entry
+                routing_runs.update((entry["entry_id"], condition) for condition in routing_conditions)
             if isinstance(entry, dict) and isinstance(entry.get("runs"), list):
                 for run_index, run in enumerate(entry["runs"]):
                     if not isinstance(run, dict) or not valid_id(run.get("run_id")):
@@ -734,22 +822,16 @@ def validate_scoreboard(scoreboard: Any) -> list[str]:
         for index, binding in enumerate(bindings):
             validate_routing_binding(binding, index, entries, errors)
             if isinstance(binding, dict):
-                identity = (binding.get("entry_id"), binding.get("condition"))
-                if identity in seen_bindings:
-                    add(errors, f"routing_eval_bindings[{index}]", "duplicate binding")
-                seen_bindings.add(identity)
-        for entry in entries.values():
-            for run in entry.get("runs", []):
-                if not isinstance(run, dict) or not isinstance(run.get("artifact"), dict):
-                    continue
-                artifact_path = run["artifact"].get("path")
-                identity = (entry.get("entry_id"), run.get("condition"))
-                if (
-                    isinstance(artifact_path, str)
-                    and artifact_path.startswith("docs/skill-budget/routing-eval-")
-                    and identity not in seen_bindings
-                ):
-                    add(errors, "scoreboard.routing_eval_bindings", f"missing binding for {identity[0]}:{identity[1]}")
+                entry_id = binding.get("entry_id")
+                condition = binding.get("condition")
+                if valid_id(entry_id) and enum_member(condition, CONDITIONS):
+                    identity = (entry_id, condition)
+                    if identity in seen_bindings:
+                        add(errors, f"routing_eval_bindings[{index}]", "duplicate binding")
+                    seen_bindings.add(identity)
+        for identity in sorted(routing_runs):
+            if identity not in seen_bindings:
+                add(errors, "scoreboard.routing_eval_bindings", f"missing binding for {identity[0]}:{identity[1]}")
     return errors
 
 
@@ -873,6 +955,7 @@ def schema_sync_errors() -> list[str]:
         ("regression", "status"): {"none", "observed", "unknown"},
         ("artifact", "visibility"): {"repository", "private", "local"},
         ("artifact", "disclosure"): {"full", "redacted"},
+        ("artifact", "kind"): ARTIFACT_KINDS,
         ("card_telemetry", "contribution"): CONTRIBUTIONS,
     }
     for (definition_name, property_name), values in enum_checks.items():
@@ -908,6 +991,36 @@ def selftest(scoreboard_path: Path = DEFAULT_SCOREBOARD) -> int:
     mutation = copy.deepcopy(scoreboard)
     mutation["surprise"] = True
     check(any("unknown keys" in item for item in validate_scoreboard(mutation)), "unknown root key blocks")
+    malformed_fields = [
+        (("source_refs", 0, "source_type"), {}, "source_refs[0].source_type"),
+        (("entries", 0, "task_kind"), {}, "entries[0].task_kind"),
+        (("entries", 0, "comparison_mode"), {}, "entries[0].comparison_mode"),
+        (("entries", 0, "runs", 0, "source_kind"), {}, "entries[0].runs[0].source_kind"),
+        (("entries", 0, "runs", 0, "isolation", "skill_state"), {}, "entries[0].runs[0].isolation.skill_state"),
+        (("entries", 0, "runs", 0, "metrics", "validation_result"), {}, "entries[0].runs[0].metrics.validation_result"),
+        (("entries", 0, "runs", 0, "regression", "status"), {}, "entries[0].runs[0].regression.status"),
+        (("entries", 0, "runs", 0, "artifact", "visibility"), {}, "entries[0].runs[0].artifact.visibility"),
+        (("entries", 0, "runs", 0, "artifact", "disclosure"), {}, "entries[0].runs[0].artifact.disclosure"),
+        (("entries", 0, "runs", 0, "artifact", "kind"), {}, "entries[0].runs[0].artifact.kind"),
+        (("entries", 0, "runs", 1, "card_telemetry", 0, "contribution"), {}, "entries[0].runs[1].card_telemetry[0].contribution"),
+        (("routing_eval_bindings", 0, "condition"), {}, "routing_eval_bindings[0].condition"),
+        (("entries", 0, "runs", 1, "card_telemetry", 0, "card_path"), {}, "entries[0].runs[1].card_telemetry[0].card_path"),
+        (("entries", 0, "runs", 0, "metrics", "tokens", "total_tokens"), {}, "entries[0].runs[0].metrics.tokens"),
+        (("entries", 0, "comparison_contract", "sample_ids", 0), {}, "entries[0].comparison_contract.sample_ids"),
+        (("entries", 0, "runs", 0, "condition"), {}, "entries[0].runs[0].condition"),
+        (("entries", 0, "runs", 1, "card_telemetry", 0, "attributed_tokens"), "oops", "entries[0].runs[1].card_telemetry[0].attributed_tokens"),
+        (("routing_eval_bindings", 0, "entry_id"), {}, "routing_eval_bindings[0].entry_id"),
+    ]
+    for locator, invalid_value, expected_path in malformed_fields:
+        mutation = copy.deepcopy(scoreboard)
+        target: Any = mutation
+        for segment in locator[:-1]:
+            target = target[segment]
+        target[locator[-1]] = copy.deepcopy(invalid_value)
+        check(
+            any(item.startswith(expected_path + ":") for item in validate_scoreboard(mutation)),
+            f"malformed nested value is reasoned at {expected_path}",
+        )
     mutation = copy.deepcopy(scoreboard)
     mutation["entries"][0]["runs"] = mutation["entries"][0]["runs"][:1]
     check(any("paired entries require" in item for item in validate_scoreboard(mutation)), "incomplete pair blocks")
@@ -918,7 +1031,7 @@ def selftest(scoreboard_path: Path = DEFAULT_SCOREBOARD) -> int:
     for run in mutation["entries"][0]["runs"]:
         run["source_kind"] = "measured_local"
     check(
-        any("marked example:true" in item for item in validate_scoreboard(mutation)),
+        any("must use source_kind example" in item for item in validate_scoreboard(mutation)),
         "example artifacts cannot be relabeled as a measured pair",
     )
     mutation = copy.deepcopy(scoreboard)
@@ -944,6 +1057,37 @@ def selftest(scoreboard_path: Path = DEFAULT_SCOREBOARD) -> int:
     mutation = copy.deepcopy(scoreboard)
     mutation["routing_eval_bindings"] = []
     check(any("missing binding" in item for item in validate_scoreboard(mutation)), "routing ledger cannot bypass binding")
+    mutation = copy.deepcopy(scoreboard)
+    mutation["routing_eval_bindings"].append(copy.deepcopy(mutation["routing_eval_bindings"][0]))
+    check(
+        any("duplicate binding" in item for item in validate_scoreboard(mutation)),
+        "routing ledger runs require exactly one binding",
+    )
+    mutation = copy.deepcopy(scoreboard)
+    measured = mutation["entries"][2]["runs"][0]
+    measured["artifact"]["path"] = "plugins/fairy-tale/docs/skill-budget/routing-eval-20260702.json"
+    measured["metrics"].update(pass_count=0, validation_result="fail", score=0, cost_usd=0)
+    mutation["routing_eval_bindings"] = []
+    check(
+        any("missing binding" in item for item in validate_scoreboard(mutation)),
+        "routing ledger binding follows content across mirror paths",
+    )
+    mutation = copy.deepcopy(scoreboard)
+    measured = mutation["entries"][2]["runs"][0]
+    measured["artifact"]["kind"] = "run_output"
+    mutation["routing_eval_bindings"] = []
+    errors = validate_scoreboard(mutation)
+    check(
+        any("routing ledger content must use kind" in item for item in errors)
+        and any("missing binding" in item for item in errors),
+        "routing content cannot be relabeled as a generic artifact",
+    )
+    mutation = copy.deepcopy(scoreboard)
+    mutation["entries"][0]["runs"][0]["artifact"]["kind"] = "routing_eval_ledger"
+    check(
+        any("content contract is missing" in item for item in validate_scoreboard(mutation)),
+        "routing artifact kind requires routing ledger content",
+    )
     mutation = copy.deepcopy(scoreboard)
     measured = mutation["entries"][2]["runs"][0]
     measured["metrics"]["pass_count"] -= 1
@@ -971,6 +1115,7 @@ def selftest(scoreboard_path: Path = DEFAULT_SCOREBOARD) -> int:
     mutation = copy.deepcopy(scoreboard)
     measured = mutation["entries"][2]["runs"][0]
     measured["artifact"] = {
+        "kind": "run_output",
         "path": "/Users/example/private.json",
         "visibility": "local",
         "disclosure": "redacted",

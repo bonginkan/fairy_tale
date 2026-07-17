@@ -78,6 +78,7 @@
             "note": "Example-only baseline; no measured regression claim."
           },
           "artifact": {
+            "kind": "example",
             "path": "examples/workflow-scoreboard/benchmark-baseline.json",
             "visibility": "repository",
             "disclosure": "full",
@@ -120,6 +121,7 @@
             "note": "Illustrative result only; no real benchmark claim."
           },
           "artifact": {
+            "kind": "example",
             "path": "examples/workflow-scoreboard/benchmark-fairy-tale.json",
             "visibility": "repository",
             "disclosure": "full",
@@ -194,6 +196,7 @@
             "note": "Example-only baseline; no measured regression claim."
           },
           "artifact": {
+            "kind": "example",
             "path": "examples/workflow-scoreboard/normal-baseline.json",
             "visibility": "repository",
             "disclosure": "full",
@@ -236,6 +239,7 @@
             "note": "Illustrative result only; no real workflow claim."
           },
           "artifact": {
+            "kind": "example",
             "path": "examples/workflow-scoreboard/normal-fairy-tale.json",
             "visibility": "repository",
             "disclosure": "full",
@@ -338,6 +342,7 @@
             "note": "No isolated without-skill baseline was recorded, so uplift and regression cannot be inferred."
           },
           "artifact": {
+            "kind": "routing_eval_ledger",
             "path": "docs/skill-budget/routing-eval-20260702.json",
             "visibility": "repository",
             "disclosure": "full",

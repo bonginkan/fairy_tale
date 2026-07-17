@@ -69,10 +69,14 @@ an exact, portable repository-relative path and must exist under that name.
 Private or local artifacts use a non-sensitive `redacted/...` locator and a
 hash; never publish an absolute host path. Missing cost, elapsed, score, budget,
 or token data requires a specific unavailability reason. Example runs are
-bound in both directions: `source_kind=example` requires a matching
-`example: true` repository artifact, and a repository artifact marked
-`example: true` cannot be relabeled as measured or official evidence. They
-never enter measured aggregates by default.
+bound in both directions: `source_kind=example` requires artifact kind
+`example` and a matching `example: true` repository payload, while either
+example declaration prevents relabeling as measured or official evidence.
+They never enter measured aggregates by default.
+
+Nested input types fail closed with field-qualified validation errors before
+enum membership, duplicate detection, arithmetic, path handling, or binding
+lookup is attempted.
 
 Each Fairy Tale run may record per-card telemetry:
 
@@ -95,6 +99,12 @@ evaluator. For each binding, validation recomputes and compares:
 - aggregate cost,
 - all token totals, and
 - the complete per-card utilization map.
+
+Routing ledgers are identified by explicit artifact kind
+`routing_eval_ledger` and the matching JSON content contract, never by a
+filename or directory prefix. The declaration and content signature are
+checked in both directions. Every run with either identity requires exactly one
+binding, including byte-identical mirrors or renamed copies.
 
 The committed sample consumes
 `docs/skill-budget/routing-eval-20260702.json`. That legacy run is measured but

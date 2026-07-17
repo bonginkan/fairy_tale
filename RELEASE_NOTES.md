@@ -12,7 +12,11 @@
   measured evidence; unpaired runs cannot claim uplift; private paths are
   redacted. The committed sample consumes the routing-evaluation
   ledger by SHA-256 and recomputes its pass rate, cost, tokens, and complete
-  card utilization map. A derived Markdown view, `fairy scoreboard` thin
+  card utilization map. Explicit artifact kinds are bound bidirectionally to
+  example and routing-ledger content, so routing bindings follow identity
+  across renamed or mirrored paths. Malformed nested values produce
+  field-scoped validation errors before derived operations. A derived Markdown
+  view, `fairy scoreboard` thin
   dispatch, strict schema/runtime parity controls, feedback-governance link,
   adapter, package references, and plugin mirrors are included. Runtime package
   version is 0.2.30.
