@@ -461,12 +461,12 @@ def is_routing_eval_ledger(value: Any) -> bool:
     summary = value.get("summary")
     if not isinstance(results, list) or not isinstance(summary, dict):
         return False
-    top_level_signal = ROUTING_LEDGER_CLASS_MARKERS <= set(value)
+    top_level_signal = bool(ROUTING_LEDGER_CLASS_MARKERS & set(value))
     result_signal = any(
-        isinstance(result, dict) and ROUTING_RESULT_MARKERS <= set(result)
+        isinstance(result, dict) and bool(ROUTING_RESULT_MARKERS & set(result))
         for result in results
     )
-    summary_signal = ROUTING_SUMMARY_MARKERS <= set(summary)
+    summary_signal = bool(ROUTING_SUMMARY_MARKERS & set(summary))
     return sum((top_level_signal, result_signal, summary_signal)) >= 2
 
 
@@ -1459,6 +1459,42 @@ def selftest(scoreboard_path: Path = DEFAULT_SCOREBOARD) -> int:
                 not validate_scoreboard(generic_scoreboard),
                 f"generic routing-like metadata variant {index} remains run_output",
             )
+        partial_routing_path = Path(directory) / "partial-routing-ledger.json"
+        partial_routing_ledger = copy.deepcopy(routing_ledger)
+        for result in partial_routing_ledger["results"]:
+            result.pop("invalid_paths", None)
+        partial_routing_ledger["summary"].pop("invalid_path_outputs", None)
+        partial_routing_path.write_text(
+            json.dumps(partial_routing_ledger, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        partial_scoreboard = copy.deepcopy(scoreboard)
+        partial_run = partial_scoreboard["entries"][2]["runs"][0]
+        partial_source_ref = partial_run["artifact"]["source_ref"]
+        partial_relative_path = partial_routing_path.relative_to(ROOT).as_posix()
+        partial_hash = sha256_file(partial_routing_path)
+        partial_run["artifact"].update(
+            kind="run_output",
+            path=partial_relative_path,
+            sha256=partial_hash,
+        )
+        partial_run["metrics"].update(pass_count=0, score=0.0, cost_usd=0.0)
+        partial_source = next(
+            source
+            for source in partial_scoreboard["source_refs"]
+            if source["source_id"] == partial_source_ref
+        )
+        partial_source.update(
+            artifact_path=partial_relative_path,
+            artifact_sha256=partial_hash,
+        )
+        partial_scoreboard["routing_eval_bindings"] = []
+        partial_errors = validate_scoreboard(partial_scoreboard)
+        check(
+            any("routing ledger content must use kind" in error for error in partial_errors)
+            and any("missing binding" in error for error in partial_errors),
+            "partial routing signatures cannot evade kind and binding validation",
+        )
     mutated_ledger = copy.deepcopy(routing_ledger)
     mutated_ledger["summary"]["passed"] -= 1
     try:
