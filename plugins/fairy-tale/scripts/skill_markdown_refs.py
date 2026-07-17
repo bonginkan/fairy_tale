@@ -23,6 +23,19 @@ BLOCK_START_RE = re.compile(
 THEMATIC_BREAK_RE = re.compile(
     r"^ {0,3}(?:(?:\*[ \t]*){3,}|(?:-[ \t]*){3,}|(?:_[ \t]*){3,})$"
 )
+HTML_RAW_TAG_RE = re.compile(
+    r"^ {0,3}<(?P<tag>pre|script|style|textarea)(?:[ \t>]|$)",
+    re.IGNORECASE,
+)
+HTML_BLOCK_TAG_RE = re.compile(
+    r"^ {0,3}</?(?:address|article|aside|base|basefont|blockquote|body|"
+    r"caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|"
+    r"fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|"
+    r"header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|"
+    r"noframes|ol|optgroup|option|p|param|search|section|summary|table|"
+    r"tbody|td|tfoot|th|thead|title|tr|track|ul)(?:[ \t/>]|$)",
+    re.IGNORECASE,
+)
 DISTRIBUTED_SKILL_NAMES = (
     "fairy-tale",
     "fairy-tale-benchmark-feedback",
@@ -119,6 +132,8 @@ def _code_masked_lines(text: str, *, mask_indented: bool) -> list[str]:
     masked: list[str] = []
     fence_char = ""
     fence_length = 0
+    html_end = ""
+    html_until_blank = False
     for line in text.splitlines():
         if fence_char:
             closing = re.match(
@@ -131,11 +146,47 @@ def _code_masked_lines(text: str, *, mask_indented: bool) -> list[str]:
                 fence_length = 0
             masked.append("")
             continue
+        if html_end:
+            masked.append("")
+            if re.search(html_end, line, re.IGNORECASE):
+                html_end = ""
+            continue
+        if html_until_blank:
+            if not line.strip():
+                html_until_blank = False
+                masked.append(line)
+            else:
+                masked.append("")
+            continue
         opening = FENCE_OPEN_RE.match(line)
         if opening:
             marker = opening.group("fence")
             fence_char = marker[0]
             fence_length = len(marker)
+            masked.append("")
+            continue
+        raw_tag = HTML_RAW_TAG_RE.match(line)
+        if raw_tag:
+            html_end = rf"</{raw_tag.group('tag')}>"
+            masked.append("")
+            if re.search(html_end, line, re.IGNORECASE):
+                html_end = ""
+            continue
+        if re.match(r"^ {0,3}<!--", line):
+            html_end = r"-->"
+        elif re.match(r"^ {0,3}<\?", line):
+            html_end = r"\?>"
+        elif re.match(r"^ {0,3}<![A-Z]", line):
+            html_end = r">"
+        elif re.match(r"^ {0,3}<!\[CDATA\[", line):
+            html_end = r"\]\]>"
+        if html_end:
+            masked.append("")
+            if re.search(html_end, line, re.IGNORECASE):
+                html_end = ""
+            continue
+        if HTML_BLOCK_TAG_RE.match(line):
+            html_until_blank = True
             masked.append("")
             continue
         if mask_indented and (line.startswith("    ") or line.startswith("\t")):
@@ -512,6 +563,15 @@ def selftest_skill_markdown_refs() -> tuple[list[str], int]:
             "`references/missing.md`\n"
             "[fenced](references/missing.md)\n"
             "```\n"
+            "    [indented-ref]: references/missing.md\n"
+            "    [indented](references/missing.md)\n"
+            "    `references/missing.md`\n"
+            "<pre>\n"
+            "[html-ref]: references/missing.md\n"
+            "[html](references/missing.md)\n"
+            "`references/missing.md`\n"
+            "</pre>\n"
+            "\n"
             "Paragraph remains open\n"
             "[paragraph-ref]: references/missing.md\n"
             "\n"
