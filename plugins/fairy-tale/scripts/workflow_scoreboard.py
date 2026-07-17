@@ -150,11 +150,6 @@ ROUTING_LEDGER_CLASS_MARKERS = {
     "system_prompt_sha256",
     "cases_sha256",
 }
-ROUTING_LEDGER_TOP_LEVEL_MARKERS = ROUTING_LEDGER_CLASS_MARKERS | {
-    "run_policy",
-    "token_note",
-    "eval_inputs_committed_at_repo_commit",
-}
 ROUTING_RESULT_MARKERS = {"expected_cards", "got_cards", "invalid_paths"}
 ROUTING_SUMMARY_MARKERS = {"per_card_utilization", "invalid_path_outputs"}
 
@@ -466,13 +461,13 @@ def is_routing_eval_ledger(value: Any) -> bool:
     summary = value.get("summary")
     if not isinstance(results, list) or not isinstance(summary, dict):
         return False
-    top_level_signal = bool(ROUTING_LEDGER_TOP_LEVEL_MARKERS & set(value))
+    top_level_signal = ROUTING_LEDGER_CLASS_MARKERS <= set(value)
     result_signal = any(
-        isinstance(result, dict) and bool(ROUTING_RESULT_MARKERS & set(result))
+        isinstance(result, dict) and ROUTING_RESULT_MARKERS <= set(result)
         for result in results
     )
-    summary_signal = bool(ROUTING_SUMMARY_MARKERS & set(summary))
-    return top_level_signal or result_signal or summary_signal
+    summary_signal = ROUTING_SUMMARY_MARKERS <= set(summary)
+    return sum((top_level_signal, result_signal, summary_signal)) >= 2
 
 
 def validate_artifact_source(
@@ -1394,40 +1389,76 @@ def selftest(scoreboard_path: Path = DEFAULT_SCOREBOARD) -> int:
         else:
             raise AssertionError(f"malformed routing identity {identity_key} blocks")
     with tempfile.TemporaryDirectory(prefix=".scoreboard-generic-", dir=ROOT) as directory:
-        generic_path = Path(directory) / "generic-run.json"
-        generic_payload = {
+        generic_payload_base = {
             "model": "example-model",
+            "repo_commit": "0" * 40,
             "results": [{"case_id": "case-a", "outcome": "pass"}],
             "summary": {"passed": 1, "total": 1},
         }
-        generic_path.write_text(
-            json.dumps(generic_payload, indent=2) + "\n",
-            encoding="utf-8",
+        generic_metadata_variants = (
+            {},
+            {"run_policy": {"fresh_session": True, "retry_limit": 0}},
+            {"token_note": "provider did not expose cache tokens"},
+            {
+                "run_policy": {"fresh_session": True, "retry_limit": 0},
+                "token_note": "provider did not expose cache tokens",
+            },
+            {
+                "skill_md_sha256": "0" * 64,
+                "system_prompt_sha256": "1" * 64,
+                "cases_sha256": "2" * 64,
+            },
+            {
+                "results": [
+                    {
+                        "case_id": "case-a",
+                        "outcome": "pass",
+                        "expected_cards": [],
+                        "got_cards": [],
+                        "invalid_paths": [],
+                    }
+                ]
+            },
+            {
+                "summary": {
+                    "passed": 1,
+                    "total": 1,
+                    "per_card_utilization": {},
+                    "invalid_path_outputs": 0,
+                }
+            },
         )
-        generic_scoreboard = copy.deepcopy(scoreboard)
-        generic_run = generic_scoreboard["entries"][2]["runs"][0]
-        source_ref = generic_run["artifact"]["source_ref"]
-        generic_relative_path = generic_path.relative_to(ROOT).as_posix()
-        generic_hash = sha256_file(generic_path)
-        generic_run["artifact"].update(
-            kind="run_output",
-            path=generic_relative_path,
-            sha256=generic_hash,
-        )
-        generic_source = next(
-            source
-            for source in generic_scoreboard["source_refs"]
-            if source["source_id"] == source_ref
-        )
-        generic_source.update(
-            artifact_path=generic_relative_path,
-            artifact_sha256=generic_hash,
-        )
-        generic_scoreboard["routing_eval_bindings"] = []
-        check(
-            not validate_scoreboard(generic_scoreboard),
-            "generic model/results/summary run output is not a routing ledger",
-        )
+        for index, metadata in enumerate(generic_metadata_variants):
+            generic_path = Path(directory) / f"generic-run-{index}.json"
+            generic_payload = {**generic_payload_base, **metadata}
+            generic_path.write_text(
+                json.dumps(generic_payload, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            generic_scoreboard = copy.deepcopy(scoreboard)
+            generic_run = generic_scoreboard["entries"][2]["runs"][0]
+            source_ref = generic_run["artifact"]["source_ref"]
+            generic_relative_path = generic_path.relative_to(ROOT).as_posix()
+            generic_hash = sha256_file(generic_path)
+            generic_run["artifact"].update(
+                kind="run_output",
+                path=generic_relative_path,
+                sha256=generic_hash,
+            )
+            generic_source = next(
+                source
+                for source in generic_scoreboard["source_refs"]
+                if source["source_id"] == source_ref
+            )
+            generic_source.update(
+                artifact_path=generic_relative_path,
+                artifact_sha256=generic_hash,
+            )
+            generic_scoreboard["routing_eval_bindings"] = []
+            check(
+                not validate_scoreboard(generic_scoreboard),
+                f"generic routing-like metadata variant {index} remains run_output",
+            )
     mutated_ledger = copy.deepcopy(routing_ledger)
     mutated_ledger["summary"]["passed"] -= 1
     try:

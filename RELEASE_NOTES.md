@@ -17,8 +17,10 @@
   context evidence cannot be interchanged. Routing structure is recognized
   independently of its required prompt/case/scorer identity fields, and those
   fields fail closed when absent or malformed without treating generic
-  model/results/summary benchmark output as routing evidence. Malformed nested
-  values produce field-scoped validation errors before derived operations. The derived
+  model/results/summary or execution-policy metadata as routing evidence.
+  Routing classification requires two independent structural signatures.
+  Malformed nested values produce field-scoped validation errors before
+  derived operations. The derived
   Markdown review view preserves regression and complete card outcome/token
   evidence alongside deltas. `fairy scoreboard` thin dispatch, strict
   schema/runtime parity controls, feedback-governance link, adapter, package

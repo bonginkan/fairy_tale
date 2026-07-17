@@ -119,8 +119,10 @@ including byte-identical mirrors or renamed copies. The ledger must provide a
 non-empty model, lowercase 64-hex skill/system/case SHA-256 identities, a
 pinned lowercase repository commit, valid routing rows, and a matching summary
 before any aggregate is accepted. Generic `model` and `repo_commit` metadata
-alone are not routing class signals; an ordinary benchmark payload with only
-`model`, `results`, and `summary` remains a `run_output`.
+and execution metadata such as `run_policy` and `token_note` are not routing
+class signals, alone or together. Classification requires a complete routing
+signature in at least two of three independent groups (digest, row, summary);
+an ordinary benchmark payload remains a `run_output`.
 
 The committed sample consumes
 `docs/skill-budget/routing-eval-20260702.json`. That legacy run is measured but
