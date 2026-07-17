@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import html
 import re
 import tempfile
 from pathlib import Path
@@ -38,6 +39,31 @@ HTML_BLOCK_TAG_RE = re.compile(
     r"noframes|ol|optgroup|option|p|param|search|section|summary|table|"
     r"tbody|td|tfoot|th|thead|title|tr|track|ul)(?:[ \t/>]|$)",
     re.IGNORECASE,
+)
+HTML_COMPLETE_TAG_RE = re.compile(
+    r"^ {0,3}</?[A-Za-z][A-Za-z0-9-]*"
+    r"(?:[ \t]+[A-Za-z_:][A-Za-z0-9_.:-]*"
+    r"(?:[ \t]*=[ \t]*(?:[^ \t\n\"'=<>`]+|'[^']*'|\"[^\"]*\"))?)*"
+    r"[ \t]*/?>[ \t]*$"
+)
+INLINE_HTML_TAG_RE = re.compile(
+    r"</?[A-Za-z][A-Za-z0-9-]*"
+    r"(?:\s+[A-Za-z_:][A-Za-z0-9_.:-]*"
+    r"(?:\s*=\s*(?:[^\s\"'=<>`]+|'[^']*'|\"[^\"]*\"))?)*"
+    r"\s*/?>",
+    re.DOTALL,
+)
+AUTOLINK_URI_RE = re.compile(
+    r"<[A-Za-z][A-Za-z0-9+.-]{1,31}:[^ <>]*>"
+)
+AUTOLINK_EMAIL_RE = re.compile(
+    r"<[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@"
+    r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
+    r"(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+>"
+)
+COMMONMARK_ENTITY_RE = re.compile(
+    r"&(?:#[xX][0-9A-Fa-f]{1,8}|#[0-9]{1,8}|"
+    r"[A-Za-z][A-Za-z0-9]{1,31});"
 )
 DISTRIBUTED_SKILL_NAMES = (
     "fairy-tale",
@@ -168,28 +194,63 @@ def _strip_list_prefixes(
     return line, active
 
 
+def _strip_container_prefixes(
+    line: str,
+    containers: list[tuple[str, int]],
+) -> tuple[str, list[tuple[str, int]]]:
+    """Continue prior containers, then recursively consume new containers."""
+    if not line.strip():
+        return line, list(containers)
+    active: list[tuple[str, int]] = []
+    for kind, width in containers:
+        if kind == "quote":
+            marker = BLOCK_QUOTE_RE.match(line)
+            if marker is None:
+                break
+            line = line[marker.end() :]
+        else:
+            leading = len(line) - len(line.lstrip(" "))
+            if leading < width:
+                break
+            line = line[width:]
+        active.append((kind, width))
+
+    while True:
+        marker = BLOCK_QUOTE_RE.match(line)
+        if marker is not None:
+            active.append(("quote", 0))
+            line = line[marker.end() :]
+            continue
+        stripped, indents = _strip_list_prefixes(line, [])
+        if not indents:
+            return line, active
+        active.append(("list", indents[0]))
+        line = stripped
+
+
 def _block_masked_lines(
     text: str,
     *,
     mask_indented: bool,
-) -> list[tuple[str, tuple[int, int]]]:
+) -> list[tuple[str, tuple[str, ...]]]:
     """Strip quote containers and mask their fenced, HTML, and code children."""
-    masked: list[tuple[str, tuple[int, int]]] = []
+    masked: list[tuple[str, tuple[str, ...]]] = []
     fence_char = ""
     fence_length = 0
-    fence_depth = (0, 0)
+    fence_depth: tuple[str, ...] = ()
     html_end = ""
     html_until_blank = False
-    html_depth = (0, 0)
-    list_indents: list[int] = []
-    previous_quote_depth = -1
+    html_depth: tuple[str, ...] = ()
+    containers: list[tuple[str, int]] = []
+    paragraph_depth: tuple[str, ...] | None = None
     for raw_line in text.splitlines():
-        line, quote_depth = _strip_block_quote_prefixes(raw_line)
-        if quote_depth != previous_quote_depth:
-            list_indents = []
-            previous_quote_depth = quote_depth
-        line, list_indents = _strip_list_prefixes(line, list_indents)
-        container_depth = (quote_depth, len(list_indents))
+        line, containers = _strip_container_prefixes(
+            raw_line,
+            containers,
+        )
+        container_depth = tuple(kind for kind, _ in containers)
+        if paragraph_depth is not None and paragraph_depth != container_depth:
+            paragraph_depth = None
         if fence_char:
             if container_depth == fence_depth:
                 closing = re.match(
@@ -201,6 +262,7 @@ def _block_masked_lines(
                     fence_char = ""
                     fence_length = 0
                 masked.append(("", container_depth))
+                paragraph_depth = None
                 continue
             else:
                 fence_char = ""
@@ -210,6 +272,7 @@ def _block_masked_lines(
                 masked.append(("", container_depth))
                 if re.search(html_end, line, re.IGNORECASE):
                     html_end = ""
+                paragraph_depth = None
                 continue
             else:
                 html_end = ""
@@ -219,9 +282,11 @@ def _block_masked_lines(
             elif not line.strip():
                 html_until_blank = False
                 masked.append((line, container_depth))
+                paragraph_depth = None
                 continue
             else:
                 masked.append(("", container_depth))
+                paragraph_depth = None
                 continue
         opening = FENCE_OPEN_RE.match(line)
         if opening:
@@ -230,6 +295,7 @@ def _block_masked_lines(
             fence_length = len(marker)
             fence_depth = container_depth
             masked.append(("", container_depth))
+            paragraph_depth = None
             continue
         raw_tag = HTML_RAW_TAG_RE.match(line)
         if raw_tag:
@@ -238,6 +304,7 @@ def _block_masked_lines(
             masked.append(("", container_depth))
             if re.search(html_end, line, re.IGNORECASE):
                 html_end = ""
+            paragraph_depth = None
             continue
         if re.match(r"^ {0,3}<!--", line):
             html_end = r"-->"
@@ -252,16 +319,34 @@ def _block_masked_lines(
             masked.append(("", container_depth))
             if re.search(html_end, line, re.IGNORECASE):
                 html_end = ""
+            paragraph_depth = None
             continue
-        if HTML_BLOCK_TAG_RE.match(line):
+        if (
+            paragraph_depth != container_depth
+            and (
+                HTML_BLOCK_TAG_RE.match(line)
+                or HTML_COMPLETE_TAG_RE.match(line)
+            )
+        ):
             html_until_blank = True
             html_depth = container_depth
             masked.append(("", container_depth))
+            paragraph_depth = None
             continue
         if mask_indented and (line.startswith("    ") or line.startswith("\t")):
             masked.append(("", container_depth))
+            paragraph_depth = None
             continue
         masked.append((line, container_depth))
+        if not line.strip():
+            paragraph_depth = None
+        elif (
+            BLOCK_START_RE.match(line)
+            or THEMATIC_BREAK_RE.match(line)
+        ):
+            paragraph_depth = None
+        else:
+            paragraph_depth = container_depth
     return masked
 
 
@@ -273,7 +358,7 @@ def _has_unescaped_pipe(value: str) -> bool:
 
 
 def _table_row_indexes(
-    lines: list[tuple[str, tuple[int, int]]],
+    lines: list[tuple[str, tuple[str, ...]]],
 ) -> set[int]:
     """Identify GFM table rows so inline spans cannot cross cell-row bounds."""
     rows: set[int] = set()
@@ -307,7 +392,7 @@ def _inline_segments(text: str) -> list[str]:
     table_rows = _table_row_indexes(lines)
     segments: list[str] = []
     current: list[str] = []
-    current_depth: tuple[int, int] | None = None
+    current_depth: tuple[str, ...] | None = None
 
     def flush() -> None:
         nonlocal current
@@ -363,6 +448,14 @@ def _decode_commonmark_escapes(value: str) -> str:
     return "".join(decoded)
 
 
+def _decode_commonmark_entities(value: str) -> str:
+    """Decode only semicolon-terminated CommonMark character references."""
+    return COMMONMARK_ENTITY_RE.sub(
+        lambda match: html.unescape(match.group(0)),
+        value,
+    )
+
+
 def _code_spans_and_mask(text: str) -> tuple[list[tuple[int, int, str]], str]:
     """Return CommonMark code spans and text with complete spans blanked."""
     spans: list[tuple[int, int, str]] = []
@@ -409,10 +502,66 @@ def _code_spans_and_mask(text: str) -> tuple[list[tuple[int, int, str]], str]:
     return spans, "".join(masked)
 
 
-def _matching_bracket(value: str, start: int) -> int | None:
+def _inline_html_ranges(value: str) -> list[tuple[int, int]]:
+    """Return inline HTML and autolink ranges that own bracket-like text."""
+    ranges: list[tuple[int, int]] = []
+    index = 0
+    while index < len(value):
+        if value[index] != "<" or _is_escaped(value, index):
+            index += 1
+            continue
+        end = -1
+        if value.startswith("<!--", index):
+            closing = value.find("-->", index + 4)
+            end = closing + 3 if closing >= 0 else -1
+        elif value.startswith("<?", index):
+            closing = value.find("?>", index + 2)
+            end = closing + 2 if closing >= 0 else -1
+        elif value.startswith("<![CDATA[", index):
+            closing = value.find("]]>", index + 9)
+            end = closing + 3 if closing >= 0 else -1
+        elif re.match(r"<![A-Z]", value[index:]):
+            closing = value.find(">", index + 2)
+            end = closing + 1 if closing >= 0 else -1
+        else:
+            uri = AUTOLINK_URI_RE.match(value, index)
+            email = AUTOLINK_EMAIL_RE.match(value, index)
+            tag = INLINE_HTML_TAG_RE.match(value, index)
+            match = uri or email or tag
+            if match is not None:
+                end = match.end()
+        if end > index:
+            ranges.append((index, end))
+            index = end
+        else:
+            index += 1
+    return ranges
+
+
+def _range_end_at(
+    ranges: list[tuple[int, int]],
+    index: int,
+) -> int | None:
+    for start, end in ranges:
+        if start <= index < end:
+            return end
+        if start > index:
+            break
+    return None
+
+
+def _matching_bracket(
+    value: str,
+    start: int,
+    html_ranges: list[tuple[int, int]],
+) -> int | None:
     depth = 0
     index = start
     while index < len(value):
+        range_end = _range_end_at(html_ranges, index)
+        if range_end is not None:
+            index = range_end
+            continue
         char = value[index]
         if char == "\\":
             index += 2
@@ -451,9 +600,9 @@ def _inline_title_end(value: str, start: int) -> int | None:
         if char == "\\":
             index += 2
             continue
-        if char == "\n" and "\n" in value[start:index]:
-            return None
         if char == closer:
+            if re.search(r"\n[ \t]*\n", value[start + 1 : index]):
+                return None
             return index + 1
         if closer == ")" and char == "(":
             return None
@@ -498,26 +647,53 @@ def _inline_link_destination(
 
 def _inline_destinations(value: str) -> list[str]:
     """Extract inline destinations after code/container masking."""
-    destinations: list[str] = []
+    candidates: list[tuple[int, int, int, str, bool]] = []
+    html_ranges = _inline_html_ranges(value)
     index = 0
     while index < len(value):
+        range_end = _range_end_at(html_ranges, index)
+        if range_end is not None:
+            index = range_end
+            continue
         if value[index] != "[" or _is_escaped(value, index):
             index += 1
             continue
-        closing = _matching_bracket(value, index)
+        closing = _matching_bracket(value, index, html_ranges)
         if closing is None:
             index += 1
             continue
         if closing + 1 >= len(value) or value[closing + 1] != "(":
-            index = closing + 1
+            index += 1
             continue
         parsed = _inline_link_destination(value, closing + 1)
         if parsed is None:
-            index = closing + 1
+            index += 1
             continue
         destination, end = parsed
-        destinations.append(destination)
-        index = end
+        is_image = (
+            index > 0
+            and value[index - 1] == "!"
+            and not _is_escaped(value, index - 1)
+        )
+        candidates.append((index, closing, end, destination, is_image))
+        index += 1
+
+    destinations: list[str] = []
+    for start, closing, _, destination, _ in candidates:
+        nested_link = any(
+            start < child_start
+            and child_end <= closing
+            and not child_is_image
+            for (
+                child_start,
+                _,
+                child_end,
+                _,
+                child_is_image,
+            ) in candidates
+        )
+        if not nested_link:
+            destinations.append(destination)
     return destinations
 
 
@@ -741,28 +917,14 @@ def _reference_definition_destinations(text: str) -> list[str]:
     return list(definitions.values())
 
 
-def _unescaped_fragment_start(value: str) -> int | None:
-    index = 0
-    while index < len(value):
-        if value[index] == "\\" and index + 1 < len(value):
-            index += 2
-            continue
-        if value[index] == "#":
-            return index
-        index += 1
-    return None
-
-
 def _markdown_destination_path(destination: str) -> Path | None:
     raw = destination.strip()
     if raw.startswith("<") and raw.endswith(">"):
         raw = raw[1:-1]
+    raw = _decode_commonmark_entities(_decode_commonmark_escapes(raw))
     if "://" in raw or raw.startswith("#"):
         return None
-    fragment = _unescaped_fragment_start(raw)
-    if fragment is not None:
-        raw = raw[:fragment]
-    raw = _decode_commonmark_escapes(raw)
+    raw = raw.split("#", 1)[0]
     if "://" in raw or raw.startswith("#"):
         return None
     if not raw.endswith(".md"):
@@ -900,6 +1062,14 @@ def selftest_skill_markdown_refs() -> tuple[list[str], int]:
         (references / "local.md").write_text("# Local\n", encoding="utf-8")
         (references / "local(v1).md").write_text(
             "# Local parenthesized\n",
+            encoding="utf-8",
+        )
+        (references / "local&copy.md").write_text(
+            "# Local entity\n",
+            encoding="utf-8",
+        )
+        (references / "local file.md").write_text(
+            "# Local numeric entity\n",
             encoding="utf-8",
         )
         (beta / "SKILL.md").write_text("# Beta\n", encoding="utf-8")
@@ -1097,6 +1267,69 @@ def selftest_skill_markdown_refs() -> tuple[list[str], int]:
         controls += 1
         if findings:
             errors.append("GFM table-row reference was rejected")
+
+        findings = findings_for(
+            base
+            + "\n[missing](references/missing.md \"title one\n"
+            + "title two\n"
+            + "title three\")\n"
+        )
+        controls += 1
+        if not any(
+            "references/missing.md is dangling" in item for item in findings
+        ):
+            errors.append("multiline inline-title destination was not rejected")
+
+        findings = findings_for(
+            base
+            + "\n[outer [inner](references/missing.md)]"
+            + "(references/local.md)\n"
+        )
+        controls += 1
+        if not any(
+            "references/missing.md is dangling" in item for item in findings
+        ):
+            errors.append("nested inline-link destination was not rejected")
+
+        findings = findings_for(
+            base
+            + "\n[foo <bar attr=\"](references/missing.md)\">\n"
+            + "[foo<https://example.com/?search=]"
+            + "(references/missing.md)>\n"
+        )
+        controls += 1
+        if findings:
+            errors.append("inline HTML or autolink content created a synthetic link")
+
+        findings = findings_for(
+            base
+            + "\n- > [missing-ref]: references/missing.md\n"
+            + "  > [use][missing-ref]\n"
+        )
+        controls += 1
+        if not any(
+            "references/missing.md is dangling" in item for item in findings
+        ):
+            errors.append("list-blockquote definition was not rejected")
+
+        findings = findings_for(
+            base
+            + "\n<Warning>\n"
+            + "[literal](references/missing.md)\n"
+            + "</Warning>\n"
+        )
+        controls += 1
+        if findings:
+            errors.append("type-7 HTML block content was treated as a link")
+
+        findings = findings_for(
+            base
+            + "\n[named](references/local&amp;copy.md)\n"
+            + "[numeric](references/local&#32;file.md)\n"
+        )
+        controls += 1
+        if findings:
+            errors.append("CommonMark entity destinations were not decoded")
 
         findings = findings_for(
             base + "\n[windows](references\\local.md)\n"
