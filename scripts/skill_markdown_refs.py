@@ -66,6 +66,7 @@ COMMONMARK_ENTITY_RE = re.compile(
     r"&(?:#[xX][0-9A-Fa-f]{1,8}|#[0-9]{1,8}|"
     r"[A-Za-z][A-Za-z0-9]{1,31});"
 )
+WINDOWS_DRIVE_PATH_RE = re.compile(r"^[A-Za-z]:[\\/]")
 DISTRIBUTED_SKILL_NAMES = (
     "fairy-tale",
     "fairy-tale-benchmark-feedback",
@@ -935,7 +936,7 @@ def _markdown_destination_path(destination: str) -> Path | None:
     if raw.startswith("<") and raw.endswith(">"):
         raw = raw[1:-1]
     raw = _decode_commonmark_entities(_decode_commonmark_escapes(raw))
-    if "\\" in raw:
+    if WINDOWS_DRIVE_PATH_RE.match(raw):
         return Path(raw)
     try:
         uri = urlsplit(raw)
@@ -1419,6 +1420,20 @@ def selftest_skill_markdown_refs() -> tuple[list[str], int]:
         controls += 1
         if not any("unsafe Markdown reference" in item for item in findings):
             errors.append("literal Windows separator was not rejected")
+
+        findings = findings_for(
+            base + "\n[external-backslash](https://example.com/foo\\bar.md)\n"
+        )
+        controls += 1
+        if findings:
+            errors.append("external URI backslash was treated as a local path")
+
+        findings = findings_for(
+            base + "\n[drive](C:\\outside.md)\n"
+        )
+        controls += 1
+        if not any("unsafe Markdown reference" in item for item in findings):
+            errors.append("Windows drive path was not rejected")
 
         linked_source = Path(tmp) / "linked-skill-source"
         linked_source.mkdir()
