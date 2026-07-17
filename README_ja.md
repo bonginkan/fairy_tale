@@ -31,6 +31,9 @@ codex plugin marketplace add bonginkan/fairy_tale
 codex plugin add fairy-tale@fairy-tale-marketplace
 ```
 
+plugin CLI が未対応の Codex build では、plugin directory で
+`bonginkan/fairy_tale` を marketplace source として追加する。
+
 plugin を使わず skill だけを導入する場合は、install script を使う。対象
 ディレクトリが存在しない場合は安全のため失敗するので、明示的に作成してから
 実行する。
