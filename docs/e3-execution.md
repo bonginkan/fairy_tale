@@ -36,7 +36,8 @@ is still executed and verified before expansion.
 Attempt zero uses the estimated scope exactly. Every attempt:
 
 - covers all acceptance checks exactly once;
-- registers every evidence reference before a check cites it;
+- registers every concrete namespaced/immutable evidence reference before a
+  check cites it;
 - records raw latency, token, tool-call, and inspected-item observations;
 - uses risk-scaled verification;
 - carries the complete ordered evidence cache; and
@@ -113,6 +114,10 @@ The canonical schema is
 [`e3-execution-ledger.schema.json`](../schemas/e3-execution-ledger.schema.json).
 The routed skill contract is the
 [E3 Minimum-Sufficient Execution Harness](../skills/fairy-tale/references/cards/e3-minimum-sufficient-execution-harness.md).
+Evidence references use an `https://` URL with a path, a lowercase
+`sha256:<64-hex>` digest, or a supported namespace such as `run:`, `trace:`,
+`search:`, `metadata:`, `test:`, `check:`, `file:`, `artifact:`, or `log:`.
+Free-form prose is not evidence.
 
 ## ACRR
 

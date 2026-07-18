@@ -104,8 +104,8 @@
     {
       "path": "references/cards/e3-minimum-sufficient-execution-harness.md",
       "title": "E3 Minimum-Sufficient Execution Harness",
-      "bytes": 4516,
-      "est_tokens": 1129
+      "bytes": 4684,
+      "est_tokens": 1171
     },
     {
       "path": "references/cards/effort-inversion-debugger.md",
@@ -521,9 +521,9 @@
     },
     {
       "path": "skills/fairy-tale/references/cards/e3-minimum-sufficient-execution-harness.md",
-      "bytes": 4516,
-      "lines": 106,
-      "est_tokens": 1129
+      "bytes": 4684,
+      "lines": 108,
+      "est_tokens": 1171
     },
     {
       "path": "skills/fairy-tale/references/cards/effort-inversion-debugger.md",

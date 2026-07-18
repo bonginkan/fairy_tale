@@ -41,7 +41,7 @@ Execute exactly the estimated scope first.
 - Level 3: trace dependencies, imports, integration boundaries, or downstream
   consumers and run full verification.
 - Verification must cover every acceptance check exactly once and bind each
-  non-`not_run` result to recorded evidence.
+  non-`not_run` result to a concrete namespaced, URL, or digest evidence ref.
 - Record raw latency, token, tool-call, and inspected-item observations for
   every attempt.
 - Verification strength scales with risk: low permits local, medium requires
@@ -73,6 +73,8 @@ E3 optimizes redundant execution effort, not safety or completeness.
   evidence.
 - Treat a safety-floor failure as a blocker, never as a reason to claim the
   narrower path succeeded.
+- The canonical ledger must retain all four default safety gates; callers may
+  add gates but cannot replace or suppress the defaults.
 
 ## Machine Contract
 

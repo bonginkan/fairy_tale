@@ -66,7 +66,7 @@
       "maximum": 3
     },
     "cached_evidence": {
-      "$ref": "#/$defs/uniqueStrings"
+      "$ref": "#/$defs/evidenceRefs"
     },
     "attempts": {
       "type": "array",
@@ -111,6 +111,25 @@
         "$ref": "#/$defs/nonemptyString"
       }
     },
+    "evidenceRef": {
+      "type": "string",
+      "pattern": "^(?:https?://[^\\s/]+/\\S+|sha256:[0-9a-f]{64}|(?:run|trace|search|metadata|test|check|file|artifact|log):[A-Za-z0-9][A-Za-z0-9._/@#:+-]{0,255})$"
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/evidenceRef"
+      }
+    },
+    "nonemptyEvidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/evidenceRef"
+      }
+    },
     "acceptanceCheck": {
       "type": "object",
       "additionalProperties": false,
@@ -153,7 +172,7 @@
           "type": "string"
         },
         "evidence": {
-          "$ref": "#/$defs/uniqueStrings"
+          "$ref": "#/$defs/evidenceRefs"
         }
       }
     },
@@ -239,7 +258,7 @@
           ]
         },
         "evidence": {
-          "$ref": "#/$defs/uniqueStrings"
+          "$ref": "#/$defs/evidenceRefs"
         },
         "notes": {
           "type": "string"
@@ -309,10 +328,10 @@
           "$ref": "#/$defs/nonemptyUniqueStrings"
         },
         "reused_evidence": {
-          "$ref": "#/$defs/uniqueStrings"
+          "$ref": "#/$defs/evidenceRefs"
         },
         "new_evidence": {
-          "$ref": "#/$defs/nonemptyUniqueStrings"
+          "$ref": "#/$defs/nonemptyEvidenceRefs"
         },
         "cost": {
           "$ref": "#/$defs/cost"

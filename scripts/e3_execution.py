@@ -14,6 +14,7 @@ import argparse
 import copy
 import json
 import math
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -130,6 +131,11 @@ VERIFICATION_RESULTS = {"pass", "fail", "blocked"}
 STATUSES = {"estimated", "active", "verified", "blocked", "exhausted"}
 TIER_RANK = {"local": 1, "focused": 2, "full": 3}
 RISK_MIN_TIER = {"low": 1, "medium": 2, "high": 3}
+EVIDENCE_REF_RE = re.compile(
+    r"^(?:https?://[^\s/]+/\S+|sha256:[0-9a-f]{64}|"
+    r"(?:run|trace|search|metadata|test|check|file|artifact|log):"
+    r"[A-Za-z0-9][A-Za-z0-9._/@#:+-]{0,255})$"
+)
 
 
 def add(findings: list[Finding], code: str, message: str) -> None:
@@ -148,6 +154,13 @@ def unique_text_list(value: Any, *, nonempty: bool = False) -> bool:
     return (
         string_list(value, nonempty=nonempty)
         and len(value) == len(set(value))
+    )
+
+
+def unique_evidence_list(value: Any, *, nonempty: bool = False) -> bool:
+    return (
+        unique_text_list(value, nonempty=nonempty)
+        and all(EVIDENCE_REF_RE.fullmatch(item) for item in value)
     )
 
 
@@ -230,11 +243,11 @@ def validate_probe(value: Any, findings: list[Finding]) -> list[str]:
     if not isinstance(count, int) or isinstance(count, bool) or count not in {0, 1}:
         add(findings, "e3.estimate.probe.count", "count must be 0 or 1")
     evidence = probe.get("evidence")
-    if not unique_text_list(evidence):
+    if not unique_evidence_list(evidence):
         add(
             findings,
             "e3.estimate.probe.evidence",
-            "evidence must be a unique list of non-empty strings",
+            "evidence must be a unique list of concrete evidence refs",
         )
         evidence = []
     if kind == "none":
@@ -315,6 +328,14 @@ def validate_safety_floor(value: Any, findings: list[Finding]) -> None:
             "e3.safety_floor.required_gates",
             "required_gates must be a non-empty unique list",
         )
+    else:
+        missing = sorted(set(DEFAULT_SAFETY_GATES) - set(gates))
+        if missing:
+            add(
+                findings,
+                "e3.safety_floor.required_gates",
+                "required_gates cannot suppress defaults: " + ", ".join(missing),
+            )
     if safety.get("closure_tier_a_preserved") is not True:
         add(
             findings,
@@ -428,11 +449,11 @@ def validate_verification(
         else:
             observed_results.append(check_result)
         evidence = check.get("evidence")
-        if not unique_text_list(evidence):
+        if not unique_evidence_list(evidence):
             add(
                 findings,
                 f"{check_path}.evidence",
-                "evidence must be a unique list of non-empty strings",
+                "evidence must be a unique list of concrete evidence refs",
             )
             evidence = []
         if (
@@ -559,11 +580,11 @@ def validate_attempts(
                 expected_scope = list(scope)
 
         reused = attempt.get("reused_evidence")
-        if not unique_text_list(reused):
+        if not unique_evidence_list(reused):
             add(
                 findings,
                 f"{path}.reused_evidence",
-                "reused_evidence must be a unique list",
+                "reused_evidence must be a unique list of concrete evidence refs",
             )
         elif reused != expected_evidence:
             add(
@@ -572,11 +593,11 @@ def validate_attempts(
                 "each attempt must reuse the complete cached evidence in order",
             )
         new_evidence = attempt.get("new_evidence")
-        if not unique_text_list(new_evidence, nonempty=True):
+        if not unique_evidence_list(new_evidence, nonempty=True):
             add(
                 findings,
                 f"{path}.new_evidence",
-                "new_evidence must be a non-empty unique list",
+                "new_evidence must be a non-empty unique list of concrete evidence refs",
             )
             new_evidence = []
         duplicate_evidence = sorted(set(new_evidence) & set(expected_evidence))
@@ -690,11 +711,11 @@ def validate_ledger(ledger: Any) -> list[Finding]:
         findings=findings,
     )
     cached = ledger.get("cached_evidence")
-    if not unique_text_list(cached):
+    if not unique_evidence_list(cached):
         add(
             findings,
             "e3.cached_evidence",
-            "cached_evidence must be a unique list of non-empty strings",
+            "cached_evidence must be a unique list of concrete evidence refs",
         )
     elif cached != expected_cached:
         add(
@@ -825,8 +846,10 @@ def validate_attempt_input(value: Any) -> dict[str, Any]:
         raise ArtifactError("attempt input missing keys: " + ", ".join(missing))
     if not unique_text_list(value.get("scope_additions")):
         raise ArtifactError("scope_additions must be a unique list of non-empty strings")
-    if not unique_text_list(value.get("new_evidence"), nonempty=True):
-        raise ArtifactError("new_evidence must be a non-empty unique list")
+    if not unique_evidence_list(value.get("new_evidence"), nonempty=True):
+        raise ArtifactError(
+            "new_evidence must be a non-empty unique list of concrete evidence refs"
+        )
     cost_findings: list[Finding] = []
     validate_cost(value.get("cost"), path="e3.attempt_input.cost", findings=cost_findings)
     if cost_findings:
@@ -1330,6 +1353,14 @@ def run_selftest() -> int:
         lambda: append_attempt(ledger, unknown_evidence),
         "unregistered evidence",
     )
+    prose_evidence = attempt_input(
+        new_evidence=("run:known", "run:closure"),
+    )
+    prose_evidence["new_evidence"][0] = "the test passed"
+    blocked(
+        lambda: append_attempt(ledger, prose_evidence),
+        "concrete evidence refs",
+    )
     invalid_cost = attempt_input(
         new_evidence=("run:cost", "run:cost-closure"),
         cost={
@@ -1379,6 +1410,12 @@ def run_selftest() -> int:
     check(
         any("Tier A" in item.message for item in validate_ledger(tampered)),
         "Tier A safety floor is enforced",
+    )
+    tampered = copy.deepcopy(first)
+    tampered["safety_floor"]["required_gates"] = ["custom_gate"]
+    check(
+        any("cannot suppress defaults" in item.message for item in validate_ledger(tampered)),
+        "default safety gates are non-suppressible",
     )
     tampered = copy.deepcopy(first)
     tampered["estimate"]["probe"]["count"] = 2
@@ -1471,6 +1508,10 @@ def run_selftest() -> int:
     check(
         set(schema["$defs"]["check"]["properties"]) == CHECK_KEYS,
         "schema check keys",
+    )
+    check(
+        schema["$defs"]["evidenceRef"]["pattern"] == EVIDENCE_REF_RE.pattern,
+        "schema evidence-ref pattern",
     )
     check(
         set(schema["$defs"]["probe"]["properties"]["kind"]["enum"]) == PROBE_KINDS,

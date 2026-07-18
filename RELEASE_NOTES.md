@@ -13,7 +13,7 @@
   inspected-item observations. `fairy e3` deliberately does not emit ACRR;
   that metric remains limited to external controlled evaluations with an exact
   oracle minimum. `fairy e3` thin dispatch, schema,
-  Markdown review view, seven lifecycle cases, 63 self-controls, skill routing,
+  Markdown review view, seven lifecycle cases, 66 self-controls, skill routing,
   paper provenance and license boundary, package references, and plugin
   mirrors are included. Runtime package version is 0.2.32.
 

@@ -30,7 +30,7 @@ in SKILL.md itself or as an extracted card reachable from the router.
 | skills/fairy-tale/references/cards/creator-proxy-elaboration-harness-wwcd.md | 2626 | 38 | 656 |
 | skills/fairy-tale/references/cards/cyber-frontier-defense-harness.md | 1222 | 21 | 306 |
 | skills/fairy-tale/references/cards/domain-router.md | 944 | 17 | 236 |
-| skills/fairy-tale/references/cards/e3-minimum-sufficient-execution-harness.md | 4516 | 106 | 1129 |
+| skills/fairy-tale/references/cards/e3-minimum-sufficient-execution-harness.md | 4684 | 108 | 1171 |
 | skills/fairy-tale/references/cards/effort-inversion-debugger.md | 843 | 16 | 211 |
 | skills/fairy-tale/references/cards/evaluated-feedback-loop.md | 1696 | 27 | 424 |
 | skills/fairy-tale/references/cards/evidence-table-harness.md | 293 | 7 | 73 |
