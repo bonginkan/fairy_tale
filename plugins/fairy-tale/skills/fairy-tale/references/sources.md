@@ -524,3 +524,22 @@ Secondary field reference:
   original Fitts / Hick / Jakob literature (cite the originals for
   law-specific claims):
   https://lawsofux.com/
+
+## Complexity-aware execution (checked 2026-07-18)
+
+Primary:
+
+- Yin and Feng, "Do AI Agents Know When a Task Is Simple? Toward
+  Complexity-Aware Reasoning and Execution," arXiv:2607.13034 v1,
+  2026-07-14:
+  https://arxiv.org/abs/2607.13034
+  https://arxiv.org/pdf/2607.13034
+
+Companion implementation provenance:
+
+- Public companion repository at
+  `44e2bfd438a39ad81e6135851f5c691c61179460`:
+  https://github.com/eejyin/Do-AI-Agents-Know-When-a-Task-Is-Simple-Toward-Complexity-Aware-Reasoning-and-Execution
+  The repository did not declare a root license when checked. Fairy Tale uses
+  an independent implementation of the paper's published method and does not
+  copy companion source.

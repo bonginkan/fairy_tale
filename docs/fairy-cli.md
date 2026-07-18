@@ -53,6 +53,19 @@ validator. JSON remains the source of truth; Markdown is a derived view:
 
 See [Workflow Impact Scoreboard](workflow-impact-scoreboard.md).
 
+Complexity-aware minimum-sufficient execution delegates to the E3 state
+machine. It records a cheap estimate, executes the initial scope, stops on
+verified success, and permits only bounded one-level expansion after failure:
+
+```bash
+./fairy e3 --help
+./fairy e3 init --help
+./fairy e3 validate --ledger e3-execution.json
+./fairy e3 render --ledger e3-execution.json --output e3-execution.md
+```
+
+See [E3 Minimum-Sufficient Execution](e3-execution.md).
+
 The CLI resolves repository tooling relative to its own executable, so
 `validate` does not depend on the caller's current directory. `doctor` preserves
 the caller directory only as the starting point for repository profile

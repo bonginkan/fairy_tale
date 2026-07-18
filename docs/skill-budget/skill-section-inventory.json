@@ -2,10 +2,10 @@
   "purpose": "Parity checklist for the SKILL.md router/per-card restructure: every section listed here must remain reachable (in SKILL.md or via an extracted card referenced from the router). Compare with --inventory-compare to fail closed on silent drops.",
   "skill_md": "skills/fairy-tale/SKILL.md",
   "measured": {
-    "bytes": 17252,
-    "lines": 241,
-    "chars": 17196,
-    "est_tokens": 4313,
+    "bytes": 18072,
+    "lines": 251,
+    "chars": 18016,
+    "est_tokens": 4518,
     "estimation_basis": "est tokens = UTF-8 bytes / 4.0 (reporting only); head window enforced at 3.5 bytes/token (densest plausible tokenization); line budget uses exact lines",
     "head_window_bytes": 17500,
     "head_token_budget": 5000
@@ -15,40 +15,40 @@
       "level": 2,
       "title": "Non-negotiables",
       "line": 11,
-      "byte_offset": 890,
-      "byte_end": 1631,
+      "byte_offset": 862,
+      "byte_end": 1603,
       "est_tokens": 185
     },
     {
       "level": 2,
       "title": "Residency Guard",
       "line": 26,
-      "byte_offset": 1631,
-      "byte_end": 2328,
+      "byte_offset": 1603,
+      "byte_end": 2300,
       "est_tokens": 174
     },
     {
       "level": 2,
       "title": "Default workflow",
       "line": 45,
-      "byte_offset": 2328,
-      "byte_end": 10124,
-      "est_tokens": 1949
+      "byte_offset": 2300,
+      "byte_end": 10736,
+      "est_tokens": 2109
     },
     {
       "level": 2,
       "title": "Mode patterns",
-      "line": 177,
-      "byte_offset": 10124,
-      "byte_end": 15764,
-      "est_tokens": 1410
+      "line": 186,
+      "byte_offset": 10736,
+      "byte_end": 16584,
+      "est_tokens": 1462
     },
     {
       "level": 2,
       "title": "Supporting references",
-      "line": 217,
-      "byte_offset": 15764,
-      "byte_end": 17252,
+      "line": 227,
+      "byte_offset": 16584,
+      "byte_end": 18072,
       "est_tokens": 372
     }
   ],
@@ -100,6 +100,12 @@
       "title": "Domain Router",
       "bytes": 944,
       "est_tokens": 236
+    },
+    {
+      "path": "references/cards/e3-minimum-sufficient-execution-harness.md",
+      "title": "E3 Minimum-Sufficient Execution Harness",
+      "bytes": 4684,
+      "est_tokens": 1171
     },
     {
       "path": "references/cards/effort-inversion-debugger.md",
@@ -296,6 +302,10 @@
       "title": "Domain router card"
     },
     {
+      "path": "references/process/e3-execution-record.md",
+      "title": "E3 Execution Record"
+    },
+    {
       "path": "references/process/effort-inversion-record.md",
       "title": "Effort inversion record"
     },
@@ -457,9 +467,9 @@
     },
     {
       "path": "skills/fairy-tale/references/capabilities.md",
-      "bytes": 16766,
-      "lines": 388,
-      "est_tokens": 4192
+      "bytes": 17541,
+      "lines": 405,
+      "est_tokens": 4385
     },
     {
       "path": "skills/fairy-tale/references/cards/accessible-genius-method-router.md",
@@ -508,6 +518,12 @@
       "bytes": 944,
       "lines": 17,
       "est_tokens": 236
+    },
+    {
+      "path": "skills/fairy-tale/references/cards/e3-minimum-sufficient-execution-harness.md",
+      "bytes": 4684,
+      "lines": 108,
+      "est_tokens": 1171
     },
     {
       "path": "skills/fairy-tale/references/cards/effort-inversion-debugger.md",
@@ -661,9 +677,9 @@
     },
     {
       "path": "skills/fairy-tale/references/feedback-governance.md",
-      "bytes": 4515,
-      "lines": 123,
-      "est_tokens": 1129
+      "bytes": 4978,
+      "lines": 131,
+      "est_tokens": 1244
     },
     {
       "path": "skills/fairy-tale/references/general-e2e-completion.md",
@@ -679,9 +695,9 @@
     },
     {
       "path": "skills/fairy-tale/references/gui-dogfood-qa.md",
-      "bytes": 9199,
-      "lines": 159,
-      "est_tokens": 2300
+      "bytes": 9283,
+      "lines": 160,
+      "est_tokens": 2321
     },
     {
       "path": "skills/fairy-tale/references/legal-feedback.md",
@@ -691,9 +707,9 @@
     },
     {
       "path": "skills/fairy-tale/references/loop-engineering-automation.md",
-      "bytes": 26072,
-      "lines": 599,
-      "est_tokens": 6518
+      "bytes": 26150,
+      "lines": 600,
+      "est_tokens": 6538
     },
     {
       "path": "skills/fairy-tale/references/openmythos-external-adapter.md",
@@ -772,6 +788,12 @@
       "bytes": 495,
       "lines": 17,
       "est_tokens": 124
+    },
+    {
+      "path": "skills/fairy-tale/references/process/e3-execution-record.md",
+      "bytes": 1319,
+      "lines": 56,
+      "est_tokens": 330
     },
     {
       "path": "skills/fairy-tale/references/process/effort-inversion-record.md",
@@ -1003,9 +1025,9 @@
     },
     {
       "path": "skills/fairy-tale/references/process.md",
-      "bytes": 7670,
-      "lines": 57,
-      "est_tokens": 1918
+      "bytes": 7818,
+      "lines": 58,
+      "est_tokens": 1954
     },
     {
       "path": "skills/fairy-tale/references/similarity-refactoring-adapter.md",
@@ -1015,9 +1037,9 @@
     },
     {
       "path": "skills/fairy-tale/references/sources.md",
-      "bytes": 26491,
-      "lines": 526,
-      "est_tokens": 6623
+      "bytes": 27183,
+      "lines": 545,
+      "est_tokens": 6796
     }
   ]
 }

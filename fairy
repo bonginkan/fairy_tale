@@ -88,6 +88,18 @@ VALIDATION_STEPS = (
         "--cases",
         str(ROOT / "fixtures" / "task-artifacts" / "cases.jsonl"),
     ),
+    python_step(
+        "e3-selftest",
+        "E3 execution-scope self-controls",
+        "e3_execution.py",
+        "selftest",
+    ),
+    python_step(
+        "e3-cases",
+        "E3 execution-scope lifecycle cases",
+        "e3_execution.py",
+        "cases",
+    ),
     python_step("budget-selftest", "Skill budget self-controls", "skill_token_budget_check.py", "--selftest"),
     python_step(
         "budget",
@@ -226,12 +238,19 @@ def task_artifact_command(command: str, args: Sequence[str]) -> tuple[str, ...]:
     return (PYTHON, str(ROOT / "scripts" / "task_artifacts.py"), command, *args)
 
 
-def delegate_task_artifact(command: str, args: Sequence[str]) -> int:
+def delegate_command(command: Sequence[str], label: str) -> int:
     try:
-        return subprocess.run(task_artifact_command(command, args), check=False).returncode
+        return subprocess.run(command, check=False).returncode
     except OSError as exc:
-        print(f"fairy: cannot execute task artifact command: {exc}", file=sys.stderr)
+        print(f"fairy: cannot execute {label}: {exc}", file=sys.stderr)
         return 127
+
+
+def delegate_task_artifact(command: str, args: Sequence[str]) -> int:
+    return delegate_command(
+        task_artifact_command(command, args),
+        "task artifact command",
+    )
 
 
 def fusion_command(args: Sequence[str]) -> tuple[str, ...]:
@@ -239,11 +258,7 @@ def fusion_command(args: Sequence[str]) -> tuple[str, ...]:
 
 
 def delegate_fusion(args: Sequence[str]) -> int:
-    try:
-        return subprocess.run(fusion_command(args), check=False).returncode
-    except OSError as exc:
-        print(f"fairy: cannot execute Fairy Fusion command: {exc}", file=sys.stderr)
-        return 127
+    return delegate_command(fusion_command(args), "Fairy Fusion command")
 
 
 def scoreboard_command(args: Sequence[str]) -> tuple[str, ...]:
@@ -251,11 +266,15 @@ def scoreboard_command(args: Sequence[str]) -> tuple[str, ...]:
 
 
 def delegate_scoreboard(args: Sequence[str]) -> int:
-    try:
-        return subprocess.run(scoreboard_command(args), check=False).returncode
-    except OSError as exc:
-        print(f"fairy: cannot execute workflow scoreboard command: {exc}", file=sys.stderr)
-        return 127
+    return delegate_command(scoreboard_command(args), "workflow scoreboard command")
+
+
+def e3_command(args: Sequence[str]) -> tuple[str, ...]:
+    return (PYTHON, str(ROOT / "scripts" / "e3_execution.py"), *args)
+
+
+def delegate_e3(args: Sequence[str]) -> int:
+    return delegate_command(e3_command(args), "E3 execution command")
 
 
 def ledger_help() -> str:
@@ -293,10 +312,10 @@ def selftest() -> int:
         DOCTOR_STEPS[0].command[-2:] == ("--start", str(CALLER_CWD)),
         "doctor validates the caller repository profile",
     )
-    check(len(VALIDATION_STEPS) == 24, "validation registry remains complete")
+    check(len(VALIDATION_STEPS) == 26, "validation registry remains complete")
     check(
-        sum(not step.credential_keys for step in VALIDATION_STEPS) == 22,
-        "twenty-two ordinary validation steps receive no credentials",
+        sum(not step.credential_keys for step in VALIDATION_STEPS) == 24,
+        "twenty-four ordinary validation steps receive no credentials",
     )
 
     repository_paths = {
@@ -324,6 +343,11 @@ def selftest() -> int:
         scoreboard_command(("validate", "--scoreboard", "scoreboard.json"))[-3:]
         == ("validate", "--scoreboard", "scoreboard.json"),
         "scoreboard delegation preserves arguments",
+    )
+    check(
+        e3_command(("validate", "--ledger", "e3.json"))[-3:]
+        == ("validate", "--ledger", "e3.json"),
+        "E3 delegation preserves arguments",
     )
     check(LEDGER_COMMANDS["finalize"] == "ledger-finalize", "ledger operation mapping")
 
@@ -458,6 +482,7 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("ledger", help="delegate Validation Ledger lifecycle operations")
     subparsers.add_parser("fusion", help="delegate Fairy Fusion review and trigger decisions")
     subparsers.add_parser("scoreboard", help="delegate workflow impact scoreboard operations")
+    subparsers.add_parser("e3", help="delegate E3 execution-scope operations")
     subparsers.add_parser("selftest", help="run deterministic CLI self-controls")
     return parser
 
@@ -470,6 +495,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return delegate_fusion(raw[1:])
     if raw and raw[0] == "scoreboard":
         return delegate_scoreboard(raw[1:])
+    if raw and raw[0] == "e3":
+        return delegate_e3(raw[1:])
     if raw and raw[0] == "ledger":
         if len(raw) == 1 or raw[1] in {"-h", "--help"}:
             print(ledger_help(), end="")

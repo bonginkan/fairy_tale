@@ -19,7 +19,7 @@ import tempfile
 import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Sequence
 
 
 SCHEMA_VERSION = "1.0"
@@ -687,7 +687,7 @@ def load_json(path: Path) -> Any:
         raise ArtifactError(f"invalid JSON in {path}: {exc.msg}") from exc
 
 
-def write_text_atomic(path: Path, text: str) -> None:
+def stage_text(path: Path, text: str) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     handle = tempfile.NamedTemporaryFile(
         mode="w", encoding="utf-8", dir=path.parent, prefix=f".{path.name}.", delete=False
@@ -696,16 +696,99 @@ def write_text_atomic(path: Path, text: str) -> None:
     try:
         with handle:
             handle.write(text)
+        return temporary
+    except BaseException:
+        if temporary.exists():
+            temporary.unlink()
+        raise
+
+
+def write_text_atomic(path: Path, text: str) -> None:
+    temporary = stage_text(path, text)
+    try:
         os.replace(temporary, path)
     finally:
         if temporary.exists():
             temporary.unlink()
 
 
+def write_text_bundle_atomic(writes: Sequence[tuple[Path, str]]) -> None:
+    """Commit a small related file bundle or restore every prior destination."""
+    normalized = [(Path(path), text) for path, text in writes]
+    for index, (path, _) in enumerate(normalized):
+        if path.is_dir() and not path.is_symlink():
+            raise IsADirectoryError(f"output path is a directory: {path}")
+        for other, _ in normalized[index + 1 :]:
+            require_distinct_paths(
+                path,
+                other,
+                "atomic output bundle paths must be distinct",
+            )
+
+    staged: list[tuple[Path, Path]] = []
+    committed: list[tuple[Path, Path | None]] = []
+    try:
+        for path, text in normalized:
+            staged.append((path, stage_text(path, text)))
+
+        for path, temporary in staged:
+            backup: Path | None = None
+            if os.path.lexists(path):
+                descriptor, raw_backup = tempfile.mkstemp(
+                    dir=path.parent,
+                    prefix=f".{path.name}.backup.",
+                )
+                os.close(descriptor)
+                backup = Path(raw_backup)
+                backup.unlink()
+                os.replace(path, backup)
+            try:
+                os.replace(temporary, path)
+            except BaseException:
+                if backup is not None:
+                    os.replace(backup, path)
+                raise
+            committed.append((path, backup))
+    except BaseException:
+        for path, backup in reversed(committed):
+            if os.path.lexists(path):
+                path.unlink()
+            if backup is not None and os.path.lexists(backup):
+                os.replace(backup, path)
+        raise
+    finally:
+        for _, temporary in staged:
+            if temporary.exists():
+                temporary.unlink()
+        for _, backup in committed:
+            if backup is not None and os.path.lexists(backup):
+                backup.unlink()
+
+
+def json_document(payload: Any) -> str:
+    return json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+
+
 def write_json(path: Path, payload: Any) -> None:
-    write_text_atomic(
-        path,
-        json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False) + "\n",
+    write_text_atomic(path, json_document(payload))
+
+
+def write_json_and_optional_text_atomic(
+    json_path: Path,
+    payload: Any,
+    text_path: Path | None,
+    text: str,
+) -> None:
+    if text_path is None:
+        write_json(json_path, payload)
+        return
+    # Commit the derived view first and canonical JSON last. The bundle helper
+    # restores either destination if a later replace fails.
+    write_text_bundle_atomic(
+        (
+            (text_path, text),
+            (json_path, json_document(payload)),
+        )
     )
 
 
@@ -983,9 +1066,12 @@ def command_task_card(args: argparse.Namespace) -> int:
             args.markdown_output,
             "Markdown output cannot replace the linked validation ledger",
         )
-    write_json(args.output, card)
-    if args.markdown_output:
-        write_text_atomic(args.markdown_output, task_card_markdown(card))
+    write_json_and_optional_text_atomic(
+        args.output,
+        card,
+        args.markdown_output,
+        task_card_markdown(card),
+    )
     print(f"wrote task card: {args.output}")
     return 0
 
@@ -1427,7 +1513,7 @@ def command_selftest(_args: argparse.Namespace) -> int:
         def rejected(operation: Any) -> bool:
             try:
                 operation()
-            except ArtifactError:
+            except (ArtifactError, OSError):
                 return True
             return False
 
@@ -1445,6 +1531,37 @@ def command_selftest(_args: argparse.Namespace) -> int:
                     f"cannot initialize selftest Git repository {path}: "
                     f"{completed.stderr.strip()}"
                 )
+
+        bundle_canonical = root / "bundle-canonical.json"
+        invalid_view = root / "invalid-view"
+        invalid_view.mkdir()
+        write_json(bundle_canonical, {"value": "before"})
+        bundle_before = bundle_canonical.read_bytes()
+        check(
+            rejected(
+                lambda: write_json_and_optional_text_atomic(
+                    bundle_canonical,
+                    {"value": "after"},
+                    invalid_view,
+                    "# after\n",
+                )
+            )
+            and bundle_canonical.read_bytes() == bundle_before,
+            "derived-view failure preserves an existing canonical artifact",
+        )
+        missing_canonical = root / "missing-canonical.json"
+        check(
+            rejected(
+                lambda: write_json_and_optional_text_atomic(
+                    missing_canonical,
+                    {"value": "after"},
+                    invalid_view,
+                    "# after\n",
+                )
+            )
+            and not missing_canonical.exists(),
+            "derived-view failure does not create a new canonical artifact",
+        )
 
         def card_args(
             output: Path, *, ledger_name: str = "validation-ledger.json", markdown: Path | None = None
@@ -1467,6 +1584,19 @@ def command_selftest(_args: argparse.Namespace) -> int:
                 output=output,
                 markdown_output=markdown,
             )
+
+        atomic_card_path = root / "atomic-task-card.json"
+        write_json(atomic_card_path, {"sentinel": "before"})
+        atomic_card_before = atomic_card_path.read_bytes()
+        check(
+            rejected(
+                lambda: command_task_card(
+                    card_args(atomic_card_path, markdown=invalid_view)
+                )
+            )
+            and atomic_card_path.read_bytes() == atomic_card_before,
+            "Task Card view failure preserves the canonical artifact",
+        )
 
         repo_root = root / "profiled-repo"
         initialize_git_repo(repo_root)

@@ -6,6 +6,7 @@ Each record template lives in its own card under `references/process/`; read onl
 | Record | Use for | Card |
 |---|---|---|
 | Glass Slipper Gate | Define before long execution: | `references/process/glass-slipper-gate.md` |
+| E3 Execution Record | Use the machine ledger for execution. This record is a planning and handoff | `references/process/e3-execution-record.md` |
 | Evidence map | ```text | `references/process/evidence-map.md` |
 | Best-practice gate | Use this before changing the skill, plugin, adapter, memory, hook, eval, or OSS | `references/process/best-practice-gate.md` |
 | Eval card | Use this before claiming a process advantage or benchmark-style improvement. | `references/process/eval-card.md` |
