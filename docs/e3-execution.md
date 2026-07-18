@@ -35,7 +35,7 @@ is still executed and verified before expansion.
 
 Attempt zero uses the estimated scope exactly. Every attempt:
 
-- covers all acceptance checks exactly once;
+- covers all acceptance checks and required safety gates exactly once;
 - registers every concrete namespaced/immutable evidence reference before a
   check cites it;
 - records raw latency, token, tool-call, and inspected-item observations;
@@ -45,14 +45,18 @@ Attempt zero uses the estimated scope exactly. Every attempt:
 
 ### Expand
 
-Only failed verification can create another attempt. Each expansion adds
-exactly one level, retains the prior scope as a strict subset, reuses all
-evidence, and stays within both the recorded cap and level 3.
+Only failed verification can create another attempt. An aggregate `fail`
+requires at least one actual failed check; `not_run` alone cannot unlock
+expansion. Each expansion adds exactly one level, retains the prior scope as a
+strict subset, reuses all evidence, and stays within both the recorded cap and
+level 3.
 
 Terminal summaries are bound to the final verification notes. The canonical
 ledger cannot present a different handoff conclusion after verification.
 Ledger JSON, attempt input, and optional Markdown output paths must be pairwise
-distinct; alias collisions are rejected before any write.
+distinct; alias collisions are rejected before any write. Commands that write
+canonical JSON and a Markdown view commit the pair through one rollback-capable
+bundle writer, so a view failure cannot create or advance canonical state.
 
 ## Commands
 
@@ -97,6 +101,38 @@ Record an attempt from a small JSON input:
           "run:focused-check"
         ],
         "notes": "The focused behavior passed."
+      },
+      {
+        "id": "validation_plan",
+        "result": "pass",
+        "evidence": [
+          "run:focused-check"
+        ],
+        "notes": "The planned validation passed."
+      },
+      {
+        "id": "closure_check",
+        "result": "pass",
+        "evidence": [
+          "run:focused-check"
+        ],
+        "notes": "Closure Check passed."
+      },
+      {
+        "id": "tier_a_recall",
+        "result": "pass",
+        "evidence": [
+          "run:focused-check"
+        ],
+        "notes": "Tier A recall was preserved."
+      },
+      {
+        "id": "authority_and_safety",
+        "result": "pass",
+        "evidence": [
+          "run:focused-check"
+        ],
+        "notes": "Authority and safety checks passed."
       }
     ],
     "notes": "Verified at the initial scope."

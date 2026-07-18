@@ -40,8 +40,11 @@ Execute exactly the estimated scope first.
 - Level 2: reuse cached search hits and cover direct related sites.
 - Level 3: trace dependencies, imports, integration boundaries, or downstream
   consumers and run full verification.
-- Verification must cover every acceptance check exactly once and bind each
-  non-`not_run` result to a concrete namespaced, URL, or digest evidence ref.
+- Verification must cover every acceptance check and every required safety
+  gate exactly once, and bind each non-`not_run` result to a concrete
+  namespaced, URL, or digest evidence ref.
+- Aggregate `fail` requires at least one actual failed check. `not_run` records
+  missing work and cannot by itself unlock expansion.
 - Record raw latency, token, tool-call, and inspected-item observations for
   every attempt.
 - Verification strength scales with risk: low permits local, medium requires
@@ -75,6 +78,8 @@ E3 optimizes redundant execution effort, not safety or completeness.
   narrower path succeeded.
 - The canonical ledger must retain all four default safety gates; callers may
   add gates but cannot replace or suppress the defaults.
+- A terminal pass requires evidence-backed `pass` outcomes for every required
+  safety gate, not only the presence of gate names in ledger metadata.
 
 ## Machine Contract
 
@@ -87,8 +92,10 @@ Use `fairy e3` to create and advance the canonical JSON ledger:
 ./fairy e3 render --ledger e3-execution.json --output e3-execution.md
 ```
 
-The JSON ledger is canonical. Markdown is a derived review view. The strict
-schema is `schemas/e3-execution-ledger.schema.json`, and the process template is
+The JSON ledger is canonical. Markdown is a derived review view. When a command
+writes both, failure to stage or replace either output leaves the prior bundle
+unchanged. The strict schema is
+`schemas/e3-execution-ledger.schema.json`, and the process template is
 `../process/e3-execution-record.md`.
 
 ## ACRR Boundary

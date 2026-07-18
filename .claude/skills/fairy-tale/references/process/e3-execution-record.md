@@ -35,6 +35,7 @@ Attempt 0:
 - raw cost: latency_ms / tokens / tool_calls / inspected_items
 - verification tier: local | focused | full
 - acceptance results:
+- required safety-gate results:
 - result: pass | fail | blocked
 - notes:
 

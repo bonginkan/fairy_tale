@@ -33,6 +33,7 @@ try:
         unknown_keys,
         valid_id,
         write_json,
+        write_json_and_optional_text_atomic,
         write_text_atomic,
     )
 except ImportError:  # pragma: no cover - import from repository root
@@ -48,6 +49,7 @@ except ImportError:  # pragma: no cover - import from repository root
         unknown_keys,
         valid_id,
         write_json,
+        write_json_and_optional_text_atomic,
         write_text_atomic,
     )
 
@@ -311,7 +313,7 @@ def validate_estimate(value: Any, findings: list[Finding]) -> tuple[int | None, 
     return difficulty, risk, confidence, list(scope), evidence
 
 
-def validate_safety_floor(value: Any, findings: list[Finding]) -> None:
+def validate_safety_floor(value: Any, findings: list[Finding]) -> list[str]:
     safety = object_shape(
         value,
         path="e3.safety_floor",
@@ -320,15 +322,20 @@ def validate_safety_floor(value: Any, findings: list[Finding]) -> None:
         findings=findings,
     )
     if safety is None:
-        return
+        return []
     gates = safety.get("required_gates")
-    if not unique_text_list(gates, nonempty=True):
+    valid_gates: list[str] = []
+    if (
+        not unique_text_list(gates, nonempty=True)
+        or not all(valid_id(item) for item in gates)
+    ):
         add(
             findings,
             "e3.safety_floor.required_gates",
-            "required_gates must be a non-empty unique list",
+            "required_gates must be a non-empty unique list of valid ids",
         )
     else:
+        valid_gates = list(gates)
         missing = sorted(set(DEFAULT_SAFETY_GATES) - set(gates))
         if missing:
             add(
@@ -348,6 +355,7 @@ def validate_safety_floor(value: Any, findings: list[Finding]) -> None:
             "e3.safety_floor.authority_and_safety_preserved",
             "authority and safety gates are non-suppressible",
         )
+    return valid_gates
 
 
 def validate_cost(
@@ -384,6 +392,7 @@ def validate_verification(
     *,
     path: str,
     acceptance_ids: list[str],
+    required_gate_ids: list[str],
     known_evidence: set[str],
     risk: str | None,
     level: int | None,
@@ -480,16 +489,17 @@ def validate_verification(
 
     if len(observed_ids) != len(set(observed_ids)):
         add(findings, f"{path}.checks.ids", "check ids must be unique")
-    if set(observed_ids) != set(acceptance_ids) or len(observed_ids) != len(acceptance_ids):
+    required_ids = acceptance_ids + required_gate_ids
+    if set(observed_ids) != set(required_ids) or len(observed_ids) != len(required_ids):
         add(
             findings,
             f"{path}.checks.coverage",
-            "checks must cover every acceptance check exactly once",
+            "checks must cover every acceptance check and required safety gate exactly once",
         )
     if result == "pass" and observed_results and not all(item == "pass" for item in observed_results):
         add(findings, f"{path}.result", "pass requires every check to pass")
-    if result == "fail" and not any(item in {"fail", "not_run"} for item in observed_results):
-        add(findings, f"{path}.result", "fail requires a failed or not-run check")
+    if result == "fail" and "fail" not in observed_results:
+        add(findings, f"{path}.result", "fail requires at least one failed check")
     if result == "blocked" and "blocked" not in observed_results:
         add(findings, f"{path}.result", "blocked requires a blocked check")
     return result
@@ -518,6 +528,7 @@ def validate_attempts(
     value: Any,
     *,
     acceptance_ids: list[str],
+    required_gate_ids: list[str],
     estimate_scope: list[str],
     probe_evidence: list[str],
     difficulty: int | None,
@@ -617,6 +628,7 @@ def validate_attempts(
             attempt.get("verification"),
             path=f"{path}.verification",
             acceptance_ids=acceptance_ids,
+            required_gate_ids=required_gate_ids,
             known_evidence=known,
             risk=risk,
             level=level,
@@ -659,7 +671,15 @@ def validate_ledger(ledger: Any) -> list[Finding]:
     difficulty, risk, confidence, estimate_scope, probe_evidence = validate_estimate(
         ledger.get("estimate"), findings
     )
-    validate_safety_floor(ledger.get("safety_floor"), findings)
+    required_gate_ids = validate_safety_floor(ledger.get("safety_floor"), findings)
+    collisions = sorted(set(acceptance_ids) & set(required_gate_ids))
+    if collisions:
+        add(
+            findings,
+            "e3.acceptance_checks.safety_gate_collision",
+            "acceptance check ids cannot duplicate required safety gates: "
+            + ", ".join(collisions),
+        )
 
     max_expansions = ledger.get("max_expansions")
     if not isinstance(max_expansions, int) or isinstance(max_expansions, bool) or not 0 <= max_expansions <= 2:
@@ -703,6 +723,7 @@ def validate_ledger(ledger: Any) -> list[Finding]:
     attempts, expected_cached = validate_attempts(
         ledger.get("attempts"),
         acceptance_ids=acceptance_ids,
+        required_gate_ids=required_gate_ids,
         estimate_scope=estimate_scope,
         probe_evidence=probe_evidence,
         difficulty=difficulty,
@@ -909,6 +930,7 @@ def append_attempt(ledger: dict[str, Any], attempt_input: dict[str, Any]) -> dic
         verification,
         path="e3.attempt_input.verification",
         acceptance_ids=[item["id"] for item in ledger["acceptance_checks"]],
+        required_gate_ids=list(ledger["safety_floor"]["required_gates"]),
         known_evidence=set(ledger["cached_evidence"]) | set(new_evidence),
         risk=ledger["estimate"]["risk"],
         level=level,
@@ -1102,9 +1124,12 @@ def command_init(args: argparse.Namespace) -> int:
             "E3 JSON and Markdown output paths must be distinct",
         )
     ledger = make_ledger(spec_from_args(args))
-    write_json(output, ledger)
-    if args.markdown_output:
-        write_text_atomic(Path(args.markdown_output), render_markdown(ledger))
+    write_json_and_optional_text_atomic(
+        output,
+        ledger,
+        Path(args.markdown_output) if args.markdown_output else None,
+        render_markdown(ledger),
+    )
     print(f"wrote E3 ledger: {output}")
     return 0
 
@@ -1141,9 +1166,12 @@ def command_record(args: argparse.Namespace) -> int:
     ledger = load_json(ledger_path)
     attempt_input = load_json(attempt_path)
     updated = append_attempt(ledger, attempt_input)
-    write_json(ledger_path, updated)
-    if markdown_path is not None:
-        write_text_atomic(markdown_path, render_markdown(updated))
+    write_json_and_optional_text_atomic(
+        ledger_path,
+        updated,
+        markdown_path,
+        render_markdown(updated),
+    )
     print(f"recorded E3 attempt {len(updated['attempts']) - 1}: {ledger_path}")
     return 0
 
@@ -1211,6 +1239,21 @@ def attempt_input(
         "blocked": ("blocked", "not_run"),
     }
     focused_result, closure_result = check_results[result]
+    safety_checks = []
+    for gate in DEFAULT_SAFETY_GATES:
+        gate_result = "pass" if result == "pass" else "not_run"
+        safety_checks.append(
+            {
+                "id": gate,
+                "result": gate_result,
+                "evidence": [new_evidence[-1]] if gate_result == "pass" else [],
+                "notes": (
+                    "Required safety gate passed."
+                    if gate_result == "pass"
+                    else "Deferred after non-passing acceptance verification."
+                ),
+            }
+        )
     return {
         "scope_additions": list(scope_additions),
         "new_evidence": list(new_evidence),
@@ -1240,6 +1283,7 @@ def attempt_input(
                     "evidence": [new_evidence[-1]] if closure_result != "not_run" else [],
                     "notes": "Closure check." if closure_result != "not_run" else "Deferred until expansion.",
                 },
+                *safety_checks,
             ],
             "notes": notes,
         },
@@ -1260,7 +1304,7 @@ def run_selftest() -> int:
         controls += 1
         try:
             fn()
-        except ArtifactError as exc:
+        except (ArtifactError, OSError) as exc:
             if contains not in str(exc):
                 raise AssertionError(f"wrong reason for {contains}: {exc}") from exc
         else:
@@ -1377,7 +1421,30 @@ def run_selftest() -> int:
     incomplete["verification"]["checks"].pop()
     blocked(
         lambda: append_attempt(ledger, incomplete),
-        "checks must cover every acceptance check exactly once",
+        "checks must cover every acceptance check and required safety gate exactly once",
+    )
+    all_not_run = attempt_input(
+        new_evidence=("run:not-run", "run:not-run-closure"),
+        result="fail",
+        notes="No verification check ran.",
+    )
+    for item in all_not_run["verification"]["checks"]:
+        item.update(result="not_run", evidence=[], notes="Not run.")
+    blocked(
+        lambda: append_attempt(ledger, all_not_run),
+        "fail requires at least one failed check",
+    )
+    missing_safety = attempt_input(
+        new_evidence=("run:missing-gate", "run:missing-gate-closure"),
+    )
+    missing_safety["verification"]["checks"] = [
+        item
+        for item in missing_safety["verification"]["checks"]
+        if item["id"] != "authority_and_safety"
+    ]
+    blocked(
+        lambda: append_attempt(ledger, missing_safety),
+        "checks must cover every acceptance check and required safety gate exactly once",
     )
 
     unknown_evidence = attempt_input(
@@ -1451,6 +1518,48 @@ def run_selftest() -> int:
     check(
         any("cannot suppress defaults" in item.message for item in validate_ledger(tampered)),
         "default safety gates are non-suppressible",
+    )
+    blocked(
+        lambda: make_ledger(
+            default_spec(
+                acceptance_checks=[
+                    {
+                        "id": "validation_plan",
+                        "description": "Cannot impersonate a safety gate.",
+                    }
+                ]
+            )
+        ),
+        "acceptance check ids cannot duplicate required safety gates",
+    )
+    blocked(
+        lambda: make_ledger(
+            default_spec(
+                safety_gates=[*DEFAULT_SAFETY_GATES, "invalid gate"],
+            )
+        ),
+        "required_gates must be a non-empty unique list of valid ids",
+    )
+    custom_gate_ledger = make_ledger(
+        default_spec(
+            safety_gates=[*DEFAULT_SAFETY_GATES, "repository_policy"],
+        )
+    )
+    custom_gate_attempt = attempt_input(
+        new_evidence=("run:custom-gate", "run:custom-gate-closure"),
+    )
+    custom_gate_attempt["verification"]["checks"].append(
+        {
+            "id": "repository_policy",
+            "result": "pass",
+            "evidence": ["run:custom-gate"],
+            "notes": "Repository policy passed.",
+        }
+    )
+    check(
+        append_attempt(custom_gate_ledger, custom_gate_attempt)["status"]
+        == "verified",
+        "custom required safety gate is evidence-bound",
     )
     tampered = copy.deepcopy(first)
     tampered["summary"] = "Unbound terminal claim."
@@ -1557,6 +1666,13 @@ def run_selftest() -> int:
         "schema default safety gates",
     )
     check(
+        schema["$defs"]["safetyFloor"]["properties"]["required_gates"]["allOf"][0][
+            "$ref"
+        ]
+        == "#/$defs/nonemptyUniqueIds",
+        "schema safety gates use strict ids",
+    )
+    check(
         set(schema["$defs"]["check"]["properties"]) == CHECK_KEYS,
         "schema check keys",
     )
@@ -1593,8 +1709,66 @@ def run_selftest() -> int:
         tmp = Path(raw_tmp)
         ledger_path = tmp / "ledger.json"
         markdown_path = tmp / "ledger.md"
-        write_json(ledger_path, expanded)
-        write_text_atomic(markdown_path, render_markdown(expanded))
+        invalid_markdown_path = tmp / "invalid-markdown"
+        invalid_markdown_path.mkdir()
+        atomic_init_path = tmp / "atomic-init.json"
+        blocked(
+            lambda: command_init(
+                argparse.Namespace(
+                    task_id="e3-atomic-init",
+                    objective="Preserve canonical state when a view cannot be written.",
+                    acceptance=["focused-test=Focused behavior passes."],
+                    difficulty=1,
+                    scope=["src/target.py"],
+                    risk="low",
+                    confidence=0.9,
+                    rationale="The target is explicit.",
+                    probe_kind="none",
+                    probe_query="",
+                    probe_evidence=[],
+                    max_expansions=2,
+                    confidence_threshold=DEFAULT_CONFIDENCE_THRESHOLD,
+                    safety_gate=[],
+                    output=str(atomic_init_path),
+                    markdown_output=str(invalid_markdown_path),
+                )
+            ),
+            "output path is a directory",
+        )
+        check(
+            not atomic_init_path.exists(),
+            "init view failure does not create the canonical ledger",
+        )
+        atomic_record_path = tmp / "atomic-record.json"
+        atomic_attempt_path = tmp / "atomic-attempt.json"
+        write_json(atomic_record_path, make_ledger(default_spec()))
+        write_json(
+            atomic_attempt_path,
+            attempt_input(
+                new_evidence=("run:atomic", "run:atomic-closure"),
+            ),
+        )
+        atomic_before = atomic_record_path.read_bytes()
+        blocked(
+            lambda: command_record(
+                argparse.Namespace(
+                    ledger=str(atomic_record_path),
+                    attempt=str(atomic_attempt_path),
+                    markdown_output=str(invalid_markdown_path),
+                )
+            ),
+            "output path is a directory",
+        )
+        check(
+            atomic_record_path.read_bytes() == atomic_before,
+            "record view failure preserves the canonical ledger",
+        )
+        write_json_and_optional_text_atomic(
+            ledger_path,
+            expanded,
+            markdown_path,
+            render_markdown(expanded),
+        )
         check(require_valid(load_json(ledger_path))["status"] == "verified", "JSON round trip")
         check(markdown_path.read_text(encoding="utf-8").startswith("# E3"), "Markdown round trip")
         attempt_path = tmp / "attempt.json"
