@@ -13,7 +13,11 @@
   every required gate before verified success. A failed aggregate needs an
   actual failed check; `not_run` alone cannot unlock expansion. Canonical JSON
   and optional Markdown views use the shared rollback-capable bundle writer,
-  including the pre-existing Task Card consumer. Each attempt retains raw
+  including the pre-existing Task Card consumer. The distributed Draft
+  2020-12 schema enforces the expressible evidence, aggregate-result, and
+  default safety-gate floor with semantic instance controls; dynamic
+  acceptance/custom-gate coverage remains bound to the authoritative
+  `fairy e3 validate` command. Each attempt retains raw
   latency, token, tool-call, and inspected-item observations. `fairy e3`
   deliberately does not emit ACRR;
   that metric remains limited to external controlled evaluations with an exact

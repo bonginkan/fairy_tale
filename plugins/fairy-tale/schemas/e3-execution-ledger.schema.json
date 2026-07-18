@@ -295,7 +295,32 @@
         "notes": {
           "type": "string"
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "result"
+            ],
+            "properties": {
+              "result": {
+                "enum": [
+                  "pass",
+                  "fail",
+                  "blocked"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "evidence": {
+                "$ref": "#/$defs/nonemptyEvidenceRefs"
+              }
+            }
+          }
+        }
+      ]
     },
     "verification": {
       "type": "object",
@@ -331,7 +356,169 @@
         "notes": {
           "$ref": "#/$defs/nonemptyString"
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "result"
+            ],
+            "properties": {
+              "result": {
+                "const": "pass"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "checks": {
+                "items": {
+                  "required": [
+                    "result"
+                  ],
+                  "properties": {
+                    "result": {
+                      "const": "pass"
+                    }
+                  }
+                },
+                "allOf": [
+                  {
+                    "contains": {
+                      "required": [
+                        "id",
+                        "result"
+                      ],
+                      "properties": {
+                        "id": {
+                          "const": "validation_plan"
+                        },
+                        "result": {
+                          "const": "pass"
+                        }
+                      }
+                    },
+                    "minContains": 1,
+                    "maxContains": 1
+                  },
+                  {
+                    "contains": {
+                      "required": [
+                        "id",
+                        "result"
+                      ],
+                      "properties": {
+                        "id": {
+                          "const": "closure_check"
+                        },
+                        "result": {
+                          "const": "pass"
+                        }
+                      }
+                    },
+                    "minContains": 1,
+                    "maxContains": 1
+                  },
+                  {
+                    "contains": {
+                      "required": [
+                        "id",
+                        "result"
+                      ],
+                      "properties": {
+                        "id": {
+                          "const": "tier_a_recall"
+                        },
+                        "result": {
+                          "const": "pass"
+                        }
+                      }
+                    },
+                    "minContains": 1,
+                    "maxContains": 1
+                  },
+                  {
+                    "contains": {
+                      "required": [
+                        "id",
+                        "result"
+                      ],
+                      "properties": {
+                        "id": {
+                          "const": "authority_and_safety"
+                        },
+                        "result": {
+                          "const": "pass"
+                        }
+                      }
+                    },
+                    "minContains": 1,
+                    "maxContains": 1
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "result"
+            ],
+            "properties": {
+              "result": {
+                "const": "fail"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "checks": {
+                "contains": {
+                  "required": [
+                    "result"
+                  ],
+                  "properties": {
+                    "result": {
+                      "const": "fail"
+                    }
+                  }
+                },
+                "minContains": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "result"
+            ],
+            "properties": {
+              "result": {
+                "const": "blocked"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "checks": {
+                "contains": {
+                  "required": [
+                    "result"
+                  ],
+                  "properties": {
+                    "result": {
+                      "const": "blocked"
+                    }
+                  }
+                },
+                "minContains": 1
+              }
+            }
+          }
+        }
+      ]
     },
     "attempt": {
       "type": "object",

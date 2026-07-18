@@ -97,6 +97,11 @@ writes both, failure to stage or replace either output leaves the prior bundle
 unchanged. The strict schema is
 `schemas/e3-execution-ledger.schema.json`, and the process template is
 `../process/e3-execution-record.md`.
+The schema enforces the expressible evidence, aggregate-result, and default
+safety-gate floor. Exact coverage of task-specific acceptance checks and
+custom safety gates depends on values in other arrays, so `fairy e3 validate`
+is the authoritative semantic validator for those dynamic constraints and
+state transitions. A schema-only pass is not terminal E3 verification.
 
 ## ACRR Boundary
 

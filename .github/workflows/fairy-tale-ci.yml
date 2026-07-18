@@ -41,6 +41,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+      - name: Install JSON Schema contract-test dependency
+        run: python3 -m pip install --disable-pip-version-check --no-cache-dir jsonschema==4.26.0
+      - name: E3 Draft 2020-12 schema contract
+        run: python3 .github/scripts/e3_schema_contract.py
       - name: Task artifact gate (self-controls)
         run: python3 scripts/task_artifacts.py selftest
       - name: Task artifact acceptance cases

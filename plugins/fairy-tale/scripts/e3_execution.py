@@ -1677,6 +1677,44 @@ def run_selftest() -> int:
         "schema check keys",
     )
     check(
+        schema["$defs"]["check"]["allOf"][0]["then"]["properties"]["evidence"][
+            "$ref"
+        ]
+        == "#/$defs/nonemptyEvidenceRefs",
+        "schema non-not-run checks require evidence",
+    )
+    verification_conditionals = {
+        item["if"]["properties"]["result"]["const"]: item["then"]
+        for item in schema["$defs"]["verification"]["allOf"]
+    }
+    check(
+        set(verification_conditionals) == VERIFICATION_RESULTS,
+        "schema aggregate result conditionals",
+    )
+    schema_pass_checks = verification_conditionals["pass"]["properties"]["checks"]
+    schema_pass_gates = {
+        item["contains"]["properties"]["id"]["const"]
+        for item in schema_pass_checks["allOf"]
+    }
+    check(
+        schema_pass_gates == set(DEFAULT_SAFETY_GATES),
+        "schema pass requires default safety gates",
+    )
+    check(
+        schema_pass_checks["items"]["properties"]["result"]["const"] == "pass",
+        "schema aggregate pass requires passing checks",
+    )
+    check(
+        all(
+            verification_conditionals[result]["properties"]["checks"]["contains"][
+                "properties"
+            ]["result"]["const"]
+            == result
+            for result in ("fail", "blocked")
+        ),
+        "schema aggregate non-pass needs a matching check",
+    )
+    check(
         schema["$defs"]["evidenceRef"]["pattern"] == EVIDENCE_REF_RE.pattern,
         "schema evidence-ref pattern",
     )

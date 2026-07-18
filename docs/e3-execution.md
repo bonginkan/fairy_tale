@@ -153,6 +153,13 @@ Record an attempt from a small JSON input:
 
 The canonical schema is
 [`e3-execution-ledger.schema.json`](../schemas/e3-execution-ledger.schema.json).
+It enforces the Draft 2020-12 structural floor: non-`not_run` checks carry
+evidence, aggregate `fail` and `blocked` results have a corresponding check,
+and aggregate `pass` contains evidence-backed passing outcomes for the four
+default safety gates. JSON Schema cannot derive exact cross-array coverage for
+task-specific acceptance checks or custom safety gates. `fairy e3 validate` is
+the authoritative semantic validator for that dynamic coverage and all state
+transitions; schema-only acceptance is not terminal verification.
 The routed skill contract is the
 [E3 Minimum-Sufficient Execution Harness](../skills/fairy-tale/references/cards/e3-minimum-sufficient-execution-harness.md).
 Evidence references use an `https://` URL with a path, a lowercase
