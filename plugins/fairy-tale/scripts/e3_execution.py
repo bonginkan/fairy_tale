@@ -758,6 +758,20 @@ def validate_ledger(ledger: Any) -> list[Finding]:
     if isinstance(status, str) and status in {"verified", "blocked", "exhausted"}:
         if not has_text(summary):
             add(findings, "e3.summary", f"{status} status needs a summary")
+        elif attempts:
+            verification = attempts[-1].get("verification")
+            expected_summary = (
+                verification.get("notes")
+                if isinstance(verification, dict)
+                and isinstance(verification.get("notes"), str)
+                else None
+            )
+            if expected_summary is not None and summary != expected_summary:
+                add(
+                    findings,
+                    "e3.summary",
+                    "terminal summary must equal the final verification notes",
+                )
     elif summary != "":
         add(findings, "e3.summary", "non-terminal status must have an empty summary")
     return findings
@@ -1418,6 +1432,12 @@ def run_selftest() -> int:
         "default safety gates are non-suppressible",
     )
     tampered = copy.deepcopy(first)
+    tampered["summary"] = "Unbound terminal claim."
+    check(
+        any("final verification notes" in item.message for item in validate_ledger(tampered)),
+        "terminal summary is bound to verification",
+    )
+    tampered = copy.deepcopy(first)
     tampered["estimate"]["probe"]["count"] = 2
     check(
         any(item.code == "e3.estimate.probe.count" for item in validate_ledger(tampered)),
@@ -1504,6 +1524,16 @@ def run_selftest() -> int:
     check(
         set(schema["$defs"]["safetyFloor"]["properties"]) == SAFETY_KEYS,
         "schema safety keys",
+    )
+    schema_safety_defaults = {
+        item["contains"]["const"]
+        for item in schema["$defs"]["safetyFloor"]["properties"]["required_gates"][
+            "allOf"
+        ][1:]
+    }
+    check(
+        schema_safety_defaults == set(DEFAULT_SAFETY_GATES),
+        "schema default safety gates",
     )
     check(
         set(schema["$defs"]["check"]["properties"]) == CHECK_KEYS,

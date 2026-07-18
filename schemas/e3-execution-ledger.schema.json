@@ -226,7 +226,31 @@
       ],
       "properties": {
         "required_gates": {
-          "$ref": "#/$defs/nonemptyUniqueStrings"
+          "allOf": [
+            {
+              "$ref": "#/$defs/nonemptyUniqueStrings"
+            },
+            {
+              "contains": {
+                "const": "validation_plan"
+              }
+            },
+            {
+              "contains": {
+                "const": "closure_check"
+              }
+            },
+            {
+              "contains": {
+                "const": "tier_a_recall"
+              }
+            },
+            {
+              "contains": {
+                "const": "authority_and_safety"
+              }
+            }
+          ]
         },
         "closure_tier_a_preserved": {
           "const": true

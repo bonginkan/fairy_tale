@@ -49,6 +49,9 @@ Only failed verification can create another attempt. Each expansion adds
 exactly one level, retains the prior scope as a strict subset, reuses all
 evidence, and stays within both the recorded cap and level 3.
 
+Terminal summaries are bound to the final verification notes. The canonical
+ledger cannot present a different handoff conclusion after verification.
+
 ## Commands
 
 Create a ledger:
