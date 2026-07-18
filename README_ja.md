@@ -59,14 +59,18 @@ source checkout では、個別 script の path を覚える代わりに統一 C
 ./fairy task-card --help
 ./fairy ledger --help
 ./fairy fusion --help
+./fairy e3 --help
 ```
 
 `doctor` は呼び出し元 repo の任意 `.fairy/profile.json`、residency、adapter
 の健全性をまとめて検証し、`validate` は
 決定論的な CI suite を実行する。Task Card / Validation Ledger 操作は既存の
 `scripts/task_artifacts.py` へ委譲し、契約を複製しない。Fairy Fusion の実行と
-bounded な decision-only 自動 trigger 判定も既存 runner へ委譲する。詳細は
-[Fairy CLI](docs/fairy-cli.md) と
+bounded な decision-only 自動 trigger 判定も既存 runner へ委譲する。E3 は
+acceptance check と複数の候補 scope を持つ task に対して、Estimate、Execute、
+有界な Expand を機械検証可能な state machine として提供する。詳細は
+[Fairy CLI](docs/fairy-cli.md)、
+[E3 Minimum-Sufficient Execution](docs/e3-execution.md)、
 [Fairy Fusion automatic trigger decisions](docs/fairy-fusion-auto-trigger.md) を参照。
 skill-only installer は host executable
 や `PATH` を変更しないため、CLI は source checkout から実行する。

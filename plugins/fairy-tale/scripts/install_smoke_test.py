@@ -22,7 +22,13 @@ REQUIRED_INSTALLED_FILES = (
     Path("fairy-tale") / "references" / "feedback-governance.md",
     Path("fairy-tale") / "references" / "openmythos-external-adapter.md",
     Path("fairy-tale") / "references" / "similarity-refactoring-adapter.md",
+    Path("fairy-tale")
+    / "references"
+    / "cards"
+    / "e3-minimum-sufficient-execution-harness.md",
 )
+
+
 def run_install(target: Path, source: Path) -> None:
     subprocess.run(
         [

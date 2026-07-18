@@ -1,5 +1,22 @@
 # Release Notes
 
+## 0.2.32
+
+- **E3 minimum-sufficient execution system** (#91): adds a machine-executable
+  Estimate, Execute, and bounded Expand state machine for tool-using tasks with
+  explicit acceptance checks and multiple plausible scope levels. The strict
+  JSON ledger records the initial difficulty/scope/risk/confidence estimate,
+  at most one cheap probe, risk-scaled verification, complete ordered evidence
+  reuse, monotonic one-level expansion, and a hard stop on verified success.
+  Validation, Closure Check, Tier A recall, authority, and safety remain
+  non-suppressible. Each attempt retains raw latency, token, tool-call, and
+  inspected-item observations. `fairy e3` deliberately does not emit ACRR;
+  that metric remains limited to external controlled evaluations with an exact
+  oracle minimum. `fairy e3` thin dispatch, schema,
+  Markdown review view, seven lifecycle cases, 63 self-controls, skill routing,
+  paper provenance and license boundary, package references, and plugin
+  mirrors are included. Runtime package version is 0.2.32.
+
 ## 0.2.31
 
 - **Cross-file distributable Markdown reference gate** (#7): broadens CI and

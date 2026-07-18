@@ -63,6 +63,7 @@ same workflow checks without memorizing individual script paths:
 ./fairy task-card --help
 ./fairy ledger --help
 ./fairy fusion --help
+./fairy e3 --help
 ```
 
 `doctor` validates an optional caller-repository `.fairy/profile.json`, then
@@ -70,7 +71,10 @@ runs residency and adapter health checks. `validate` runs the
 deterministic CI suite, while Task Card and Validation Ledger operations remain
 thin delegates to `scripts/task_artifacts.py`. Fairy Fusion execution and its
 bounded, decision-only automatic trigger check delegate to the existing fusion
-runner. See [Fairy CLI](docs/fairy-cli.md) and
+runner. E3 provides a machine-validated Estimate, Execute, and bounded Expand
+state machine for checkable tasks with multiple plausible scope levels. See
+[Fairy CLI](docs/fairy-cli.md),
+[E3 Minimum-Sufficient Execution](docs/e3-execution.md), and
 [automatic trigger decisions](docs/fairy-fusion-auto-trigger.md).
 The skill-only installer intentionally does not install a host executable or
 modify `PATH`; use the CLI from a source checkout.

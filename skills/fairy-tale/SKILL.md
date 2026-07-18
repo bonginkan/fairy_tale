@@ -1,6 +1,6 @@
 ---
 name: fairy-tale
-description: Fable/Mythos-informed workflow harness for budgeted, evidence-driven, validation-gated agent execution. Use for loop/spiral engineering, double-helix learning loops, evolutionary spirals, job automation, agent handoffs, silent-loop auto-resume, do-not-disturb windows, usage-aware multi-agent load balancing, closure checks, negative-space discovery, excess/redundancy/legacy-surface review, finance proposal completeness, e2e completion, GUI dogfood QA, creator-proxy WWCD elaboration, migration, research synthesis, benchmark/legal reasoning, UI design best practices, UI/3D/creative work, token-consumption optimization (memoization), mechanism discovery, and defensive security process design.
+description: Fable/Mythos workflow harness for E3 complexity-aware minimum-sufficient execution, loop/spiral engineering, double-helix learning loops, evolutionary spirals, job automation, agent handoffs, silent-loop auto-resume, do-not-disturb windows, usage-aware multi-agent load balancing, closure checks, negative-space discovery, excess/redundancy/legacy-surface review, finance proposal completeness, e2e completion, GUI dogfood QA, creator-proxy WWCD elaboration, migration, research synthesis, benchmark/legal reasoning, UI design best practices, UI/3D/creative work, token-consumption optimization (memoization), mechanism discovery, and defensive security process design.
 ---
 
 # Fairy Tale
@@ -59,6 +59,11 @@ python3 scripts/fairy_tale_residency_check.py
    - For long or tightly scoped work, create canonical linked Task Card and
      Validation Ledger JSON with `scripts/task_artifacts.py`; render Markdown
      only as a review/handoff view, not as a second source of truth.
+   - For tool-using execution with an explicit acceptance check and at least
+     two plausible scope levels, route through E3 before broad inspection:
+     estimate cheaply, execute the minimum scope, verify, and expand only one
+     level after failure. E3 never suppresses validation, Closure Check, Tier A
+     recall, authority, or safety gates.
 
 3. **Scout before synthesis**
    - Use cheap/scoped scouts for code search, logs, web research, or config
@@ -152,6 +157,10 @@ python3 scripts/fairy_tale_residency_check.py
      Consumption Optimizer Harness — replay the captured recipe instead of
      re-deriving the process, and capture a recipe at consolidation after any
      validated success likely to recur.
+   - For a bounded implementation or operational task whose success is
+     mechanically checkable: use the E3 Minimum-Sufficient Execution Harness.
+     Do not use it for plain Q&A, divergent generation, or an independent
+     review/sign-off whose required frame is intentionally broad.
    - For defensive security: use only authorized code and produce verification
      steps, not exploit instructions.
 
@@ -182,6 +191,7 @@ Route with the table below and read the linked card before applying a pattern; t
 | Mode pattern | Route on | Card |
 |---|---|---|
 | Fable Harness: long coding or migration tasks | Start with repository map and invariants. | `references/cards/fable-harness-long-coding-or-migration-tasks.md` |
+| E3 Minimum-Sufficient Execution Harness | Use for tool-using execution with explicit acceptance checks and multiple plausible scope levels. | `references/cards/e3-minimum-sufficient-execution-harness.md` |
 | Implementation Validation Gate | Use for any implementation task with a clear behavioral target, not only | `references/cards/implementation-validation-gate.md` |
 | Mythos Defensive Harness | Confirm authorization and target scope. | `references/cards/mythos-defensive-harness.md` |
 | Cyber Frontier Defense Harness | Use only for authorized defensive work. | `references/cards/cyber-frontier-defense-harness.md` |

@@ -2,6 +2,23 @@
 
 The observed capabilities are process capabilities, not model access.
 
+## Complexity-aware minimum-sufficient execution
+
+E3 separates cheap scope estimation from verified execution and bounded
+expansion. Its purpose is to avoid paying for broad inspection on tasks that
+can be completed correctly at a narrow scope, while retaining expansion as the
+success-preserving safety net.
+
+Workflow translation:
+
+- estimate difficulty, scope, risk, and confidence before broad inspection,
+- use at most one cheap probe and cache its evidence,
+- execute and verify the minimum plausible scope first,
+- stop immediately on verified success,
+- after failure, expand exactly one level without restarting,
+- preserve validation, Closure Check, Tier A recall, authority, and safety,
+- record raw attempt cost and do not emit ACRR from ordinary task execution.
+
 ## Autonomous long-task execution
 
 Official materials describe Fable/Mythos as able to work autonomously longer
