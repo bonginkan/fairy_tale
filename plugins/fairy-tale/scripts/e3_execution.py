@@ -1109,20 +1109,41 @@ def command_init(args: argparse.Namespace) -> int:
     return 0
 
 
+def require_record_paths_distinct(
+    ledger_path: Path,
+    attempt_path: Path,
+    markdown_path: Path | None,
+) -> None:
+    require_distinct_paths(
+        ledger_path,
+        attempt_path,
+        "E3 ledger and attempt input paths must be distinct",
+    )
+    if markdown_path is None:
+        return
+    require_distinct_paths(
+        ledger_path,
+        markdown_path,
+        "E3 JSON and Markdown output paths must be distinct",
+    )
+    require_distinct_paths(
+        attempt_path,
+        markdown_path,
+        "E3 attempt input and Markdown output paths must be distinct",
+    )
+
+
 def command_record(args: argparse.Namespace) -> int:
     ledger_path = canonical_artifact_path(Path(args.ledger), "E3 ledger")
-    if args.markdown_output:
-        require_distinct_paths(
-            ledger_path,
-            Path(args.markdown_output),
-            "E3 JSON and Markdown output paths must be distinct",
-        )
+    attempt_path = Path(args.attempt)
+    markdown_path = Path(args.markdown_output) if args.markdown_output else None
+    require_record_paths_distinct(ledger_path, attempt_path, markdown_path)
     ledger = load_json(ledger_path)
-    attempt_input = load_json(Path(args.attempt))
+    attempt_input = load_json(attempt_path)
     updated = append_attempt(ledger, attempt_input)
     write_json(ledger_path, updated)
-    if args.markdown_output:
-        write_text_atomic(Path(args.markdown_output), render_markdown(updated))
+    if markdown_path is not None:
+        write_text_atomic(markdown_path, render_markdown(updated))
     print(f"recorded E3 attempt {len(updated['attempts']) - 1}: {ledger_path}")
     return 0
 
@@ -1576,6 +1597,37 @@ def run_selftest() -> int:
         write_text_atomic(markdown_path, render_markdown(expanded))
         check(require_valid(load_json(ledger_path))["status"] == "verified", "JSON round trip")
         check(markdown_path.read_text(encoding="utf-8").startswith("# E3"), "Markdown round trip")
+        attempt_path = tmp / "attempt.json"
+        write_json(
+            attempt_path,
+            attempt_input(
+                new_evidence=("run:collision", "run:collision-closure"),
+            ),
+        )
+        original_ledger = ledger_path.read_bytes()
+        original_attempt = attempt_path.read_bytes()
+        blocked(
+            lambda: command_record(
+                argparse.Namespace(
+                    ledger=str(ledger_path),
+                    attempt=str(attempt_path),
+                    markdown_output=str(attempt_path),
+                )
+            ),
+            "attempt input and Markdown output paths must be distinct",
+        )
+        check(ledger_path.read_bytes() == original_ledger, "collision preserves ledger input")
+        check(attempt_path.read_bytes() == original_attempt, "collision preserves attempt input")
+        blocked(
+            lambda: command_record(
+                argparse.Namespace(
+                    ledger=str(ledger_path),
+                    attempt=str(ledger_path),
+                    markdown_output=None,
+                )
+            ),
+            "ledger and attempt input paths must be distinct",
+        )
         blocked(
             lambda: require_distinct_paths(
                 ledger_path,

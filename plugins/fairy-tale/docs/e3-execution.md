@@ -51,6 +51,8 @@ evidence, and stays within both the recorded cap and level 3.
 
 Terminal summaries are bound to the final verification notes. The canonical
 ledger cannot present a different handoff conclusion after verification.
+Ledger JSON, attempt input, and optional Markdown output paths must be pairwise
+distinct; alias collisions are rejected before any write.
 
 ## Commands
 
