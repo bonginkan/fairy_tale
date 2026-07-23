@@ -590,6 +590,28 @@ def check_standing_instruction(checks: list[Check]) -> None:
         )
 
 
+def session_start_payload() -> dict[str, object]:
+    """Return Codex's structured SessionStart hook response."""
+    return {
+        "hookSpecificOutput": {
+            "hookEventName": "SessionStart",
+            "additionalContext": STANDING_INSTRUCTION,
+        }
+    }
+
+
+def check_session_start_contract(checks: list[Check]) -> None:
+    payload = json.loads(json.dumps(session_start_payload()))
+    output = payload.get("hookSpecificOutput", {})
+    if (
+        output.get("hookEventName") != "SessionStart"
+        or output.get("additionalContext") != STANDING_INSTRUCTION
+    ):
+        add(checks, "FAIL", "SessionStart hook contract", "invalid structured output")
+    else:
+        add(checks, "OK", "SessionStart hook contract", "valid structured JSON output")
+
+
 def skill_text_with_cards(skill_dir: Path) -> str | None:
     """SKILL.md text plus its router-referenced card bodies. Mode-pattern
     harness bodies live in references/cards/ since the #57 restructure, so
@@ -675,6 +697,7 @@ def collect_checks(args: argparse.Namespace) -> list[Check]:
         check_contains(checks, path, markers, f"{path} install smoke artifact")
 
     check_standing_instruction(checks)
+    check_session_start_contract(checks)
 
     if args.check_installed:
         home = Path.home()
@@ -699,7 +722,7 @@ def inject_residency() -> int:
         gaps = [marker for marker in SKILL_MARKERS[skill] if marker not in text]
         if gaps:
             degraded.append(f"{skill}: stale ({', '.join(gaps)})")
-    print(STANDING_INSTRUCTION)
+    print(json.dumps(session_start_payload(), separators=(",", ":")))
     if degraded:
         print("[fairy-tale] residency degraded: " + "; ".join(degraded), file=sys.stderr)
     return 0
