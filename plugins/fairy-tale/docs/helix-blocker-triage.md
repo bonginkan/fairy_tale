@@ -24,8 +24,8 @@ the safety floor.
 Only explicit owner or policy deadlines count. The record binds the deadline
 to a source and computes pressure from the timezone-qualified evaluation and
 deadline timestamps. Pressure begins when the recorded fix estimate plus a
-24-hour review reserve reaches the remaining real time. Missing, inferred, or
-expired deadlines do not make a finding deferrable.
+24-hour review reserve reaches the time remaining at `evaluated_at`. Missing,
+inferred, or already-expired deadlines do not make a finding deferrable.
 
 Only fresh coarse usage from a primary check or session-owner observation can
 create usage pressure. Fresh means observed no more than 60 minutes before the
@@ -46,13 +46,32 @@ For findings outside that floor, `defer_issue` is valid only when:
 - residual risk score is at most 60;
 - impact is negligible or low, or is medium with trusted usage/deadline
   pressure; high and critical impact remain fix-now;
-- at least one registered reviewer independently concurs;
+- at least one registered reviewer distinct from the finding reviewer concurs;
 - a same-repository GitHub issue preserves the work;
 - the finding has already been included in an owner-visible human report; and
 - the final readback lists every deferred blocker and the report reference.
 
 `fix_now` is always available. Deferral is an explicit convergence choice, not
 an automatic downgrade.
+
+## Reviewer Duties
+
+`fairy blocker validate` deterministically checks the internal consistency of
+the decision record at its recorded `evaluated_at`; it does not make mutable
+network calls or independently authorize a live merge. Before concurring with
+a current-head defer, a reviewer must verify that:
+
+- `evaluated_at`, usage, and deadline evidence were contemporaneous with the
+  live decision;
+- every issue URL resolves to the recorded same-repository issue;
+- every human-report locator resolves to the owner-visible report;
+- related failure sequences were not split into smaller findings to evade the
+  risk threshold; and
+- the final readback still includes every deferred item and report locator.
+
+Historical records remain reproducible at their recorded evaluation time.
+Current exact-head reviewer sign-offs and the repository's CI/merge gates are
+the live authority boundary.
 
 ## Bounded Objection
 

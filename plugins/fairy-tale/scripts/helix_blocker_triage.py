@@ -761,6 +761,11 @@ def validate_record(record: Any) -> list[Finding]:
                 f"{path}.resolution.concurred_by",
                 "concurrence must come from registered reviewers",
             )
+        independent_concurrence = [
+            item
+            for item in concurred_by
+            if item in reviewer_ids and item != finding_reviewer_id
+        ]
         issue_url = resolution.get("issue_url")
         human_report = resolution.get("human_report")
 
@@ -813,11 +818,12 @@ def validate_record(record: Any) -> list[Finding]:
                     "defer requires low residual risk plus minor impact, or "
                     "medium impact with measured pressure",
                 )
-            if not concurred_by:
+            if not independent_concurrence:
                 add(
                     findings,
                     f"{path}.resolution.concurred_by",
-                    "defer needs at least one independent reviewer concurrence",
+                    "defer needs at least one registered reviewer concurrence "
+                    "distinct from the finding reviewer",
                 )
             issue_match = ISSUE_RE.fullmatch(issue_url) if isinstance(issue_url, str) else None
             if issue_match is None or (repo is not None and issue_match.group("repo") != repo):
@@ -1211,7 +1217,13 @@ def run_selftest() -> int:
 
     implementer_only = copy.deepcopy(base)
     implementer_only["blockers"][0]["resolution"]["concurred_by"] = []
-    blocked(implementer_only, "independent reviewer concurrence")
+    blocked(implementer_only, "distinct from the finding reviewer")
+
+    finding_reviewer_only = copy.deepcopy(base)
+    finding_reviewer_only["blockers"][0]["resolution"]["concurred_by"] = [
+        "codex-misa"
+    ]
+    blocked(finding_reviewer_only, "distinct from the finding reviewer")
 
     hidden_readback = copy.deepcopy(base)
     hidden_readback["final_readback"]["deferred_blocker_ids"] = []

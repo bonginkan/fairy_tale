@@ -33,7 +33,16 @@ final readback:
 The machine validator owns the decision semantics. Safety-floor findings
 (secret/credential, data loss, production, authority/permission, security, and
 required acceptance) are never deferrable. A defer decision needs low residual
-risk, reviewer concurrence, a canonical issue, and an owner-visible final
-report. An implementer may directly refute the failure sequence once; the
-finding reviewer responds once, and a distinct reviewer tie-breaks rejection.
-Unresolved discussion remains fail-closed.
+risk, concurrence from a registered reviewer distinct from the finding
+reviewer, a canonical issue, and an owner-visible final report. An implementer
+may directly refute the failure sequence once; the finding reviewer responds
+once, and a distinct reviewer tie-breaks rejection. Unresolved discussion
+remains fail-closed.
+
+The validator proves deterministic record consistency at `evaluated_at`; it
+does not resolve mutable external locators or authorize a live merge by itself.
+Before current-head concurrence, independently confirm timestamp/evidence
+contemporaneity, issue existence, owner-visible report delivery, final-readback
+completeness, and that related failure sequences were not split to evade the
+risk threshold. Historical validation remains anchored to the recorded time;
+live authority remains with exact-head reviewer sign-offs and repository gates.

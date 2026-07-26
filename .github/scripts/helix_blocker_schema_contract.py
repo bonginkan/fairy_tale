@@ -133,6 +133,21 @@ def main() -> int:
         raise AssertionError("runtime must reject implementer/reviewer overlap")
     controls += 1
 
+    finding_reviewer_only = copy.deepcopy(sample)
+    finding_reviewer_only["blockers"][0]["resolution"]["concurred_by"] = [
+        "codex-misa"
+    ]
+    expect_schema(
+        finding_reviewer_only,
+        valid=True,
+        label="independent concurrence identity is runtime-bound",
+    )
+    if not validate_record(finding_reviewer_only):
+        raise AssertionError(
+            "runtime must reject concurrence only from the finding reviewer"
+        )
+    controls += 1
+
     hidden_defer = copy.deepcopy(sample)
     hidden_defer["final_readback"]["deferred_blocker_ids"] = []
     expect_schema(hidden_defer, valid=True, label="readback set is runtime-bound")
