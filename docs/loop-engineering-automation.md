@@ -405,6 +405,30 @@ Do not call a repo loop complete when only the repository copy is green and the
 active runtime/install/cache target is stale. Runtime parity is an entailed
 companion for agent-skill changes.
 
+### Blocker convergence
+
+Do not make every review finding an unranked stop, and do not let schedule or
+usage pressure erase a real blocker. At a disputed or convergence-sensitive
+decision point, create the canonical Helix blocker triage record and validate
+it with `fairy blocker validate`.
+
+- A finding needs a concrete failure sequence, preconditions, probability,
+  impact, fix estimate, and evidence. Only explicit owner/policy deadlines and
+  fresh coarse usage from a trusted operational source affect defer
+  eligibility.
+- Secret/credential, data-loss, production, authority/permission, security,
+  and required-acceptance floors are non-deferrable.
+- A non-floor, low residual-risk finding may move to a canonical issue only
+  with independent reviewer concurrence and an owner-visible final readback.
+  The issue and report are completion evidence, not optional follow-up.
+- The implementer may make one evidence-backed objection that directly refutes
+  the failure sequence. The finding reviewer responds once. A rejection gets
+  one tie-break from the other reviewer; unresolved state preserves the
+  blocker.
+- `fix_now` remains available at every risk level. Triage changes sequencing
+  and convergence behavior; it does not lower validation, review, merge,
+  credential, permission, or production gates.
+
 ## Job Automation Route
 
 Job automation starts in draft/propose mode:

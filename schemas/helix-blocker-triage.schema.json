@@ -1,0 +1,779 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/bonginkan/fairy_tale/schemas/helix-blocker-triage.schema.json",
+  "title": "Fairy Tale Helix blocker triage record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "artifact_type",
+    "loop",
+    "blockers",
+    "final_readback"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "artifact_type": {
+      "const": "helix_blocker_triage"
+    },
+    "loop": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "loop_id",
+        "repo",
+        "artifact_ref",
+        "exact_head",
+        "evaluated_at",
+        "roles",
+        "deadline",
+        "usage"
+      ],
+      "properties": {
+        "loop_id": {
+          "$ref": "#/$defs/id"
+        },
+        "repo": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+        },
+        "artifact_ref": {
+          "$ref": "#/$defs/evidenceRef"
+        },
+        "exact_head": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "evaluated_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "roles": {
+          "$ref": "#/$defs/roles"
+        },
+        "deadline": {
+          "$ref": "#/$defs/deadline"
+        },
+        "usage": {
+          "$ref": "#/$defs/usage"
+        }
+      }
+    },
+    "blockers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/blocker"
+      }
+    },
+    "final_readback": {
+      "$ref": "#/$defs/finalReadback"
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{2,127}$"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "evidenceRef": {
+      "type": "string",
+      "pattern": "^(https://[^\\s]+|sha256:[0-9a-f]{64}|(artifact|check|file|issue|log|receipt|run|source|test|trace|usage):[A-Za-z0-9][A-Za-z0-9._/@#:+-]{0,255})$"
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/evidenceRef"
+      }
+    },
+    "ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/id"
+      }
+    },
+    "roles": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "implementer_id",
+        "reviewer_ids"
+      ],
+      "properties": {
+        "implementer_id": {
+          "$ref": "#/$defs/id"
+        },
+        "reviewer_ids": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/ids"
+            },
+            {
+              "minItems": 2
+            }
+          ]
+        }
+      }
+    },
+    "deadline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "at",
+        "source",
+        "source_ref"
+      ],
+      "properties": {
+        "at": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source": {
+          "enum": [
+            "none",
+            "explicit_owner",
+            "explicit_policy"
+          ]
+        },
+        "source_ref": {
+          "type": "string"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "source": {
+                "const": "none"
+              }
+            },
+            "required": [
+              "source"
+            ]
+          },
+          "then": {
+            "properties": {
+              "at": {
+                "type": "null"
+              },
+              "source_ref": {
+                "const": ""
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "at": {
+                "$ref": "#/$defs/timestamp"
+              },
+              "source_ref": {
+                "$ref": "#/$defs/evidenceRef"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "usage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primary_5h_remaining",
+        "secondary_weekly_remaining",
+        "status",
+        "source",
+        "source_ref",
+        "observed_at"
+      ],
+      "properties": {
+        "primary_5h_remaining": {
+          "$ref": "#/$defs/nullablePercentage"
+        },
+        "secondary_weekly_remaining": {
+          "$ref": "#/$defs/nullablePercentage"
+        },
+        "status": {
+          "enum": [
+            "fresh",
+            "stale",
+            "unknown"
+          ]
+        },
+        "source": {
+          "enum": [
+            "primary_check",
+            "session_owner_observation",
+            "self_report",
+            "unknown"
+          ]
+        },
+        "source_ref": {
+          "type": "string"
+        },
+        "observed_at": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "unknown"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "primary_5h_remaining": {
+                "type": "null"
+              },
+              "secondary_weekly_remaining": {
+                "type": "null"
+              },
+              "source": {
+                "const": "unknown"
+              },
+              "source_ref": {
+                "const": ""
+              },
+              "observed_at": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "source_ref": {
+                "$ref": "#/$defs/evidenceRef"
+              },
+              "observed_at": {
+                "$ref": "#/$defs/timestamp"
+              }
+            },
+            "anyOf": [
+              {
+                "properties": {
+                  "primary_5h_remaining": {
+                    "type": "number"
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "secondary_weekly_remaining": {
+                    "type": "number"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "fresh"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "source": {
+                "enum": [
+                  "primary_check",
+                  "session_owner_observation"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "nullablePercentage": {
+      "oneOf": [
+        {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "findingReviewer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reviewer_id",
+        "finding_ref"
+      ],
+      "properties": {
+        "reviewer_id": {
+          "$ref": "#/$defs/id"
+        },
+        "finding_ref": {
+          "$ref": "#/$defs/evidenceRef"
+        }
+      }
+    },
+    "rebuttal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reviewer_id",
+        "outcome",
+        "rationale",
+        "evidence_refs"
+      ],
+      "properties": {
+        "reviewer_id": {
+          "$ref": "#/$defs/id"
+        },
+        "outcome": {
+          "enum": [
+            "accept",
+            "reject"
+          ]
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence_refs": {
+          "$ref": "#/$defs/evidenceRefs"
+        }
+      }
+    },
+    "tieBreak": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reviewer_id",
+        "outcome",
+        "rationale",
+        "evidence_refs"
+      ],
+      "properties": {
+        "reviewer_id": {
+          "$ref": "#/$defs/id"
+        },
+        "outcome": {
+          "enum": [
+            "sustain_blocker",
+            "accept_objection"
+          ]
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence_refs": {
+          "$ref": "#/$defs/evidenceRefs"
+        }
+      }
+    },
+    "objection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "implementer_id",
+        "refuted_claim",
+        "rationale",
+        "evidence_refs",
+        "rebuttal",
+        "tie_break"
+      ],
+      "properties": {
+        "implementer_id": {
+          "$ref": "#/$defs/id"
+        },
+        "refuted_claim": {
+          "const": "failure_sequence"
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 20
+        },
+        "evidence_refs": {
+          "$ref": "#/$defs/evidenceRefs"
+        },
+        "rebuttal": {
+          "$ref": "#/$defs/rebuttal"
+        },
+        "tie_break": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/tieBreak"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "rebuttal": {
+                "properties": {
+                  "outcome": {
+                    "const": "accept"
+                  }
+                },
+                "required": [
+                  "outcome"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "tie_break": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "tie_break": {
+                "$ref": "#/$defs/tieBreak"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "humanReport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "audience",
+        "reported",
+        "summary",
+        "report_ref"
+      ],
+      "properties": {
+        "audience": {
+          "const": "human_owner"
+        },
+        "reported": {
+          "const": true
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "report_ref": {
+          "$ref": "#/$defs/evidenceRef"
+        }
+      }
+    },
+    "resolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "disposition",
+        "priority",
+        "rationale",
+        "concurred_by",
+        "issue_url",
+        "human_report"
+      ],
+      "properties": {
+        "disposition": {
+          "enum": [
+            "fix_now",
+            "defer_issue",
+            "not_blocker"
+          ]
+        },
+        "priority": {
+          "enum": [
+            "P0",
+            "P1",
+            "P2",
+            "P3"
+          ]
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1
+        },
+        "concurred_by": {
+          "$ref": "#/$defs/ids"
+        },
+        "issue_url": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^https://github\\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/issues/[1-9][0-9]*$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "human_report": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/humanReport"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "disposition": {
+                "const": "defer_issue"
+              }
+            },
+            "required": [
+              "disposition"
+            ]
+          },
+          "then": {
+            "properties": {
+              "concurred_by": {
+                "minItems": 1
+              },
+              "issue_url": {
+                "type": "string"
+              },
+              "human_report": {
+                "$ref": "#/$defs/humanReport"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "issue_url": {
+                "type": "null"
+              },
+              "human_report": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "blocker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "summary",
+        "failure_sequence",
+        "preconditions",
+        "probability_percent",
+        "impact",
+        "risk_rationale",
+        "protected_floor",
+        "estimated_fix_minutes",
+        "evidence_refs",
+        "finding_reviewer",
+        "objection",
+        "resolution"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "failure_sequence": {
+          "type": "string",
+          "minLength": 20
+        },
+        "preconditions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "probability_percent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "impact": {
+          "enum": [
+            "negligible",
+            "low",
+            "medium",
+            "high",
+            "critical"
+          ]
+        },
+        "risk_rationale": {
+          "type": "string",
+          "minLength": 20
+        },
+        "protected_floor": {
+          "enum": [
+            "none",
+            "secret_credential",
+            "data_loss",
+            "production",
+            "authority_permission",
+            "security",
+            "required_acceptance"
+          ]
+        },
+        "estimated_fix_minutes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "evidence_refs": {
+          "$ref": "#/$defs/evidenceRefs"
+        },
+        "finding_reviewer": {
+          "$ref": "#/$defs/findingReviewer"
+        },
+        "objection": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/objection"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "resolution": {
+          "$ref": "#/$defs/resolution"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "protected_floor": {
+                "enum": [
+                  "secret_credential",
+                  "data_loss",
+                  "production",
+                  "authority_permission",
+                  "security",
+                  "required_acceptance"
+                ]
+              }
+            },
+            "required": [
+              "protected_floor"
+            ]
+          },
+          "then": {
+            "properties": {
+              "resolution": {
+                "properties": {
+                  "disposition": {
+                    "enum": [
+                      "fix_now",
+                      "not_blocker"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "finalReadback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deferred_blocker_ids",
+        "retained_blocker_ids",
+        "not_blocker_ids",
+        "reported_to_human",
+        "report_ref"
+      ],
+      "properties": {
+        "deferred_blocker_ids": {
+          "$ref": "#/$defs/ids"
+        },
+        "retained_blocker_ids": {
+          "$ref": "#/$defs/ids"
+        },
+        "not_blocker_ids": {
+          "$ref": "#/$defs/ids"
+        },
+        "reported_to_human": {
+          "type": "boolean"
+        },
+        "report_ref": {
+          "type": "string"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "reported_to_human": {
+                "const": true
+              }
+            },
+            "required": [
+              "reported_to_human"
+            ]
+          },
+          "then": {
+            "properties": {
+              "report_ref": {
+                "$ref": "#/$defs/evidenceRef"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "report_ref": {
+                "const": ""
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

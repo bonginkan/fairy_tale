@@ -1,6 +1,6 @@
 ---
 name: fairy-tale
-description: Fable/Mythos workflow harness for E3 complexity-aware minimum-sufficient execution, loop/spiral engineering, double-helix learning loops, evolutionary spirals, job automation, agent handoffs, silent-loop auto-resume, do-not-disturb windows, usage-aware multi-agent load balancing, closure checks, negative-space discovery, excess/redundancy/legacy-surface review, finance proposal completeness, e2e completion, GUI dogfood QA, creator-proxy WWCD elaboration, migration, research synthesis, benchmark/legal reasoning, UI design best practices, UI/3D/creative work, token-consumption optimization (memoization), mechanism discovery, and defensive security process design.
+description: Fable/Mythos workflow harness for E3 complexity-aware minimum-sufficient execution, loop/spiral engineering, Helix blocker triage, double-helix learning loops, evolutionary spirals, job automation, agent handoffs, silent-loop auto-resume, do-not-disturb windows, usage-aware multi-agent load balancing, closure checks, negative-space discovery, excess/redundancy/legacy-surface review, finance proposal completeness, e2e completion, GUI dogfood QA, creator-proxy WWCD elaboration, migration, research synthesis, benchmark/legal reasoning, UI design best practices, UI/3D/creative work, token-consumption optimization (memoization), mechanism discovery, and defensive security process design.
 ---
 
 # Fairy Tale
@@ -140,6 +140,9 @@ python3 scripts/fairy_tale_residency_check.py
      or state-change notice inside a loop: use the Helix Loop Communication
      Harness. Address the named counterpart and carry repo-qualified artifact,
      exact-head, check, blocker, next-action, and acknowledgement state.
+     If a finding needs risk-aware priority, issue-only deferral, or an
+     implementer objection, use the machine-validated Helix blocker triage
+     record; never negotiate away its non-deferrable safety floor.
    - For multi-agent role assignment inside a loop: use the
      `Usage-Aware Multi-Agent Load Balancer` card and its Usage Reading
      Reference. Assign fixed specialist capabilities first, check active

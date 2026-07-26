@@ -34,6 +34,7 @@ Each record template lives in its own card under `references/process/`; read onl
 | Silent-loop auto-resume watchdog record | Use this when an active loop can stall because the next agent was not | `references/process/silent-loop-auto-resume-watchdog-record.md` |
 | Do Not Disturb operating-window record | Use this when a human sets, clears, or updates quiet hours for an agent inside a | `references/process/do-not-disturb-operating-window-record.md` |
 | Usage-aware multi-agent load balancer record | Use this at loop increment boundaries before assigning implementation, | `references/process/usage-aware-multi-agent-load-balancer-record.md` |
+| Helix blocker triage record | Use this at an implementation/review decision point when findings need | `references/process/helix-blocker-triage-record.md` |
 | External-channel ingestion record | Use this when the loop periodically reads GitHub, project channels, Discord, | `references/process/external-channel-ingestion-record.md` |
 | Job automation delegation record | Use this for email drafting, Google Drive/Docs/Sheets edits, calendar actions, | `references/process/job-automation-delegation-record.md` |
 | Meeting proxy setup record | Use this before building or running any meeting attendance proxy. This card is | `references/process/meeting-proxy-setup-record.md` |

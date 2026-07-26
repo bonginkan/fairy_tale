@@ -1,5 +1,24 @@
 # Release Notes
 
+## 0.2.33
+
+- **Risk-aware Helix blocker convergence** (#94): adds the strict
+  `helix_blocker_triage` record and `fairy blocker` validator/renderer. Every
+  finding binds a concrete failure sequence and preconditions to probability,
+  impact, fix estimate, and evidence. Only explicit sourced deadlines and
+  fresh coarse usage from a primary check or session-owner observation may
+  create convergence pressure. Secret/credential, data-loss, production,
+  authority/permission, security, and required-acceptance floors remain
+  non-deferrable. A low residual-risk non-floor finding may move to an issue
+  only with independent reviewer concurrence, a same-repository issue, an
+  owner-visible report, and exact final readback. Implementers receive one
+  evidence-backed failure-sequence objection, followed by one finding-reviewer
+  rebuttal and, after rejection, one distinct-reviewer tie-break; unresolved
+  state remains fail-closed. Draft 2020-12 schema controls, runtime hostile
+  controls, an auditable sample, CLI/package/install parity, Helix/loop/usage
+  routing, and derived Markdown preservation are included. Runtime package
+  version is 0.2.33.
+
 ## 0.2.32
 
 - **E3 minimum-sufficient execution system** (#91): adds a machine-executable

@@ -59,6 +59,11 @@ Assignment policy:
   values may still be usable when the agent is not blocked and the task can
   proceed with a coarse capacity statement, but unknown must not outrank a
   fresh concrete reading from another eligible agent.
+- When capacity is used in a Helix blocker disposition, copy only the fresh
+  coarse reading, source class, observation time, and source ref into the
+  canonical blocker triage record. Self-reported, stale, or unknown usage may
+  inform reassignment but cannot create defer pressure in
+  `fairy blocker validate`.
 - If the implementation owner becomes quota-blocked, stale, tool-blocked, or
   DND-blocked mid-run, stop at the next safe boundary, record the blocker,
   rerun the load balancer, and reassign or pause before further mutation.
@@ -110,4 +115,3 @@ implementation candidates: Codex MISA, MISA 3, CC MISA when not fixed-specialist
 assignment: implementation owner = highest usable capacity; others review
 review guard: implementation owner never signs off its own increment
 ```
-
