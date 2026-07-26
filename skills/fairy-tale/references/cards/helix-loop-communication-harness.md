@@ -37,6 +37,18 @@ source / run / receipt refs:
   next actor. **Consult:** state the blocker, bounded options, recommendation,
   and authority needed. Do not make the counterpart infer the action from a
   long narrative.
+- When blocker severity or convergence cost is disputed, create one canonical
+  Helix blocker triage record and run `fairy blocker validate`. The record
+  owns risk, explicit deadline, fresh coarse usage, independent defer
+  concurrence, issue/report closure, and bounded objection semantics. This
+  communication card carries the resulting disposition and refs; it does not
+  reimplement or override the validator.
+- Never triage away secret/credential, data-loss, production,
+  authority/permission, security, or required-acceptance floors. A deferred
+  non-floor finding remains visible through its canonical issue and
+  owner-facing final readback. An implementer objection directly refutes the
+  failure sequence with evidence; one reviewer rebuttal and, after rejection,
+  one distinct-reviewer tie-break end the discussion.
 - Address state changes that alter another actor's queue: new or cleared
   blocker, review verdict, changed head, terminal check result, handoff,
   merge/close, pause, or stop. Read the canonical artifact back before

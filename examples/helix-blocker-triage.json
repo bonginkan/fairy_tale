@@ -1,0 +1,128 @@
+{
+  "schema_version": "1.0",
+  "artifact_type": "helix_blocker_triage",
+  "loop": {
+    "loop_id": "helix-balance-sample",
+    "repo": "bonginkan/fairy_tale",
+    "artifact_ref": "https://github.com/bonginkan/fairy_tale/issues/94",
+    "exact_head": "b7eaeda1afdab966f0dc1d8bb539a769030406a4",
+    "evaluated_at": "2026-07-26T14:00:00+09:00",
+    "roles": {
+      "implementer_id": "misa-3",
+      "reviewer_ids": [
+        "codex-misa",
+        "cc-misa-hime"
+      ]
+    },
+    "deadline": {
+      "at": "2026-07-27T14:00:00+09:00",
+      "source": "explicit_owner",
+      "source_ref": "source:owner-deadline"
+    },
+    "usage": {
+      "primary_5h_remaining": 12,
+      "secondary_weekly_remaining": 45,
+      "status": "fresh",
+      "source": "primary_check",
+      "source_ref": "usage:local-guard",
+      "observed_at": "2026-07-26T13:55:00+09:00"
+    }
+  },
+  "blockers": [
+    {
+      "id": "minor-capacity-eviction",
+      "summary": "Rare bounded capacity eviction remains",
+      "failure_sequence": "A saturated optional cache evicts one low-priority entry, which forces one later request to recompute.",
+      "preconditions": [
+        "optional cache is at its configured capacity",
+        "a lower-priority entry is selected for eviction"
+      ],
+      "probability_percent": 2,
+      "impact": "low",
+      "risk_rationale": "The sequence is rare and bounded to one recomputation without data loss or authority impact.",
+      "protected_floor": "none",
+      "estimated_fix_minutes": 180,
+      "evidence_refs": [
+        "test:capacity-eviction-probe"
+      ],
+      "finding_reviewer": {
+        "reviewer_id": "codex-misa",
+        "finding_ref": "issue:review-finding"
+      },
+      "objection": null,
+      "resolution": {
+        "disposition": "defer_issue",
+        "priority": "P3",
+        "rationale": "Low residual risk is tracked without consuming the remaining convergence window.",
+        "concurred_by": [
+          "cc-misa-hime"
+        ],
+        "issue_url": "https://github.com/bonginkan/fairy_tale/issues/94",
+        "human_report": {
+          "audience": "human_owner",
+          "reported": true,
+          "summary": "The rare optional-cache eviction is deferred to issue #94 with no safety-floor impact.",
+          "report_ref": "source:owner-final-readback"
+        }
+      }
+    },
+    {
+      "id": "false-positive-finding",
+      "summary": "Claimed path collision does not occur",
+      "failure_sequence": "The reviewer claimed two output aliases resolve to one path and overwrite the canonical input.",
+      "preconditions": [
+        "two paths are portable aliases"
+      ],
+      "probability_percent": 20,
+      "impact": "medium",
+      "risk_rationale": "If true, the collision would corrupt a review input, but the exact identity probe refutes the prerequisite.",
+      "protected_floor": "data_loss",
+      "estimated_fix_minutes": 30,
+      "evidence_refs": [
+        "test:path-identity-negative"
+      ],
+      "finding_reviewer": {
+        "reviewer_id": "codex-misa",
+        "finding_ref": "issue:path-collision-finding"
+      },
+      "objection": {
+        "implementer_id": "misa-3",
+        "refuted_claim": "failure_sequence",
+        "rationale": "The exact consumer resolves the two fixture paths to different portable identities before any write.",
+        "evidence_refs": [
+          "test:path-identity-negative"
+        ],
+        "rebuttal": {
+          "reviewer_id": "codex-misa",
+          "outcome": "accept",
+          "rationale": "The direct probe refutes the claimed alias.",
+          "evidence_refs": [
+            "test:path-identity-negative"
+          ]
+        },
+        "tie_break": null
+      },
+      "resolution": {
+        "disposition": "not_blocker",
+        "priority": "P3",
+        "rationale": "The failure sequence was directly refuted.",
+        "concurred_by": [
+          "codex-misa"
+        ],
+        "issue_url": null,
+        "human_report": null
+      }
+    }
+  ],
+  "final_readback": {
+    "deferred_blocker_ids": [
+      "minor-capacity-eviction"
+    ],
+    "retained_blocker_ids": [],
+    "not_blocker_ids": [
+      "false-positive-finding"
+    ],
+    "reported_to_human": true,
+    "report_ref": "source:owner-final-readback"
+  }
+}

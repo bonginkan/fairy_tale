@@ -66,6 +66,21 @@ verified success, and permits only bounded one-level expansion after failure:
 
 See [E3 Minimum-Sufficient Execution](e3-execution.md).
 
+Risk-aware Helix blocker decisions delegate to one strict record validator.
+The command preserves non-deferrable safety floors, permits issue-only
+deferral only with reviewer concurrence and human readback, and bounds an
+implementer objection to one rebuttal and one distinct-reviewer tie-break:
+
+```bash
+./fairy blocker --help
+./fairy blocker validate --record examples/helix-blocker-triage.json
+./fairy blocker render \
+  --record examples/helix-blocker-triage.json \
+  --output helix-blocker-triage.md
+```
+
+See [Risk-Aware Helix Blocker Triage](helix-blocker-triage.md).
+
 The CLI resolves repository tooling relative to its own executable, so
 `validate` does not depend on the caller's current directory. `doctor` preserves
 the caller directory only as the starting point for repository profile

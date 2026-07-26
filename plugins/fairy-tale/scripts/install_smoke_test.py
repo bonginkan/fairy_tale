@@ -26,6 +26,10 @@ REQUIRED_INSTALLED_FILES = (
     / "references"
     / "cards"
     / "e3-minimum-sufficient-execution-harness.md",
+    Path("fairy-tale")
+    / "references"
+    / "process"
+    / "helix-blocker-triage-record.md",
 )
 
 

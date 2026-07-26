@@ -100,6 +100,18 @@ VALIDATION_STEPS = (
         "e3_execution.py",
         "cases",
     ),
+    python_step(
+        "blocker-selftest",
+        "Helix blocker triage self-controls",
+        "helix_blocker_triage.py",
+        "selftest",
+    ),
+    python_step(
+        "blocker-sample",
+        "Helix blocker triage sample",
+        "helix_blocker_triage.py",
+        "sample",
+    ),
     python_step("budget-selftest", "Skill budget self-controls", "skill_token_budget_check.py", "--selftest"),
     python_step(
         "budget",
@@ -277,6 +289,14 @@ def delegate_e3(args: Sequence[str]) -> int:
     return delegate_command(e3_command(args), "E3 execution command")
 
 
+def blocker_command(args: Sequence[str]) -> tuple[str, ...]:
+    return (PYTHON, str(ROOT / "scripts" / "helix_blocker_triage.py"), *args)
+
+
+def delegate_blocker(args: Sequence[str]) -> int:
+    return delegate_command(blocker_command(args), "Helix blocker triage command")
+
+
 def ledger_help() -> str:
     return """usage: fairy ledger {init,add,finalize,validate,render} [args ...]
 
@@ -312,10 +332,10 @@ def selftest() -> int:
         DOCTOR_STEPS[0].command[-2:] == ("--start", str(CALLER_CWD)),
         "doctor validates the caller repository profile",
     )
-    check(len(VALIDATION_STEPS) == 26, "validation registry remains complete")
+    check(len(VALIDATION_STEPS) == 28, "validation registry remains complete")
     check(
-        sum(not step.credential_keys for step in VALIDATION_STEPS) == 24,
-        "twenty-four ordinary validation steps receive no credentials",
+        sum(not step.credential_keys for step in VALIDATION_STEPS) == 26,
+        "twenty-six ordinary validation steps receive no credentials",
     )
 
     repository_paths = {
@@ -348,6 +368,11 @@ def selftest() -> int:
         e3_command(("validate", "--ledger", "e3.json"))[-3:]
         == ("validate", "--ledger", "e3.json"),
         "E3 delegation preserves arguments",
+    )
+    check(
+        blocker_command(("validate", "--record", "triage.json"))[-3:]
+        == ("validate", "--record", "triage.json"),
+        "Helix blocker delegation preserves arguments",
     )
     check(LEDGER_COMMANDS["finalize"] == "ledger-finalize", "ledger operation mapping")
 
@@ -483,6 +508,7 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("fusion", help="delegate Fairy Fusion review and trigger decisions")
     subparsers.add_parser("scoreboard", help="delegate workflow impact scoreboard operations")
     subparsers.add_parser("e3", help="delegate E3 execution-scope operations")
+    subparsers.add_parser("blocker", help="delegate Helix blocker triage operations")
     subparsers.add_parser("selftest", help="run deterministic CLI self-controls")
     return parser
 
@@ -497,6 +523,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return delegate_scoreboard(raw[1:])
     if raw and raw[0] == "e3":
         return delegate_e3(raw[1:])
+    if raw and raw[0] == "blocker":
+        return delegate_blocker(raw[1:])
     if raw and raw[0] == "ledger":
         if len(raw) == 1 or raw[1] in {"-h", "--help"}:
             print(ledger_help(), end="")
