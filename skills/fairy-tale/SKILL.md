@@ -136,6 +136,12 @@ python3 scripts/fairy_tale_residency_check.py
      source adapters, run ledger, permission gates, Do Not Disturb operating
      windows, and stop conditions before adding schedulers or autonomous
      action.
+   - At the design-to-implementation boundary of an increment that touches
+     persisted state, concurrency, or client-held identity: close the
+     Implementation contract closure record first. Fill the identity/state,
+     failure-uncertainty, and concurrency-cross-product tables before writing
+     implementation code, and re-close the cells any later fix re-opens. A
+     hand-listed subset of races is not a closed contract.
    - For an active agent-to-agent handoff, review request, progress checkpoint,
      or state-change notice inside a loop: use the Helix Loop Communication
      Harness. Address the named counterpart and carry repo-qualified artifact,

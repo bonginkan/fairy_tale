@@ -362,6 +362,10 @@
       "title": "Helix blocker triage record"
     },
     {
+      "path": "references/process/implementation-contract-closure-record.md",
+      "title": "Implementation contract closure record"
+    },
+    {
       "path": "references/process/implicit-contract-discovery-family-router.md",
       "title": "Implicit-contract discovery family router"
     },
