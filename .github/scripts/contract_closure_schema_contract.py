@@ -95,7 +95,7 @@ def main() -> int:
         controls += 1
 
     findings = validate_record(
-        sample, None, inventory, "examples/implementation-contract-closure.inventory.txt", None, ROOT
+        sample, None, inventory, "examples/implementation-contract-closure.inventory.txt", None, ROOT, ROOT
     )
     if findings:
         print(f"[RED    ] shipped example fails the runtime gate: {[str(f) for f in findings]}")
@@ -107,7 +107,7 @@ def main() -> int:
         controls += 1
         schema_errors = list(validator.iter_errors(record))
         runtime_findings = validate_record(
-            record, None, inventory, "examples/implementation-contract-closure.inventory.txt", None, ROOT
+            record, None, inventory, "examples/implementation-contract-closure.inventory.txt", None, ROOT, ROOT
         )
         if schema_errors or runtime_findings:
             return True

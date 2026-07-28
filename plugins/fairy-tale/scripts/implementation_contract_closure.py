@@ -40,9 +40,11 @@ import argparse
 import hashlib
 import itertools
 import json
+import os
 import re
 import sys
 from datetime import datetime, timezone
+import tempfile
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -194,6 +196,60 @@ PROJECT_LINEAGE_LEDGER = ".fairy/contract-closure-lineage.json"
 OPERATION_ID = re.compile(r"^[A-Za-z0-9_.:-]{1,64}$")
 
 
+def authority_file(root: Path, relative: str) -> tuple[Path | None, list[str]]:
+    """Resolve an authority file, refusing anything but the exact in-tree path.
+
+    Every component must exist with EXACTLY the declared name (so `.FAIRY` on a
+    case-insensitive host is not accepted as `.fairy`), nothing on the path may
+    be a symlink, and the result must stay inside the repository. An authority
+    boundary that can be aliased or redirected is not a boundary.
+    """
+    errors: list[str] = []
+    current = root
+    for part in Path(relative).parts:
+        if part in {"", ".", ".."} or Path(part).is_absolute():
+            return None, [f"{relative}: authority path component {part!r} is not allowed"]
+        try:
+            names = {entry.name for entry in os.scandir(current)}
+        except OSError as error:
+            return None, [f"{relative}: cannot read {current.name!r} ({error})"]
+        if part not in names:
+            return None, [f"{relative}: authority path is missing (no exact entry {part!r})"]
+        current = current / part
+        if current.is_symlink():
+            return None, [f"{relative}: authority path component {part!r} is a symlink — refused"]
+    try:
+        resolved = current.resolve()
+        resolved.relative_to(root.resolve())
+    except (OSError, ValueError):
+        return None, [f"{relative}: authority file resolves outside the repository"]
+    if not resolved.is_file():
+        return None, [f"{relative}: authority path is not a regular file"]
+    return resolved, errors
+
+
+def load_authority(root: Path, relative: str, required: dict[str, type]) -> tuple[dict[str, Any] | None, list[str]]:
+    """Read an authority JSON fail-closed: a non-object or a wrong-typed field
+    disables nothing — it is a finding."""
+    path, errors = authority_file(root, relative)
+    if path is None:
+        return None, errors
+    try:
+        raw = path.read_bytes()
+        value = json.loads(raw.decode("utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        return None, [f"{relative}: not readable UTF-8 JSON ({error})"]
+    if not isinstance(value, dict):
+        return None, [f"{relative}: must be a JSON object (a list or scalar silently disables enforcement)"]
+    for field, expected in required.items():
+        if field not in value:
+            return None, [f"{relative}: missing required field {field!r}"]
+        if not isinstance(value[field], expected):
+            return None, [f"{relative}: field {field!r} has the wrong type"]
+    value["__bytes__"] = raw
+    return value, errors
+
+
 def discover_operations(root: Path, globs: Iterable[str], pattern: str) -> tuple[set[str], list[str]]:
     """Walk the project surface, refusing to leave the repository.
 
@@ -273,6 +329,7 @@ def validate_record(
     inventory_path: str | None = None,
     base_path: str | None = None,
     discovery_root: Path | None = None,
+    trusted_authority: Path | None = None,
 ) -> list[Finding]:
     findings: list[Finding] = []
 
@@ -302,6 +359,30 @@ def validate_record(
         if key not in known:
             bad(f"record: unexpected field {key!r} (closure is derived, never declared)")
 
+    if discovery_root is not None:
+        # The authority files may not be narrowed inside the increment they
+        # govern: their bytes must equal a copy taken from a source independent
+        # of this increment (the trusted base). Changing the project surface or
+        # the lineage ledger is then its own reviewed change, landed first.
+        if trusted_authority is None:
+            bad(
+                "authority: no trusted base copy was supplied (--trusted-authority), so the project "
+                "surface and lineage could have been narrowed inside this very increment"
+            )
+        else:
+            for relative in (PROJECT_SURFACE_CONFIG, PROJECT_LINEAGE_LEDGER):
+                live, live_errors = authority_file(discovery_root, relative)
+                trusted, trusted_errors = authority_file(trusted_authority, relative)
+                for error in live_errors + trusted_errors:
+                    bad(error)
+                if live is None or trusted is None:
+                    continue
+                if live.read_bytes() != trusted.read_bytes():
+                    bad(
+                        f"authority: {relative} differs from the trusted base — narrowing the project "
+                        "surface or rewriting lineage must land as its own reviewed change, not inside "
+                        "the increment it governs"
+                    )
     kind = record.get("record_kind")
     if kind not in {"initial", "revision"}:
         bad("record_kind: must be 'initial' or 'revision' (a revision may not be implicit)")
@@ -314,12 +395,11 @@ def validate_record(
     # next revision must supersede.
     ledger_entries: list[dict[str, Any]] = []
     if discovery_root is not None:
-        ledger_path = discovery_root / PROJECT_LINEAGE_LEDGER
-        try:
-            ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError, UnicodeDecodeError) as error:
-            ledger = None
-            bad(f"{PROJECT_LINEAGE_LEDGER}: unreadable lineage ledger ({error})")
+        ledger, ledger_errors = load_authority(
+            discovery_root, PROJECT_LINEAGE_LEDGER, {"increments": dict}
+        )
+        for error in ledger_errors:
+            bad(error)
         increment_id = (record.get("increment") or {}).get("increment_id") if isinstance(
             record.get("increment"), dict
         ) else None
@@ -388,12 +468,11 @@ def validate_record(
     # shrink the surface they are measured against, and cannot point the walk
     # outside the repository.
     if discovery_root is not None:
-        config_path = discovery_root / PROJECT_SURFACE_CONFIG
-        try:
-            config = json.loads(config_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError, UnicodeDecodeError) as error:
-            config = None
-            bad(f"{PROJECT_SURFACE_CONFIG}: unreadable project surface config ({error})")
+        config, config_errors = load_authority(
+            discovery_root, PROJECT_SURFACE_CONFIG, {"globs": list, "pattern": str}
+        )
+        for error in config_errors:
+            bad(error)
         if isinstance(config, dict):
             globs = config.get("globs")
             pattern = config.get("pattern")
@@ -1001,7 +1080,7 @@ def sample_record() -> dict[str, Any]:
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_PATH = REPO_ROOT / "schemas" / "implementation-contract-closure.schema.json"
-CONTROL_COUNT = 52
+CONTROL_COUNT = 59
 
 
 def run_selftest() -> int:
@@ -1030,6 +1109,7 @@ def run_selftest() -> int:
             path,
             base_path,
             REPO_ROOT,
+            REPO_ROOT,
         )
         check(
             any(fragment in str(f) for f in found),
@@ -1038,13 +1118,13 @@ def run_selftest() -> int:
 
     base = sample_record()
     check(
-        validate_record(base, None, inventory, inventory_path, None, REPO_ROOT) == [],
-        f"sample must validate: {[str(f) for f in validate_record(base, None, inventory, inventory_path, None, REPO_ROOT)]}",
+        validate_record(base, None, inventory, inventory_path, None, REPO_ROOT, REPO_ROOT) == [],
+        f"sample must validate: {[str(f) for f in validate_record(base, None, inventory, inventory_path, None, REPO_ROOT, REPO_ROOT)]}",
     )
 
     # Hostile: an empty contract must never pass.
     empty = {"schema": SCHEMA_ID}
-    check(len(validate_record(empty, None, inventory, inventory_path, None, REPO_ROOT)) >= 5, "an empty record must produce multiple findings")
+    check(len(validate_record(empty, None, inventory, inventory_path, None, REPO_ROOT, REPO_ROOT)) >= 5, "an empty record must produce multiple findings")
 
     # Hostile: a hand-listed subset of the cross product.
     subset = json.loads(json.dumps(base))
@@ -1080,7 +1160,7 @@ def run_selftest() -> int:
 
     # Safe overlaps must NOT be over-blocked: read x read passes with no point.
     check(
-        not any("list' x 'list" in str(f) for f in validate_record(base, None, inventory, inventory_path, None, REPO_ROOT)),
+        not any("list' x 'list" in str(f) for f in validate_record(base, None, inventory, inventory_path, None, REPO_ROOT, REPO_ROOT)),
         "a read-only pair must not be forced to serialize",
     )
 
@@ -1097,8 +1177,8 @@ def run_selftest() -> int:
         },
     }
     check(
-        validate_record(disjoint, None, inventory, inventory_path, None, REPO_ROOT) == [],
-        f"a declared disjoint keyspace with evidence must pass: {[str(f) for f in validate_record(disjoint, None, inventory, inventory_path, None, REPO_ROOT)]}",
+        validate_record(disjoint, None, inventory, inventory_path, None, REPO_ROOT, REPO_ROOT) == [],
+        f"a declared disjoint keyspace with evidence must pass: {[str(f) for f in validate_record(disjoint, None, inventory, inventory_path, None, REPO_ROOT, REPO_ROOT)]}",
     )
     same_predicate = json.loads(json.dumps(disjoint))
     same_predicate["concurrency_matrix"][1]["key_partition"]["predicate_b"] = "attachment id < midpoint"
@@ -1139,8 +1219,8 @@ def run_selftest() -> int:
         },
     }
     check(
-        validate_record(snapshot, None, inventory, inventory_path, None, REPO_ROOT) == [],
-        f"a snapshot read must not be forced to serialize: {[str(f) for f in validate_record(snapshot, None, inventory, inventory_path, None, REPO_ROOT)]}",
+        validate_record(snapshot, None, inventory, inventory_path, None, REPO_ROOT, REPO_ROOT) == [],
+        f"a snapshot read must not be forced to serialize: {[str(f) for f in validate_record(snapshot, None, inventory, inventory_path, None, REPO_ROOT, REPO_ROOT)]}",
     )
     no_contract = json.loads(json.dumps(snapshot))
     del no_contract["concurrency_matrix"][4]["snapshot_contract"]
@@ -1155,8 +1235,8 @@ def run_selftest() -> int:
         "idempotence_tested": ["races: A then B", "races: B then A"],
     }
     check(
-        validate_record(commutative, None, inventory, inventory_path, None, REPO_ROOT) == [],
-        f"a commutative write pair with tests must pass: {[str(f) for f in validate_record(commutative, None, inventory, inventory_path, None, REPO_ROOT)]}",
+        validate_record(commutative, None, inventory, inventory_path, None, REPO_ROOT, REPO_ROOT) == [],
+        f"a commutative write pair with tests must pass: {[str(f) for f in validate_record(commutative, None, inventory, inventory_path, None, REPO_ROOT, REPO_ROOT)]}",
     )
     unproven = json.loads(json.dumps(commutative))
     unproven["concurrency_matrix"][0]["idempotence_tested"] = ["only one order"]
@@ -1190,12 +1270,12 @@ def run_selftest() -> int:
         "base_record_sha256": "0" * 64,
         "base_exact_base": "0" * 40,
     }
-    findings_without_base = validate_record(changed, None, inventory, inventory_path, 'previous', REPO_ROOT)
+    findings_without_base = validate_record(changed, None, inventory, inventory_path, 'previous', REPO_ROOT, REPO_ROOT)
     check(
         any("base record was not supplied" in str(f) for f in findings_without_base),
         "re-closure without the base record must fail closed",
     )
-    blocked_pairs = [str(f) for f in validate_record(changed, previous, inventory, inventory_path, 'previous', REPO_ROOT)]
+    blocked_pairs = [str(f) for f in validate_record(changed, previous, inventory, inventory_path, 'previous', REPO_ROOT, REPO_ROOT)]
     check(
         any("carries no re-validation for this fix" in f for f in blocked_pairs),
         f"a derived change surface must demand re-validation: {blocked_pairs!r}",
@@ -1209,8 +1289,8 @@ def run_selftest() -> int:
     for row in revalidated["failure_matrix"]:
         row["revalidated"] = [dict(stamp)]
     check(
-        validate_record(revalidated, previous, inventory, inventory_path, 'previous', REPO_ROOT) == [],
-        f"a fully re-closed record must pass: {[str(f) for f in validate_record(revalidated, previous, inventory, inventory_path, 'previous', REPO_ROOT)]}",
+        validate_record(revalidated, previous, inventory, inventory_path, 'previous', REPO_ROOT, REPO_ROOT) == [],
+        f"a fully re-closed record must pass: {[str(f) for f in validate_record(revalidated, previous, inventory, inventory_path, 'previous', REPO_ROOT, REPO_ROOT)]}",
     )
 
     stale = json.loads(json.dumps(revalidated))
@@ -1218,7 +1298,7 @@ def run_selftest() -> int:
         cell["revalidated"] = [
             {"fix_id": "fix-10", "at": "2026-07-27T00:00:00+00:00", "evidence": ["old test"]}
         ]
-    blocked_stale = [str(f) for f in validate_record(stale, previous, inventory, inventory_path, 'previous', REPO_ROOT)]
+    blocked_stale = [str(f) for f in validate_record(stale, previous, inventory, inventory_path, 'previous', REPO_ROOT, REPO_ROOT)]
     check(any("stale" in f for f in blocked_stale), "re-validation predating the fix must be rejected")
 
     # Hostile: a serialization point that neither side reads AND writes.
@@ -1283,7 +1363,7 @@ def run_selftest() -> int:
         "base_exact_base": "0" * 40,
     }
     try:
-        tz_findings = validate_record(mixed, mixed_previous, inventory, inventory_path, 'previous', REPO_ROOT)
+        tz_findings = validate_record(mixed, mixed_previous, inventory, inventory_path, 'previous', REPO_ROOT, REPO_ROOT)
     except TypeError as error:  # pragma: no cover - the control exists to prevent this
         tz_findings = []
         check(False, f"mixed naive/aware timestamps raised {error!r} instead of a finding")
@@ -1448,6 +1528,70 @@ def run_selftest() -> int:
     synthetic["fix_reclosure"]["base_record_sha256"] = "a" * 64
     blocked(synthetic, "must supersede the last accepted record", "synthetic predecessor", previous)
 
+    # Round 6: the authority boundary itself.
+    check(
+        any(
+            "no trusted base copy" in str(f)
+            for f in validate_record(base, None, inventory, inventory_path, None, REPO_ROOT, None)
+        ),
+        "without a trusted base copy the authority files cannot be trusted",
+    )
+    with tempfile.TemporaryDirectory() as tmp:
+        narrowed_root = Path(tmp) / "trusted"
+        (narrowed_root / ".fairy").mkdir(parents=True)
+        (narrowed_root / ".fairy" / "contract-surface.json").write_text(
+            json.dumps({"globs": ["fixtures/**/*.ts"], "pattern": "(?P<operation>x)"}), encoding="utf-8"
+        )
+        (narrowed_root / ".fairy" / "contract-closure-lineage.json").write_text(
+            (REPO_ROOT / PROJECT_LINEAGE_LEDGER).read_text(encoding="utf-8"), encoding="utf-8"
+        )
+        findings = validate_record(
+            base, None, inventory, inventory_path, None, REPO_ROOT, narrowed_root
+        )
+        check(
+            any("differs from the trusted base" in str(f) for f in findings),
+            "an authority file edited inside its own increment must be rejected",
+        )
+
+        bad_shape = Path(tmp) / "shape"
+        (bad_shape / ".fairy").mkdir(parents=True)
+        (bad_shape / ".fairy" / "contract-surface.json").write_text("[]", encoding="utf-8")
+        (bad_shape / ".fairy" / "contract-closure-lineage.json").write_text("[]", encoding="utf-8")
+        config, errors = load_authority(bad_shape, PROJECT_SURFACE_CONFIG, {"globs": list, "pattern": str})
+        check(
+            config is None and any("must be a JSON object" in e for e in errors),
+            "a root-array authority file must be a finding, not silent disablement",
+        )
+        missing_field = Path(tmp) / "field"
+        (missing_field / ".fairy").mkdir(parents=True)
+        (missing_field / ".fairy" / "contract-surface.json").write_text(
+            json.dumps({"globs": ["a"]}), encoding="utf-8"
+        )
+        config, errors = load_authority(
+            missing_field, PROJECT_SURFACE_CONFIG, {"globs": list, "pattern": str}
+        )
+        check(config is None and any("missing required field" in e for e in errors), "a missing authority field is RED")
+
+        aliased = Path(tmp) / "alias"
+        (aliased / ".FAIRY").mkdir(parents=True)
+        (aliased / ".FAIRY" / "contract-surface.json").write_text("{}", encoding="utf-8")
+        _, alias_errors = authority_file(aliased, PROJECT_SURFACE_CONFIG)
+        check(
+            any("no exact entry" in e for e in alias_errors),
+            "a case-aliased authority directory must not be accepted as the exact path",
+        )
+
+        linked = Path(tmp) / "link"
+        (linked / ".fairy").mkdir(parents=True)
+        outside = Path(tmp) / "outside.json"
+        outside.write_text("{}", encoding="utf-8")
+        (linked / ".fairy" / "contract-surface.json").symlink_to(outside)
+        _, link_errors = authority_file(linked, PROJECT_SURFACE_CONFIG)
+        check(
+            any("symlink" in e for e in link_errors),
+            "a symlinked authority file must be refused",
+        )
+
     # Hostile: a self-declared closure flag must be rejected outright.
     declared = json.loads(json.dumps(base))
     declared["closure_reached"] = True
@@ -1456,7 +1600,6 @@ def run_selftest() -> int:
     # CLI-boundary controls: a malformed external artifact must be a reasoned
     # RED, never a traceback.
     import subprocess
-    import tempfile
 
     here = Path(__file__).resolve()
     repo_root = here.parents[1]
@@ -1603,6 +1746,7 @@ def command_validate(args: argparse.Namespace) -> int:
         args.inventory,
         args.base,
         Path(__file__).resolve().parents[1],
+        Path(args.trusted_authority) if args.trusted_authority else None,
     )
     if findings:
         for finding in findings:
@@ -1627,6 +1771,10 @@ def build_parser() -> argparse.ArgumentParser:
     validate.add_argument(
         "--base",
         help="the previous version of this record; required whenever fix_reclosure is present",
+    )
+    validate.add_argument(
+        "--trusted-authority",
+        help="a copy of .fairy/ taken from a source independent of this increment (e.g. the merge base)",
     )
     validate.add_argument(
         "--inventory",

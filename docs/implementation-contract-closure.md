@@ -32,6 +32,14 @@ the gate that makes it load-bearing.
   a declared identity that BOTH operations have in their reads AND writes; the
   record cannot attest to it with a boolean. A hazard-free pair may not declare
   itself serialized either — needless serialization is a defect, not caution.
+- **The authority files are a boundary, not a name.** `.fairy/contract-surface.json`
+  and `.fairy/contract-closure-lineage.json` are resolved by exact path
+  component (no case alias), refused if any component is a symlink or resolves
+  outside the repository, and parsed fail-closed — a root array, a missing key
+  or a wrong-typed field is a finding, never silent disablement. Their bytes
+  must also match a copy taken from a source independent of this increment
+  (`--trusted-authority`), so narrowing the surface or rewriting lineage has to
+  land as its own reviewed change first.
 - **The operation set is derived from the code, by the PROJECT.** The globs and
   pattern live in `.fairy/contract-surface.json`, which the gate reads itself —
   a record cannot declare, narrow or redirect its own discovery scope. The walk
