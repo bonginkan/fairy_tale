@@ -18,14 +18,14 @@ closes it:
 The validator derives closure instead of trusting it: it generates the cross
 product of the operation inventory, decides admissible dispositions from each
 pair's hazard kind, resolves a serialization point to an identity BOTH sides
-read and write, DERIVES the operation set from the code surface itself
-(declared globs plus a pattern that captures the operation id) and compares it
-both ways with the record, so trimming the record and its inventory together
-still fails while the handler exists,
-and — when the record declares itself a revision — diffs it against the
-predecessor it names by path, hash and exact_base (same repo and increment,
-strictly older, contract surface actually different) to compute what the change
-re-opened. There is no field in which a record
+read and write, DERIVES the operation set from the code surface using the
+PROJECT's own discovery config (`.fairy/contract-surface.json`, not anything
+the record declares) and compares it both ways with the record, so neither
+trimming the record nor narrowing its scope can hide a handler that exists,
+and — with the project's lineage ledger deciding whether this is an initial
+record or a revision — diffs a revision against the last accepted record it
+must supersede (named by path, hash and exact_base, strictly older, contract
+surface actually different) to compute what the change re-opened. There is no field in which a record
 can declare itself closed, and no boolean it can assert about itself.
 
 ```text

@@ -45,6 +45,8 @@ PACKAGE_REFERENCE_FILES = [
     ROOT / "examples" / "workflow-scoreboard" / "normal-baseline.json",
     ROOT / "examples" / "workflow-scoreboard" / "normal-fairy-tale.json",
     ROOT / "fixtures" / "e3-execution" / "cases.jsonl",
+    ROOT / ".fairy" / "contract-surface.json",
+    ROOT / ".fairy" / "contract-closure-lineage.json",
     ROOT / "fixtures" / "implementation-contract-closure" / "surface" / "list.ts",
     ROOT / "fixtures" / "implementation-contract-closure" / "surface" / "remove.ts",
     ROOT / "fixtures" / "implementation-contract-closure" / "surface" / "upload.ts",
@@ -104,6 +106,8 @@ REQUIRED_CONSUMER_ASSETS = (
     "examples/implementation-contract-closure.inventory.txt",
     "docs/implementation-contract-closure.md",
     "fixtures/implementation-contract-closure/surface/upload.ts",
+    ".fairy/contract-surface.json",
+    ".fairy/contract-closure-lineage.json",
     "scripts/helix_blocker_triage.py",
     "schemas/helix-blocker-triage.schema.json",
 )

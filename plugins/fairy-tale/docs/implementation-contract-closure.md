@@ -32,12 +32,13 @@ the gate that makes it load-bearing.
   a declared identity that BOTH operations have in their reads AND writes; the
   record cannot attest to it with a boolean. A hazard-free pair may not declare
   itself serialized either — needless serialization is a defect, not caution.
-- **The operation set is DERIVED FROM THE CODE.** `inventory_source.discovery`
-  declares globs and a pattern capturing the operation id; the gate walks the
-  tree itself and requires the record to match what it finds, both ways. This
-  is what makes a joint trim of the record and its inventory fail: the handler
-  is still in the tree. (The walk is in-process — no command from the record is
-  ever executed.)
+- **The operation set is derived from the code, by the PROJECT.** The globs and
+  pattern live in `.fairy/contract-surface.json`, which the gate reads itself —
+  a record cannot declare, narrow or redirect its own discovery scope. The walk
+  is in-process (no command from any file is executed), refuses absolute globs,
+  `..` segments and symlinks that resolve outside the repository, and accepts
+  only captures shaped like an operation id, so file content is never reflected
+  into a finding.
 - **The cited inventory artifact is external, named, and in-tree.** The record cites
   a path and a sha256; the gate requires the file actually supplied to be that
   path, to live inside the repository, and to hash to the declared value. A
@@ -45,9 +46,12 @@ the gate that makes it load-bearing.
   defines coverage is reviewed in the same diff as the record. The artifact is
   parsed fail-closed: non-UTF-8, empty, duplicated or malformed ids are RED
   before any hash comparison.
-- **Initial and revision are explicit.** `record_kind` says which this is; a
-  revision must declare `fix_reclosure`, an initial record must not, and the
-  named `base_record_ref` must be the file actually diffed.
+- **Initial and revision are decided by the project, not the record.**
+  `.fairy/contract-closure-lineage.json` lists the accepted records per
+  increment: `initial` is legal only while that list is empty, a revision must
+  supersede the LAST accepted record by sha256 and exact_base, and
+  `base_record_ref` must be the file actually diffed. A changed record cannot
+  relabel itself initial, and a synthetic predecessor is not lineage.
 - **Lineage is immutable and explicit.** A revision declares the exact_base it
   supersedes; the supplied base must be at that revision, from the same repo
   and increment, strictly older, and its contract surface must actually differ.
@@ -73,10 +77,15 @@ the gate that makes it load-bearing.
 - `disjoint_keyspace` is checked structurally (same identity, differing
   predicates, evidence present). Proving predicate disjointness semantically
   stays a reviewer judgement.
-- Discovery is only as good as its declared globs and pattern: the gate proves
-  the record matches what those find (and refuses a pattern that finds
-  nothing), but a handler outside the declared globs is invisible to it. The
-  globs are part of the reviewed record for exactly that reason.
+- Discovery is only as good as the project's own globs and pattern. The gate
+  proves the record matches what they find, refuses a pattern that finds
+  nothing, and confines the walk to the repository — but a handler outside the
+  project's declared surface is invisible to it. Those globs live in a
+  repository-owned file so that narrowing them is a reviewed change to the
+  project, not a private choice inside a record.
+- The lineage ledger is a repository file. It removes self-declared lineage,
+  but a repository with write access to itself can still rewrite its own
+  history; that edit is a reviewable diff, not something the gate can prevent.
 - Platform invariants are enumerated and sourced by the author. A rule nobody
   knows about is not caught by this gate; it is caught by review or by
   production.

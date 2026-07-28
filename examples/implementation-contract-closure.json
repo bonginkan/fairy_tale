@@ -4,17 +4,11 @@
   "increment": {
     "repo": "bonginkan/example",
     "exact_base": "0000000000000000000000000000000000000000",
-    "increment_id": "attachment-upload"
+    "increment_id": "attachment-upload-initial"
   },
   "evaluated_at": "2026-07-28T00:00:00+00:00",
   "inventory_source": {
     "kind": "route_manifest",
-    "discovery": {
-      "globs": [
-        "fixtures/implementation-contract-closure/surface/*.ts"
-      ],
-      "pattern": "^//\\s*operation:\\s*(?P<operation>[A-Za-z0-9_.:-]+)\\s*$"
-    },
     "ref": "examples/implementation-contract-closure.inventory.txt",
     "sha256": "ee9da3358374da37b3f088e00cd2b3b4adc2295f8015f8894c6ed0d9c18dbbee"
   },

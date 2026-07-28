@@ -1,0 +1,13 @@
+{
+  "purpose": "Append-only lineage of accepted closure records per increment. `initial` is only legal when an increment has no entry; a revision must name the last accepted record's sha256. The gate reads THIS file, so record_kind cannot be self-declared.",
+  "increments": {
+    "attachment-upload": [
+      {
+        "exact_base": "0000000000000000000000000000000000000000",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "evaluated_at": "2026-07-28T00:00:00+00:00",
+        "note": "example lineage for the shipped sample; a real project appends the accepted record's sha256"
+      }
+    ]
+  }
+}

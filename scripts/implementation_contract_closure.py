@@ -189,6 +189,73 @@ def check_schema_node(node: Any, value: Any, where: str, schema: dict[str, Any])
     return errors
 
 
+PROJECT_SURFACE_CONFIG = ".fairy/contract-surface.json"
+PROJECT_LINEAGE_LEDGER = ".fairy/contract-closure-lineage.json"
+OPERATION_ID = re.compile(r"^[A-Za-z0-9_.:-]{1,64}$")
+
+
+def discover_operations(root: Path, globs: Iterable[str], pattern: str) -> tuple[set[str], list[str]]:
+    """Walk the project surface, refusing to leave the repository.
+
+    Absolute globs, parent-directory escapes and symlinks that resolve outside
+    the tree are refused rather than followed: a discovery walk must never read
+    a file the repository does not contain, and nothing read is ever echoed
+    back — only ids that match the operation-id shape are accepted.
+    """
+    errors: list[str] = []
+    try:
+        compiled = re.compile(pattern, re.MULTILINE)
+    except re.error as error:
+        return set(), [f"{PROJECT_SURFACE_CONFIG}: pattern is not a valid regular expression ({error})"]
+    if "operation" not in (compiled.groupindex or {}):
+        return set(), [
+            f"{PROJECT_SURFACE_CONFIG}: pattern must capture a named group 'operation'"
+        ]
+    resolved_root = root.resolve()
+    found: set[str] = set()
+    for glob in globs:
+        text_glob = str(glob)
+        if Path(text_glob).is_absolute() or ".." in Path(text_glob).parts:
+            errors.append(
+                f"{PROJECT_SURFACE_CONFIG}: glob {text_glob!r} leaves the repository — discovery is "
+                "confined to the tree"
+            )
+            continue
+        try:
+            candidates = sorted(root.glob(text_glob))
+        except (NotImplementedError, ValueError, OSError) as error:
+            errors.append(f"{PROJECT_SURFACE_CONFIG}: glob {text_glob!r} is not usable ({error})")
+            continue
+        for path in candidates:
+            try:
+                real = path.resolve()
+                real.relative_to(resolved_root)
+            except (OSError, ValueError):
+                errors.append(
+                    f"{PROJECT_SURFACE_CONFIG}: {path.name!r} resolves outside the repository "
+                    "(symlink escape refused)"
+                )
+                continue
+            if not real.is_file():
+                continue
+            try:
+                body = real.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                errors.append(f"{PROJECT_SURFACE_CONFIG}: {path.name!r} is not readable UTF-8")
+                continue
+            for match in compiled.finditer(body):
+                candidate = match.group("operation") or ""
+                # Never reflect file content: only a well-formed id is taken.
+                if OPERATION_ID.match(candidate):
+                    found.add(candidate)
+                else:
+                    errors.append(
+                        f"{PROJECT_SURFACE_CONFIG}: {path.name!r} yielded a capture that is not a "
+                        "well-formed operation id"
+                    )
+    return found, errors
+
+
 def validate_shape(record: Any, schema_path: Path) -> list[Finding]:
     """Strict shape check against the shipped schema, with no external
     dependency: a record the schema rejects never reaches the semantic pass."""
@@ -242,6 +309,34 @@ def validate_record(
         bad("record_kind: a revision must declare fix_reclosure")
     if kind == "initial" and record.get("fix_reclosure") is not None:
         bad("record_kind: an initial record may not declare fix_reclosure")
+    # record_kind is NOT self-attested: the project-owned lineage ledger says
+    # whether this increment already has an accepted record, and which one the
+    # next revision must supersede.
+    ledger_entries: list[dict[str, Any]] = []
+    if discovery_root is not None:
+        ledger_path = discovery_root / PROJECT_LINEAGE_LEDGER
+        try:
+            ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError, UnicodeDecodeError) as error:
+            ledger = None
+            bad(f"{PROJECT_LINEAGE_LEDGER}: unreadable lineage ledger ({error})")
+        increment_id = (record.get("increment") or {}).get("increment_id") if isinstance(
+            record.get("increment"), dict
+        ) else None
+        if isinstance(ledger, dict) and text(increment_id):
+            raw_entries = (ledger.get("increments") or {}).get(str(increment_id)) or []
+            if isinstance(raw_entries, list):
+                ledger_entries = [entry for entry in raw_entries if isinstance(entry, dict)]
+        if kind == "initial" and ledger_entries:
+            bad(
+                "record_kind: this increment already has an accepted record in "
+                f"{PROJECT_LINEAGE_LEDGER}, so a later record cannot call itself initial"
+            )
+        if kind == "revision" and not ledger_entries:
+            bad(
+                f"record_kind: {PROJECT_LINEAGE_LEDGER} has no accepted record for this increment, "
+                "so there is nothing to revise"
+            )
     increment = record.get("increment")
     if not isinstance(increment, dict) or not all(
         text(increment.get(k)) for k in ("repo", "exact_base", "increment_id")
@@ -288,56 +383,35 @@ def validate_record(
 
     # ---- canonical inventory, both directions ---------------------------
     source = record.get("inventory_source")
-    discovery = source.get("discovery") if isinstance(source, dict) else None
-    if isinstance(discovery, dict):
-        # Derived from the CODE, not from an authored list: trimming the record
-        # and its inventory together cannot hide an operation, because the
-        # handler is still in the tree and the gate finds it here.
-        globs = discovery.get("globs")
-        pattern = discovery.get("pattern")
-        if not text_list(globs) or not text(pattern):
-            bad("inventory_source.discovery: globs and pattern are required")
-        else:
-            try:
-                # Multiline: a handler marker is a line in a file, not the whole file.
-                compiled = re.compile(str(pattern), re.MULTILINE)
-            except re.error as error:
-                compiled = None
-                bad(f"inventory_source.discovery.pattern: not a valid regular expression ({error})")
-            if compiled is not None:
-                if "operation" not in (compiled.groupindex or {}):
+    # Discovery is PROJECT-OWNED: the gate reads the repository's own surface
+    # config, never a scope the record chose. A record author can therefore not
+    # shrink the surface they are measured against, and cannot point the walk
+    # outside the repository.
+    if discovery_root is not None:
+        config_path = discovery_root / PROJECT_SURFACE_CONFIG
+        try:
+            config = json.loads(config_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError, UnicodeDecodeError) as error:
+            config = None
+            bad(f"{PROJECT_SURFACE_CONFIG}: unreadable project surface config ({error})")
+        if isinstance(config, dict):
+            globs = config.get("globs")
+            pattern = config.get("pattern")
+            if not text_list(globs) or not text(pattern):
+                bad(f"{PROJECT_SURFACE_CONFIG}: globs and pattern are required")
+            else:
+                discovered, errors = discover_operations(discovery_root, globs, str(pattern))
+                for error in errors:
+                    bad(error)
+                if not errors and not discovered:
                     bad(
-                        "inventory_source.discovery.pattern: must capture a named group "
-                        "'operation' so the operation id is derived, not assumed"
+                        f"{PROJECT_SURFACE_CONFIG}: the project surface config found no operation — "
+                        "a discovery that matches nothing proves nothing"
                     )
-                else:
-                    discovered: set[str] = set()
-                    root = discovery_root or Path.cwd()
-                    for glob in globs:
-                        for path in sorted(root.glob(str(glob))):
-                            if not path.is_file():
-                                continue
-                            try:
-                                body = path.read_text(encoding="utf-8")
-                            except (OSError, UnicodeDecodeError) as error:
-                                bad(f"inventory_source.discovery: cannot read {path}: {error}")
-                                continue
-                            for match in compiled.finditer(body):
-                                found = match.group("operation")
-                                if found:
-                                    discovered.add(found)
-                    if not discovered:
-                        bad(
-                            "inventory_source.discovery: the declared globs and pattern found no "
-                            "operation in the tree — a discovery that matches nothing proves nothing"
-                        )
-                    for missing in sorted(discovered - set(ops)):
-                        bad(
-                            f"operations: {missing!r} exists in the CODE surface "
-                            f"(discovered by {globs}) but is not modelled"
-                        )
-                    for extra in sorted(set(ops) - discovered):
-                        bad(f"operations: {extra!r} is modelled but does not exist in the code surface")
+                for missing in sorted(discovered - set(ops)):
+                    bad(f"operations: {missing!r} exists in the project code surface but is not modelled")
+                for extra in sorted(set(ops) - discovered):
+                    bad(f"operations: {extra!r} is modelled but does not exist in the project code surface")
     if not isinstance(source, dict) or not text(source.get("ref")) or not text(
         source.get("sha256")
     ):
@@ -603,6 +677,19 @@ def validate_record(
             # record: a foreign base would silently empty the change surface.
             base_increment = base.get("increment") if isinstance(base.get("increment"), dict) else {}
             own_increment = increment if isinstance(increment, dict) else {}
+            if ledger_entries:
+                last = ledger_entries[-1]
+                if fix.get("base_record_sha256") != last.get("sha256"):
+                    bad(
+                        "fix_reclosure.base_record_sha256: must supersede the last accepted record "
+                        f"for this increment ({last.get('sha256')!r} per {PROJECT_LINEAGE_LEDGER}) — "
+                        "a synthetic predecessor is not lineage"
+                    )
+                if fix.get("base_exact_base") != last.get("exact_base"):
+                    bad(
+                        "fix_reclosure.base_exact_base: must be the exact_base of the last accepted "
+                        f"record ({last.get('exact_base')!r} per {PROJECT_LINEAGE_LEDGER})"
+                    )
             declared_base_exact = fix.get("base_exact_base")
             if not text(declared_base_exact):
                 bad("fix_reclosure.base_exact_base: required (the revision this record supersedes)")
@@ -776,15 +863,11 @@ def sample_record() -> dict[str, Any]:
         "increment": {
             "repo": "bonginkan/example",
             "exact_base": "0000000000000000000000000000000000000000",
-            "increment_id": "attachment-upload",
+            "increment_id": "attachment-upload-initial",
         },
         "evaluated_at": "2026-07-28T00:00:00+00:00",
         "inventory_source": {
             "kind": "route_manifest",
-            "discovery": {
-                "globs": ["fixtures/implementation-contract-closure/surface/*.ts"],
-                "pattern": r"^//\s*operation:\s*(?P<operation>[A-Za-z0-9_.:-]+)\s*$",
-            },
             "ref": "examples/implementation-contract-closure.inventory.txt",
             "sha256": "ee9da3358374da37b3f088e00cd2b3b4adc2295f8015f8894c6ed0d9c18dbbee",
         },
@@ -917,7 +1000,8 @@ def sample_record() -> dict[str, Any]:
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-CONTROL_COUNT = 45
+SCHEMA_PATH = REPO_ROOT / "schemas" / "implementation-contract-closure.schema.json"
+CONTROL_COUNT = 52
 
 
 def run_selftest() -> int:
@@ -1080,6 +1164,7 @@ def run_selftest() -> int:
 
     # Fix re-closure is derived from the versioned diff, not declared.
     previous = json.loads(json.dumps(base))
+    previous["increment"]["increment_id"] = "attachment-upload"
     changed = json.loads(json.dumps(base))
     # A silent change to an existing write set: no declaration mentions it.
     changed["operations"][1]["writes"] = ["attachment", "draft_envelope", "audit_log"]
@@ -1096,6 +1181,7 @@ def run_selftest() -> int:
     )
     changed["evaluated_at"] = "2026-07-28T03:00:00+00:00"
     changed["record_kind"] = "revision"
+    changed["increment"]["increment_id"] = "attachment-upload"
     changed["increment"]["exact_base"] = "1" * 40
     changed["fix_reclosure"] = {
         "fix_id": "fix-10",
@@ -1185,6 +1271,7 @@ def run_selftest() -> int:
     # Hostile: mixed naive/aware timestamps must be a finding, never a traceback.
     mixed = json.loads(json.dumps(base))
     mixed["record_kind"] = "revision"
+    mixed["increment"]["increment_id"] = "attachment-upload"
     mixed["evaluated_at"] = "2026-07-28T00:00:00"
     mixed_previous = json.loads(json.dumps(base))
     mixed_previous["evaluated_at"] = "2026-07-27T00:00:00+00:00"
@@ -1231,6 +1318,7 @@ def run_selftest() -> int:
     # Hostile: a backdated clone is not a predecessor.
     clone = json.loads(json.dumps(base))
     clone["record_kind"] = "revision"
+    clone["increment"]["increment_id"] = "attachment-upload"
     clone["increment"]["exact_base"] = "1" * 40
     clone["evaluated_at"] = "2026-07-28T03:00:00+00:00"
     clone["fix_reclosure"] = {
@@ -1241,6 +1329,7 @@ def run_selftest() -> int:
         "base_exact_base": "0" * 40,
     }
     backdated = json.loads(json.dumps(base))
+    backdated["increment"]["increment_id"] = "attachment-upload"
     backdated["evaluated_at"] = "2026-07-27T00:00:00+00:00"
     blocked(clone, "byte-equivalent to its base", "backdated clone as predecessor", backdated)
 
@@ -1251,7 +1340,7 @@ def run_selftest() -> int:
     blocked(wrong_lineage, "not the declared", "base at an undeclared revision", other_base)
 
     # The shape gate must work without jsonschema installed (clean checkout).
-    schema_path = Path(__file__).resolve().parents[1] / "schemas" / "implementation-contract-closure.schema.json"
+    schema_path = SCHEMA_PATH
     check(validate_shape(base, schema_path) == [], "the shipped sample must satisfy the shape gate")
     nested_bad = json.loads(json.dumps(base))
     nested_bad["operations"][0]["unexpected_nested"] = True
@@ -1267,7 +1356,7 @@ def run_selftest() -> int:
     joint["concurrency_matrix"] = [
         cell for cell in joint["concurrency_matrix"] if "list" not in cell["pair"]
     ]
-    blocked(joint, "exists in the CODE surface", "joint record+inventory trim", None, ["upload", "remove"])
+    blocked(joint, "exists in the project code surface", "joint record+inventory trim", None, ["upload", "remove"])
 
     # Hostile: a modelled operation that no handler backs.
     invented_op = json.loads(json.dumps(base))
@@ -1282,7 +1371,7 @@ def run_selftest() -> int:
     )
     blocked(
         invented_op,
-        "does not exist in the code surface",
+        "does not exist in the project code surface",
         "modelled ghost operation",
         None,
         ["upload", "remove", "list", "ghost"],
@@ -1311,6 +1400,53 @@ def run_selftest() -> int:
         inventory_path,
         "some/other-base.json",
     )
+
+    # Round 5: the record cannot choose the discovery scope at all.
+    scoped = json.loads(json.dumps(base))
+    scoped["inventory_source"]["discovery"] = {
+        "globs": ["fixtures/implementation-contract-closure/surface/upload.ts"],
+        "pattern": "^// operation: (?P<operation>[a-z]+)$",
+    }
+    check(
+        any("unexpected field" in str(f) for f in validate_shape(scoped, SCHEMA_PATH)),
+        "a record may not carry its own discovery scope",
+    )
+
+    # Containment: escapes are refused rather than followed, in-process.
+    escaped, errors = discover_operations(
+        REPO_ROOT, ["../*.ts", "/etc/*.conf"], r"^//\s*operation:\s*(?P<operation>[a-z]+)\s*$"
+    )
+    check(escaped == set(), "a discovery walk must not read outside the repository")
+    check(
+        len(errors) == 2 and all("leaves the repository" in e for e in errors),
+        f"both escape attempts must be reasoned findings: {errors!r}",
+    )
+    _, abs_errors = discover_operations(REPO_ROOT, ["/absolute/**/*.ts"], r"(?P<operation>x)")
+    check(
+        abs_errors and "leaves the repository" in abs_errors[0],
+        "an absolute glob must be a finding, never a NotImplementedError",
+    )
+
+    # A capture that is not a well-formed id is never echoed back.
+    _, capture_errors = discover_operations(
+        REPO_ROOT,
+        ["fixtures/implementation-contract-closure/surface/*.ts"],
+        r"^//\s*operation:\s*(?P<operation>.*)$",
+    )
+    check(
+        all("operation:" not in e or "not a well-formed" in e for e in capture_errors),
+        "file content must never be reflected into a finding",
+    )
+
+    # Lineage authority: the ledger decides, not the record.
+    self_initial = json.loads(json.dumps(changed))
+    self_initial["record_kind"] = "initial"
+    del self_initial["fix_reclosure"]
+    blocked(self_initial, "cannot call itself initial", "changed record posing as initial", previous)
+
+    synthetic = json.loads(json.dumps(changed))
+    synthetic["fix_reclosure"]["base_record_sha256"] = "a" * 64
+    blocked(synthetic, "must supersede the last accepted record", "synthetic predecessor", previous)
 
     # Hostile: a self-declared closure flag must be rejected outright.
     declared = json.loads(json.dumps(base))

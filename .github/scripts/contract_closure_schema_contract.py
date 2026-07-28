@@ -159,6 +159,9 @@ def main() -> int:
         "base_record_sha256": "0" * 64,
         "base_exact_base": "0" * 40,
     }
+    scoped = copy.deepcopy(sample)
+    scoped["inventory_source"]["discovery"] = {"globs": ["x/*.ts"], "pattern": "(?P<operation>x)"}
+    ok &= rejected(scoped, "record-declared discovery scope")
     duplicate_identity = copy.deepcopy(sample)
     shadow = copy.deepcopy(duplicate_identity["identities"][0])
     shadow["owner"] = "someone else"

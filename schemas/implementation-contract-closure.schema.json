@@ -54,8 +54,7 @@
       "required": [
         "kind",
         "ref",
-        "sha256",
-        "discovery"
+        "sha256"
       ],
       "properties": {
         "kind": {
@@ -69,28 +68,6 @@
         "sha256": {
           "type": "string",
           "pattern": "^[0-9a-f]{64}$"
-        },
-        "discovery": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "globs",
-            "pattern"
-          ],
-          "properties": {
-            "globs": {
-              "type": "array",
-              "minItems": 1,
-              "items": {
-                "type": "string",
-                "minLength": 1
-              }
-            },
-            "pattern": {
-              "type": "string",
-              "minLength": 1
-            }
-          }
         }
       }
     },
