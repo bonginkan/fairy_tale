@@ -24,6 +24,7 @@ EXTRA_FILES = [
     ROOT / "README.md",
     ROOT / "README_ja.md",
     ROOT / "install.sh",
+    ROOT / "fairy",
 ]
 PACKAGE_REFERENCE_FILES = [
     ROOT / "adapters" / "workflow-scoreboard.adapter.json",
@@ -100,6 +101,7 @@ def validate_residency() -> None:
 #: Assets whose absence would ship a process card with no consumer — the
 #: failure mode that made the card advisory in the first place.
 REQUIRED_CONSUMER_ASSETS = (
+    "fairy",
     "scripts/implementation_contract_closure.py",
     "schemas/implementation-contract-closure.schema.json",
     "examples/implementation-contract-closure.json",

@@ -221,7 +221,9 @@ def git_blob(root: Path, rev: str, relative: str) -> tuple[bytes | None, str | N
         return None, f"cannot read {relative} at {rev}: {detail[-1] if detail else 'unknown error'}"
 
 
-def resolve_trusted_base(root: Path, rev: str) -> tuple[str | None, list[str]]:
+def resolve_trusted_base(
+    root: Path, rev: str, integration_ref: str | None = None
+) -> tuple[str | None, list[str]]:
     """Resolve the trusted revision and prove it is independent of HEAD."""
     import subprocess
 
@@ -248,6 +250,20 @@ def resolve_trusted_base(root: Path, rev: str) -> tuple[str | None, list[str]]:
     if code != 0:
         return None, [
             f"trusted base {rev!r} is not an ancestor of HEAD, so it is not this work's base"
+        ]
+    if not integration_ref:
+        return None, [
+            "no integration ref was supplied (--integration-ref), so a commit created inside this "
+            "very branch could pose as the trusted base"
+        ]
+    code, integration = git("rev-parse", "--verify", f"{integration_ref}^{{commit}}")
+    if code != 0:
+        return None, [f"integration ref {integration_ref!r} is not a commit ({integration})"]
+    code, _ = git("merge-base", "--is-ancestor", resolved, integration)
+    if code != 0:
+        return None, [
+            f"trusted base {rev!r} is not contained in {integration_ref!r} — a commit made inside "
+            "this branch cannot vouch for the authority it changes"
         ]
     return resolved, []
 
@@ -386,6 +402,7 @@ def validate_record(
     base_path: str | None = None,
     discovery_root: Path | None = None,
     trusted_base: str | None = None,
+    integration_ref: str | None = None,
 ) -> list[Finding]:
     findings: list[Finding] = []
 
@@ -485,7 +502,9 @@ def validate_record(
                 "surface and lineage could have been narrowed inside this very increment"
             )
         else:
-            resolved, lineage_errors = resolve_trusted_base(discovery_root, str(trusted_base))
+            resolved, lineage_errors = resolve_trusted_base(
+                discovery_root, str(trusted_base), integration_ref
+            )
             for error in lineage_errors:
                 bad(error)
             if resolved is not None:
@@ -495,21 +514,14 @@ def validate_record(
                         bad(error)
                     trusted_bytes, git_error = git_blob(discovery_root, resolved, relative)
                     if git_error is not None:
-                        # Introduction (the file does not exist at the trusted
-                        # base) is not narrowing — but it is only admissible
-                        # for a first record of an increment with no accepted
-                        # lineage, and it is stated in the output rather than
-                        # passed over in silence.
-                        introducing = kind == "initial" and not ledger_entries
-                        if introducing and "cannot read" in git_error:
-                            bad(
-                                f"authority-note: {relative} does not exist at the trusted base "
-                                f"{resolved[:12]} — accepted ONLY as the increment that introduces it "
-                                "(initial record, empty lineage). Every later increment must match the "
-                                "committed bytes."
-                            )
-                        else:
-                            bad(f"authority: {git_error}")
+                        # No bootstrap allowance: an increment cannot introduce
+                        # the authority that governs it. Registration lands as
+                        # its own change first, and this one measures against
+                        # it.
+                        bad(
+                            f"authority: {git_error} — the authority files must already exist in the "
+                            "integration history; registering them is a separate change"
+                        )
                         continue
                     if live is None or trusted_bytes is None:
                         continue
@@ -1177,7 +1189,7 @@ SCHEMA_PATH = REPO_ROOT / "schemas" / "implementation-contract-closure.schema.js
 #: Selftest trust anchor: HEAD~1 is an immutable ancestor object, never the
 #: working tree, so the controls exercise the real provenance path.
 TRUSTED_BASE = "HEAD~1"
-CONTROL_COUNT = 61
+CONTROL_COUNT = 62
 
 
 def selftest_repo(tmp: Path) -> Path | None:
@@ -1236,6 +1248,7 @@ def run_selftest() -> int:
     provenance_dir = tempfile.TemporaryDirectory()
     REPO_ROOT_LOCAL = selftest_repo(Path(provenance_dir.name)) or REPO_ROOT
     TRUSTED = "HEAD~1" if REPO_ROOT_LOCAL is not REPO_ROOT else None
+    INTEGRATION = "HEAD~1" if TRUSTED else None
 
     def blocked(
         record: dict[str, Any],
@@ -1254,6 +1267,7 @@ def run_selftest() -> int:
             base_path,
             REPO_ROOT_LOCAL,
             TRUSTED,
+            INTEGRATION,
         )
         check(
             any(fragment in str(f) for f in found),
@@ -1262,13 +1276,13 @@ def run_selftest() -> int:
 
     base = sample_record()
     check(
-        validate_record(base, None, inventory, inventory_path, None, REPO_ROOT_LOCAL, TRUSTED) == [],
-        f"sample must validate: {[str(f) for f in validate_record(base, None, inventory, inventory_path, None, REPO_ROOT_LOCAL, TRUSTED)]}",
+        validate_record(base, None, inventory, inventory_path, None, REPO_ROOT_LOCAL, TRUSTED, INTEGRATION) == [],
+        f"sample must validate: {[str(f) for f in validate_record(base, None, inventory, inventory_path, None, REPO_ROOT_LOCAL, TRUSTED, INTEGRATION)]}",
     )
 
     # Hostile: an empty contract must never pass.
     empty = {"schema": SCHEMA_ID}
-    check(len(validate_record(empty, None, inventory, inventory_path, None, REPO_ROOT_LOCAL, TRUSTED)) >= 5, "an empty record must produce multiple findings")
+    check(len(validate_record(empty, None, inventory, inventory_path, None, REPO_ROOT_LOCAL, TRUSTED, INTEGRATION)) >= 5, "an empty record must produce multiple findings")
 
     # Hostile: a hand-listed subset of the cross product.
     subset = json.loads(json.dumps(base))
@@ -1304,7 +1318,7 @@ def run_selftest() -> int:
 
     # Safe overlaps must NOT be over-blocked: read x read passes with no point.
     check(
-        not any("list' x 'list" in str(f) for f in validate_record(base, None, inventory, inventory_path, None, REPO_ROOT_LOCAL, TRUSTED)),
+        not any("list' x 'list" in str(f) for f in validate_record(base, None, inventory, inventory_path, None, REPO_ROOT_LOCAL, TRUSTED, INTEGRATION)),
         "a read-only pair must not be forced to serialize",
     )
 
@@ -1321,8 +1335,8 @@ def run_selftest() -> int:
         },
     }
     check(
-        validate_record(disjoint, None, inventory, inventory_path, None, REPO_ROOT_LOCAL, TRUSTED) == [],
-        f"a declared disjoint keyspace with evidence must pass: {[str(f) for f in validate_record(disjoint, None, inventory, inventory_path, None, REPO_ROOT_LOCAL, TRUSTED)]}",
+        validate_record(disjoint, None, inventory, inventory_path, None, REPO_ROOT_LOCAL, TRUSTED, INTEGRATION) == [],
+        f"a declared disjoint keyspace with evidence must pass: {[str(f) for f in validate_record(disjoint, None, inventory, inventory_path, None, REPO_ROOT_LOCAL, TRUSTED, INTEGRATION)]}",
     )
     same_predicate = json.loads(json.dumps(disjoint))
     same_predicate["concurrency_matrix"][1]["key_partition"]["predicate_b"] = "attachment id < midpoint"
@@ -1363,8 +1377,8 @@ def run_selftest() -> int:
         },
     }
     check(
-        validate_record(snapshot, None, inventory, inventory_path, None, REPO_ROOT_LOCAL, TRUSTED) == [],
-        f"a snapshot read must not be forced to serialize: {[str(f) for f in validate_record(snapshot, None, inventory, inventory_path, None, REPO_ROOT_LOCAL, TRUSTED)]}",
+        validate_record(snapshot, None, inventory, inventory_path, None, REPO_ROOT_LOCAL, TRUSTED, INTEGRATION) == [],
+        f"a snapshot read must not be forced to serialize: {[str(f) for f in validate_record(snapshot, None, inventory, inventory_path, None, REPO_ROOT_LOCAL, TRUSTED, INTEGRATION)]}",
     )
     no_contract = json.loads(json.dumps(snapshot))
     del no_contract["concurrency_matrix"][4]["snapshot_contract"]
@@ -1379,8 +1393,8 @@ def run_selftest() -> int:
         "idempotence_tested": ["races: A then B", "races: B then A"],
     }
     check(
-        validate_record(commutative, None, inventory, inventory_path, None, REPO_ROOT_LOCAL, TRUSTED) == [],
-        f"a commutative write pair with tests must pass: {[str(f) for f in validate_record(commutative, None, inventory, inventory_path, None, REPO_ROOT_LOCAL, TRUSTED)]}",
+        validate_record(commutative, None, inventory, inventory_path, None, REPO_ROOT_LOCAL, TRUSTED, INTEGRATION) == [],
+        f"a commutative write pair with tests must pass: {[str(f) for f in validate_record(commutative, None, inventory, inventory_path, None, REPO_ROOT_LOCAL, TRUSTED, INTEGRATION)]}",
     )
     unproven = json.loads(json.dumps(commutative))
     unproven["concurrency_matrix"][0]["idempotence_tested"] = ["only one order"]
@@ -1414,12 +1428,12 @@ def run_selftest() -> int:
         "base_record_sha256": "0" * 64,
         "base_exact_base": "0" * 40,
     }
-    findings_without_base = validate_record(changed, None, inventory, inventory_path, 'previous', REPO_ROOT_LOCAL, TRUSTED)
+    findings_without_base = validate_record(changed, None, inventory, inventory_path, 'previous', REPO_ROOT_LOCAL, TRUSTED, INTEGRATION)
     check(
         any("base record was not supplied" in str(f) for f in findings_without_base),
         "re-closure without the base record must fail closed",
     )
-    blocked_pairs = [str(f) for f in validate_record(changed, previous, inventory, inventory_path, 'previous', REPO_ROOT_LOCAL, TRUSTED)]
+    blocked_pairs = [str(f) for f in validate_record(changed, previous, inventory, inventory_path, 'previous', REPO_ROOT_LOCAL, TRUSTED, INTEGRATION)]
     check(
         any("carries no re-validation for this fix" in f for f in blocked_pairs),
         f"a derived change surface must demand re-validation: {blocked_pairs!r}",
@@ -1433,8 +1447,8 @@ def run_selftest() -> int:
     for row in revalidated["failure_matrix"]:
         row["revalidated"] = [dict(stamp)]
     check(
-        validate_record(revalidated, previous, inventory, inventory_path, 'previous', REPO_ROOT_LOCAL, TRUSTED) == [],
-        f"a fully re-closed record must pass: {[str(f) for f in validate_record(revalidated, previous, inventory, inventory_path, 'previous', REPO_ROOT_LOCAL, TRUSTED)]}",
+        validate_record(revalidated, previous, inventory, inventory_path, 'previous', REPO_ROOT_LOCAL, TRUSTED, INTEGRATION) == [],
+        f"a fully re-closed record must pass: {[str(f) for f in validate_record(revalidated, previous, inventory, inventory_path, 'previous', REPO_ROOT_LOCAL, TRUSTED, INTEGRATION)]}",
     )
 
     stale = json.loads(json.dumps(revalidated))
@@ -1442,7 +1456,7 @@ def run_selftest() -> int:
         cell["revalidated"] = [
             {"fix_id": "fix-10", "at": "2026-07-27T00:00:00+00:00", "evidence": ["old test"]}
         ]
-    blocked_stale = [str(f) for f in validate_record(stale, previous, inventory, inventory_path, 'previous', REPO_ROOT_LOCAL, TRUSTED)]
+    blocked_stale = [str(f) for f in validate_record(stale, previous, inventory, inventory_path, 'previous', REPO_ROOT_LOCAL, TRUSTED, INTEGRATION)]
     check(any("stale" in f for f in blocked_stale), "re-validation predating the fix must be rejected")
 
     # Hostile: a serialization point that neither side reads AND writes.
@@ -1507,7 +1521,7 @@ def run_selftest() -> int:
         "base_exact_base": "0" * 40,
     }
     try:
-        tz_findings = validate_record(mixed, mixed_previous, inventory, inventory_path, 'previous', REPO_ROOT_LOCAL, TRUSTED)
+        tz_findings = validate_record(mixed, mixed_previous, inventory, inventory_path, 'previous', REPO_ROOT_LOCAL, TRUSTED, INTEGRATION)
     except TypeError as error:  # pragma: no cover - the control exists to prevent this
         tz_findings = []
         check(False, f"mixed naive/aware timestamps raised {error!r} instead of a finding")
@@ -1891,12 +1905,22 @@ def command_validate(args: argparse.Namespace) -> int:
         inventory,
         args.inventory,
         args.base,
-        Path(__file__).resolve().parents[1],
+        Path(args.repo_root).resolve() if args.repo_root else Path(__file__).resolve().parents[1],
         args.trusted_base,
+        args.integration_ref,
     )
+    verdict = {
+        "schema": "fairy.implementation-contract-closure.verdict.v1",
+        "closed": not findings,
+        "finding_count": len(findings),
+        "findings": [str(finding) for finding in findings],
+    }
+    for finding in findings:
+        print(f"[RED    ] {finding}")
+    # A machine verdict, so a consumer never has to grep prose (a finding that
+    # merely CONTAINS a tolerated word could otherwise pass as tolerated).
+    print("VERDICT " + json.dumps(verdict, ensure_ascii=False))
     if findings:
-        for finding in findings:
-            print(f"[RED    ] {finding}")
         print(f"implementation contract closure: {len(findings)} unclosed cell(s) — implementation must not start")
         return 1
     print("implementation contract closure: closed (cross product complete, no blank cell)")
@@ -1917,6 +1941,15 @@ def build_parser() -> argparse.ArgumentParser:
     validate.add_argument(
         "--base",
         help="the previous version of this record; required whenever fix_reclosure is present",
+    )
+    validate.add_argument(
+        "--repo-root",
+        help="the project being validated (defaults to this installation), so an extracted package "
+        "can gate a different repository",
+    )
+    validate.add_argument(
+        "--integration-ref",
+        help="the branch the trusted base must be contained in (e.g. origin/main)",
     )
     validate.add_argument(
         "--trusted-base",
