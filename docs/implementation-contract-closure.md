@@ -32,13 +32,22 @@ the gate that makes it load-bearing.
   a declared identity that BOTH operations have in their reads AND writes; the
   record cannot attest to it with a boolean. A hazard-free pair may not declare
   itself serialized either — needless serialization is a defect, not caution.
-- **The canonical inventory is external, named, and in-tree.** The record cites
+- **The operation set is DERIVED FROM THE CODE.** `inventory_source.discovery`
+  declares globs and a pattern capturing the operation id; the gate walks the
+  tree itself and requires the record to match what it finds, both ways. This
+  is what makes a joint trim of the record and its inventory fail: the handler
+  is still in the tree. (The walk is in-process — no command from the record is
+  ever executed.)
+- **The cited inventory artifact is external, named, and in-tree.** The record cites
   a path and a sha256; the gate requires the file actually supplied to be that
   path, to live inside the repository, and to hash to the declared value. A
   substituted or out-of-tree inventory is rejected, so the artifact that
   defines coverage is reviewed in the same diff as the record. The artifact is
   parsed fail-closed: non-UTF-8, empty, duplicated or malformed ids are RED
   before any hash comparison.
+- **Initial and revision are explicit.** `record_kind` says which this is; a
+  revision must declare `fix_reclosure`, an initial record must not, and the
+  named `base_record_ref` must be the file actually diffed.
 - **Lineage is immutable and explicit.** A revision declares the exact_base it
   supersedes; the supplied base must be at that revision, from the same repo
   and increment, strictly older, and its contract surface must actually differ.
@@ -64,11 +73,10 @@ the gate that makes it load-bearing.
 - `disjoint_keyspace` is checked structurally (same identity, differing
   predicates, evidence present). Proving predicate disjointness semantically
   stays a reviewer judgement.
-- The canonical operation inventory is authored, not derived from the code by
-  this gate. Coverage is enforced both ways against an in-tree, named,
-  hash-bound artifact, so trimming it is a reviewable change in the same diff —
-  but a reviewer, not the gate, is what notices that the artifact still matches
-  the code surface.
+- Discovery is only as good as its declared globs and pattern: the gate proves
+  the record matches what those find (and refuses a pattern that finds
+  nothing), but a handler outside the declared globs is invisible to it. The
+  globs are part of the reviewed record for exactly that reason.
 - Platform invariants are enumerated and sourced by the author. A rule nobody
   knows about is not caught by this gate; it is caught by review or by
   production.

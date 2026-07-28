@@ -204,6 +204,8 @@ def validate_record(
     base: Any = None,
     inventory: Iterable[str] | None = None,
     inventory_path: str | None = None,
+    base_path: str | None = None,
+    discovery_root: Path | None = None,
 ) -> list[Finding]:
     findings: list[Finding] = []
 
@@ -217,6 +219,7 @@ def validate_record(
 
     known = {
         "schema",
+        "record_kind",
         "increment",
         "evaluated_at",
         "inventory_source",
@@ -232,6 +235,13 @@ def validate_record(
         if key not in known:
             bad(f"record: unexpected field {key!r} (closure is derived, never declared)")
 
+    kind = record.get("record_kind")
+    if kind not in {"initial", "revision"}:
+        bad("record_kind: must be 'initial' or 'revision' (a revision may not be implicit)")
+    if kind == "revision" and record.get("fix_reclosure") is None:
+        bad("record_kind: a revision must declare fix_reclosure")
+    if kind == "initial" and record.get("fix_reclosure") is not None:
+        bad("record_kind: an initial record may not declare fix_reclosure")
     increment = record.get("increment")
     if not isinstance(increment, dict) or not all(
         text(increment.get(k)) for k in ("repo", "exact_base", "increment_id")
@@ -278,6 +288,56 @@ def validate_record(
 
     # ---- canonical inventory, both directions ---------------------------
     source = record.get("inventory_source")
+    discovery = source.get("discovery") if isinstance(source, dict) else None
+    if isinstance(discovery, dict):
+        # Derived from the CODE, not from an authored list: trimming the record
+        # and its inventory together cannot hide an operation, because the
+        # handler is still in the tree and the gate finds it here.
+        globs = discovery.get("globs")
+        pattern = discovery.get("pattern")
+        if not text_list(globs) or not text(pattern):
+            bad("inventory_source.discovery: globs and pattern are required")
+        else:
+            try:
+                # Multiline: a handler marker is a line in a file, not the whole file.
+                compiled = re.compile(str(pattern), re.MULTILINE)
+            except re.error as error:
+                compiled = None
+                bad(f"inventory_source.discovery.pattern: not a valid regular expression ({error})")
+            if compiled is not None:
+                if "operation" not in (compiled.groupindex or {}):
+                    bad(
+                        "inventory_source.discovery.pattern: must capture a named group "
+                        "'operation' so the operation id is derived, not assumed"
+                    )
+                else:
+                    discovered: set[str] = set()
+                    root = discovery_root or Path.cwd()
+                    for glob in globs:
+                        for path in sorted(root.glob(str(glob))):
+                            if not path.is_file():
+                                continue
+                            try:
+                                body = path.read_text(encoding="utf-8")
+                            except (OSError, UnicodeDecodeError) as error:
+                                bad(f"inventory_source.discovery: cannot read {path}: {error}")
+                                continue
+                            for match in compiled.finditer(body):
+                                found = match.group("operation")
+                                if found:
+                                    discovered.add(found)
+                    if not discovered:
+                        bad(
+                            "inventory_source.discovery: the declared globs and pattern found no "
+                            "operation in the tree — a discovery that matches nothing proves nothing"
+                        )
+                    for missing in sorted(discovered - set(ops)):
+                        bad(
+                            f"operations: {missing!r} exists in the CODE surface "
+                            f"(discovered by {globs}) but is not modelled"
+                        )
+                    for extra in sorted(set(ops) - discovered):
+                        bad(f"operations: {extra!r} is modelled but does not exist in the code surface")
     if not isinstance(source, dict) or not text(source.get("ref")) or not text(
         source.get("sha256")
     ):
@@ -315,6 +375,12 @@ def validate_record(
             ident = row.get("id")
             if not text(ident):
                 bad(f"{where}.id: required")
+                continue
+            if str(ident) in identities:
+                bad(
+                    f"{where}.id: duplicate identity {ident!r} — a second definition silently "
+                    "overwrites the first, so the state machine would not be unique"
+                )
                 continue
             if row.get("scope") not in {"persisted", "client"}:
                 bad(f"{where}.scope: must be 'persisted' or 'client'")
@@ -518,6 +584,12 @@ def validate_record(
             bad("fix_reclosure: fix_id, base_record_ref and base_record_sha256 are required")
         elif parse_time(fix.get("introduced_at")) is None:
             bad("fix_reclosure.introduced_at: timezone-qualified ISO-8601 timestamp required")
+        elif base_path is not None and str(fix.get("base_record_ref")) != base_path:
+            bad(
+                f"fix_reclosure.base_record_ref: the record names {fix.get('base_record_ref')!r} but "
+                f"the base supplied was {base_path!r} — a predecessor reference that is not the file "
+                "actually diffed proves nothing"
+            )
         elif base is None:
             bad(
                 "fix_reclosure: the base record was not supplied (--base), so the changed surface "
@@ -700,6 +772,7 @@ def sample_record() -> dict[str, Any]:
     """A minimal record that passes: two operations, one real conflict."""
     return {
         "schema": SCHEMA_ID,
+        "record_kind": "initial",
         "increment": {
             "repo": "bonginkan/example",
             "exact_base": "0000000000000000000000000000000000000000",
@@ -708,6 +781,10 @@ def sample_record() -> dict[str, Any]:
         "evaluated_at": "2026-07-28T00:00:00+00:00",
         "inventory_source": {
             "kind": "route_manifest",
+            "discovery": {
+                "globs": ["fixtures/implementation-contract-closure/surface/*.ts"],
+                "pattern": r"^//\s*operation:\s*(?P<operation>[A-Za-z0-9_.:-]+)\s*$",
+            },
             "ref": "examples/implementation-contract-closure.inventory.txt",
             "sha256": "ee9da3358374da37b3f088e00cd2b3b4adc2295f8015f8894c6ed0d9c18dbbee",
         },
@@ -839,7 +916,8 @@ def sample_record() -> dict[str, Any]:
     }
 
 
-CONTROL_COUNT = 40
+REPO_ROOT = Path(__file__).resolve().parents[1]
+CONTROL_COUNT = 45
 
 
 def run_selftest() -> int:
@@ -859,8 +937,16 @@ def run_selftest() -> int:
         base: Any = None,
         ops: Iterable[str] | None = None,
         path: str | None = inventory_path,
+        base_path: str | None = "previous",
     ) -> None:
-        found = validate_record(record, base, inventory if ops is None else ops, path)
+        found = validate_record(
+            record,
+            base,
+            inventory if ops is None else ops,
+            path,
+            base_path,
+            REPO_ROOT,
+        )
         check(
             any(fragment in str(f) for f in found),
             f"{label}: expected a finding containing {fragment!r}, got {[str(f) for f in found]!r}",
@@ -868,13 +954,13 @@ def run_selftest() -> int:
 
     base = sample_record()
     check(
-        validate_record(base, None, inventory, inventory_path) == [],
-        f"sample must validate: {[str(f) for f in validate_record(base, None, inventory, inventory_path)]}",
+        validate_record(base, None, inventory, inventory_path, None, REPO_ROOT) == [],
+        f"sample must validate: {[str(f) for f in validate_record(base, None, inventory, inventory_path, None, REPO_ROOT)]}",
     )
 
     # Hostile: an empty contract must never pass.
     empty = {"schema": SCHEMA_ID}
-    check(len(validate_record(empty, None, inventory, inventory_path)) >= 5, "an empty record must produce multiple findings")
+    check(len(validate_record(empty, None, inventory, inventory_path, None, REPO_ROOT)) >= 5, "an empty record must produce multiple findings")
 
     # Hostile: a hand-listed subset of the cross product.
     subset = json.loads(json.dumps(base))
@@ -910,7 +996,7 @@ def run_selftest() -> int:
 
     # Safe overlaps must NOT be over-blocked: read x read passes with no point.
     check(
-        not any("list' x 'list" in str(f) for f in validate_record(base, None, inventory, inventory_path)),
+        not any("list' x 'list" in str(f) for f in validate_record(base, None, inventory, inventory_path, None, REPO_ROOT)),
         "a read-only pair must not be forced to serialize",
     )
 
@@ -927,8 +1013,8 @@ def run_selftest() -> int:
         },
     }
     check(
-        validate_record(disjoint, None, inventory, inventory_path) == [],
-        f"a declared disjoint keyspace with evidence must pass: {[str(f) for f in validate_record(disjoint, None, inventory, inventory_path)]}",
+        validate_record(disjoint, None, inventory, inventory_path, None, REPO_ROOT) == [],
+        f"a declared disjoint keyspace with evidence must pass: {[str(f) for f in validate_record(disjoint, None, inventory, inventory_path, None, REPO_ROOT)]}",
     )
     same_predicate = json.loads(json.dumps(disjoint))
     same_predicate["concurrency_matrix"][1]["key_partition"]["predicate_b"] = "attachment id < midpoint"
@@ -969,8 +1055,8 @@ def run_selftest() -> int:
         },
     }
     check(
-        validate_record(snapshot, None, inventory, inventory_path) == [],
-        f"a snapshot read must not be forced to serialize: {[str(f) for f in validate_record(snapshot, None, inventory, inventory_path)]}",
+        validate_record(snapshot, None, inventory, inventory_path, None, REPO_ROOT) == [],
+        f"a snapshot read must not be forced to serialize: {[str(f) for f in validate_record(snapshot, None, inventory, inventory_path, None, REPO_ROOT)]}",
     )
     no_contract = json.loads(json.dumps(snapshot))
     del no_contract["concurrency_matrix"][4]["snapshot_contract"]
@@ -985,8 +1071,8 @@ def run_selftest() -> int:
         "idempotence_tested": ["races: A then B", "races: B then A"],
     }
     check(
-        validate_record(commutative, None, inventory, inventory_path) == [],
-        f"a commutative write pair with tests must pass: {[str(f) for f in validate_record(commutative, None, inventory, inventory_path)]}",
+        validate_record(commutative, None, inventory, inventory_path, None, REPO_ROOT) == [],
+        f"a commutative write pair with tests must pass: {[str(f) for f in validate_record(commutative, None, inventory, inventory_path, None, REPO_ROOT)]}",
     )
     unproven = json.loads(json.dumps(commutative))
     unproven["concurrency_matrix"][0]["idempotence_tested"] = ["only one order"]
@@ -1009,20 +1095,21 @@ def run_selftest() -> int:
         }
     )
     changed["evaluated_at"] = "2026-07-28T03:00:00+00:00"
+    changed["record_kind"] = "revision"
     changed["increment"]["exact_base"] = "1" * 40
     changed["fix_reclosure"] = {
         "fix_id": "fix-10",
         "introduced_at": "2026-07-28T01:00:00+00:00",
-        "base_record_ref": "previous record",
+        "base_record_ref": "previous",
         "base_record_sha256": "0" * 64,
         "base_exact_base": "0" * 40,
     }
-    findings_without_base = validate_record(changed, None, inventory, inventory_path)
+    findings_without_base = validate_record(changed, None, inventory, inventory_path, 'previous', REPO_ROOT)
     check(
         any("base record was not supplied" in str(f) for f in findings_without_base),
         "re-closure without the base record must fail closed",
     )
-    blocked_pairs = [str(f) for f in validate_record(changed, previous, inventory, inventory_path)]
+    blocked_pairs = [str(f) for f in validate_record(changed, previous, inventory, inventory_path, 'previous', REPO_ROOT)]
     check(
         any("carries no re-validation for this fix" in f for f in blocked_pairs),
         f"a derived change surface must demand re-validation: {blocked_pairs!r}",
@@ -1036,8 +1123,8 @@ def run_selftest() -> int:
     for row in revalidated["failure_matrix"]:
         row["revalidated"] = [dict(stamp)]
     check(
-        validate_record(revalidated, previous, inventory, inventory_path) == [],
-        f"a fully re-closed record must pass: {[str(f) for f in validate_record(revalidated, previous, inventory, inventory_path)]}",
+        validate_record(revalidated, previous, inventory, inventory_path, 'previous', REPO_ROOT) == [],
+        f"a fully re-closed record must pass: {[str(f) for f in validate_record(revalidated, previous, inventory, inventory_path, 'previous', REPO_ROOT)]}",
     )
 
     stale = json.loads(json.dumps(revalidated))
@@ -1045,7 +1132,7 @@ def run_selftest() -> int:
         cell["revalidated"] = [
             {"fix_id": "fix-10", "at": "2026-07-27T00:00:00+00:00", "evidence": ["old test"]}
         ]
-    blocked_stale = [str(f) for f in validate_record(stale, previous, inventory, inventory_path)]
+    blocked_stale = [str(f) for f in validate_record(stale, previous, inventory, inventory_path, 'previous', REPO_ROOT)]
     check(any("stale" in f for f in blocked_stale), "re-validation predating the fix must be rejected")
 
     # Hostile: a serialization point that neither side reads AND writes.
@@ -1097,6 +1184,7 @@ def run_selftest() -> int:
 
     # Hostile: mixed naive/aware timestamps must be a finding, never a traceback.
     mixed = json.loads(json.dumps(base))
+    mixed["record_kind"] = "revision"
     mixed["evaluated_at"] = "2026-07-28T00:00:00"
     mixed_previous = json.loads(json.dumps(base))
     mixed_previous["evaluated_at"] = "2026-07-27T00:00:00+00:00"
@@ -1108,7 +1196,7 @@ def run_selftest() -> int:
         "base_exact_base": "0" * 40,
     }
     try:
-        tz_findings = validate_record(mixed, mixed_previous, inventory, inventory_path)
+        tz_findings = validate_record(mixed, mixed_previous, inventory, inventory_path, 'previous', REPO_ROOT)
     except TypeError as error:  # pragma: no cover - the control exists to prevent this
         tz_findings = []
         check(False, f"mixed naive/aware timestamps raised {error!r} instead of a finding")
@@ -1126,6 +1214,7 @@ def run_selftest() -> int:
     # Hostile: omitting fix_reclosure while supplying a base must not bypass the diff.
     opt_out = json.loads(json.dumps(changed))
     del opt_out["fix_reclosure"]
+    opt_out["record_kind"] = "initial"
     blocked(opt_out, "must declare the fix that produced it", "opt-out re-closure", previous)
 
     # Hostile: an alternate inventory file (with its own matching hash) cannot
@@ -1141,6 +1230,7 @@ def run_selftest() -> int:
 
     # Hostile: a backdated clone is not a predecessor.
     clone = json.loads(json.dumps(base))
+    clone["record_kind"] = "revision"
     clone["increment"]["exact_base"] = "1" * 40
     clone["evaluated_at"] = "2026-07-28T03:00:00+00:00"
     clone["fix_reclosure"] = {
@@ -1168,6 +1258,58 @@ def run_selftest() -> int:
     check(
         any("unexpected field" in str(f) for f in validate_shape(nested_bad, schema_path)),
         "an unknown nested key must be a shape finding, not a traceback",
+    )
+
+    # Hostile: trimming record AND inventory together cannot hide an operation
+    # that still exists in the code surface.
+    joint = json.loads(json.dumps(base))
+    joint["operations"] = [op for op in joint["operations"] if op["id"] != "list"]
+    joint["concurrency_matrix"] = [
+        cell for cell in joint["concurrency_matrix"] if "list" not in cell["pair"]
+    ]
+    blocked(joint, "exists in the CODE surface", "joint record+inventory trim", None, ["upload", "remove"])
+
+    # Hostile: a modelled operation that no handler backs.
+    invented_op = json.loads(json.dumps(base))
+    invented_op["operations"].append(
+        {
+            "id": "ghost",
+            "kind": "read",
+            "source_ref": "nowhere.ts:GET",
+            "reads": ["attachment"],
+            "writes": [],
+        }
+    )
+    blocked(
+        invented_op,
+        "does not exist in the code surface",
+        "modelled ghost operation",
+        None,
+        ["upload", "remove", "list", "ghost"],
+    )
+
+    # Hostile: a duplicated identity with a conflicting state machine.
+    duplicated = json.loads(json.dumps(base))
+    shadow = json.loads(json.dumps(duplicated["identities"][0]))
+    shadow["owner"] = "someone else"
+    shadow["states"] = ["x", "y"]
+    shadow["transitions"] = [{"from": "x", "to": "y", "trigger": "shadow"}]
+    duplicated["identities"].append(shadow)
+    blocked(duplicated, "duplicate identity", "shadowed identity definition")
+
+    # Hostile: an implicit revision, and a base that is not the file named.
+    implicit = json.loads(json.dumps(changed))
+    implicit["record_kind"] = "initial"
+    blocked(implicit, "an initial record may not declare fix_reclosure", "implicit revision", previous)
+    mismatched_ref = json.loads(json.dumps(changed))
+    blocked(
+        mismatched_ref,
+        "is not the file actually diffed",
+        "synthetic base under another name",
+        previous,
+        None,
+        inventory_path,
+        "some/other-base.json",
     )
 
     # Hostile: a self-declared closure flag must be rejected outright.
@@ -1227,9 +1369,12 @@ def command_validate(args: argparse.Namespace) -> int:
     try:
         raw = path.read_text(encoding="utf-8")
         record = json.loads(raw)
+    except UnicodeDecodeError as error:
+        print(f"[RED    ] record {path} is not UTF-8: {error}")
+        return 1
     except (OSError, json.JSONDecodeError) as error:
-        print(f"cannot read record {path}: {error}")
-        return 2
+        print(f"[RED    ] record {path} is not readable JSON: {error}")
+        return 1
     schema_path = Path(__file__).resolve().parents[1] / "schemas" / "implementation-contract-closure.schema.json"
     shape_findings = validate_shape(record, schema_path)
     if shape_findings:
@@ -1294,8 +1439,19 @@ def command_validate(args: argparse.Namespace) -> int:
             base_raw = base_path.read_bytes()
             base = json.loads(base_raw.decode("utf-8"))
         except (OSError, json.JSONDecodeError, UnicodeDecodeError) as error:
-            print(f"cannot read base record {base_path}: {error}")
-            return 2
+            print(f"[RED    ] base record {base_path} is not readable JSON/UTF-8: {error}")
+            return 1
+        if not isinstance(base, dict):
+            print("[RED    ] base record is not a JSON object")
+            return 1
+        for table in ("operations", "identities", "failure_matrix", "concurrency_matrix"):
+            value = base.get(table, [])
+            if value is not None and not isinstance(value, list):
+                print(f"[RED    ] base record {table} is not a list")
+                return 1
+            if isinstance(value, list) and any(not isinstance(item, dict) for item in value):
+                print(f"[RED    ] base record {table} contains a non-object entry")
+                return 1
         declared = (record.get("fix_reclosure") or {}).get("base_record_sha256")
         actual = hashlib.sha256(base_raw).hexdigest()
         if declared and declared != actual:
@@ -1304,7 +1460,14 @@ def command_validate(args: argparse.Namespace) -> int:
                 f"base hashes to {actual}"
             )
             return 1
-    findings = validate_record(record, base, inventory, args.inventory)
+    findings = validate_record(
+        record,
+        base,
+        inventory,
+        args.inventory,
+        args.base,
+        Path(__file__).resolve().parents[1],
+    )
     if findings:
         for finding in findings:
             print(f"[RED    ] {finding}")

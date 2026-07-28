@@ -94,7 +94,9 @@ def main() -> int:
             return 1
         controls += 1
 
-    findings = validate_record(sample, None, inventory, "examples/implementation-contract-closure.inventory.txt")
+    findings = validate_record(
+        sample, None, inventory, "examples/implementation-contract-closure.inventory.txt", None, ROOT
+    )
     if findings:
         print(f"[RED    ] shipped example fails the runtime gate: {[str(f) for f in findings]}")
         return 1
@@ -105,7 +107,7 @@ def main() -> int:
         controls += 1
         schema_errors = list(validator.iter_errors(record))
         runtime_findings = validate_record(
-            record, None, inventory, "examples/implementation-contract-closure.inventory.txt"
+            record, None, inventory, "examples/implementation-contract-closure.inventory.txt", None, ROOT
         )
         if schema_errors or runtime_findings:
             return True
@@ -138,8 +140,8 @@ def main() -> int:
     blank["failure_matrix"][0]["unknown"] = ""
     ok &= rejected(blank, "blank UNKNOWN cell")
 
-    # An operation the EXTERNAL canonical inventory has but the record omits —
-    # trimming the record's own tables cannot launder it away.
+    # An operation the CODE surface has but the record omits — trimming the
+    # record AND its inventory together cannot launder it away.
     omitted = copy.deepcopy(sample)
     omitted["operations"] = [op for op in omitted["operations"] if op["id"] != "list"]
     omitted["concurrency_matrix"] = [
@@ -149,6 +151,7 @@ def main() -> int:
 
     # Re-closure without the base record it must diff against.
     unbased = copy.deepcopy(sample)
+    unbased["record_kind"] = "revision"
     unbased["fix_reclosure"] = {
         "fix_id": "fix-1",
         "introduced_at": "2026-07-28T01:00:00+00:00",
@@ -156,6 +159,11 @@ def main() -> int:
         "base_record_sha256": "0" * 64,
         "base_exact_base": "0" * 40,
     }
+    duplicate_identity = copy.deepcopy(sample)
+    shadow = copy.deepcopy(duplicate_identity["identities"][0])
+    shadow["owner"] = "someone else"
+    duplicate_identity["identities"].append(shadow)
+    ok &= rejected(duplicate_identity, "duplicate identity definition")
     ok &= rejected(unbased, "re-closure without a base record")
 
     if not ok:
