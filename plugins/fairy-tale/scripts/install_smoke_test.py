@@ -4,19 +4,20 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import shutil
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
 from skill_markdown_refs import (
-    DISTRIBUTED_SKILL_NAMES,
+    distributed_skill_names,
     validate_skill_markdown_refs,
 )
 
 
 ROOT = Path(__file__).resolve().parents[1]
-REQUIRED_SKILLS = DISTRIBUTED_SKILL_NAMES
 REQUIRED_INSTALLED_FILES = (
     Path("fairy-tale") / "references" / "loop-engineering-automation.md",
     Path("fairy-tale") / "references" / "feedback-governance.md",
@@ -33,29 +34,78 @@ REQUIRED_INSTALLED_FILES = (
 )
 
 
-def run_install(target: Path, source: Path) -> None:
-    subprocess.run(
-        [
-            "sh",
-            str(source / "install.sh"),
-            "--source",
-            str(source),
-            "--target",
-            str(target),
-            "--create",
-            "--force",
-            "--allow-outside-home",
-        ],
-        check=True,
-    )
+def run_install(
+    target: Path,
+    source: Path,
+    *,
+    force: bool = True,
+    check: bool = True,
+) -> subprocess.CompletedProcess[str]:
+    command = [
+        "sh",
+        str(source / "install.sh"),
+        "--source",
+        str(source),
+        "--target",
+        str(target),
+        "--create",
+        "--allow-outside-home",
+    ]
+    if force:
+        command.append("--force")
+    return subprocess.run(command, check=check, capture_output=True, text=True)
 
 
-def validate_install(target: Path) -> list[str]:
+def file_digests(base: Path) -> dict[Path, str]:
+    """Map relative path -> sha256 for every file under ``base``."""
+    return {
+        path.relative_to(base): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in sorted(base.rglob("*"))
+        if path.is_file()
+    }
+
+
+def installed_skill_names(target: Path) -> set[str]:
+    if not target.is_dir():
+        return set()
+    return {
+        entry.name
+        for entry in target.iterdir()
+        if (entry / "SKILL.md").is_file()
+    }
+
+
+def validate_distribution(target: Path, source_skills: Path) -> list[str]:
+    """Compare what shipped against the source tree, name and byte.
+
+    Presence alone cannot see the two failures that actually happen: a skill
+    added to the tree but never distributed, and a destination copy that
+    drifted from the source while keeping the same file count.
+    """
     failures: list[str] = []
-    for skill in REQUIRED_SKILLS:
-        skill_file = target / skill / "SKILL.md"
-        if not skill_file.exists():
-            failures.append(f"missing installed skill: {skill_file}")
+    expected = set(distributed_skill_names(source_skills))
+    installed = installed_skill_names(target)
+
+    for name in sorted(expected - installed):
+        failures.append(f"source skill was not installed: {name}")
+    for name in sorted(installed - expected):
+        failures.append(f"installed skill is absent from the source: {name}")
+
+    for name in sorted(expected & installed):
+        source_files = file_digests(source_skills / name)
+        installed_files = file_digests(target / name)
+        for rel in sorted(set(source_files) - set(installed_files)):
+            failures.append(f"{name}: source file was not installed: {rel}")
+        for rel in sorted(set(installed_files) - set(source_files)):
+            failures.append(f"{name}: installed file is absent from the source: {rel}")
+        for rel in sorted(set(source_files) & set(installed_files)):
+            if source_files[rel] != installed_files[rel]:
+                failures.append(f"{name}: installed content differs from the source: {rel}")
+    return failures
+
+
+def validate_install(target: Path, source: Path) -> list[str]:
+    failures = validate_distribution(target, source / "skills")
 
     for required in REQUIRED_INSTALLED_FILES:
         if not (target / required).exists():
@@ -63,6 +113,117 @@ def validate_install(target: Path) -> list[str]:
 
     ref_failures, _, _ = validate_skill_markdown_refs(target)
     failures.extend(ref_failures)
+    return failures
+
+
+def selftest_distribution_checks() -> tuple[list[str], int]:
+    """Prove the comparison fails on the drift it exists to catch.
+
+    A check never observed failing is indistinguishable from one that cannot
+    fail, which is how a skill that shipped nowhere passed CI for weeks.
+    """
+    failures: list[str] = []
+    controls = 0
+    with tempfile.TemporaryDirectory(prefix="fairy-tale-install-control-") as tmp:
+        root = Path(tmp)
+        source_skills = root / "source"
+        target = root / "target"
+        for base in (source_skills, target):
+            skill = base / "sample-skill"
+            skill.mkdir(parents=True)
+            (skill / "SKILL.md").write_text("canonical\n")
+            (skill / "reference.md").write_text("companion\n")
+
+        controls += 1
+        if validate_distribution(target, source_skills):
+            failures.append("identical trees were reported as drift")
+
+        drifted = target / "sample-skill" / "SKILL.md"
+        drifted.write_text("drifted\n")
+        controls += 1
+        if not validate_distribution(target, source_skills):
+            failures.append("content drift at an unchanged file count went unseen")
+        drifted.write_text("canonical\n")
+
+        uninstalled = target / "sample-skill" / "reference.md"
+        uninstalled.unlink()
+        controls += 1
+        if not validate_distribution(target, source_skills):
+            failures.append("a source file that never shipped went unseen")
+        uninstalled.write_text("companion\n")
+
+        added = source_skills / "later-skill"
+        added.mkdir()
+        (added / "SKILL.md").write_text("added after the target was built\n")
+        controls += 1
+        if not validate_distribution(target, source_skills):
+            failures.append("a skill absent from the distribution went unseen")
+        shutil.rmtree(added)
+
+        stray = target / "stray-skill"
+        stray.mkdir()
+        (stray / "SKILL.md").write_text("no source counterpart\n")
+        controls += 1
+        if not validate_distribution(target, source_skills):
+            failures.append("an installed skill with no source went unseen")
+        shutil.rmtree(stray)
+    return failures, controls
+
+
+def run_update_path_controls(source: Path) -> list[str]:
+    """Exercise what happens on the second run against a populated target.
+
+    An installer that refuses every populated target can only ever install
+    once, so a lane keeps whatever version it was first given and a skill
+    added later never reaches it. These controls pin that contract down.
+    """
+    failures: list[str] = []
+    source_skills = source / "skills"
+    names = distributed_skill_names(source_skills)
+    if not names:
+        return ["no skills found to exercise the update path"]
+    sample = names[-1]
+
+    with tempfile.TemporaryDirectory(prefix="fairy-tale-install-update-") as tmp:
+        target = Path(tmp) / "skills"
+        run_install(target, source)
+        baseline = {name: file_digests(target / name) for name in names}
+
+        repeated = run_install(target, source, force=False, check=False)
+        if repeated.returncode != 0:
+            failures.append(
+                "re-running over an identical target was refused: "
+                f"rc={repeated.returncode}"
+            )
+        if {name: file_digests(target / name) for name in names} != baseline:
+            failures.append("re-running over an identical target modified it")
+
+        shutil.rmtree(target / sample)
+        restored = run_install(target, source, force=False, check=False)
+        if restored.returncode != 0:
+            failures.append(
+                f"a skill missing from the target was not installed: {sample}: "
+                f"rc={restored.returncode}"
+            )
+        elif file_digests(target / sample) != baseline[sample]:
+            failures.append(f"re-installed skill differs from the source: {sample}")
+
+        drifted = target / sample / "SKILL.md"
+        drifted.write_text(drifted.read_text() + "\ndrift\n")
+        after_drift = file_digests(target / sample)
+        refused = run_install(target, source, force=False, check=False)
+        if refused.returncode != 2:
+            failures.append(
+                f"a drifted target was not refused: rc={refused.returncode}"
+            )
+        if file_digests(target / sample) != after_drift:
+            failures.append("a refused run modified the target")
+
+        repaired = run_install(target, source, force=True, check=False)
+        if repaired.returncode != 0:
+            failures.append(f"--force did not replace drift: rc={repaired.returncode}")
+        elif file_digests(target / sample) != baseline[sample]:
+            failures.append(f"--force left the skill unlike the source: {sample}")
     return failures
 
 
@@ -74,13 +235,19 @@ def main() -> int:
     source = args.source.resolve()
     with tempfile.TemporaryDirectory(prefix="fairy-tale-install-smoke-") as tmp:
         target = Path(tmp) / "skills"
-        run_install(target, source)
-        failures = validate_install(target)
+        print(run_install(target, source).stdout, end="")
+        failures = validate_install(target, source)
+        failures.extend(run_update_path_controls(source))
+        control_failures, controls = selftest_distribution_checks()
+        failures.extend(control_failures)
         if failures:
             for failure in failures:
                 print(f"FAIL {failure}", file=sys.stderr)
             return 1
-        print(f"OK install smoke passed for {target}")
+        print(
+            f"OK install smoke passed for {target} "
+            f"({controls} distribution controls)"
+        )
         return 0
 
 

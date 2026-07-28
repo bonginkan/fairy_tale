@@ -26,10 +26,15 @@ Options:
   --ref REF              Git branch, tag, or commit. Default: main.
   --source PATH          Local source tree, for testing from a checkout.
   --create              Create the target directory if it does not exist.
-  --force               Replace existing fairy-tale skill directories.
+  --force               Replace existing skill directories whose contents differ.
   --allow-outside-home  Allow a target outside $HOME.
   --dry-run             Print planned actions without writing files.
   --help                Show this help.
+
+Every skill directory under skills/ is installed; there is no separate list to
+keep in step. Re-running is safe: a skill that already matches the source is
+left alone, and a skill missing from the target is added. --force is needed
+only to overwrite a skill whose contents differ from the source.
 USAGE
 }
 
@@ -106,24 +111,55 @@ else
   fi
 fi
 
-for SKILL in fairy-tale fairy-tale-benchmark-feedback fairy-tale-legal-feedback; do
-  SRC="$ROOT/skills/$SKILL"
-  DEST="$TARGET/$SKILL"
-  if [ "$DRY_RUN" -eq 0 ] && [ ! -f "$SRC/SKILL.md" ]; then
-    echo "missing skill source: $SRC" >&2
+# The installed set is the source tree itself. A second list kept here would be
+# a second thing to remember, and the one that is forgotten is the one that
+# stops shipping.
+SKILLS_SRC="$ROOT/skills"
+
+if [ ! -d "$SKILLS_SRC" ]; then
+  if [ "$DRY_RUN" -eq 1 ] && [ -z "$SOURCE_DIR" ]; then
+    # Nothing was fetched, so the set can only be named, not enumerated.
+    echo "install every skill under skills/ of $REPO@$REF -> $TARGET"
+  else
+    echo "missing skills directory in source: $SKILLS_SRC" >&2
     exit 1
   fi
-  if [ -e "$DEST" ] && [ "$FORCE" -eq 0 ]; then
-    echo "destination exists; use --force to replace: $DEST" >&2
-    exit 2
-  fi
-  echo "install $SRC -> $DEST"
-  if [ "$DRY_RUN" -eq 0 ]; then
-    if [ -e "$DEST" ]; then
-      rm -rf "$DEST"
+else
+  INSTALLED=0
+  for SRC in "$SKILLS_SRC"/*; do
+    [ -d "$SRC" ] || continue
+    SKILL="${SRC##*/}"
+    DEST="$TARGET/$SKILL"
+    if [ ! -f "$SRC/SKILL.md" ]; then
+      echo "missing skill source: $SRC/SKILL.md" >&2
+      exit 1
     fi
-    cp -R "$SRC" "$DEST"
+    if [ -e "$DEST" ] && [ "$FORCE" -eq 0 ]; then
+      # An identical destination is already the requested outcome. Refusing it
+      # would also refuse every later skill in this run, which is how a lane
+      # ends up frozen at the version it was first populated with.
+      if command -v diff >/dev/null 2>&1 && diff -r "$SRC" "$DEST" >/dev/null 2>&1; then
+        echo "up to date $DEST"
+        INSTALLED=$((INSTALLED + 1))
+        continue
+      fi
+      echo "destination exists and differs; use --force to replace: $DEST" >&2
+      exit 2
+    fi
+    echo "install $SRC -> $DEST"
+    if [ "$DRY_RUN" -eq 0 ]; then
+      if [ -e "$DEST" ]; then
+        rm -rf "$DEST"
+      fi
+      cp -R "$SRC" "$DEST"
+    fi
+    INSTALLED=$((INSTALLED + 1))
+  done
+
+  if [ "$INSTALLED" -eq 0 ]; then
+    echo "no skills found under $SKILLS_SRC" >&2
+    exit 1
   fi
-done
+fi
 
 echo "Fairy Tale skills installed in $TARGET"

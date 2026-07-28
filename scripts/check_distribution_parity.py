@@ -14,6 +14,7 @@ import sys
 from pathlib import Path
 
 from skill_markdown_refs import (
+    distributed_skill_names,
     selftest_skill_markdown_refs,
     validate_skill_markdown_refs,
 )
@@ -21,12 +22,14 @@ from skill_markdown_refs import (
 ROOT = Path(__file__).resolve().parents[1]
 SKILL_PACKAGE_ROOT = ROOT / "skills"
 
-# Canonical skill tree + its distribution mirrors.
-CANONICAL = ROOT / "skills" / "fairy-tale"
-MIRRORS = (
-    ROOT / ".claude" / "skills" / "fairy-tale",
-    ROOT / ".agents" / "skills" / "fairy-tale",
-    ROOT / "plugins" / "fairy-tale" / "skills" / "fairy-tale",
+# Roots the canonical skill tree is mirrored into. Every skill under skills/ is
+# checked against every root: the mirrors carry the whole tree, so naming one
+# skill here would leave the newest skill -- the one most likely to drift --
+# unguarded.
+MIRROR_ROOTS = (
+    ROOT / ".claude" / "skills",
+    ROOT / ".agents" / "skills",
+    ROOT / "plugins" / "fairy-tale" / "skills",
 )
 
 # Companion artifacts (adapters / schemas / scripts / docs / resources / ledgers /
@@ -51,25 +54,32 @@ def md_files(base: Path) -> dict[Path, Path]:
     return {p.relative_to(base): p for p in base.rglob("*.md") if p.is_file()}
 
 
-def check_parity() -> list[str]:
+def check_parity() -> tuple[list[str], int]:
     errors: list[str] = []
-    if not CANONICAL.exists():
-        return [f"canonical skill tree missing: {CANONICAL.relative_to(ROOT)}"]
-    canonical = md_files(CANONICAL)
-    for mirror in MIRRORS:
-        rel_mirror = mirror.relative_to(ROOT)
-        if not mirror.exists():
-            errors.append(f"missing mirror: {rel_mirror}")
-            continue
-        mirrored = md_files(mirror)
-        for rel in sorted(set(canonical) - set(mirrored)):
-            errors.append(f"{rel_mirror}: missing {rel}")
-        for rel in sorted(set(mirrored) - set(canonical)):
-            errors.append(f"{rel_mirror}: extra {rel}")
-        for rel in sorted(set(canonical) & set(mirrored)):
-            if canonical[rel].read_bytes() != mirrored[rel].read_bytes():
-                errors.append(f"{rel_mirror}: byte mismatch {rel}")
-    return errors
+    if not SKILL_PACKAGE_ROOT.is_dir():
+        rel_root = SKILL_PACKAGE_ROOT.relative_to(ROOT)
+        return [f"canonical skill tree missing: {rel_root}"], 0
+    names = distributed_skill_names(SKILL_PACKAGE_ROOT)
+    if not names:
+        rel_root = SKILL_PACKAGE_ROOT.relative_to(ROOT)
+        return [f"no skills found under {rel_root}"], 0
+    for name in names:
+        canonical = md_files(SKILL_PACKAGE_ROOT / name)
+        for mirror_root in MIRROR_ROOTS:
+            mirror = mirror_root / name
+            rel_mirror = mirror.relative_to(ROOT)
+            if not mirror.exists():
+                errors.append(f"missing mirror: {rel_mirror}")
+                continue
+            mirrored = md_files(mirror)
+            for rel in sorted(set(canonical) - set(mirrored)):
+                errors.append(f"{rel_mirror}: missing {rel}")
+            for rel in sorted(set(mirrored) - set(canonical)):
+                errors.append(f"{rel_mirror}: extra {rel}")
+            for rel in sorted(set(canonical) & set(mirrored)):
+                if canonical[rel].read_bytes() != mirrored[rel].read_bytes():
+                    errors.append(f"{rel_mirror}: byte mismatch {rel}")
+    return errors, len(names)
 
 
 def companion_candidates() -> list[Path]:
@@ -119,8 +129,9 @@ def main() -> int:
         SKILL_PACKAGE_ROOT
     )
     ref_selftest_errors, ref_controls = selftest_skill_markdown_refs()
+    parity_errors, skills = check_parity()
     errors = (
-        check_parity()
+        parity_errors
         + ref_errors
         + ref_selftest_errors
         + companion_errors
@@ -130,10 +141,11 @@ def main() -> int:
         for err in errors:
             print(f"  - {err}")
         return 1
-    copies = 1 + len(MIRRORS)
+    copies = skills * (1 + len(MIRROR_ROOTS))
     print(
         f"Fairy Tale distribution parity OK: {copies} skill copies byte-identical "
-        f"(*.md), {companions} mirrored companion artifacts byte-identical, and "
+        f"(*.md) across {skills} skills, {companions} mirrored companion artifacts "
+        f"byte-identical, and "
         f"{markdown_refs} Markdown references across {markdown_files} packaged "
         f"Markdown files resolve ({ref_controls} negative/positive controls)."
     )
