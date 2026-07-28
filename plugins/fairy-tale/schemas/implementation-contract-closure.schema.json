@@ -53,7 +53,7 @@
       "required": [
         "kind",
         "ref",
-        "operations"
+        "sha256"
       ],
       "properties": {
         "kind": {
@@ -64,13 +64,9 @@
           "type": "string",
           "minLength": 1
         },
-        "operations": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
         }
       }
     },
@@ -277,16 +273,12 @@
             "type": "object",
             "additionalProperties": false,
             "required": [
-              "object",
-              "both_sides_read_and_write"
+              "object"
             ],
             "properties": {
               "object": {
                 "type": "string",
                 "minLength": 1
-              },
-              "both_sides_read_and_write": {
-                "type": "boolean"
               }
             }
           },

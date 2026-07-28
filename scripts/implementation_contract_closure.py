@@ -41,7 +41,7 @@ import hashlib
 import itertools
 import json
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -77,12 +77,21 @@ def text_list(value: Any, *, minimum: int = 1) -> bool:
 
 
 def parse_time(value: Any) -> datetime | None:
+    """Parse an ISO-8601 timestamp, normalised to UTC.
+
+    Naive and aware values are both accepted and both normalised, so a mixed
+    record is a reasoned finding about its content — never a TypeError from
+    comparing an aware value with a naive one.
+    """
     if not text(value):
         return None
     try:
-        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
     except ValueError:
         return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
 
 
 def pair_key(a: str, b: str) -> tuple[str, str]:
@@ -104,7 +113,40 @@ def hazards(op_a: dict[str, Any], op_b: dict[str, Any]) -> tuple[set[str], set[s
     return write_write, read_write
 
 
-def validate_record(record: Any, base: Any = None) -> list[Finding]:
+def validate_shape(record: Any, schema_path: Path) -> list[Finding]:
+    """Strict shape check against the shipped schema.
+
+    The CLI and the schema must never disagree: a record the schema rejects
+    (an unknown nested key, a wrong type) is rejected here too, as a reasoned
+    finding rather than a traceback deeper in the semantics.
+    """
+    try:
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        return [Finding(f"schema: cannot load {schema_path}: {error}")]
+    try:
+        from jsonschema import Draft202012Validator
+    except ModuleNotFoundError:
+        return [
+            Finding(
+                "schema: jsonschema is not installed, so the strict shape cannot be checked — "
+                "install the pinned version rather than treating this run as green"
+            )
+        ]
+    validator = Draft202012Validator(schema)
+    return [
+        Finding(
+            "shape: "
+            + ("/".join(str(part) for part in error.path) or "<root>")
+            + f": {error.message}"
+        )
+        for error in sorted(validator.iter_errors(record), key=lambda e: list(e.path))
+    ]
+
+
+def validate_record(
+    record: Any, base: Any = None, inventory: Iterable[str] | None = None
+) -> list[Finding]:
     findings: list[Finding] = []
 
     def bad(message: str) -> None:
@@ -178,12 +220,17 @@ def validate_record(record: Any, base: Any = None) -> list[Finding]:
 
     # ---- canonical inventory, both directions ---------------------------
     source = record.get("inventory_source")
-    if not isinstance(source, dict) or not text(source.get("ref")) or not text_list(
-        source.get("operations")
+    if not isinstance(source, dict) or not text(source.get("ref")) or not text(
+        source.get("sha256")
     ):
-        bad("inventory_source: ref and the canonical operation list are required")
+        bad("inventory_source: ref and sha256 of the EXTERNAL canonical inventory are required")
+    elif inventory is None:
+        bad(
+            "inventory_source: the external inventory was not supplied (--inventory), so operation "
+            "coverage cannot be checked — a list inside the record can be trimmed alongside it"
+        )
     else:
-        canonical = set(source["operations"])
+        canonical = set(inventory)
         declared = set(ops)
         for missing in sorted(canonical - declared):
             bad(f"operations: {missing!r} exists in the canonical inventory but is not modelled")
@@ -290,14 +337,35 @@ def validate_record(record: Any, base: Any = None) -> list[Finding]:
                 continue
             write_write, read_write = hazards(ops[key[0]], ops[key[1]])
             if disposition == "serialized":
+                if not (write_write or read_write):
+                    bad(
+                        f"{where}: declared serialized while the operations share no hazard — "
+                        "needless serialization is not a safe default"
+                    )
                 point = cell.get("serialization_point")
                 if not isinstance(point, dict) or not text(point.get("object")):
                     bad(f"{where}.serialization_point.object: required for a serialized pair")
-                elif point.get("both_sides_read_and_write") is not True:
-                    bad(
-                        f"{where}.serialization_point: both sides must READ and WRITE the same object "
-                        "(two writers creating different new objects share nothing)"
-                    )
+                else:
+                    # DERIVED, not attested: the named object must be an identity
+                    # that BOTH sides actually read and write.
+                    obj = str(point["object"])
+                    both_rw = [
+                        op_id
+                        for op_id in key
+                        if obj in set(ops[op_id].get("reads", []))
+                        and obj in set(ops[op_id].get("writes", []))
+                    ]
+                    if obj not in identities:
+                        bad(
+                            f"{where}.serialization_point.object: {obj!r} is not a declared identity — "
+                            "a serialization point is a modelled object, not a name"
+                        )
+                    elif len(both_rw) != 2:
+                        missing = [op_id for op_id in key if op_id not in both_rw]
+                        bad(
+                            f"{where}.serialization_point.object: {obj!r} is not read AND written by "
+                            f"{missing} — two writers that share no read-and-written object serialize on nothing"
+                        )
                 if not text(cell.get("loser_outcome")):
                     bad(f"{where}.loser_outcome: required for a serialized pair")
                 if not text_list(cell.get("both_orders_tested"), minimum=2):
@@ -328,8 +396,11 @@ def validate_record(record: Any, base: Any = None) -> list[Finding]:
                         "for a snapshot read over a concurrent writer"
                     )
             elif disposition == "commutative":
-                if not (write_write or read_write):
-                    bad(f"{where}: declared commutative but the operations do not overlap at all")
+                if not write_write:
+                    bad(
+                        f"{where}: commutativity is a property of two WRITES to the same state; this "
+                        "pair has no write/write hazard"
+                    )
                 if not text(cell.get("commutativity_evidence")):
                     bad(f"{where}.commutativity_evidence: required")
                 if not text_list(cell.get("idempotence_tested"), minimum=2):
@@ -367,6 +438,13 @@ def validate_record(record: Any, base: Any = None) -> list[Finding]:
     # swapped disposition or a moved serialization point — none of which a
     # "this fix touches X" declaration would have mentioned.
     fix = record.get("fix_reclosure")
+    if fix is None and base is not None:
+        # Omitting the declaration must not skip the diff: a record that
+        # changed at all owes a re-closure entry.
+        bad(
+            "fix_reclosure: a base record was supplied, so this record is a revision and must declare "
+            "the fix that produced it (omitting the declaration cannot bypass the diff)"
+        )
     if fix is not None:
         if not isinstance(fix, dict):
             bad("fix_reclosure: must be an object")
@@ -385,6 +463,25 @@ def validate_record(record: Any, base: Any = None) -> list[Finding]:
             bad("fix_reclosure: the supplied base record is not an object")
         else:
             introduced_at = parse_time(fix.get("introduced_at"))
+            # The base must be THIS record's predecessor, not any well-formed
+            # record: a foreign base would silently empty the change surface.
+            base_increment = base.get("increment") if isinstance(base.get("increment"), dict) else {}
+            own_increment = increment if isinstance(increment, dict) else {}
+            for field in ("repo", "increment_id"):
+                if base_increment.get(field) != own_increment.get(field):
+                    bad(
+                        f"fix_reclosure: the supplied base belongs to a different {field} "
+                        f"({base_increment.get(field)!r} vs {own_increment.get(field)!r})"
+                    )
+            base_at = parse_time(base.get("evaluated_at"))
+            own_at = parse_time(record.get("evaluated_at"))
+            if base_at is None:
+                bad("fix_reclosure: the supplied base has no usable evaluated_at")
+            elif own_at is not None and base_at >= own_at:
+                bad(
+                    "fix_reclosure: the supplied base is not a predecessor "
+                    "(its evaluated_at is not earlier than this record's)"
+                )
             base_ops = {
                 str(op.get("id")): op
                 for op in base.get("operations", [])
@@ -510,22 +607,22 @@ def sample_record() -> dict[str, Any]:
         "evaluated_at": "2026-07-28T00:00:00+00:00",
         "inventory_source": {
             "kind": "route_manifest",
-            "ref": "app/api/**/route.ts (POST/DELETE handlers)",
-            "operations": ["upload", "remove", "list"],
+            "ref": "examples/implementation-contract-closure.inventory.txt",
+            "sha256": "ee9da3358374da37b3f088e00cd2b3b4adc2295f8015f8894c6ed0d9c18dbbee",
         },
         "operations": [
             {
                 "id": "upload",
                 "kind": "write",
                 "source_ref": "app/api/attachments/route.ts:POST",
-                "reads": ["draft_envelope"],
+                "reads": ["attachment", "draft_envelope"],
                 "writes": ["attachment", "draft_envelope"],
             },
             {
                 "id": "remove",
                 "kind": "write",
                 "source_ref": "app/api/attachments/[id]/route.ts:DELETE",
-                "reads": ["draft_envelope"],
+                "reads": ["attachment", "draft_envelope"],
                 "writes": ["attachment", "draft_envelope"],
             },
             {
@@ -586,30 +683,21 @@ def sample_record() -> dict[str, Any]:
             {
                 "pair": ["upload", "upload"],
                 "disposition": "serialized",
-                "serialization_point": {
-                    "object": "draft_envelope document",
-                    "both_sides_read_and_write": True,
-                },
+                "serialization_point": {"object": "draft_envelope"},
                 "loser_outcome": "cap rejection, object removed",
                 "both_orders_tested": ["races: cap A-then-B", "races: cap B-then-A"],
             },
             {
                 "pair": ["remove", "upload"],
                 "disposition": "serialized",
-                "serialization_point": {
-                    "object": "attachment document (deterministic id)",
-                    "both_sides_read_and_write": True,
-                },
+                "serialization_point": {"object": "attachment"},
                 "loser_outcome": "upload commits nothing; removal wins",
                 "both_orders_tested": ["races: delete-then-commit", "races: commit-then-delete"],
             },
             {
                 "pair": ["remove", "remove"],
                 "disposition": "serialized",
-                "serialization_point": {
-                    "object": "attachment document (deterministic id)",
-                    "both_sides_read_and_write": True,
-                },
+                "serialization_point": {"object": "attachment"},
                 "loser_outcome": "second delete is idempotent",
                 "both_orders_tested": ["races: delete retry A", "races: delete retry B"],
             },
@@ -624,23 +712,21 @@ def sample_record() -> dict[str, Any]:
             },
             {
                 "pair": ["list", "upload"],
-                "disposition": "serialized",
-                "serialization_point": {
-                    "object": "attachment document (deterministic id)",
-                    "both_sides_read_and_write": True,
+                "disposition": "read_only_snapshot",
+                "snapshot_contract": {
+                    "consistency": "single-query snapshot",
+                    "generation": "the read generation is returned with the listing",
+                    "staleness": "a listing may omit an attachment committed after its snapshot",
                 },
-                "loser_outcome": "listing shows the pre-commit or post-commit state, never a partial one",
-                "both_orders_tested": ["races: list before commit", "races: list after commit"],
             },
             {
                 "pair": ["list", "remove"],
-                "disposition": "serialized",
-                "serialization_point": {
-                    "object": "attachment document (deterministic id)",
-                    "both_sides_read_and_write": True,
+                "disposition": "read_only_snapshot",
+                "snapshot_contract": {
+                    "consistency": "single-query snapshot",
+                    "generation": "the read generation is returned with the listing",
+                    "staleness": "a listing may still show an attachment that is already deleting",
                 },
-                "loser_outcome": "listing omits an attachment already in deleting",
-                "both_orders_tested": ["races: list before delete", "races: list after delete"],
             },
         ],
         "platform_invariants": [
@@ -652,6 +738,9 @@ def sample_record() -> dict[str, Any]:
     }
 
 
+CONTROL_COUNT = 30
+
+
 def run_selftest() -> int:
     failures: list[str] = []
 
@@ -659,19 +748,30 @@ def run_selftest() -> int:
         if not condition:
             failures.append(label)
 
-    def blocked(record: dict[str, Any], fragment: str, label: str, base: Any = None) -> None:
-        found = validate_record(record, base)
+    inventory = ["upload", "remove", "list"]
+
+    def blocked(
+        record: dict[str, Any],
+        fragment: str,
+        label: str,
+        base: Any = None,
+        ops: Iterable[str] | None = None,
+    ) -> None:
+        found = validate_record(record, base, inventory if ops is None else ops)
         check(
             any(fragment in str(f) for f in found),
             f"{label}: expected a finding containing {fragment!r}, got {[str(f) for f in found]!r}",
         )
 
     base = sample_record()
-    check(validate_record(base) == [], f"sample must validate: {[str(f) for f in validate_record(base)]}")
+    check(
+        validate_record(base, None, inventory) == [],
+        f"sample must validate: {[str(f) for f in validate_record(base, None, inventory)]}",
+    )
 
     # Hostile: an empty contract must never pass.
     empty = {"schema": SCHEMA_ID}
-    check(len(validate_record(empty)) >= 5, "an empty record must produce multiple findings")
+    check(len(validate_record(empty, None, inventory)) >= 5, "an empty record must produce multiple findings")
 
     # Hostile: a hand-listed subset of the cross product.
     subset = json.loads(json.dumps(base))
@@ -680,10 +780,11 @@ def run_selftest() -> int:
     ]
     blocked(subset, "missing cell", "omitted pair")
 
-    # Hostile: a serialized pair whose "shared" point is not written by both.
+    # Hostile: a serialized pair whose point is written by only one side.
     one_sided = json.loads(json.dumps(base))
-    one_sided["concurrency_matrix"][0]["serialization_point"]["both_sides_read_and_write"] = False
-    blocked(one_sided, "both sides must READ and WRITE", "one-sided serialization point")
+    one_sided["operations"][1]["reads"] = ["draft_envelope"]  # remove reads the attachment no more
+    one_sided["concurrency_matrix"][1]["serialization_point"] = {"object": "attachment"}
+    blocked(one_sided, "is not read AND written by", "one-sided serialization point")
 
     # Hostile: only one commit order tested.
     single_order = json.loads(json.dumps(base))
@@ -706,7 +807,7 @@ def run_selftest() -> int:
 
     # Safe overlaps must NOT be over-blocked: read x read passes with no point.
     check(
-        not any("list' x 'list" in str(f) for f in validate_record(base)),
+        not any("list' x 'list" in str(f) for f in validate_record(base, None, inventory)),
         "a read-only pair must not be forced to serialize",
     )
 
@@ -722,7 +823,10 @@ def run_selftest() -> int:
             "evidence": "ids are assigned from disjoint ranges per client",
         },
     }
-    check(validate_record(disjoint) == [], "a declared disjoint keyspace with evidence must pass")
+    check(
+        validate_record(disjoint, None, inventory) == [],
+        f"a declared disjoint keyspace with evidence must pass: {[str(f) for f in validate_record(disjoint, None, inventory)]}",
+    )
     same_predicate = json.loads(json.dumps(disjoint))
     same_predicate["concurrency_matrix"][1]["key_partition"]["predicate_b"] = "attachment id < midpoint"
     blocked(same_predicate, "predicates are identical", "fake partition")
@@ -732,9 +836,13 @@ def run_selftest() -> int:
     omitted["operations"] = [op for op in omitted["operations"] if op["id"] != "list"]
     blocked(omitted, "exists in the canonical inventory but is not modelled", "inventory omission")
 
-    invented = json.loads(json.dumps(base))
-    invented["inventory_source"]["operations"] = ["upload", "remove"]
-    blocked(invented, "absent from the canonical inventory", "invented operation")
+    blocked(
+        base,
+        "absent from the canonical inventory",
+        "invented operation",
+        None,
+        ["upload", "remove"],
+    )
 
     # Hostile: a blank uncertainty cell.
     blank = json.loads(json.dumps(base))
@@ -757,7 +865,10 @@ def run_selftest() -> int:
             "staleness": "may omit a concurrently committed attachment",
         },
     }
-    check(validate_record(snapshot) == [], "a snapshot read over a writer must not be forced to serialize")
+    check(
+        validate_record(snapshot, None, inventory) == [],
+        f"a snapshot read must not be forced to serialize: {[str(f) for f in validate_record(snapshot, None, inventory)]}",
+    )
     no_contract = json.loads(json.dumps(snapshot))
     del no_contract["concurrency_matrix"][4]["snapshot_contract"]
     blocked(no_contract, "snapshot_contract", "snapshot read without a staleness contract")
@@ -770,7 +881,10 @@ def run_selftest() -> int:
         "commutativity_evidence": "both apply the same set union",
         "idempotence_tested": ["races: A then B", "races: B then A"],
     }
-    check(validate_record(commutative) == [], "a commutative write pair with tests must pass")
+    check(
+        validate_record(commutative, None, inventory) == [],
+        f"a commutative write pair with tests must pass: {[str(f) for f in validate_record(commutative, None, inventory)]}",
+    )
     unproven = json.loads(json.dumps(commutative))
     unproven["concurrency_matrix"][0]["idempotence_tested"] = ["only one order"]
     blocked(unproven, "idempotence_tested", "commutativity without both orders")
@@ -791,32 +905,34 @@ def run_selftest() -> int:
             "generation_binding": "none: append-only log",
         }
     )
+    changed["evaluated_at"] = "2026-07-28T03:00:00+00:00"
     changed["fix_reclosure"] = {
         "fix_id": "fix-10",
         "introduced_at": "2026-07-28T01:00:00+00:00",
         "base_record_ref": "previous record",
         "base_record_sha256": "0" * 64,
     }
-    findings_without_base = validate_record(changed, None)
+    findings_without_base = validate_record(changed, None, inventory)
     check(
         any("base record was not supplied" in str(f) for f in findings_without_base),
         "re-closure without the base record must fail closed",
     )
-    blocked_pairs = [str(f) for f in validate_record(changed, previous)]
+    blocked_pairs = [str(f) for f in validate_record(changed, previous, inventory)]
     check(
         any("carries no re-validation for this fix" in f for f in blocked_pairs),
         f"a derived change surface must demand re-validation: {blocked_pairs!r}",
     )
 
     revalidated = json.loads(json.dumps(changed))
+    revalidated["evaluated_at"] = "2026-07-28T03:00:00+00:00"
     stamp = {"fix_id": "fix-10", "at": "2026-07-28T02:00:00+00:00", "evidence": ["races: both orders"]}
     for cell in revalidated["concurrency_matrix"]:
         cell["revalidated"] = [dict(stamp)]
     for row in revalidated["failure_matrix"]:
         row["revalidated"] = [dict(stamp)]
     check(
-        validate_record(revalidated, previous) == [],
-        f"a fully re-closed record must pass: {[str(f) for f in validate_record(revalidated, previous)]}",
+        validate_record(revalidated, previous, inventory) == [],
+        f"a fully re-closed record must pass: {[str(f) for f in validate_record(revalidated, previous, inventory)]}",
     )
 
     stale = json.loads(json.dumps(revalidated))
@@ -824,8 +940,87 @@ def run_selftest() -> int:
         cell["revalidated"] = [
             {"fix_id": "fix-10", "at": "2026-07-27T00:00:00+00:00", "evidence": ["old test"]}
         ]
-    blocked_stale = [str(f) for f in validate_record(stale, previous)]
+    blocked_stale = [str(f) for f in validate_record(stale, previous, inventory)]
     check(any("stale" in f for f in blocked_stale), "re-validation predating the fix must be rejected")
+
+    # Hostile: a serialization point that neither side reads AND writes.
+    unrelated = json.loads(json.dumps(base))
+    unrelated["concurrency_matrix"][0]["serialization_point"] = {"object": "attachment"}
+    # upload x upload DOES read+write attachment, so pick a genuinely unrelated one:
+    unrelated["identities"].append(
+        {
+            "id": "unrelated_doc",
+            "scope": "persisted",
+            "owner": "system",
+            "states": ["a", "b"],
+            "transitions": [{"from": "a", "to": "b", "trigger": "n/a"}],
+            "cleared_by": ["n/a"],
+            "generation_binding": "none: unrelated",
+        }
+    )
+    unrelated["concurrency_matrix"][0]["serialization_point"] = {"object": "unrelated_doc"}
+    blocked(unrelated, "is not read AND written by", "unrelated serialization object")
+
+    # Hostile: forcing serialization on a hazard-free pair.
+    forced = json.loads(json.dumps(base))
+    forced["concurrency_matrix"][3] = {
+        "pair": ["list", "list"],
+        "disposition": "serialized",
+        "serialization_point": {"object": "attachment"},
+        "loser_outcome": "n/a",
+        "both_orders_tested": ["a", "b"],
+    }
+    blocked(forced, "share no hazard", "needless serialization")
+
+    # Hostile: commutativity claimed for a read/write-only pair.
+    misclaimed = json.loads(json.dumps(base))
+    misclaimed["concurrency_matrix"][4] = {
+        "pair": ["list", "upload"],
+        "disposition": "commutative",
+        "commutativity_evidence": "reads commute with writes",
+        "idempotence_tested": ["a", "b"],
+    }
+    blocked(misclaimed, "no write/write hazard", "commutativity without two writers")
+
+    # Hostile: the inventory is external, so trimming the record cannot launder it.
+    laundered = json.loads(json.dumps(base))
+    laundered["operations"] = [op for op in laundered["operations"] if op["id"] != "list"]
+    laundered["concurrency_matrix"] = [
+        cell for cell in laundered["concurrency_matrix"] if "list" not in cell["pair"]
+    ]
+    blocked(laundered, "exists in the canonical inventory but is not modelled", "joint omission")
+
+    # Hostile: mixed naive/aware timestamps must be a finding, never a traceback.
+    mixed = json.loads(json.dumps(base))
+    mixed["evaluated_at"] = "2026-07-28T00:00:00"
+    mixed_previous = json.loads(json.dumps(base))
+    mixed_previous["evaluated_at"] = "2026-07-27T00:00:00+00:00"
+    mixed["fix_reclosure"] = {
+        "fix_id": "fix-tz",
+        "introduced_at": "2026-07-27T12:00:00",
+        "base_record_ref": "previous",
+        "base_record_sha256": "0" * 64,
+    }
+    try:
+        tz_findings = validate_record(mixed, mixed_previous, inventory)
+    except TypeError as error:  # pragma: no cover - the control exists to prevent this
+        tz_findings = []
+        check(False, f"mixed naive/aware timestamps raised {error!r} instead of a finding")
+    check(
+        all("Traceback" not in str(f) for f in tz_findings),
+        "mixed timestamps must produce findings, not a crash",
+    )
+
+    # Hostile: a foreign base cannot empty the change surface.
+    foreign = json.loads(json.dumps(changed))
+    other = json.loads(json.dumps(previous))
+    other["increment"]["increment_id"] = "some-other-increment"
+    blocked(foreign, "different increment_id", "foreign base", other)
+
+    # Hostile: omitting fix_reclosure while supplying a base must not bypass the diff.
+    opt_out = json.loads(json.dumps(changed))
+    del opt_out["fix_reclosure"]
+    blocked(opt_out, "must declare the fix that produced it", "opt-out re-closure", previous)
 
     # Hostile: a self-declared closure flag must be rejected outright.
     declared = json.loads(json.dumps(base))
@@ -837,7 +1032,7 @@ def run_selftest() -> int:
             print(f"[RED    ] {failure}")
         print(f"implementation contract closure selftest FAILED: {len(failures)} control(s)")
         return 1
-    print("implementation contract closure selftest OK: 22 controls")
+    print(f"implementation contract closure selftest OK: {CONTROL_COUNT} controls")
     return 0
 
 
@@ -849,6 +1044,34 @@ def command_validate(args: argparse.Namespace) -> int:
     except (OSError, json.JSONDecodeError) as error:
         print(f"cannot read record {path}: {error}")
         return 2
+    schema_path = Path(__file__).resolve().parents[1] / "schemas" / "implementation-contract-closure.schema.json"
+    shape_findings = validate_shape(record, schema_path)
+    if shape_findings:
+        for finding in shape_findings:
+            print(f"[RED    ] {finding}")
+        print(f"implementation contract closure: {len(shape_findings)} shape violation(s)")
+        return 1
+    inventory = None
+    if args.inventory:
+        inventory_path = Path(args.inventory)
+        try:
+            inventory_raw = inventory_path.read_bytes()
+        except OSError as error:
+            print(f"cannot read canonical inventory {inventory_path}: {error}")
+            return 2
+        declared_hash = (record.get("inventory_source") or {}).get("sha256")
+        actual_hash = hashlib.sha256(inventory_raw).hexdigest()
+        if declared_hash and declared_hash != actual_hash:
+            print(
+                f"[RED    ] inventory_source.sha256: declared {declared_hash} but the supplied "
+                f"inventory hashes to {actual_hash}"
+            )
+            return 1
+        inventory = [
+            line.strip()
+            for line in inventory_raw.decode("utf-8").splitlines()
+            if line.strip() and not line.strip().startswith("#")
+        ]
     base = None
     if args.base:
         base_path = Path(args.base)
@@ -866,7 +1089,7 @@ def command_validate(args: argparse.Namespace) -> int:
                 f"base hashes to {actual}"
             )
             return 1
-    findings = validate_record(record, base)
+    findings = validate_record(record, base, inventory)
     if findings:
         for finding in findings:
             print(f"[RED    ] {finding}")
@@ -890,6 +1113,10 @@ def build_parser() -> argparse.ArgumentParser:
     validate.add_argument(
         "--base",
         help="the previous version of this record; required whenever fix_reclosure is present",
+    )
+    validate.add_argument(
+        "--inventory",
+        help="the EXTERNAL canonical operation inventory (one id per line), bound by sha256",
     )
     validate.set_defaults(func=command_validate)
     sample = subparsers.add_parser("sample", help="print a passing sample record")

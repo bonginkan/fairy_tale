@@ -7,8 +7,9 @@ the gate that makes it load-bearing.
 
 ```bash
 ./fairy contract sample                                   # a passing skeleton
-./fairy contract validate --record record.json            # first closure
-./fairy contract validate --record record.json --base previous.json   # after a fix
+./fairy contract validate --record record.json --inventory ops.txt          # first closure
+./fairy contract validate --record record.json --inventory ops.txt \
+    --base previous.json                                                    # after a fix
 ```
 
 ## What the gate derives (rather than trusts)
@@ -27,9 +28,17 @@ the gate that makes it load-bearing.
   `state_machine_exclusion`, `lifecycle_exclusion` — timing arguments and UI
   flow are not admissible, and a disjoint keyspace is a safe overlap, not an
   impossibility.
-- **Serialization means shared.** A serialized pair names one object that both
-  sides read AND write. Two writers creating different new documents share
-  nothing and both commit.
+- **Serialization means shared, and it is derived.** The named object must be
+  a declared identity that BOTH operations have in their reads AND writes; the
+  record cannot attest to it with a boolean. A hazard-free pair may not declare
+  itself serialized either — needless serialization is a defect, not caution.
+- **The canonical inventory is external.** It is a separate file bound by
+  sha256, so removing an operation from the record's tables cannot be laundered
+  by removing it from a list inside the same record.
+- **Shape before semantics.** The CLI validates against the shipped schema
+  first, so a record the schema rejects can never reach the semantic pass, and
+  a malformed nested value is a reasoned finding rather than a traceback.
+  Timestamps are normalised to UTC, so a naive/aware mix is a finding too.
 - **Uncertainty is a column.** Every externally visible write states success,
   failure and UNKNOWN behaviour, what the peer observes, who reclaims the
   residue, and how that residue is discoverable.

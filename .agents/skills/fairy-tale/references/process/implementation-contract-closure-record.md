@@ -11,15 +11,18 @@ received yet. The record is machine-checked — the gate, not the prose, is what
 closes it:
 
 ```bash
-./fairy contract validate --record <record.json> [--base <previous-record.json>]
+./fairy contract validate --record <record.json> \
+    --inventory <canonical-operations.txt> [--base <previous-record.json>]
 ```
 
 The validator derives closure instead of trusting it: it generates the cross
 product of the operation inventory, decides admissible dispositions from each
-pair's hazard kind, compares the inventory both ways against the canonical
-route/handler list, and — when a fix is recorded — diffs this record against
-its previous version to compute what the change actually re-opened. There is no
-field in which a record can declare itself closed.
+pair's hazard kind, resolves a serialization point to an identity BOTH sides
+read and write, compares the operation set both ways against an EXTERNAL
+inventory bound by hash (so trimming the record cannot launder an omission),
+and — when a fix is recorded — diffs this record against its predecessor to
+compute what the change actually re-opened. There is no field in which a record
+can declare itself closed, and no boolean it can assert about itself.
 
 ```text
 increment / exact base:            (record: `./fairy contract sample` prints a passing skeleton)

@@ -10,6 +10,7 @@ are rejected by at least one of them.
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import os
 import sys
@@ -40,6 +41,21 @@ def main() -> int:
             encoding="utf-8"
         )
     )
+    inventory_path = ROOT / "examples" / "implementation-contract-closure.inventory.txt"
+    inventory_raw = inventory_path.read_bytes()
+    inventory = [
+        line.strip()
+        for line in inventory_raw.decode("utf-8").splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    ]
+    declared_hash = sample.get("inventory_source", {}).get("sha256")
+    actual_hash = hashlib.sha256(inventory_raw).hexdigest()
+    if declared_hash != actual_hash:
+        print(
+            f"[RED    ] shipped example is not bound to the shipped inventory: "
+            f"{declared_hash} vs {actual_hash}"
+        )
+        return 1
     Draft202012Validator.check_schema(schema)
     validator = Draft202012Validator(schema)
     controls = 1
@@ -50,7 +66,7 @@ def main() -> int:
         return 1
     controls += 1
 
-    findings = validate_record(sample)
+    findings = validate_record(sample, None, inventory)
     if findings:
         print(f"[RED    ] shipped example fails the runtime gate: {[str(f) for f in findings]}")
         return 1
@@ -60,7 +76,7 @@ def main() -> int:
         nonlocal controls
         controls += 1
         schema_errors = list(validator.iter_errors(record))
-        runtime_findings = validate_record(record)
+        runtime_findings = validate_record(record, None, inventory)
         if schema_errors or runtime_findings:
             return True
         print(f"[RED    ] hostile case accepted by both schema and runtime gate: {label}")
@@ -92,9 +108,13 @@ def main() -> int:
     blank["failure_matrix"][0]["unknown"] = ""
     ok &= rejected(blank, "blank UNKNOWN cell")
 
-    # An operation the canonical inventory has but the record omits.
+    # An operation the EXTERNAL canonical inventory has but the record omits —
+    # trimming the record's own tables cannot launder it away.
     omitted = copy.deepcopy(sample)
     omitted["operations"] = [op for op in omitted["operations"] if op["id"] != "list"]
+    omitted["concurrency_matrix"] = [
+        cell for cell in omitted["concurrency_matrix"] if "list" not in cell["pair"]
+    ]
     ok &= rejected(omitted, "operation omission")
 
     # Re-closure without the base record it must diff against.

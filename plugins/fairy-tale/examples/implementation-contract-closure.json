@@ -8,12 +8,8 @@
   "evaluated_at": "2026-07-28T00:00:00+00:00",
   "inventory_source": {
     "kind": "route_manifest",
-    "ref": "app/api/**/route.ts (POST/DELETE handlers)",
-    "operations": [
-      "upload",
-      "remove",
-      "list"
-    ]
+    "ref": "examples/implementation-contract-closure.inventory.txt",
+    "sha256": "ee9da3358374da37b3f088e00cd2b3b4adc2295f8015f8894c6ed0d9c18dbbee"
   },
   "operations": [
     {
@@ -21,6 +17,7 @@
       "kind": "write",
       "source_ref": "app/api/attachments/route.ts:POST",
       "reads": [
+        "attachment",
         "draft_envelope"
       ],
       "writes": [
@@ -33,6 +30,7 @@
       "kind": "write",
       "source_ref": "app/api/attachments/[id]/route.ts:DELETE",
       "reads": [
+        "attachment",
         "draft_envelope"
       ],
       "writes": [
@@ -133,8 +131,7 @@
       ],
       "disposition": "serialized",
       "serialization_point": {
-        "object": "draft_envelope document",
-        "both_sides_read_and_write": true
+        "object": "draft_envelope"
       },
       "loser_outcome": "cap rejection, object removed",
       "both_orders_tested": [
@@ -149,8 +146,7 @@
       ],
       "disposition": "serialized",
       "serialization_point": {
-        "object": "attachment document (deterministic id)",
-        "both_sides_read_and_write": true
+        "object": "attachment"
       },
       "loser_outcome": "upload commits nothing; removal wins",
       "both_orders_tested": [
@@ -165,8 +161,7 @@
       ],
       "disposition": "serialized",
       "serialization_point": {
-        "object": "attachment document (deterministic id)",
-        "both_sides_read_and_write": true
+        "object": "attachment"
       },
       "loser_outcome": "second delete is idempotent",
       "both_orders_tested": [
@@ -191,32 +186,24 @@
         "list",
         "upload"
       ],
-      "disposition": "serialized",
-      "serialization_point": {
-        "object": "attachment document (deterministic id)",
-        "both_sides_read_and_write": true
-      },
-      "loser_outcome": "listing shows the pre-commit or post-commit state, never a partial one",
-      "both_orders_tested": [
-        "races: list before commit",
-        "races: list after commit"
-      ]
+      "disposition": "read_only_snapshot",
+      "snapshot_contract": {
+        "consistency": "single-query snapshot",
+        "generation": "the read generation is returned with the listing",
+        "staleness": "a listing may omit an attachment committed after its snapshot"
+      }
     },
     {
       "pair": [
         "list",
         "remove"
       ],
-      "disposition": "serialized",
-      "serialization_point": {
-        "object": "attachment document (deterministic id)",
-        "both_sides_read_and_write": true
-      },
-      "loser_outcome": "listing omits an attachment already in deleting",
-      "both_orders_tested": [
-        "races: list before delete",
-        "races: list after delete"
-      ]
+      "disposition": "read_only_snapshot",
+      "snapshot_contract": {
+        "consistency": "single-query snapshot",
+        "generation": "the read generation is returned with the listing",
+        "staleness": "a listing may still show an attachment that is already deleting"
+      }
     }
   ],
   "platform_invariants": [
