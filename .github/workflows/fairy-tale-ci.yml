@@ -59,6 +59,21 @@ jobs:
             echo "cannot resolve a merge base — provenance cannot be proven, failing closed"
             exit 1
           fi
+          HEAD_SHA=$(git rev-parse HEAD)
+          if [ "$BASE" = "$HEAD_SHA" ]; then
+            # This run IS the integration history, so there is no base for it
+            # to be measured against — and the gate rightly refuses a revision
+            # that would vouch for itself. Skipping is stated, never silent,
+            # and only where HEAD is genuinely contained in origin/main; the
+            # provenance behaviour itself is covered by the runtime
+            # self-controls and the separate-project package E2E below.
+            if git merge-base --is-ancestor "$HEAD_SHA" origin/main; then
+              echo "HEAD ($HEAD_SHA) is the integration branch: no earlier base exists to measure against, so this PR-shaped control does not apply here"
+              exit 0
+            fi
+            echo "the merge base equals HEAD but HEAD is not contained in origin/main — failing closed"
+            exit 1
+          fi
           echo "trusted base: $BASE"
           # No tolerance and no grep: the gate either closes or the build fails.
           python3 scripts/implementation_contract_closure.py validate \
