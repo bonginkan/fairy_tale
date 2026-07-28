@@ -1,16 +1,32 @@
 # Release Notes
 
-## 0.2.34 — Contract-closure authority
+## 0.2.35 — Implementation contract closure
 
-- Lands the project-owned contract-closure authority: `.fairy/contract-surface.json`
-  (operation-discovery globs, operation-id pattern, and the integration ref the
-  trusted base must come from) and `.fairy/contract-closure-lineage.json` (an
-  empty accepted-record ledger).
-- The package ships both by exact bytes and the build fails if either is
-  omitted, so a consumer can never run without the boundary it is measured
-  against.
-- Authority only: the validator that reads these files lands separately, so an
-  increment can never introduce the authority that governs it.
+- Adds the Implementation contract closure record and its machine gate
+  (`./fairy contract validate`): the concurrency matrix is checked against the
+  cross product of the operation inventory, admissible dispositions follow the
+  hazard kind (so commutative, snapshot and key-partitioned overlaps are not
+  over-blocked), impossibility must be a system property, and fix re-closure is
+  derived from a versioned diff of the record instead of a declaration.
+- The integration branch and the discovery scope come from the project's
+  authority, never from the record or the caller, and the trusted base must be
+  the merge base with that branch — containment is not enough.
+- `--repo-root` separates the project under test from the installation running
+  the gate, so an extracted release package gates another project against
+  **that** project's authority, code surface and tracked inventory. A CI
+  end-to-end control builds the package and does exactly this.
+- Every run prints one machine `VERDICT` line, including runs stopped early by
+  an unreadable record or a swapped inventory.
+- Adds fix-induced re-closure to the Helix blocker triage record.
+- Runtime package version is 0.2.35.
+
+## 0.2.34 — Contract closure authority
+
+- Adds the project-owned authority the gate measures against —
+  `.fairy/contract-surface.json` (discovery globs, operation pattern,
+  integration ref) and `.fairy/contract-closure-lineage.json` (accepted
+  records per increment) — and ships both in the release package, whose build
+  fails if either is omitted.
 - Runtime package version is 0.2.34.
 
 ## 0.2.33

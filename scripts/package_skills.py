@@ -24,37 +24,39 @@ EXTRA_FILES = [
     ROOT / "README.md",
     ROOT / "README_ja.md",
     ROOT / "install.sh",
+    ROOT / "fairy",
 ]
-#: The contract-closure AUTHORITY files. They are shipped by exact bytes and
-#: their absence fails the build: a package that omits them would let a
-#: consumer run without the project boundary the gate is measured against.
-AUTHORITY_FILES = (
-    ".fairy/contract-surface.json",
-    ".fairy/contract-closure-lineage.json",
-)
 PACKAGE_REFERENCE_FILES = [
-    *(ROOT / relative for relative in AUTHORITY_FILES),
     ROOT / "adapters" / "workflow-scoreboard.adapter.json",
     ROOT / "docs" / "fairy-profile.md",
     ROOT / "docs" / "fairy-fusion-auto-trigger.md",
     ROOT / "docs" / "e3-execution.md",
     ROOT / "docs" / "helix-blocker-triage.md",
+    ROOT / "docs" / "implementation-contract-closure.md",
     ROOT / "docs" / "loop-engineering-automation.md",
     ROOT / "docs" / "task-artifacts.md",
     ROOT / "docs" / "workflow-impact-scoreboard.md",
     ROOT / "docs" / "skill-budget" / "routing-eval-20260702.json",
     ROOT / "examples" / "workflow-scoreboard.json",
     ROOT / "examples" / "helix-blocker-triage.json",
+    ROOT / "examples" / "implementation-contract-closure.json",
+    ROOT / "examples" / "implementation-contract-closure.inventory.txt",
     ROOT / "examples" / "workflow-scoreboard" / "benchmark-baseline.json",
     ROOT / "examples" / "workflow-scoreboard" / "benchmark-fairy-tale.json",
     ROOT / "examples" / "workflow-scoreboard" / "normal-baseline.json",
     ROOT / "examples" / "workflow-scoreboard" / "normal-fairy-tale.json",
     ROOT / "fixtures" / "e3-execution" / "cases.jsonl",
+    ROOT / ".fairy" / "contract-surface.json",
+    ROOT / ".fairy" / "contract-closure-lineage.json",
+    ROOT / "fixtures" / "implementation-contract-closure" / "surface" / "list.ts",
+    ROOT / "fixtures" / "implementation-contract-closure" / "surface" / "remove.ts",
+    ROOT / "fixtures" / "implementation-contract-closure" / "surface" / "upload.ts",
     ROOT / "schemas" / "fairy-profile.schema.json",
     ROOT / "schemas" / "fairy-fusion-auto-check-input.schema.json",
     ROOT / "schemas" / "fairy-fusion-trigger-decision.schema.json",
     ROOT / "schemas" / "e3-execution-ledger.schema.json",
     ROOT / "schemas" / "helix-blocker-triage.schema.json",
+    ROOT / "schemas" / "implementation-contract-closure.schema.json",
     ROOT / "schemas" / "repo-profile-snapshot.schema.json",
     ROOT / "schemas" / "task-card.schema.json",
     ROOT / "schemas" / "validation-ledger.schema.json",
@@ -63,6 +65,7 @@ PACKAGE_REFERENCE_FILES = [
     ROOT / "scripts" / "e3_execution.py",
     ROOT / "scripts" / "fairy_fusion_review.py",
     ROOT / "scripts" / "helix_blocker_triage.py",
+    ROOT / "scripts" / "implementation_contract_closure.py",
     ROOT / "scripts" / "workflow_scoreboard.py",
 ]
 
@@ -95,6 +98,23 @@ def validate_residency() -> None:
         raise SystemExit(f"residency check failed before packaging: {detail}")
 
 
+#: Assets whose absence would ship a process card with no consumer — the
+#: failure mode that made the card advisory in the first place.
+REQUIRED_CONSUMER_ASSETS = (
+    "fairy",
+    "scripts/implementation_contract_closure.py",
+    "schemas/implementation-contract-closure.schema.json",
+    "examples/implementation-contract-closure.json",
+    "examples/implementation-contract-closure.inventory.txt",
+    "docs/implementation-contract-closure.md",
+    "fixtures/implementation-contract-closure/surface/upload.ts",
+    ".fairy/contract-surface.json",
+    ".fairy/contract-closure-lineage.json",
+    "scripts/helix_blocker_triage.py",
+    "schemas/helix-blocker-triage.schema.json",
+)
+
+
 def validate_package(output: Path, root_name: Path) -> None:
     expected = {
         str(root_name / path.relative_to(ROOT))
@@ -104,11 +124,13 @@ def validate_package(output: Path, root_name: Path) -> None:
     with tarfile.open(output, "r:gz") as tar:
         names = set(tar.getnames())
         absent = [
-            relative for relative in AUTHORITY_FILES if str(root_name / relative) not in names
+            asset
+            for asset in REQUIRED_CONSUMER_ASSETS
+            if str(root_name / asset) not in names
         ]
         if absent:
             raise SystemExit(
-                "package omits the contract-closure authority files: " + ", ".join(absent)
+                "package ships a process card without its consumer: " + ", ".join(absent)
             )
     missing = sorted(expected - names)
     if missing:

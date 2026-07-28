@@ -1,0 +1,488 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bonginkan.ai/fairy-tale/implementation-contract-closure.schema.json",
+  "title": "Implementation contract closure record",
+  "description": "Static shape of the record. Closure itself is DERIVED by scripts/implementation_contract_closure.py: the cross product of the operation inventory, hazard-kind admissibility, and a versioned diff for fix re-closure. No field may declare that closure was reached.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "record_kind",
+    "increment",
+    "evaluated_at",
+    "inventory_source",
+    "operations",
+    "identities",
+    "failure_matrix",
+    "concurrency_matrix",
+    "platform_invariants"
+  ],
+  "properties": {
+    "schema": {
+      "const": "fairy.implementation-contract-closure.v1"
+    },
+    "increment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repo",
+        "exact_base",
+        "increment_id"
+      ],
+      "properties": {
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "exact_base": {
+          "type": "string",
+          "minLength": 1
+        },
+        "increment_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "evaluated_at": {
+      "type": "string",
+      "minLength": 1
+    },
+    "inventory_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "ref",
+        "sha256"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "operations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "kind",
+          "source_ref",
+          "reads",
+          "writes"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "enum": [
+              "read",
+              "write"
+            ]
+          },
+          "source_ref": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reads": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "writes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    "identities": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "scope",
+          "owner",
+          "states",
+          "transitions",
+          "cleared_by",
+          "generation_binding"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "scope": {
+            "enum": [
+              "persisted",
+              "client"
+            ]
+          },
+          "owner": {
+            "type": "string",
+            "minLength": 1
+          },
+          "states": {
+            "type": "array",
+            "minItems": 2,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "transitions": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "from",
+                "to",
+                "trigger"
+              ],
+              "properties": {
+                "from": {
+                  "type": "string"
+                },
+                "to": {
+                  "type": "string"
+                },
+                "trigger": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "cleared_by": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "generation_binding": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "failure_matrix": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "operation",
+          "success",
+          "failure",
+          "unknown",
+          "peer_observes",
+          "reclaimer",
+          "residue_discoverable_by"
+        ],
+        "properties": {
+          "operation": {
+            "type": "string",
+            "minLength": 1
+          },
+          "success": {
+            "type": "string",
+            "minLength": 1
+          },
+          "failure": {
+            "type": "string",
+            "minLength": 1
+          },
+          "unknown": {
+            "type": "string",
+            "minLength": 1
+          },
+          "peer_observes": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reclaimer": {
+            "type": "string",
+            "minLength": 1
+          },
+          "residue_discoverable_by": {
+            "type": "string",
+            "minLength": 1
+          },
+          "revalidated": {
+            "$ref": "#/$defs/revalidations"
+          }
+        }
+      }
+    },
+    "concurrency_matrix": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "pair",
+          "disposition"
+        ],
+        "properties": {
+          "pair": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "disposition": {
+            "enum": [
+              "serialized",
+              "commutative",
+              "read_only_snapshot",
+              "disjoint_keyspace",
+              "impossible"
+            ]
+          },
+          "serialization_point": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "object"
+            ],
+            "properties": {
+              "object": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "loser_outcome": {
+            "type": "string",
+            "minLength": 1
+          },
+          "both_orders_tested": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "commutativity_evidence": {
+            "type": "string",
+            "minLength": 1
+          },
+          "idempotence_tested": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "snapshot_contract": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "consistency",
+              "generation",
+              "staleness"
+            ],
+            "properties": {
+              "consistency": {
+                "type": "string",
+                "minLength": 1
+              },
+              "generation": {
+                "type": "string",
+                "minLength": 1
+              },
+              "staleness": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "key_partition": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "identity",
+              "predicate_a",
+              "predicate_b",
+              "evidence"
+            ],
+            "properties": {
+              "identity": {
+                "type": "string",
+                "minLength": 1
+              },
+              "predicate_a": {
+                "type": "string",
+                "minLength": 1
+              },
+              "predicate_b": {
+                "type": "string",
+                "minLength": 1
+              },
+              "evidence": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "impossibility": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "evidence"
+            ],
+            "properties": {
+              "kind": {
+                "enum": [
+                  "single_writer_invariant",
+                  "lock",
+                  "state_machine_exclusion",
+                  "lifecycle_exclusion"
+                ]
+              },
+              "evidence": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "revalidated": {
+            "$ref": "#/$defs/revalidations"
+          }
+        }
+      }
+    },
+    "fix_reclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fix_id",
+        "introduced_at",
+        "base_record_ref",
+        "base_record_sha256",
+        "base_exact_base"
+      ],
+      "properties": {
+        "fix_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "introduced_at": {
+          "type": "string",
+          "minLength": 1
+        },
+        "introduced_state": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "base_record_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "base_record_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "base_exact_base": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "platform_invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "rule",
+          "verified_by"
+        ],
+        "properties": {
+          "rule": {
+            "type": "string",
+            "minLength": 1
+          },
+          "verified_by": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "record_kind": {
+      "enum": [
+        "initial",
+        "revision"
+      ]
+    }
+  },
+  "$defs": {
+    "revalidations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "fix_id",
+          "at",
+          "evidence"
+        ],
+        "properties": {
+          "fix_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "at": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evidence": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,4 @@
+# canonical operation inventory (one id per line)
+upload
+remove
+list

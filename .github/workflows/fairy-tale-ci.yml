@@ -47,6 +47,29 @@ jobs:
         run: python3 .github/scripts/e3_schema_contract.py
       - name: Helix blocker Draft 2020-12 schema contract
         run: python3 .github/scripts/helix_blocker_schema_contract.py
+      - name: Implementation contract closure schema contract
+        run: python3 .github/scripts/contract_closure_schema_contract.py
+      - name: Contract closure CLI bound to the merge base
+        run: |
+          git fetch --no-tags --unshallow origin main 2>/dev/null || \
+            git fetch --no-tags --deepen=200 origin main || \
+            git fetch --no-tags origin main
+          git update-ref refs/remotes/origin/main FETCH_HEAD
+          if ! BASE=$(git merge-base origin/main HEAD); then
+            echo "cannot resolve a merge base — provenance cannot be proven, failing closed"
+            exit 1
+          fi
+          echo "trusted base: $BASE"
+          # No tolerance and no grep: the gate either closes or the build fails.
+          python3 scripts/implementation_contract_closure.py validate \
+            --record examples/implementation-contract-closure.json \
+            --inventory examples/implementation-contract-closure.inventory.txt \
+            --integration-ref origin/main \
+            --trusted-base "$BASE"
+      - name: Contract closure gates a different project from the built package
+        run: python3 .github/scripts/contract_closure_package_e2e.py
+      - name: Release package ships every consumer
+        run: python3 scripts/package_skills.py
       - name: Task artifact gate (self-controls)
         run: python3 scripts/task_artifacts.py selftest
       - name: Task artifact acceptance cases

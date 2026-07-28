@@ -46,3 +46,9 @@ contemporaneity, issue existence, owner-visible report delivery, final-readback
 completeness, and that related failure sequences were not split to evade the
 risk threshold. Historical validation remains anchored to the recorded time;
 live authority remains with exact-head reviewer sign-offs and repository gates.
+
+A fix that introduces new state, a new identity, a new status, or a new stored
+intent re-opens the Implementation contract closure record cells that state
+touches. Re-close them, and cover both commit orders, before requesting
+re-review: repairing only the reported symptom is what turns one finding into a
+chain of them across rounds.

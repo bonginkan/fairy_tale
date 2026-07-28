@@ -1,0 +1,216 @@
+{
+  "schema": "fairy.implementation-contract-closure.v1",
+  "record_kind": "initial",
+  "increment": {
+    "repo": "bonginkan/example",
+    "exact_base": "0000000000000000000000000000000000000000",
+    "increment_id": "attachment-upload-initial"
+  },
+  "evaluated_at": "2026-07-28T00:00:00+00:00",
+  "inventory_source": {
+    "kind": "route_manifest",
+    "ref": "examples/implementation-contract-closure.inventory.txt",
+    "sha256": "ee9da3358374da37b3f088e00cd2b3b4adc2295f8015f8894c6ed0d9c18dbbee"
+  },
+  "operations": [
+    {
+      "id": "upload",
+      "kind": "write",
+      "source_ref": "app/api/attachments/route.ts:POST",
+      "reads": [
+        "attachment",
+        "draft_envelope"
+      ],
+      "writes": [
+        "attachment",
+        "draft_envelope"
+      ]
+    },
+    {
+      "id": "remove",
+      "kind": "write",
+      "source_ref": "app/api/attachments/[id]/route.ts:DELETE",
+      "reads": [
+        "attachment",
+        "draft_envelope"
+      ],
+      "writes": [
+        "attachment",
+        "draft_envelope"
+      ]
+    },
+    {
+      "id": "list",
+      "kind": "read",
+      "source_ref": "app/api/attachments/route.ts:GET",
+      "reads": [
+        "attachment"
+      ],
+      "writes": []
+    }
+  ],
+  "identities": [
+    {
+      "id": "attachment",
+      "scope": "persisted",
+      "owner": "session owner",
+      "states": [
+        "draft",
+        "sent",
+        "deleting"
+      ],
+      "transitions": [
+        {
+          "from": "draft",
+          "to": "sent",
+          "trigger": "send transaction"
+        },
+        {
+          "from": "draft",
+          "to": "deleting",
+          "trigger": "owner delete"
+        }
+      ],
+      "cleared_by": [
+        "owner delete",
+        "stale reaper"
+      ],
+      "generation_binding": "upload key (deterministic document id)"
+    },
+    {
+      "id": "draft_envelope",
+      "scope": "persisted",
+      "owner": "session owner",
+      "states": [
+        "open",
+        "sent",
+        "deleting"
+      ],
+      "transitions": [
+        {
+          "from": "open",
+          "to": "sent",
+          "trigger": "send transaction"
+        },
+        {
+          "from": "open",
+          "to": "deleting",
+          "trigger": "stale reaper"
+        }
+      ],
+      "cleared_by": [
+        "stale reaper"
+      ],
+      "generation_binding": "composer draft key"
+    }
+  ],
+  "failure_matrix": [
+    {
+      "operation": "upload",
+      "success": "record committed and counted",
+      "failure": "nothing stored; object rolled back",
+      "unknown": "commit outcome unknown: object kept, record re-read",
+      "peer_observes": "either the committed record or nothing",
+      "reclaimer": "storage-origin reaper",
+      "residue_discoverable_by": "object path carries its record coordinates"
+    },
+    {
+      "operation": "remove",
+      "success": "bytes deleted, then record deleted",
+      "failure": "record stays in deleting; caller sees a retryable error",
+      "unknown": "same as failure: the record stays until confirmed",
+      "peer_observes": "the attachment as deleting, never as draft-without-bytes",
+      "reclaimer": "deleting-state reaper",
+      "residue_discoverable_by": "collection-group scan on status"
+    }
+  ],
+  "concurrency_matrix": [
+    {
+      "pair": [
+        "upload",
+        "upload"
+      ],
+      "disposition": "serialized",
+      "serialization_point": {
+        "object": "draft_envelope"
+      },
+      "loser_outcome": "cap rejection, object removed",
+      "both_orders_tested": [
+        "races: cap A-then-B",
+        "races: cap B-then-A"
+      ]
+    },
+    {
+      "pair": [
+        "remove",
+        "upload"
+      ],
+      "disposition": "serialized",
+      "serialization_point": {
+        "object": "attachment"
+      },
+      "loser_outcome": "upload commits nothing; removal wins",
+      "both_orders_tested": [
+        "races: delete-then-commit",
+        "races: commit-then-delete"
+      ]
+    },
+    {
+      "pair": [
+        "remove",
+        "remove"
+      ],
+      "disposition": "serialized",
+      "serialization_point": {
+        "object": "attachment"
+      },
+      "loser_outcome": "second delete is idempotent",
+      "both_orders_tested": [
+        "races: delete retry A",
+        "races: delete retry B"
+      ]
+    },
+    {
+      "pair": [
+        "list",
+        "list"
+      ],
+      "disposition": "read_only_snapshot",
+      "snapshot_contract": {
+        "consistency": "each read is a single-query snapshot",
+        "generation": "response carries the read generation it applies to",
+        "staleness": "a listing may omit an attachment committed after its snapshot"
+      }
+    },
+    {
+      "pair": [
+        "list",
+        "upload"
+      ],
+      "disposition": "read_only_snapshot",
+      "snapshot_contract": {
+        "consistency": "single-query snapshot",
+        "generation": "the read generation is returned with the listing",
+        "staleness": "a listing may omit an attachment committed after its snapshot"
+      }
+    },
+    {
+      "pair": [
+        "list",
+        "remove"
+      ],
+      "disposition": "read_only_snapshot",
+      "snapshot_contract": {
+        "consistency": "single-query snapshot",
+        "generation": "the read generation is returned with the listing",
+        "staleness": "a listing may still show an attachment that is already deleting"
+      }
+    }
+  ],
+  "platform_invariants": [
+    {
+      "rule": "a transaction may not read after it writes",
+      "verified_by": "vendor transaction documentation + fake enforcing the rule in tests"
+    }
+  ]
+}
