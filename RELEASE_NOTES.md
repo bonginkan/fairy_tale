@@ -1,5 +1,16 @@
 # Release Notes
 
+## 0.2.34 — Implementation contract closure
+
+- Adds the Implementation contract closure record and its machine gate
+  (`./fairy contract validate`): the concurrency matrix is checked against the
+  cross product of the operation inventory, admissible dispositions follow the
+  hazard kind (so commutative, snapshot and key-partitioned overlaps are not
+  over-blocked), impossibility must be a system property, and fix re-closure is
+  derived from a versioned diff of the record instead of a declaration.
+- Adds fix-induced re-closure to the Helix blocker triage record.
+- Runtime package version is 0.2.34.
+
 ## 0.2.33
 
 - **Risk-aware Helix blocker convergence** (#94): adds the strict

@@ -7,10 +7,22 @@ contract: the unlisted cells come back as single findings, one review round
 each, and each local patch adds state that opens the next cell.
 
 Fill every cell before implementing. A blank cell is the finding you have not
-received yet.
+received yet. The record is machine-checked — the gate, not the prose, is what
+closes it:
+
+```bash
+./fairy contract validate --record <record.json> [--base <previous-record.json>]
+```
+
+The validator derives closure instead of trusting it: it generates the cross
+product of the operation inventory, decides admissible dispositions from each
+pair's hazard kind, compares the inventory both ways against the canonical
+route/handler list, and — when a fix is recorded — diffs this record against
+its previous version to compute what the change actually re-opened. There is no
+field in which a record can declare itself closed.
 
 ```text
-increment / exact base:
+increment / exact base:            (record: `./fairy contract sample` prints a passing skeleton)
 operation inventory (derived from the route/command/event surface, not recalled):
 platform invariants relied on (transaction read/write ordering, pagination
   defaults, framework state-update semantics, ...) + where each is verified:

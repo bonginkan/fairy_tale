@@ -101,6 +101,18 @@ VALIDATION_STEPS = (
         "cases",
     ),
     python_step(
+        "contract-selftest",
+        "Implementation contract closure self-controls",
+        "implementation_contract_closure.py",
+        "--selftest",
+    ),
+    python_step(
+        "contract-sample",
+        "Implementation contract closure sample",
+        "implementation_contract_closure.py",
+        "sample",
+    ),
+    python_step(
         "blocker-selftest",
         "Helix blocker triage self-controls",
         "helix_blocker_triage.py",
@@ -289,6 +301,14 @@ def delegate_e3(args: Sequence[str]) -> int:
     return delegate_command(e3_command(args), "E3 execution command")
 
 
+def contract_command(args: Sequence[str]) -> tuple[str, ...]:
+    return (PYTHON, str(ROOT / "scripts" / "implementation_contract_closure.py"), *args)
+
+
+def delegate_contract(args: Sequence[str]) -> int:
+    return delegate_command(contract_command(args), "Implementation contract closure command")
+
+
 def blocker_command(args: Sequence[str]) -> tuple[str, ...]:
     return (PYTHON, str(ROOT / "scripts" / "helix_blocker_triage.py"), *args)
 
@@ -332,10 +352,10 @@ def selftest() -> int:
         DOCTOR_STEPS[0].command[-2:] == ("--start", str(CALLER_CWD)),
         "doctor validates the caller repository profile",
     )
-    check(len(VALIDATION_STEPS) == 28, "validation registry remains complete")
+    check(len(VALIDATION_STEPS) == 30, "validation registry remains complete")
     check(
-        sum(not step.credential_keys for step in VALIDATION_STEPS) == 26,
-        "twenty-six ordinary validation steps receive no credentials",
+        sum(not step.credential_keys for step in VALIDATION_STEPS) == 28,
+        "twenty-eight ordinary validation steps receive no credentials",
     )
 
     repository_paths = {
@@ -508,6 +528,9 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("fusion", help="delegate Fairy Fusion review and trigger decisions")
     subparsers.add_parser("scoreboard", help="delegate workflow impact scoreboard operations")
     subparsers.add_parser("e3", help="delegate E3 execution-scope operations")
+    subparsers.add_parser(
+        "contract", help="delegate implementation contract closure operations"
+    )
     subparsers.add_parser("blocker", help="delegate Helix blocker triage operations")
     subparsers.add_parser("selftest", help="run deterministic CLI self-controls")
     return parser
@@ -523,6 +546,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return delegate_scoreboard(raw[1:])
     if raw and raw[0] == "e3":
         return delegate_e3(raw[1:])
+    if raw and raw[0] == "contract":
+        return delegate_contract(raw[1:])
     if raw and raw[0] == "blocker":
         return delegate_blocker(raw[1:])
     if raw and raw[0] == "ledger":
