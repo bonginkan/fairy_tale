@@ -11,9 +11,10 @@ received yet. The record is machine-checked — the gate, not the prose, is what
 closes it:
 
 ```bash
-# The integration branch belongs to the project (.fairy/contract-surface.json
-# integration_ref); the trusted base must BE the merge base with it, so a
+# The integration branch belongs to the project, so read it FROM the project
+# and never from memory; the trusted base must BE the merge base with it, so a
 # commit made inside this branch cannot vouch for the authority it changes.
+INTEGRATION_REF=$(python3 -c 'import json; print(json.load(open(".fairy/contract-surface.json"))["integration_ref"])')
 BASE=$(git merge-base "$INTEGRATION_REF" HEAD)
 ./fairy contract validate --record <record.json> \
     --inventory <canonical-operations.txt> --trusted-base "$BASE" \

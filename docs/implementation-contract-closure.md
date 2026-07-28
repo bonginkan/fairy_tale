@@ -7,9 +7,10 @@ the gate that makes it load-bearing.
 
 ```bash
 ./fairy contract sample                                   # a passing skeleton
-# The integration branch is the project's, named by .fairy/contract-surface.json
-# (integration_ref); the trusted base must BE the merge base with it:
-BASE=$(git merge-base "$(python3 -c 'import json;print(json.load(open(".fairy/contract-surface.json"))["integration_ref"])')" HEAD)
+# The integration branch belongs to the project, so read it FROM the project;
+# the trusted base must BE the merge base with it:
+INTEGRATION_REF=$(python3 -c 'import json; print(json.load(open(".fairy/contract-surface.json"))["integration_ref"])')
+BASE=$(git merge-base "$INTEGRATION_REF" HEAD)
 
 ./fairy contract validate --record record.json --inventory ops.txt \
     --trusted-base "$BASE"                          # first closure

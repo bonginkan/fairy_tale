@@ -230,6 +230,73 @@ def run(gate: Path, target: Path, record: Path, extra: list[str] | None = None) 
     return result.returncode, verdict
 
 
+DOCUMENTED_COMMANDS = (
+    "docs/implementation-contract-closure.md",
+    "skills/fairy-tale/references/process/implementation-contract-closure-record.md",
+    ".claude/skills/fairy-tale/references/process/implementation-contract-closure-record.md",
+    ".agents/skills/fairy-tale/references/process/implementation-contract-closure-record.md",
+    "plugins/fairy-tale/skills/fairy-tale/references/process/"
+    "implementation-contract-closure-record.md",
+)
+
+
+def runnable_prefix(markdown: str) -> str | None:
+    """The part of a documented shell block that has no placeholders in it.
+
+    Documentation is executed by people who paste it. Everything up to the
+    first `<placeholder>` must therefore stand on its own in a clean shell —
+    a block that reads a variable it never assigns is a broken instruction,
+    not a stylistic choice.
+    """
+
+    lines: list[str] = []
+    inside = False
+    for line in markdown.splitlines():
+        if line.startswith("```"):
+            if inside:
+                break
+            inside = line.startswith("```bash")
+            continue
+        if not inside:
+            continue
+        if "<" in line and ">" in line:
+            break
+        if line.startswith("./fairy") or line.startswith("    "):
+            continue
+        lines.append(line)
+    body = "\n".join(lines).strip()
+    return body if "BASE=" in body else None
+
+
+def check_documented_commands(target: Path, expected_base: str) -> list[str]:
+    failures: list[str] = []
+    for relative in DOCUMENTED_COMMANDS:
+        source = ROOT / relative
+        prefix = runnable_prefix(source.read_text(encoding="utf-8"))
+        if prefix is None:
+            failures.append(f"{relative}: no runnable shell block that derives the trusted base")
+            continue
+        # -u makes reading an unassigned variable an error rather than an
+        # empty string, which is precisely how the broken block read.
+        script = 'set -euo pipefail\n' + prefix + '\nprintf "%s\\n" "$BASE"\n'
+        # env -i: the reader has none of this session's variables, so a block
+        # that silently depends on one fails here instead of in their terminal.
+        done = subprocess.run(
+            ["env", "-i", f"PATH={os.environ.get('PATH', '')}", f"HOME={target}", "bash", "-c", script],
+            capture_output=True,
+            text=True,
+            cwd=str(target),
+        )
+        printed = done.stdout.strip().splitlines()[-1] if done.stdout.strip() else ""
+        if done.returncode != 0 or printed != expected_base:
+            failures.append(
+                f"{relative}: the documented command does not run as written "
+                f"(rc={done.returncode}, base={printed!r}, expected {expected_base!r}): "
+                f"{done.stderr.strip()[:200]}"
+            )
+    return failures
+
+
 def main() -> int:
     workspace = Path(tempfile.mkdtemp(prefix="contract-closure-e2e-"))
     controls = 0
@@ -331,6 +398,20 @@ def main() -> int:
         )
         # run() passes origin/trunk first; the later flag wins in argparse.
         ok &= must_fail("caller-chosen integration ref", code, verdict, "authority")
+
+        # The documented command, pasted verbatim into a clean shell, against
+        # a project whose integration branch is not the one this repository
+        # uses: it must derive that branch from the project's own authority.
+        expected = subprocess.run(
+            ["git", "-C", str(target), "merge-base", "origin/trunk", "HEAD"],
+            capture_output=True,
+            text=True,
+            env=dict(ENV, HOME=str(workspace)),
+        ).stdout.strip()
+        for failure in check_documented_commands(target, expected):
+            print(f"[RED    ] {failure}")
+            ok = False
+        controls += len(DOCUMENTED_COMMANDS)
 
         if not ok:
             return 1
