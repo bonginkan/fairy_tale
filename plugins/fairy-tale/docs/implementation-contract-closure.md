@@ -7,9 +7,13 @@ the gate that makes it load-bearing.
 
 ```bash
 ./fairy contract sample                                   # a passing skeleton
-./fairy contract validate --record record.json --inventory ops.txt          # first closure
+# the trusted base is an immutable ancestor object, e.g. the merge base:
+BASE=$(git merge-base origin/main HEAD)
+
 ./fairy contract validate --record record.json --inventory ops.txt \
-    --base previous.json                                                    # after a fix
+    --trusted-base "$BASE"                          # first closure
+./fairy contract validate --record record.json --inventory ops.txt \
+    --trusted-base "$BASE" --base previous.json     # after a fix
 ```
 
 ## What the gate derives (rather than trusts)
@@ -36,10 +40,11 @@ the gate that makes it load-bearing.
   and `.fairy/contract-closure-lineage.json` are resolved by exact path
   component (no case alias), refused if any component is a symlink or resolves
   outside the repository, and parsed fail-closed — a root array, a missing key
-  or a wrong-typed field is a finding, never silent disablement. Their bytes
-  must also match a copy taken from a source independent of this increment
-  (`--trusted-authority`), so narrowing the surface or rewriting lineage has to
-  land as its own reviewed change first.
+  or a wrong-typed field is a finding, never silent disablement. Their bytes must also match the SAME files read from an
+  immutable Git object (`--trusted-base <rev>`), which must resolve to a commit
+  that is an ancestor of HEAD and not HEAD itself — a working tree cannot vouch
+  for itself, and `--trusted-base .` is not a revision. Narrowing the surface or
+  rewriting lineage therefore has to land as its own reviewed change first.
 - **The operation set is derived from the code, by the PROJECT.** The globs and
   pattern live in `.fairy/contract-surface.json`, which the gate reads itself —
   a record cannot declare, narrow or redirect its own discovery scope. The walk

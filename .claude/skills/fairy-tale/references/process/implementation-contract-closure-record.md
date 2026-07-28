@@ -11,8 +11,10 @@ received yet. The record is machine-checked — the gate, not the prose, is what
 closes it:
 
 ```bash
+BASE=$(git merge-base origin/main HEAD)   # an immutable ancestor object
 ./fairy contract validate --record <record.json> \
-    --inventory <canonical-operations.txt> [--base <previous-record.json>]
+    --inventory <canonical-operations.txt> --trusted-base "$BASE" \
+    [--base <previous-record.json>]
 ```
 
 The validator derives closure instead of trusting it: it generates the cross

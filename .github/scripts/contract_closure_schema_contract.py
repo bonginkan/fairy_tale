@@ -94,9 +94,13 @@ def main() -> int:
             return 1
         controls += 1
 
+    # Provenance is exercised by the CLI step in CI (it needs real Git
+    # objects); here the sample is checked for everything else, so the only
+    # admissible finding is the missing trusted base.
     findings = validate_record(
-        sample, None, inventory, "examples/implementation-contract-closure.inventory.txt", None, ROOT, ROOT
+        sample, None, inventory, "examples/implementation-contract-closure.inventory.txt", None, ROOT, None
     )
+    findings = [f for f in findings if "no trusted base revision" not in str(f)]
     if findings:
         print(f"[RED    ] shipped example fails the runtime gate: {[str(f) for f in findings]}")
         return 1
@@ -107,7 +111,7 @@ def main() -> int:
         controls += 1
         schema_errors = list(validator.iter_errors(record))
         runtime_findings = validate_record(
-            record, None, inventory, "examples/implementation-contract-closure.inventory.txt", None, ROOT, ROOT
+            record, None, inventory, "examples/implementation-contract-closure.inventory.txt", None, ROOT, None
         )
         if schema_errors or runtime_findings:
             return True

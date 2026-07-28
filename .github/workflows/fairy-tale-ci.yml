@@ -49,6 +49,29 @@ jobs:
         run: python3 .github/scripts/helix_blocker_schema_contract.py
       - name: Implementation contract closure schema contract
         run: python3 .github/scripts/contract_closure_schema_contract.py
+      - name: Contract closure CLI bound to the merge base
+        run: |
+          git fetch --no-tags --depth=50 origin main
+          BASE=$(git merge-base FETCH_HEAD HEAD)
+          echo "trusted base: $BASE"
+          set +e
+          OUTPUT=$(python3 scripts/implementation_contract_closure.py validate \
+            --record examples/implementation-contract-closure.json \
+            --inventory examples/implementation-contract-closure.inventory.txt \
+            --trusted-base "$BASE" 2>&1)
+          CODE=$?
+          set -e
+          echo "$OUTPUT"
+          if [ "$CODE" -ne 0 ]; then
+            # The only admissible failure is the increment that INTRODUCES the
+            # authority files: they cannot exist at a base that predates them.
+            REMAINING=$(echo "$OUTPUT" | grep '^\[RED' | grep -v 'authority-note:' || true)
+            if [ -n "$REMAINING" ]; then
+              echo "contract closure CLI failed with non-bootstrap findings"
+              exit 1
+            fi
+            echo "only the authority-introduction note remains; accepted for this increment"
+          fi
       - name: Release package ships every consumer
         run: python3 scripts/package_skills.py
       - name: Task artifact gate (self-controls)
