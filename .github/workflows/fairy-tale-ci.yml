@@ -71,6 +71,14 @@ jobs:
           if [ "$CODE" -ne 0 ]; then
             # The only admissible failure is the increment that INTRODUCES the
             # authority files: they cannot exist at a base that predates them.
+            if echo "$OUTPUT" | grep -q 'Traceback'; then
+              echo "contract closure CLI crashed instead of reporting findings"
+              exit 1
+            fi
+            if ! echo "$OUTPUT" | grep -q 'authority-note:'; then
+              echo "contract closure CLI failed without the authority-introduction note"
+              exit 1
+            fi
             REMAINING=$(echo "$OUTPUT" | grep '^\[RED' | grep -v 'authority-note:' || true)
             if [ -n "$REMAINING" ]; then
               echo "contract closure CLI failed with non-bootstrap findings"

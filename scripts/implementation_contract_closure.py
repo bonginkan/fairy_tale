@@ -415,51 +415,6 @@ def validate_record(
         if key not in known:
             bad(f"record: unexpected field {key!r} (closure is derived, never declared)")
 
-    if discovery_root is not None:
-        # The authority files may not be narrowed inside the increment they
-        # govern: their bytes must equal a copy taken from a source independent
-        # of this increment (the trusted base). Changing the project surface or
-        # the lineage ledger is then its own reviewed change, landed first.
-        if not text(trusted_base):
-            bad(
-                "authority: no trusted base revision was supplied (--trusted-base), so the project "
-                "surface and lineage could have been narrowed inside this very increment"
-            )
-        else:
-            resolved, lineage_errors = resolve_trusted_base(discovery_root, str(trusted_base))
-            for error in lineage_errors:
-                bad(error)
-            if resolved is not None:
-                for relative in (PROJECT_SURFACE_CONFIG, PROJECT_LINEAGE_LEDGER):
-                    live, live_errors = authority_file(discovery_root, relative)
-                    for error in live_errors:
-                        bad(error)
-                    trusted_bytes, git_error = git_blob(discovery_root, resolved, relative)
-                    if git_error is not None:
-                        # Introduction (the file does not exist at the trusted
-                        # base) is not narrowing — but it is only admissible
-                        # for a first record of an increment with no accepted
-                        # lineage, and it is stated in the output rather than
-                        # passed over in silence.
-                        introducing = kind == "initial" and not ledger_entries
-                        if introducing and "cannot read" in git_error:
-                            bad(
-                                f"authority-note: {relative} does not exist at the trusted base "
-                                f"{resolved[:12]} — accepted ONLY as the increment that introduces it "
-                                "(initial record, empty lineage). Every later increment must match the "
-                                "committed bytes."
-                            )
-                        else:
-                            bad(f"authority: {git_error}")
-                        continue
-                    if live is None or trusted_bytes is None:
-                        continue
-                    if live.read_bytes() != trusted_bytes:
-                        bad(
-                            f"authority: {relative} differs from the trusted base {resolved[:12]} — "
-                            "narrowing the project surface or rewriting lineage must land as its own "
-                            "reviewed change, not inside the increment it governs"
-                        )
     kind = record.get("record_kind")
     if kind not in {"initial", "revision"}:
         bad("record_kind: must be 'initial' or 'revision' (a revision may not be implicit)")
@@ -519,6 +474,51 @@ def validate_record(
     if parse_time(record.get("evaluated_at")) is None:
         bad("evaluated_at: timezone-qualified ISO-8601 timestamp required (a naive timestamp is not a fact)")
 
+    if discovery_root is not None:
+        # The authority files may not be narrowed inside the increment they
+        # govern: their bytes must equal a copy taken from a source independent
+        # of this increment (the trusted base). Changing the project surface or
+        # the lineage ledger is then its own reviewed change, landed first.
+        if not text(trusted_base):
+            bad(
+                "authority: no trusted base revision was supplied (--trusted-base), so the project "
+                "surface and lineage could have been narrowed inside this very increment"
+            )
+        else:
+            resolved, lineage_errors = resolve_trusted_base(discovery_root, str(trusted_base))
+            for error in lineage_errors:
+                bad(error)
+            if resolved is not None:
+                for relative in (PROJECT_SURFACE_CONFIG, PROJECT_LINEAGE_LEDGER):
+                    live, live_errors = authority_file(discovery_root, relative)
+                    for error in live_errors:
+                        bad(error)
+                    trusted_bytes, git_error = git_blob(discovery_root, resolved, relative)
+                    if git_error is not None:
+                        # Introduction (the file does not exist at the trusted
+                        # base) is not narrowing — but it is only admissible
+                        # for a first record of an increment with no accepted
+                        # lineage, and it is stated in the output rather than
+                        # passed over in silence.
+                        introducing = kind == "initial" and not ledger_entries
+                        if introducing and "cannot read" in git_error:
+                            bad(
+                                f"authority-note: {relative} does not exist at the trusted base "
+                                f"{resolved[:12]} — accepted ONLY as the increment that introduces it "
+                                "(initial record, empty lineage). Every later increment must match the "
+                                "committed bytes."
+                            )
+                        else:
+                            bad(f"authority: {git_error}")
+                        continue
+                    if live is None or trusted_bytes is None:
+                        continue
+                    if live.read_bytes() != trusted_bytes:
+                        bad(
+                            f"authority: {relative} differs from the trusted base {resolved[:12]} — "
+                            "narrowing the project surface or rewriting lineage must land as its own "
+                            "reviewed change, not inside the increment it governs"
+                        )
     # ---- operations -----------------------------------------------------
     operations = record.get("operations")
     ops: dict[str, dict[str, Any]] = {}
