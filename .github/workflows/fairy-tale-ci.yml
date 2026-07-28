@@ -51,8 +51,14 @@ jobs:
         run: python3 .github/scripts/contract_closure_schema_contract.py
       - name: Contract closure CLI bound to the merge base
         run: |
-          git fetch --no-tags --depth=50 origin main
-          BASE=$(git merge-base FETCH_HEAD HEAD)
+          # A shallow checkout has no merge base; deepen until it does.
+          git fetch --no-tags --unshallow origin main 2>/dev/null || \
+            git fetch --no-tags --deepen=200 origin main || \
+            git fetch --no-tags origin main
+          if ! BASE=$(git merge-base FETCH_HEAD HEAD); then
+            echo "cannot resolve a merge base — provenance cannot be proven, failing closed"
+            exit 1
+          fi
           echo "trusted base: $BASE"
           set +e
           OUTPUT=$(python3 scripts/implementation_contract_closure.py validate \
