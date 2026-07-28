@@ -222,7 +222,10 @@ def git_blob(root: Path, rev: str, relative: str) -> tuple[bytes | None, str | N
 
 
 def resolve_trusted_base(
-    root: Path, rev: str, integration_ref: str | None = None
+    root: Path,
+    rev: str,
+    integration_ref: str | None = None,
+    authority_ref: str | None = None,
 ) -> tuple[str | None, list[str]]:
     """Resolve the trusted revision and prove it is independent of HEAD."""
     import subprocess
@@ -256,14 +259,23 @@ def resolve_trusted_base(
             "no integration ref was supplied (--integration-ref), so a commit created inside this "
             "very branch could pose as the trusted base"
         ]
+    if authority_ref and integration_ref != authority_ref:
+        return None, [
+            f"integration ref {integration_ref!r} does not match the project authority "
+            f"({authority_ref!r}) — the branch that counts as integration history is not the "
+            "caller's choice"
+        ]
     code, integration = git("rev-parse", "--verify", f"{integration_ref}^{{commit}}")
     if code != 0:
         return None, [f"integration ref {integration_ref!r} is not a commit ({integration})"]
-    code, _ = git("merge-base", "--is-ancestor", resolved, integration)
+    code, merge_base = git("merge-base", integration, head)
     if code != 0:
+        return None, [f"cannot compute the merge base with {integration_ref!r} ({merge_base})"]
+    if resolved != merge_base:
         return None, [
-            f"trusted base {rev!r} is not contained in {integration_ref!r} — a commit made inside "
-            "this branch cannot vouch for the authority it changes"
+            f"trusted base {rev!r} is not THE merge base with {integration_ref!r} "
+            f"({merge_base[:12]}) — containment is not enough, a commit made inside this branch "
+            "cannot vouch for the authority it changes"
         ]
     return resolved, []
 
@@ -502,8 +514,20 @@ def validate_record(
                 "surface and lineage could have been narrowed inside this very increment"
             )
         else:
+            authority_ref = None
+            surface, _ = load_authority(
+                discovery_root, PROJECT_SURFACE_CONFIG, {"globs": list, "pattern": str}
+            )
+            if isinstance(surface, dict):
+                authority_ref = surface.get("integration_ref")
+                if not text(authority_ref):
+                    bad(
+                        f"{PROJECT_SURFACE_CONFIG}: integration_ref is required — the integration "
+                        "history a trusted base must come from is the project's decision"
+                    )
+                    authority_ref = None
             resolved, lineage_errors = resolve_trusted_base(
-                discovery_root, str(trusted_base), integration_ref
+                discovery_root, str(trusted_base), integration_ref, authority_ref
             )
             for error in lineage_errors:
                 bad(error)
@@ -1203,12 +1227,33 @@ def selftest_repo(tmp: Path) -> Path | None:
     source = Path(__file__).resolve().parents[1]
     for relative in (
         PROJECT_SURFACE_CONFIG,
-        PROJECT_LINEAGE_LEDGER,
         "fixtures/implementation-contract-closure/surface/upload.ts",
         "fixtures/implementation-contract-closure/surface/remove.ts",
         "fixtures/implementation-contract-closure/surface/list.ts",
     ):
         (root / relative).write_bytes((source / relative).read_bytes())
+    # The shipped ledger is empty by design; the revision controls need an
+    # accepted record, so the throwaway repository carries its own fixture.
+    (root / PROJECT_LINEAGE_LEDGER).write_text(
+        json.dumps(
+            {
+                "purpose": "selftest fixture lineage",
+                "increments": {
+                    "attachment-upload": [
+                        {
+                            "exact_base": "0" * 40,
+                            "sha256": "0" * 64,
+                            "evaluated_at": "2026-07-28T00:00:00+00:00",
+                        }
+                    ]
+                },
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
     env = {
         "GIT_AUTHOR_NAME": "selftest",
         "GIT_AUTHOR_EMAIL": "selftest@example.invalid",
@@ -1230,6 +1275,9 @@ def selftest_repo(tmp: Path) -> Path | None:
         return None
     git("add", "-A")
     git("commit", "-q", "-m", "authority base")
+    # The authority names origin/main as the integration history, so the
+    # throwaway repository provides exactly that ref at the base commit.
+    git("update-ref", "refs/remotes/origin/main", "HEAD")
     (root / "README.md").write_text("second commit\n", encoding="utf-8")
     git("add", "-A")
     git("commit", "-q", "-m", "work")
@@ -1248,7 +1296,7 @@ def run_selftest() -> int:
     provenance_dir = tempfile.TemporaryDirectory()
     REPO_ROOT_LOCAL = selftest_repo(Path(provenance_dir.name)) or REPO_ROOT
     TRUSTED = "HEAD~1" if REPO_ROOT_LOCAL is not REPO_ROOT else None
-    INTEGRATION = "HEAD~1" if TRUSTED else None
+    INTEGRATION = "origin/main" if TRUSTED else None
 
     def blocked(
         record: dict[str, Any],

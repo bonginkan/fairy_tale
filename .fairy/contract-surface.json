@@ -1,7 +1,8 @@
 {
-  "purpose": "Project-owned operation discovery. The gate reads THIS file; a closure record cannot narrow it, so a record author cannot shrink the surface they are measured against. Editing it is a reviewed repository change.",
+  "purpose": "Project-owned contract-closure authority. The gate reads THIS file: a closure record cannot narrow the discovery scope it is measured against, and cannot choose which branch counts as the integration history. Editing it is a reviewed repository change.",
   "globs": [
     "fixtures/implementation-contract-closure/surface/*.ts"
   ],
-  "pattern": "^//\\s*operation:\\s*(?P<operation>[A-Za-z0-9_.:-]+)\\s*$"
+  "pattern": "^//\\s*operation:\\s*(?P<operation>[A-Za-z0-9_.:-]+)\\s*$",
+  "integration_ref": "origin/main"
 }
