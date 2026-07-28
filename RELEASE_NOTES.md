@@ -1,5 +1,18 @@
 # Release Notes
 
+## 0.2.34 — Contract-closure authority
+
+- Lands the project-owned contract-closure authority: `.fairy/contract-surface.json`
+  (operation-discovery globs, operation-id pattern, and the integration ref the
+  trusted base must come from) and `.fairy/contract-closure-lineage.json` (an
+  empty accepted-record ledger).
+- The package ships both by exact bytes and the build fails if either is
+  omitted, so a consumer can never run without the boundary it is measured
+  against.
+- Authority only: the validator that reads these files lands separately, so an
+  increment can never introduce the authority that governs it.
+- Runtime package version is 0.2.34.
+
 ## 0.2.33
 
 - **Risk-aware Helix blocker convergence** (#94): adds the strict

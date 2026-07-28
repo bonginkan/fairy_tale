@@ -1,0 +1,4 @@
+{
+  "purpose": "Append-only lineage of accepted closure records per increment. `initial` is only legal when an increment has no entry; a revision must name the last accepted record's sha256. The gate reads THIS file, so record_kind cannot be self-declared.",
+  "increments": {}
+}
