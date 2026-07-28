@@ -18,10 +18,12 @@ closes it:
 The validator derives closure instead of trusting it: it generates the cross
 product of the operation inventory, decides admissible dispositions from each
 pair's hazard kind, resolves a serialization point to an identity BOTH sides
-read and write, compares the operation set both ways against an EXTERNAL
-inventory bound by hash (so trimming the record cannot launder an omission),
-and — when a fix is recorded — diffs this record against its predecessor to
-compute what the change actually re-opened. There is no field in which a record
+read and write, compares the operation set both ways against an in-tree
+inventory artifact bound by path and hash (so trimming the record cannot
+launder an omission, and trimming the artifact is a reviewable change),
+and — when a fix is recorded — diffs this record against the predecessor
+revision it names (same repo and increment, strictly older, contract surface
+actually different) to compute what the change re-opened. There is no field in which a record
 can declare itself closed, and no boolean it can assert about itself.
 
 ```text

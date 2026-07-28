@@ -27,7 +27,10 @@ ROOT = Path(
 ).resolve()
 sys.path.insert(0, str(ROOT))
 
-from scripts.implementation_contract_closure import validate_record  # noqa: E402
+from scripts.implementation_contract_closure import (  # noqa: E402
+    validate_record,
+    validate_shape,
+)
 
 
 def main() -> int:
@@ -66,7 +69,32 @@ def main() -> int:
         return 1
     controls += 1
 
-    findings = validate_record(sample, None, inventory)
+    # The dependency-free shape evaluator and jsonschema must agree, or the
+    # canonical CLI (which cannot assume jsonschema) would diverge from CI.
+    schema_path = ROOT / "schemas" / "implementation-contract-closure.schema.json"
+    cross_checks = [
+        ("shipped sample", copy.deepcopy(sample), False),
+        ("unknown nested key", None, True),
+        ("wrong nested type", None, True),
+    ]
+    nested = copy.deepcopy(sample)
+    nested["operations"][0]["unexpected_nested"] = True
+    cross_checks[1] = ("unknown nested key", nested, True)
+    typed = copy.deepcopy(sample)
+    typed["operations"][0]["reads"] = "attachment"
+    cross_checks[2] = ("wrong nested type", typed, True)
+    for label, candidate, expect_error in cross_checks:
+        schema_says = bool(list(validator.iter_errors(candidate)))
+        evaluator_says = bool(validate_shape(candidate, schema_path))
+        if schema_says != evaluator_says or schema_says != expect_error:
+            print(
+                f"[RED    ] shape evaluator and jsonschema disagree on {label}: "
+                f"jsonschema={schema_says} evaluator={evaluator_says} expected={expect_error}"
+            )
+            return 1
+        controls += 1
+
+    findings = validate_record(sample, None, inventory, "examples/implementation-contract-closure.inventory.txt")
     if findings:
         print(f"[RED    ] shipped example fails the runtime gate: {[str(f) for f in findings]}")
         return 1
@@ -76,7 +104,9 @@ def main() -> int:
         nonlocal controls
         controls += 1
         schema_errors = list(validator.iter_errors(record))
-        runtime_findings = validate_record(record, None, inventory)
+        runtime_findings = validate_record(
+            record, None, inventory, "examples/implementation-contract-closure.inventory.txt"
+        )
         if schema_errors or runtime_findings:
             return True
         print(f"[RED    ] hostile case accepted by both schema and runtime gate: {label}")
@@ -124,6 +154,7 @@ def main() -> int:
         "introduced_at": "2026-07-28T01:00:00+00:00",
         "base_record_ref": "previous",
         "base_record_sha256": "0" * 64,
+        "base_exact_base": "0" * 40,
     }
     ok &= rejected(unbased, "re-closure without a base record")
 

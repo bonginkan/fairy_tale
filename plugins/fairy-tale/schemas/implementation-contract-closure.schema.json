@@ -390,7 +390,8 @@
         "fix_id",
         "introduced_at",
         "base_record_ref",
-        "base_record_sha256"
+        "base_record_sha256",
+        "base_exact_base"
       ],
       "properties": {
         "fix_id": {
@@ -415,6 +416,10 @@
         "base_record_sha256": {
           "type": "string",
           "pattern": "^[0-9a-f]{64}$"
+        },
+        "base_exact_base": {
+          "type": "string",
+          "minLength": 1
         }
       }
     },

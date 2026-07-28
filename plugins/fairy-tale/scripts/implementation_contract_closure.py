@@ -40,6 +40,7 @@ import argparse
 import hashlib
 import itertools
 import json
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -77,11 +78,13 @@ def text_list(value: Any, *, minimum: int = 1) -> bool:
 
 
 def parse_time(value: Any) -> datetime | None:
-    """Parse an ISO-8601 timestamp, normalised to UTC.
+    """Parse a TIMEZONE-QUALIFIED ISO-8601 timestamp, normalised to UTC.
 
-    Naive and aware values are both accepted and both normalised, so a mixed
-    record is a reasoned finding about its content — never a TypeError from
-    comparing an aware value with a naive one.
+    A naive timestamp is not accepted: "17:00" is not a fact until the offset
+    is known, and silently assuming UTC would make lineage and staleness
+    comparisons decide on an invented value. Callers report the rejection as a
+    finding — comparisons themselves are always aware-vs-aware, so no
+    naive/aware TypeError can occur.
     """
     if not text(value):
         return None
@@ -90,7 +93,7 @@ def parse_time(value: Any) -> datetime | None:
     except ValueError:
         return None
     if parsed.tzinfo is None:
-        return parsed.replace(tzinfo=timezone.utc)
+        return None
     return parsed.astimezone(timezone.utc)
 
 
@@ -113,39 +116,94 @@ def hazards(op_a: dict[str, Any], op_b: dict[str, Any]) -> tuple[set[str], set[s
     return write_write, read_write
 
 
-def validate_shape(record: Any, schema_path: Path) -> list[Finding]:
-    """Strict shape check against the shipped schema.
+TYPE_MAP = {
+    "object": dict,
+    "array": list,
+    "string": str,
+    "boolean": bool,
+    "number": (int, float),
+    "integer": int,
+}
 
-    The CLI and the schema must never disagree: a record the schema rejects
-    (an unknown nested key, a wrong type) is rejected here too, as a reasoned
-    finding rather than a traceback deeper in the semantics.
+
+def check_schema_node(node: Any, value: Any, where: str, schema: dict[str, Any]) -> list[str]:
+    """Evaluate the subset of JSON Schema this record's schema uses.
+
+    Deliberately dependency-free: the canonical CLI must run in a clean
+    checkout. `jsonschema` remains the CI cross-check against this evaluator,
+    so the two cannot silently diverge — but the gate does not need it to be
+    installed in order to fail closed.
     """
+    errors: list[str] = []
+    if "$ref" in node:
+        ref = node["$ref"]
+        if ref.startswith("#/"):
+            target: Any = schema
+            for part in ref[2:].split("/"):
+                target = target.get(part, {}) if isinstance(target, dict) else {}
+            return check_schema_node(target, value, where, schema)
+        return errors
+    if "const" in node and value != node["const"]:
+        errors.append(f"{where}: must be {node['const']!r}")
+    if "enum" in node and value not in node["enum"]:
+        errors.append(f"{where}: must be one of {node['enum']}")
+    expected = node.get("type")
+    if expected:
+        python_type = TYPE_MAP.get(expected)
+        if expected == "integer" and isinstance(value, bool):
+            errors.append(f"{where}: must be an integer")
+            return errors
+        if python_type and not isinstance(value, python_type):
+            errors.append(f"{where}: must be a JSON {expected}")
+            return errors
+    if isinstance(value, str):
+        if "minLength" in node and len(value) < node["minLength"]:
+            errors.append(f"{where}: must not be empty")
+        pattern = node.get("pattern")
+        if pattern:
+            import re
+
+            if not re.match(pattern, value):
+                errors.append(f"{where}: does not match {pattern}")
+    if isinstance(value, list):
+        if "minItems" in node and len(value) < node["minItems"]:
+            errors.append(f"{where}: needs at least {node['minItems']} item(s)")
+        if "maxItems" in node and len(value) > node["maxItems"]:
+            errors.append(f"{where}: allows at most {node['maxItems']} item(s)")
+        item_schema = node.get("items")
+        if isinstance(item_schema, dict):
+            for index, item in enumerate(value):
+                errors.extend(check_schema_node(item_schema, item, f"{where}[{index}]", schema))
+    if isinstance(value, dict):
+        properties = node.get("properties", {})
+        for field in node.get("required", []):
+            if field not in value:
+                errors.append(f"{where}.{field}: required")
+        if node.get("additionalProperties") is False:
+            for field in value:
+                if field not in properties:
+                    errors.append(f"{where}.{field}: unexpected field")
+        for field, sub in properties.items():
+            if field in value:
+                errors.extend(check_schema_node(sub, value[field], f"{where}.{field}", schema))
+    return errors
+
+
+def validate_shape(record: Any, schema_path: Path) -> list[Finding]:
+    """Strict shape check against the shipped schema, with no external
+    dependency: a record the schema rejects never reaches the semantic pass."""
     try:
         schema = json.loads(schema_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
         return [Finding(f"schema: cannot load {schema_path}: {error}")]
-    try:
-        from jsonschema import Draft202012Validator
-    except ModuleNotFoundError:
-        return [
-            Finding(
-                "schema: jsonschema is not installed, so the strict shape cannot be checked — "
-                "install the pinned version rather than treating this run as green"
-            )
-        ]
-    validator = Draft202012Validator(schema)
-    return [
-        Finding(
-            "shape: "
-            + ("/".join(str(part) for part in error.path) or "<root>")
-            + f": {error.message}"
-        )
-        for error in sorted(validator.iter_errors(record), key=lambda e: list(e.path))
-    ]
+    return [Finding(f"shape: {message}") for message in check_schema_node(schema, record, "<root>", schema)]
 
 
 def validate_record(
-    record: Any, base: Any = None, inventory: Iterable[str] | None = None
+    record: Any,
+    base: Any = None,
+    inventory: Iterable[str] | None = None,
+    inventory_path: str | None = None,
 ) -> list[Finding]:
     findings: list[Finding] = []
 
@@ -180,7 +238,7 @@ def validate_record(
     ):
         bad("increment: repo, exact_base and increment_id are required")
     if parse_time(record.get("evaluated_at")) is None:
-        bad("evaluated_at: ISO-8601 timestamp required")
+        bad("evaluated_at: timezone-qualified ISO-8601 timestamp required (a naive timestamp is not a fact)")
 
     # ---- operations -----------------------------------------------------
     operations = record.get("operations")
@@ -224,6 +282,12 @@ def validate_record(
         source.get("sha256")
     ):
         bad("inventory_source: ref and sha256 of the EXTERNAL canonical inventory are required")
+    elif inventory_path is not None and str(source.get("ref")) != inventory_path:
+        bad(
+            f"inventory_source.ref: the record names {source.get('ref')!r} but the inventory supplied "
+            f"was {inventory_path!r} — a canonical reference that is not the file actually checked "
+            "proves nothing"
+        )
     elif inventory is None:
         bad(
             "inventory_source: the external inventory was not supplied (--inventory), so operation "
@@ -453,7 +517,7 @@ def validate_record(
         ):
             bad("fix_reclosure: fix_id, base_record_ref and base_record_sha256 are required")
         elif parse_time(fix.get("introduced_at")) is None:
-            bad("fix_reclosure.introduced_at: ISO-8601 timestamp required")
+            bad("fix_reclosure.introduced_at: timezone-qualified ISO-8601 timestamp required")
         elif base is None:
             bad(
                 "fix_reclosure: the base record was not supplied (--base), so the changed surface "
@@ -467,6 +531,19 @@ def validate_record(
             # record: a foreign base would silently empty the change surface.
             base_increment = base.get("increment") if isinstance(base.get("increment"), dict) else {}
             own_increment = increment if isinstance(increment, dict) else {}
+            declared_base_exact = fix.get("base_exact_base")
+            if not text(declared_base_exact):
+                bad("fix_reclosure.base_exact_base: required (the revision this record supersedes)")
+            elif base_increment.get("exact_base") != declared_base_exact:
+                bad(
+                    "fix_reclosure.base_exact_base: the supplied base is at "
+                    f"{base_increment.get('exact_base')!r}, not the declared {declared_base_exact!r}"
+                )
+            elif own_increment.get("exact_base") == declared_base_exact:
+                bad(
+                    "fix_reclosure.base_exact_base: this record declares the SAME exact_base as its "
+                    "base — a revision that supersedes nothing is not a fix"
+                )
             for field in ("repo", "increment_id"):
                 if base_increment.get(field) != own_increment.get(field):
                     bad(
@@ -481,6 +558,30 @@ def validate_record(
                 bad(
                     "fix_reclosure: the supplied base is not a predecessor "
                     "(its evaluated_at is not earlier than this record's)"
+                )
+            CONTRACT_TABLES = (
+                "inventory_source",
+                "operations",
+                "identities",
+                "failure_matrix",
+                "concurrency_matrix",
+                "platform_invariants",
+            )
+
+            def contract_only(value: Any) -> Any:
+                """The contract surface, without re-validation bookkeeping."""
+                if isinstance(value, dict):
+                    return {k: contract_only(v) for k, v in sorted(value.items()) if k != "revalidated"}
+                if isinstance(value, list):
+                    return [contract_only(v) for v in value]
+                return value
+
+            surface = {table: contract_only(record.get(table)) for table in CONTRACT_TABLES}
+            base_surface = {table: contract_only(base.get(table)) for table in CONTRACT_TABLES}
+            if surface == base_surface:
+                bad(
+                    "fix_reclosure: this record is byte-equivalent to its base apart from timestamps — "
+                    "a backdated copy is not a predecessor, and there is no change to re-close"
                 )
             base_ops = {
                 str(op.get("id")): op
@@ -738,7 +839,7 @@ def sample_record() -> dict[str, Any]:
     }
 
 
-CONTROL_COUNT = 30
+CONTROL_COUNT = 40
 
 
 def run_selftest() -> int:
@@ -749,6 +850,7 @@ def run_selftest() -> int:
             failures.append(label)
 
     inventory = ["upload", "remove", "list"]
+    inventory_path = "examples/implementation-contract-closure.inventory.txt"
 
     def blocked(
         record: dict[str, Any],
@@ -756,8 +858,9 @@ def run_selftest() -> int:
         label: str,
         base: Any = None,
         ops: Iterable[str] | None = None,
+        path: str | None = inventory_path,
     ) -> None:
-        found = validate_record(record, base, inventory if ops is None else ops)
+        found = validate_record(record, base, inventory if ops is None else ops, path)
         check(
             any(fragment in str(f) for f in found),
             f"{label}: expected a finding containing {fragment!r}, got {[str(f) for f in found]!r}",
@@ -765,13 +868,13 @@ def run_selftest() -> int:
 
     base = sample_record()
     check(
-        validate_record(base, None, inventory) == [],
-        f"sample must validate: {[str(f) for f in validate_record(base, None, inventory)]}",
+        validate_record(base, None, inventory, inventory_path) == [],
+        f"sample must validate: {[str(f) for f in validate_record(base, None, inventory, inventory_path)]}",
     )
 
     # Hostile: an empty contract must never pass.
     empty = {"schema": SCHEMA_ID}
-    check(len(validate_record(empty, None, inventory)) >= 5, "an empty record must produce multiple findings")
+    check(len(validate_record(empty, None, inventory, inventory_path)) >= 5, "an empty record must produce multiple findings")
 
     # Hostile: a hand-listed subset of the cross product.
     subset = json.loads(json.dumps(base))
@@ -807,7 +910,7 @@ def run_selftest() -> int:
 
     # Safe overlaps must NOT be over-blocked: read x read passes with no point.
     check(
-        not any("list' x 'list" in str(f) for f in validate_record(base, None, inventory)),
+        not any("list' x 'list" in str(f) for f in validate_record(base, None, inventory, inventory_path)),
         "a read-only pair must not be forced to serialize",
     )
 
@@ -824,8 +927,8 @@ def run_selftest() -> int:
         },
     }
     check(
-        validate_record(disjoint, None, inventory) == [],
-        f"a declared disjoint keyspace with evidence must pass: {[str(f) for f in validate_record(disjoint, None, inventory)]}",
+        validate_record(disjoint, None, inventory, inventory_path) == [],
+        f"a declared disjoint keyspace with evidence must pass: {[str(f) for f in validate_record(disjoint, None, inventory, inventory_path)]}",
     )
     same_predicate = json.loads(json.dumps(disjoint))
     same_predicate["concurrency_matrix"][1]["key_partition"]["predicate_b"] = "attachment id < midpoint"
@@ -866,8 +969,8 @@ def run_selftest() -> int:
         },
     }
     check(
-        validate_record(snapshot, None, inventory) == [],
-        f"a snapshot read must not be forced to serialize: {[str(f) for f in validate_record(snapshot, None, inventory)]}",
+        validate_record(snapshot, None, inventory, inventory_path) == [],
+        f"a snapshot read must not be forced to serialize: {[str(f) for f in validate_record(snapshot, None, inventory, inventory_path)]}",
     )
     no_contract = json.loads(json.dumps(snapshot))
     del no_contract["concurrency_matrix"][4]["snapshot_contract"]
@@ -882,8 +985,8 @@ def run_selftest() -> int:
         "idempotence_tested": ["races: A then B", "races: B then A"],
     }
     check(
-        validate_record(commutative, None, inventory) == [],
-        f"a commutative write pair with tests must pass: {[str(f) for f in validate_record(commutative, None, inventory)]}",
+        validate_record(commutative, None, inventory, inventory_path) == [],
+        f"a commutative write pair with tests must pass: {[str(f) for f in validate_record(commutative, None, inventory, inventory_path)]}",
     )
     unproven = json.loads(json.dumps(commutative))
     unproven["concurrency_matrix"][0]["idempotence_tested"] = ["only one order"]
@@ -906,18 +1009,20 @@ def run_selftest() -> int:
         }
     )
     changed["evaluated_at"] = "2026-07-28T03:00:00+00:00"
+    changed["increment"]["exact_base"] = "1" * 40
     changed["fix_reclosure"] = {
         "fix_id": "fix-10",
         "introduced_at": "2026-07-28T01:00:00+00:00",
         "base_record_ref": "previous record",
         "base_record_sha256": "0" * 64,
+        "base_exact_base": "0" * 40,
     }
-    findings_without_base = validate_record(changed, None, inventory)
+    findings_without_base = validate_record(changed, None, inventory, inventory_path)
     check(
         any("base record was not supplied" in str(f) for f in findings_without_base),
         "re-closure without the base record must fail closed",
     )
-    blocked_pairs = [str(f) for f in validate_record(changed, previous, inventory)]
+    blocked_pairs = [str(f) for f in validate_record(changed, previous, inventory, inventory_path)]
     check(
         any("carries no re-validation for this fix" in f for f in blocked_pairs),
         f"a derived change surface must demand re-validation: {blocked_pairs!r}",
@@ -931,8 +1036,8 @@ def run_selftest() -> int:
     for row in revalidated["failure_matrix"]:
         row["revalidated"] = [dict(stamp)]
     check(
-        validate_record(revalidated, previous, inventory) == [],
-        f"a fully re-closed record must pass: {[str(f) for f in validate_record(revalidated, previous, inventory)]}",
+        validate_record(revalidated, previous, inventory, inventory_path) == [],
+        f"a fully re-closed record must pass: {[str(f) for f in validate_record(revalidated, previous, inventory, inventory_path)]}",
     )
 
     stale = json.loads(json.dumps(revalidated))
@@ -940,7 +1045,7 @@ def run_selftest() -> int:
         cell["revalidated"] = [
             {"fix_id": "fix-10", "at": "2026-07-27T00:00:00+00:00", "evidence": ["old test"]}
         ]
-    blocked_stale = [str(f) for f in validate_record(stale, previous, inventory)]
+    blocked_stale = [str(f) for f in validate_record(stale, previous, inventory, inventory_path)]
     check(any("stale" in f for f in blocked_stale), "re-validation predating the fix must be rejected")
 
     # Hostile: a serialization point that neither side reads AND writes.
@@ -1000,15 +1105,16 @@ def run_selftest() -> int:
         "introduced_at": "2026-07-27T12:00:00",
         "base_record_ref": "previous",
         "base_record_sha256": "0" * 64,
+        "base_exact_base": "0" * 40,
     }
     try:
-        tz_findings = validate_record(mixed, mixed_previous, inventory)
+        tz_findings = validate_record(mixed, mixed_previous, inventory, inventory_path)
     except TypeError as error:  # pragma: no cover - the control exists to prevent this
         tz_findings = []
         check(False, f"mixed naive/aware timestamps raised {error!r} instead of a finding")
     check(
-        all("Traceback" not in str(f) for f in tz_findings),
-        "mixed timestamps must produce findings, not a crash",
+        any("timezone-qualified" in str(f) for f in tz_findings),
+        f"a naive timestamp must be REJECTED, not assumed to be UTC: {[str(f) for f in tz_findings]}",
     )
 
     # Hostile: a foreign base cannot empty the change surface.
@@ -1022,10 +1128,90 @@ def run_selftest() -> int:
     del opt_out["fix_reclosure"]
     blocked(opt_out, "must declare the fix that produced it", "opt-out re-closure", previous)
 
+    # Hostile: an alternate inventory file (with its own matching hash) cannot
+    # stand in for the one the record names.
+    blocked(
+        base,
+        "is not the file actually checked",
+        "substituted inventory file",
+        None,
+        ["upload", "remove"],
+        "some/other-inventory.txt",
+    )
+
+    # Hostile: a backdated clone is not a predecessor.
+    clone = json.loads(json.dumps(base))
+    clone["increment"]["exact_base"] = "1" * 40
+    clone["evaluated_at"] = "2026-07-28T03:00:00+00:00"
+    clone["fix_reclosure"] = {
+        "fix_id": "fix-clone",
+        "introduced_at": "2026-07-28T01:00:00+00:00",
+        "base_record_ref": "previous",
+        "base_record_sha256": "0" * 64,
+        "base_exact_base": "0" * 40,
+    }
+    backdated = json.loads(json.dumps(base))
+    backdated["evaluated_at"] = "2026-07-27T00:00:00+00:00"
+    blocked(clone, "byte-equivalent to its base", "backdated clone as predecessor", backdated)
+
+    # Hostile: a base at a different revision than the one declared.
+    wrong_lineage = json.loads(json.dumps(changed))
+    other_base = json.loads(json.dumps(previous))
+    other_base["increment"]["exact_base"] = "9" * 40
+    blocked(wrong_lineage, "not the declared", "base at an undeclared revision", other_base)
+
+    # The shape gate must work without jsonschema installed (clean checkout).
+    schema_path = Path(__file__).resolve().parents[1] / "schemas" / "implementation-contract-closure.schema.json"
+    check(validate_shape(base, schema_path) == [], "the shipped sample must satisfy the shape gate")
+    nested_bad = json.loads(json.dumps(base))
+    nested_bad["operations"][0]["unexpected_nested"] = True
+    check(
+        any("unexpected field" in str(f) for f in validate_shape(nested_bad, schema_path)),
+        "an unknown nested key must be a shape finding, not a traceback",
+    )
+
     # Hostile: a self-declared closure flag must be rejected outright.
     declared = json.loads(json.dumps(base))
     declared["closure_reached"] = True
     blocked(declared, "closure is derived, never declared", "self-declared closure")
+
+    # CLI-boundary controls: a malformed external artifact must be a reasoned
+    # RED, never a traceback.
+    import subprocess
+    import tempfile
+
+    here = Path(__file__).resolve()
+    repo_root = here.parents[1]
+    record_path = repo_root / "examples" / "implementation-contract-closure.json"
+    good_inventory = repo_root / "examples" / "implementation-contract-closure.inventory.txt"
+
+    def cli(inventory_file: Path) -> tuple[int, str]:
+        result = subprocess.run(
+            [sys.executable, str(here), "validate", "--record", str(record_path),
+             "--inventory", str(inventory_file)],
+            capture_output=True,
+            text=True,
+        )
+        return result.returncode, result.stdout + result.stderr
+
+    with tempfile.TemporaryDirectory() as tmp:
+        broken = repo_root / "examples" / ".contract-closure-selftest-tmp.txt"
+        try:
+            broken.write_bytes(b"upload\nremove\n\xff\xfe\n")
+            code, output = cli(broken)
+            check(code == 1 and "not UTF-8" in output, f"invalid UTF-8 inventory must be a reasoned RED: {output!r}")
+            broken.write_text("upload\nupload\nremove\nlist\n", encoding="utf-8")
+            code, output = cli(broken)
+            check(code == 1 and "duplicate operations" in output, "a duplicated inventory id must be RED")
+            broken.write_text("# only comments\n", encoding="utf-8")
+            code, output = cli(broken)
+            check(code == 1 and "empty" in output, "an empty inventory must be RED")
+        finally:
+            broken.unlink(missing_ok=True)
+        outside = Path(tmp) / "inventory.txt"
+        outside.write_text("upload\nremove\nlist\n", encoding="utf-8")
+        code, output = cli(outside)
+        check(code == 1 and "outside the repository" in output, "an out-of-tree inventory must be RED")
 
     if failures:
         for failure in failures:
@@ -1054,11 +1240,45 @@ def command_validate(args: argparse.Namespace) -> int:
     inventory = None
     if args.inventory:
         inventory_path = Path(args.inventory)
+        # The canonical inventory must be a repo-tracked artifact, so any edit
+        # to it lands in the same reviewed diff as the record that cites it.
+        # An out-of-tree file would let the inventory be swapped privately.
+        repo_root = Path(__file__).resolve().parents[1]
+        try:
+            resolved = inventory_path.resolve()
+            resolved.relative_to(repo_root)
+        except (OSError, ValueError):
+            print(
+                f"[RED    ] canonical inventory {inventory_path} is outside the repository — it must "
+                "be a tracked artifact so its content is reviewed with the record"
+            )
+            return 1
         try:
             inventory_raw = inventory_path.read_bytes()
         except OSError as error:
             print(f"cannot read canonical inventory {inventory_path}: {error}")
             return 2
+        try:
+            decoded = inventory_raw.decode("utf-8")
+        except UnicodeDecodeError as error:
+            print(f"[RED    ] canonical inventory is not UTF-8: {error}")
+            return 1
+        inventory = [
+            line.strip()
+            for line in decoded.splitlines()
+            if line.strip() and not line.strip().startswith("#")
+        ]
+        if not inventory:
+            print("[RED    ] canonical inventory is empty — an empty inventory covers nothing")
+            return 1
+        duplicates = sorted({op for op in inventory if inventory.count(op) > 1})
+        if duplicates:
+            print(f"[RED    ] canonical inventory has duplicate operations: {duplicates}")
+            return 1
+        malformed = sorted({op for op in inventory if not re.fullmatch(r"[A-Za-z0-9_.:-]+", op)})
+        if malformed:
+            print(f"[RED    ] canonical inventory has malformed operation ids: {malformed}")
+            return 1
         declared_hash = (record.get("inventory_source") or {}).get("sha256")
         actual_hash = hashlib.sha256(inventory_raw).hexdigest()
         if declared_hash and declared_hash != actual_hash:
@@ -1067,11 +1287,6 @@ def command_validate(args: argparse.Namespace) -> int:
                 f"inventory hashes to {actual_hash}"
             )
             return 1
-        inventory = [
-            line.strip()
-            for line in inventory_raw.decode("utf-8").splitlines()
-            if line.strip() and not line.strip().startswith("#")
-        ]
     base = None
     if args.base:
         base_path = Path(args.base)
@@ -1089,7 +1304,7 @@ def command_validate(args: argparse.Namespace) -> int:
                 f"base hashes to {actual}"
             )
             return 1
-    findings = validate_record(record, base, inventory)
+    findings = validate_record(record, base, inventory, args.inventory)
     if findings:
         for finding in findings:
             print(f"[RED    ] {finding}")

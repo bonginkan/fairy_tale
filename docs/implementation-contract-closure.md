@@ -32,13 +32,23 @@ the gate that makes it load-bearing.
   a declared identity that BOTH operations have in their reads AND writes; the
   record cannot attest to it with a boolean. A hazard-free pair may not declare
   itself serialized either — needless serialization is a defect, not caution.
-- **The canonical inventory is external.** It is a separate file bound by
-  sha256, so removing an operation from the record's tables cannot be laundered
-  by removing it from a list inside the same record.
-- **Shape before semantics.** The CLI validates against the shipped schema
-  first, so a record the schema rejects can never reach the semantic pass, and
-  a malformed nested value is a reasoned finding rather than a traceback.
-  Timestamps are normalised to UTC, so a naive/aware mix is a finding too.
+- **The canonical inventory is external, named, and in-tree.** The record cites
+  a path and a sha256; the gate requires the file actually supplied to be that
+  path, to live inside the repository, and to hash to the declared value. A
+  substituted or out-of-tree inventory is rejected, so the artifact that
+  defines coverage is reviewed in the same diff as the record. The artifact is
+  parsed fail-closed: non-UTF-8, empty, duplicated or malformed ids are RED
+  before any hash comparison.
+- **Lineage is immutable and explicit.** A revision declares the exact_base it
+  supersedes; the supplied base must be at that revision, from the same repo
+  and increment, strictly older, and its contract surface must actually differ.
+  A backdated copy of the current record is not a predecessor.
+- **Shape before semantics, with no install step.** The CLI evaluates the
+  shipped schema itself — a clean checkout runs the gate with no third-party
+  dependency — so a record the schema rejects never reaches the semantic pass.
+  CI additionally cross-checks that evaluator against `jsonschema`, so the two
+  cannot diverge. Timestamps must be timezone-qualified: a naive value is
+  rejected rather than silently assumed to be UTC.
 - **Uncertainty is a column.** Every externally visible write states success,
   failure and UNKNOWN behaviour, what the peer observes, who reclaims the
   residue, and how that residue is discoverable.
@@ -54,9 +64,11 @@ the gate that makes it load-bearing.
 - `disjoint_keyspace` is checked structurally (same identity, differing
   predicates, evidence present). Proving predicate disjointness semantically
   stays a reviewer judgement.
-- The canonical operation inventory is supplied by the record author; the gate
-  enforces both-way coverage against it, but cannot know that the supplied
-  inventory itself is complete.
+- The canonical operation inventory is authored, not derived from the code by
+  this gate. Coverage is enforced both ways against an in-tree, named,
+  hash-bound artifact, so trimming it is a reviewable change in the same diff —
+  but a reviewer, not the gate, is what notices that the artifact still matches
+  the code surface.
 - Platform invariants are enumerated and sourced by the author. A rule nobody
   knows about is not caught by this gate; it is caught by review or by
   production.
