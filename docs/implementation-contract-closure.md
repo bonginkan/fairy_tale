@@ -7,13 +7,28 @@ the gate that makes it load-bearing.
 
 ```bash
 ./fairy contract sample                                   # a passing skeleton
-# the trusted base is an immutable ancestor object, e.g. the merge base:
-BASE=$(git merge-base origin/main HEAD)
+# The integration branch is the project's, named by .fairy/contract-surface.json
+# (integration_ref); the trusted base must BE the merge base with it:
+BASE=$(git merge-base "$(python3 -c 'import json;print(json.load(open(".fairy/contract-surface.json"))["integration_ref"])')" HEAD)
 
 ./fairy contract validate --record record.json --inventory ops.txt \
     --trusted-base "$BASE"                          # first closure
 ./fairy contract validate --record record.json --inventory ops.txt \
     --trusted-base "$BASE" --base previous.json     # after a fix
+```
+
+`--integration-ref` may be passed, but only to restate what the authority
+already says: a different value is a finding, not a choice. Omitting it means
+the authority's `integration_ref` is used.
+
+From an **extracted release package**, gate another project by pointing the
+same command at that project — its authority, its code surface and its tracked
+inventory are what get read:
+
+```bash
+python3 <extracted>/scripts/implementation_contract_closure.py validate \
+    --repo-root /path/to/project --record /path/to/project/record.json \
+    --inventory /path/to/project/docs/operations.txt --trusted-base "$BASE"
 ```
 
 ## What the gate derives (rather than trusts)

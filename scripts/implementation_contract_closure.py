@@ -254,10 +254,15 @@ def resolve_trusted_base(
         return None, [
             f"trusted base {rev!r} is not an ancestor of HEAD, so it is not this work's base"
         ]
+    # The integration history belongs to the project, so an omitted flag falls
+    # back to the authority rather than failing: the caller may only ever
+    # RESTATE what the authority already says, never choose something else.
+    if not integration_ref:
+        integration_ref = authority_ref
     if not integration_ref:
         return None, [
-            "no integration ref was supplied (--integration-ref), so a commit created inside this "
-            "very branch could pose as the trusted base"
+            "no integration ref is available (neither --integration-ref nor the project "
+            "authority), so a commit created inside this very branch could pose as the trusted base"
         ]
     if authority_ref and integration_ref != authority_ref:
         return None, [
@@ -278,6 +283,33 @@ def resolve_trusted_base(
             "cannot vouch for the authority it changes"
         ]
     return resolved, []
+
+
+def same_path(root: Path, declared: str, supplied: str) -> bool:
+    """Whether a record's project-relative reference names the supplied file.
+
+    The record cites a path inside the project it describes; the caller may
+    reach that same file by any spelling — including an absolute one, which is
+    the only way an extracted package can point at another project. Comparing
+    the strings would make a correct invocation fail, so resolve both against
+    the project root and compare the files themselves.
+    """
+
+    def anchor(value: str) -> Path:
+        path = Path(value)
+        if path.is_absolute():
+            return path.resolve()
+        # A relative spelling belongs to the project unless the caller is
+        # standing somewhere else and that reading finds nothing.
+        from_root = (root / path).resolve()
+        if from_root.exists() or not path.exists():
+            return from_root
+        return path.resolve()
+
+    try:
+        return anchor(declared) == anchor(supplied)
+    except (OSError, ValueError):
+        return False
 
 
 def authority_file(root: Path, relative: str) -> tuple[Path | None, list[str]]:
@@ -625,7 +657,9 @@ def validate_record(
         source.get("sha256")
     ):
         bad("inventory_source: ref and sha256 of the EXTERNAL canonical inventory are required")
-    elif inventory_path is not None and str(source.get("ref")) != inventory_path:
+    elif inventory_path is not None and not same_path(
+        discovery_root, str(source.get("ref")), inventory_path
+    ):
         bad(
             f"inventory_source.ref: the record names {source.get('ref')!r} but the inventory supplied "
             f"was {inventory_path!r} — a canonical reference that is not the file actually checked "
@@ -1213,7 +1247,7 @@ SCHEMA_PATH = REPO_ROOT / "schemas" / "implementation-contract-closure.schema.js
 #: Selftest trust anchor: HEAD~1 is an immutable ancestor object, never the
 #: working tree, so the controls exercise the real provenance path.
 TRUSTED_BASE = "HEAD~1"
-CONTROL_COUNT = 62
+CONTROL_COUNT = 65
 
 
 def selftest_repo(tmp: Path) -> Path | None:
@@ -1839,7 +1873,41 @@ def run_selftest() -> int:
         outside = Path(tmp) / "inventory.txt"
         outside.write_text("upload\nremove\nlist\n", encoding="utf-8")
         code, output = cli(outside)
-        check(code == 1 and "outside the repository" in output, "an out-of-tree inventory must be RED")
+        check(
+            code == 1 and "outside the project being validated" in output,
+            "an out-of-tree inventory must be RED",
+        )
+        # Every stop is machine-readable: a consumer that only parses the
+        # verdict must not read "no verdict" as "nothing to report".
+        for label, argv in (
+            ("unreadable record", ["validate", "--record", str(Path(tmp) / "missing.json")]),
+            (
+                "out-of-tree inventory",
+                ["validate", "--record", str(record_path), "--inventory", str(outside)],
+            ),
+        ):
+            done = subprocess.run(
+                [sys.executable, str(here), *argv], capture_output=True, text=True
+            )
+            verdict_lines = [
+                line for line in done.stdout.splitlines() if line.startswith("VERDICT ")
+            ]
+            payload = json.loads(verdict_lines[0][len("VERDICT ") :]) if verdict_lines else {}
+            check(
+                done.returncode != 0
+                and len(verdict_lines) == 1
+                and payload.get("closed") is False
+                and payload.get("finding_count", 0) >= 1,
+                f"an early stop ({label}) must still print exactly one machine verdict: "
+                f"{done.stdout.strip()[:200]!r}",
+            )
+        # The same file named absolutely is the same file: an extracted
+        # package can only reach another project by absolute path.
+        code, output = cli(good_inventory.resolve())
+        check(
+            "is not the file actually checked" not in output,
+            f"an absolute path to the cited inventory must not read as a different file: {output!r}",
+        )
 
     provenance_dir.cleanup()
     if failures:
@@ -1851,22 +1919,47 @@ def run_selftest() -> int:
     return 0
 
 
+def emit_verdict(findings: list[str], code: int) -> int:
+    """Print the machine verdict for a run, whatever stopped it.
+
+    A consumer that only sees a verdict on the runs that got as far as the
+    matrices would read "no verdict" as "nothing to report"; an unreadable
+    record or a swapped inventory is exactly when it must not.
+    """
+
+    for finding in findings:
+        print(f"[RED    ] {finding}")
+    print(
+        "VERDICT "
+        + json.dumps(
+            {
+                "schema": "fairy.implementation-contract-closure.verdict.v1",
+                "closed": not findings,
+                "finding_count": len(findings),
+                "findings": findings,
+            },
+            ensure_ascii=False,
+        )
+    )
+    return code
+
+
 def command_validate(args: argparse.Namespace) -> int:
+    def stop(message: str, code: int = 1) -> int:
+        return emit_verdict([message], code)
+
     path = Path(args.record)
     try:
         raw = path.read_text(encoding="utf-8")
         record = json.loads(raw)
     except UnicodeDecodeError as error:
-        print(f"[RED    ] record {path} is not UTF-8: {error}")
-        return 1
+        return stop(f"record {path} is not UTF-8: {error}")
     except (OSError, json.JSONDecodeError) as error:
-        print(f"[RED    ] record {path} is not readable JSON: {error}")
-        return 1
+        return stop(f"record {path} is not readable JSON: {error}")
     schema_path = Path(__file__).resolve().parents[1] / "schemas" / "implementation-contract-closure.schema.json"
     shape_findings = validate_shape(record, schema_path)
     if shape_findings:
-        for finding in shape_findings:
-            print(f"[RED    ] {finding}")
+        emit_verdict([str(finding) for finding in shape_findings], 1)
         print(f"implementation contract closure: {len(shape_findings)} shape violation(s)")
         return 1
     inventory = None
@@ -1875,50 +1968,52 @@ def command_validate(args: argparse.Namespace) -> int:
         # The canonical inventory must be a repo-tracked artifact, so any edit
         # to it lands in the same reviewed diff as the record that cites it.
         # An out-of-tree file would let the inventory be swapped privately.
-        repo_root = Path(__file__).resolve().parents[1]
+        # "The repository" is the project BEING VALIDATED, not the installation
+        # running the gate: an extracted package gating another project must
+        # measure containment against that project, or it would both reject the
+        # target's own tracked inventory and accept one shipped with itself.
+        repo_root = (
+            Path(args.repo_root).resolve()
+            if args.repo_root
+            else Path(__file__).resolve().parents[1]
+        )
         try:
             resolved = inventory_path.resolve()
             resolved.relative_to(repo_root)
         except (OSError, ValueError):
-            print(
-                f"[RED    ] canonical inventory {inventory_path} is outside the repository — it must "
-                "be a tracked artifact so its content is reviewed with the record"
+            return stop(
+                f"canonical inventory {inventory_path} is outside the project being validated "
+                f"({repo_root}) — it must be a tracked artifact of THAT project, so its content is "
+                "reviewed together with the record that cites it"
             )
-            return 1
         try:
             inventory_raw = inventory_path.read_bytes()
         except OSError as error:
-            print(f"cannot read canonical inventory {inventory_path}: {error}")
-            return 2
+            return stop(f"cannot read canonical inventory {inventory_path}: {error}", 2)
         try:
             decoded = inventory_raw.decode("utf-8")
         except UnicodeDecodeError as error:
-            print(f"[RED    ] canonical inventory is not UTF-8: {error}")
-            return 1
+            return stop(f"canonical inventory is not UTF-8: {error}")
         inventory = [
             line.strip()
             for line in decoded.splitlines()
             if line.strip() and not line.strip().startswith("#")
         ]
         if not inventory:
-            print("[RED    ] canonical inventory is empty — an empty inventory covers nothing")
-            return 1
+            return stop("canonical inventory is empty — an empty inventory covers nothing")
         duplicates = sorted({op for op in inventory if inventory.count(op) > 1})
         if duplicates:
-            print(f"[RED    ] canonical inventory has duplicate operations: {duplicates}")
-            return 1
+            return stop(f"canonical inventory has duplicate operations: {duplicates}")
         malformed = sorted({op for op in inventory if not re.fullmatch(r"[A-Za-z0-9_.:-]+", op)})
         if malformed:
-            print(f"[RED    ] canonical inventory has malformed operation ids: {malformed}")
-            return 1
+            return stop(f"canonical inventory has malformed operation ids: {malformed}")
         declared_hash = (record.get("inventory_source") or {}).get("sha256")
         actual_hash = hashlib.sha256(inventory_raw).hexdigest()
         if declared_hash and declared_hash != actual_hash:
-            print(
-                f"[RED    ] inventory_source.sha256: declared {declared_hash} but the supplied "
-                f"inventory hashes to {actual_hash}"
+            return stop(
+                f"inventory_source.sha256: declared {declared_hash} but the supplied inventory "
+                f"hashes to {actual_hash}"
             )
-            return 1
     base = None
     if args.base:
         base_path = Path(args.base)
@@ -1926,27 +2021,22 @@ def command_validate(args: argparse.Namespace) -> int:
             base_raw = base_path.read_bytes()
             base = json.loads(base_raw.decode("utf-8"))
         except (OSError, json.JSONDecodeError, UnicodeDecodeError) as error:
-            print(f"[RED    ] base record {base_path} is not readable JSON/UTF-8: {error}")
-            return 1
+            return stop(f"base record {base_path} is not readable JSON/UTF-8: {error}")
         if not isinstance(base, dict):
-            print("[RED    ] base record is not a JSON object")
-            return 1
+            return stop("base record is not a JSON object")
         for table in ("operations", "identities", "failure_matrix", "concurrency_matrix"):
             value = base.get(table, [])
             if value is not None and not isinstance(value, list):
-                print(f"[RED    ] base record {table} is not a list")
-                return 1
+                return stop(f"base record {table} is not a list")
             if isinstance(value, list) and any(not isinstance(item, dict) for item in value):
-                print(f"[RED    ] base record {table} contains a non-object entry")
-                return 1
+                return stop(f"base record {table} contains a non-object entry")
         declared = (record.get("fix_reclosure") or {}).get("base_record_sha256")
         actual = hashlib.sha256(base_raw).hexdigest()
         if declared and declared != actual:
-            print(
-                f"[RED    ] fix_reclosure.base_record_sha256: declared {declared} but the supplied "
-                f"base hashes to {actual}"
+            return stop(
+                f"fix_reclosure.base_record_sha256: declared {declared} but the supplied base "
+                f"hashes to {actual}"
             )
-            return 1
     findings = validate_record(
         record,
         base,
@@ -1957,17 +2047,9 @@ def command_validate(args: argparse.Namespace) -> int:
         args.trusted_base,
         args.integration_ref,
     )
-    verdict = {
-        "schema": "fairy.implementation-contract-closure.verdict.v1",
-        "closed": not findings,
-        "finding_count": len(findings),
-        "findings": [str(finding) for finding in findings],
-    }
-    for finding in findings:
-        print(f"[RED    ] {finding}")
     # A machine verdict, so a consumer never has to grep prose (a finding that
     # merely CONTAINS a tolerated word could otherwise pass as tolerated).
-    print("VERDICT " + json.dumps(verdict, ensure_ascii=False))
+    emit_verdict([str(finding) for finding in findings], 1 if findings else 0)
     if findings:
         print(f"implementation contract closure: {len(findings)} unclosed cell(s) — implementation must not start")
         return 1

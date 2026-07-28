@@ -11,11 +11,18 @@ received yet. The record is machine-checked — the gate, not the prose, is what
 closes it:
 
 ```bash
-BASE=$(git merge-base origin/main HEAD)   # an immutable ancestor object
+# The integration branch belongs to the project (.fairy/contract-surface.json
+# integration_ref); the trusted base must BE the merge base with it, so a
+# commit made inside this branch cannot vouch for the authority it changes.
+BASE=$(git merge-base "$INTEGRATION_REF" HEAD)
 ./fairy contract validate --record <record.json> \
     --inventory <canonical-operations.txt> --trusted-base "$BASE" \
-    [--base <previous-record.json>]
+    [--base <previous-record.json>] [--repo-root <other-project>]
 ```
+
+Passing `--integration-ref` is allowed only to restate the authority's value;
+`--repo-root` is how an extracted release package gates a different project,
+whose own authority, code surface and tracked inventory are then the ones read.
 
 The validator derives closure instead of trusting it: it generates the cross
 product of the operation inventory, decides admissible dispositions from each

@@ -66,6 +66,8 @@ jobs:
             --inventory examples/implementation-contract-closure.inventory.txt \
             --integration-ref origin/main \
             --trusted-base "$BASE"
+      - name: Contract closure gates a different project from the built package
+        run: python3 .github/scripts/contract_closure_package_e2e.py
       - name: Release package ships every consumer
         run: python3 scripts/package_skills.py
       - name: Task artifact gate (self-controls)
