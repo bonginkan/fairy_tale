@@ -26,10 +26,18 @@ Options:
   --ref REF              Git branch, tag, or commit. Default: main.
   --source PATH          Local source tree, for testing from a checkout.
   --create              Create the target directory if it does not exist.
-  --force               Replace existing fairy-tale skill directories.
+  --force               Replace existing skill directories whose contents differ.
   --allow-outside-home  Allow a target outside $HOME.
   --dry-run             Print planned actions without writing files.
   --help                Show this help.
+
+Every skill directory under skills/ is installed; there is no separate list to
+keep in step. Re-running is safe: a skill that already matches the source is
+left alone, and a skill missing from the target is added. --force is needed
+only to overwrite a skill that differs from the source, or one whose
+destination is a symlink. A destination that cannot be replaced is reported
+and leaves the exit status non-zero, but it does not stop the skills after it
+from being installed.
 USAGE
 }
 
@@ -64,11 +72,86 @@ case "$TARGET" in
   *) echo "--target must be an absolute path: $TARGET" >&2; exit 2 ;;
 esac
 
-if [ "$ALLOW_OUTSIDE_HOME" -eq 0 ]; then
-  case "$TARGET" in
-    "$HOME"/*) ;;
-    *) echo "refusing target outside HOME without --allow-outside-home: $TARGET" >&2; exit 2 ;;
+# Resolve a path the way the filesystem will, not the way it is spelled. A
+# boundary checked against the written path is not a boundary: a symlink
+# anywhere along it leads somewhere the text never mentions.
+physical_path() {
+  # Walk the path one component at a time and resolve each step that exists.
+  # Anything less is a different path than the one the kernel will use: a
+  # symlink resolves to somewhere the text never names, and `..` applies to
+  # where the previous components actually led -- including through a
+  # component that does not exist yet and is about to be created.
+  pp_rest="$1"
+  case "$pp_rest" in
+    /*) pp_out="/" ;;
+    *) pp_out="$(pwd -P)" ;;
   esac
+  while [ -n "$pp_rest" ]; do
+    case "$pp_rest" in
+      /*) pp_rest="${pp_rest#/}"; continue ;;
+    esac
+    pp_head="${pp_rest%%/*}"
+    if [ "$pp_head" = "$pp_rest" ]; then
+      pp_rest=""
+    else
+      pp_rest="${pp_rest#*/}"
+    fi
+    case "$pp_head" in
+      '' | .)
+        continue
+        ;;
+      ..)
+        pp_out="${pp_out%/*}"
+        [ -z "$pp_out" ] && pp_out="/"
+        continue
+        ;;
+    esac
+    case "$pp_out" in
+      /) pp_next="/$pp_head" ;;
+      *) pp_next="$pp_out/$pp_head" ;;
+    esac
+    if [ -d "$pp_next" ]; then
+      pp_out="$(cd "$pp_next" && pwd -P)"
+    else
+      pp_out="$pp_next"
+    fi
+  done
+  printf '%s\n' "$pp_out"
+}
+
+# True when $2 is $1 or lives under it, compared as resolved paths.
+path_contains() {
+  case "$2/" in
+    "$1"/*) return 0 ;;
+  esac
+  return 1
+}
+
+# True when the tree holds a symlink anywhere inside it, and when that cannot
+# be established. A skill assembled from links is not a copy: its bytes live
+# where the installer never looked, and they can change or vanish after every
+# check this script performs has passed.
+# 0: holds a symlink. 1: holds none. 2: could not be established.
+# The answer has to come from find's own status. Reading it off the end of a
+# pipeline reports whatever the last stage made of the silence, and a find
+# that failed is silent in exactly the same way as a tree with no links in
+# it. "Could not be established" is kept separate from "holds one" so the
+# refusal says which of the two happened; both stop the run either way.
+holds_symlink() {
+  command -v find >/dev/null 2>&1 || return 2
+  hs_found="$(find "$1" -type l -print 2>/dev/null)" || return 2
+  [ -n "$hs_found" ]
+}
+
+TARGET_PHYS="$(physical_path "$TARGET")"
+
+if [ "$ALLOW_OUTSIDE_HOME" -eq 0 ]; then
+  HOME_PHYS="$(physical_path "$HOME")"
+  if ! path_contains "$HOME_PHYS" "$TARGET_PHYS"; then
+    echo "refusing target outside HOME without --allow-outside-home: $TARGET" >&2
+    echo "resolves to: $TARGET_PHYS" >&2
+    exit 2
+  fi
 fi
 
 if [ ! -d "$TARGET" ]; then
@@ -106,24 +189,105 @@ else
   fi
 fi
 
-for SKILL in fairy-tale fairy-tale-benchmark-feedback fairy-tale-legal-feedback; do
-  SRC="$ROOT/skills/$SKILL"
-  DEST="$TARGET/$SKILL"
-  if [ "$DRY_RUN" -eq 0 ] && [ ! -f "$SRC/SKILL.md" ]; then
-    echo "missing skill source: $SRC" >&2
+# The installed set is the source tree itself. A second list kept here would be
+# a second thing to remember, and the one that is forgotten is the one that
+# stops shipping.
+SKILLS_SRC="$ROOT/skills"
+
+if [ ! -d "$SKILLS_SRC" ]; then
+  if [ "$DRY_RUN" -eq 1 ] && [ -z "$SOURCE_DIR" ]; then
+    # Nothing was fetched, so the set can only be named, not enumerated.
+    echo "install every skill under skills/ of $REPO@$REF -> $TARGET"
+  else
+    echo "missing skills directory in source: $SKILLS_SRC" >&2
     exit 1
   fi
-  if [ -e "$DEST" ] && [ "$FORCE" -eq 0 ]; then
-    echo "destination exists; use --force to replace: $DEST" >&2
+else
+  SKILLS_PHYS="$(physical_path "$SKILLS_SRC")"
+  # --force removes a destination before copying onto it. When the destination
+  # is the source, or holds it, that removal deletes the very tree being
+  # installed and the run consumes its own input.
+  if path_contains "$SKILLS_PHYS" "$TARGET_PHYS" \
+    || path_contains "$TARGET_PHYS" "$SKILLS_PHYS"; then
+    echo "refusing a target that overlaps the source tree" >&2
+    echo "  target resolves to: $TARGET_PHYS" >&2
+    echo "  source resolves to: $SKILLS_PHYS" >&2
     exit 2
   fi
-  echo "install $SRC -> $DEST"
-  if [ "$DRY_RUN" -eq 0 ]; then
-    if [ -e "$DEST" ]; then
-      rm -rf "$DEST"
+
+  INSTALLED=0
+  REFUSED=0
+  for SRC in "$SKILLS_SRC"/*; do
+    [ -d "$SRC" ] || continue
+    SKILL="${SRC##*/}"
+    DEST="$TARGET/$SKILL"
+    if [ ! -f "$SRC/SKILL.md" ]; then
+      echo "missing skill source: $SRC/SKILL.md" >&2
+      exit 1
     fi
-    cp -R "$SRC" "$DEST"
+    holds_symlink "$SRC" && SRC_LINKS=0 || SRC_LINKS=$?
+    if [ -L "$SRC" ] || [ "$SRC_LINKS" -eq 0 ]; then
+      echo "source skill is not a plain tree of files: $SRC" >&2
+      exit 1
+    fi
+    if [ "$SRC_LINKS" -eq 2 ]; then
+      echo "cannot establish whether the source holds symlinks: $SRC" >&2
+      exit 1
+    fi
+    if [ -e "$DEST" ] || [ -L "$DEST" ]; then
+      if [ "$FORCE" -eq 0 ]; then
+        # A refusal is about one destination. Ending the whole run here would
+        # keep every later skill out of the target -- the way a lane stays
+        # frozen at whatever it was first given.
+        if [ -L "$DEST" ]; then
+          # What this destination holds is decided elsewhere, and can change
+          # after this run without the installer being involved.
+          echo "destination is a symlink; use --force to replace: $DEST" >&2
+          REFUSED=$((REFUSED + 1))
+          continue
+        fi
+        holds_symlink "$DEST" && DEST_LINKS=0 || DEST_LINKS=$?
+        if [ "$DEST_LINKS" -eq 0 ]; then
+          # diff reads through a link, so a destination stitched together from
+          # links compares equal while holding none of what it reports.
+          echo "destination holds a symlink; use --force to replace: $DEST" >&2
+          REFUSED=$((REFUSED + 1))
+          continue
+        fi
+        if [ "$DEST_LINKS" -eq 2 ]; then
+          echo "cannot establish whether the destination holds symlinks;" \
+            "use --force to replace: $DEST" >&2
+          REFUSED=$((REFUSED + 1))
+          continue
+        fi
+        if command -v diff >/dev/null 2>&1 && diff -r "$SRC" "$DEST" >/dev/null 2>&1; then
+          echo "up to date $DEST"
+          INSTALLED=$((INSTALLED + 1))
+          continue
+        fi
+        echo "destination exists and differs; use --force to replace: $DEST" >&2
+        REFUSED=$((REFUSED + 1))
+        continue
+      fi
+    fi
+    echo "install $SRC -> $DEST"
+    if [ "$DRY_RUN" -eq 0 ]; then
+      if [ -e "$DEST" ] || [ -L "$DEST" ]; then
+        rm -rf "$DEST"
+      fi
+      cp -R "$SRC" "$DEST"
+    fi
+    INSTALLED=$((INSTALLED + 1))
+  done
+
+  if [ "$INSTALLED" -eq 0 ] && [ "$REFUSED" -eq 0 ]; then
+    echo "no skills found under $SKILLS_SRC" >&2
+    exit 1
   fi
-done
+  if [ "$REFUSED" -gt 0 ]; then
+    echo "$REFUSED skill(s) left unchanged; rerun with --force to replace them" >&2
+    exit 2
+  fi
+fi
 
 echo "Fairy Tale skills installed in $TARGET"

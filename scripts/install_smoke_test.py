@@ -4,19 +4,21 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import os
+import shutil
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
 from skill_markdown_refs import (
-    DISTRIBUTED_SKILL_NAMES,
+    distributed_skill_names,
     validate_skill_markdown_refs,
 )
 
 
 ROOT = Path(__file__).resolve().parents[1]
-REQUIRED_SKILLS = DISTRIBUTED_SKILL_NAMES
 REQUIRED_INSTALLED_FILES = (
     Path("fairy-tale") / "references" / "loop-engineering-automation.md",
     Path("fairy-tale") / "references" / "feedback-governance.md",
@@ -33,29 +35,78 @@ REQUIRED_INSTALLED_FILES = (
 )
 
 
-def run_install(target: Path, source: Path) -> None:
-    subprocess.run(
-        [
-            "sh",
-            str(source / "install.sh"),
-            "--source",
-            str(source),
-            "--target",
-            str(target),
-            "--create",
-            "--force",
-            "--allow-outside-home",
-        ],
-        check=True,
-    )
+def run_install(
+    target: Path,
+    source: Path,
+    *,
+    force: bool = True,
+    check: bool = True,
+) -> subprocess.CompletedProcess[str]:
+    command = [
+        "sh",
+        str(source / "install.sh"),
+        "--source",
+        str(source),
+        "--target",
+        str(target),
+        "--create",
+        "--allow-outside-home",
+    ]
+    if force:
+        command.append("--force")
+    return subprocess.run(command, check=check, capture_output=True, text=True)
 
 
-def validate_install(target: Path) -> list[str]:
+def file_digests(base: Path) -> dict[Path, str]:
+    """Map relative path -> sha256 for every file under ``base``."""
+    return {
+        path.relative_to(base): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in sorted(base.rglob("*"))
+        if path.is_file()
+    }
+
+
+def installed_skill_names(target: Path) -> set[str]:
+    if not target.is_dir():
+        return set()
+    return {
+        entry.name
+        for entry in target.iterdir()
+        if (entry / "SKILL.md").is_file()
+    }
+
+
+def validate_distribution(target: Path, source_skills: Path) -> list[str]:
+    """Compare what shipped against the source tree, name and byte.
+
+    Presence alone cannot see the two failures that actually happen: a skill
+    added to the tree but never distributed, and a destination copy that
+    drifted from the source while keeping the same file count.
+    """
     failures: list[str] = []
-    for skill in REQUIRED_SKILLS:
-        skill_file = target / skill / "SKILL.md"
-        if not skill_file.exists():
-            failures.append(f"missing installed skill: {skill_file}")
+    expected = set(distributed_skill_names(source_skills))
+    installed = installed_skill_names(target)
+
+    for name in sorted(expected - installed):
+        failures.append(f"source skill was not installed: {name}")
+    for name in sorted(installed - expected):
+        failures.append(f"installed skill is absent from the source: {name}")
+
+    for name in sorted(expected & installed):
+        source_files = file_digests(source_skills / name)
+        installed_files = file_digests(target / name)
+        for rel in sorted(set(source_files) - set(installed_files)):
+            failures.append(f"{name}: source file was not installed: {rel}")
+        for rel in sorted(set(installed_files) - set(source_files)):
+            failures.append(f"{name}: installed file is absent from the source: {rel}")
+        for rel in sorted(set(source_files) & set(installed_files)):
+            if source_files[rel] != installed_files[rel]:
+                failures.append(f"{name}: installed content differs from the source: {rel}")
+    return failures
+
+
+def validate_install(target: Path, source: Path) -> list[str]:
+    failures = validate_distribution(target, source / "skills")
 
     for required in REQUIRED_INSTALLED_FILES:
         if not (target / required).exists():
@@ -63,6 +114,434 @@ def validate_install(target: Path) -> list[str]:
 
     ref_failures, _, _ = validate_skill_markdown_refs(target)
     failures.extend(ref_failures)
+    return failures
+
+
+def selftest_distribution_checks() -> tuple[list[str], int]:
+    """Prove the comparison fails on the drift it exists to catch.
+
+    A check never observed failing is indistinguishable from one that cannot
+    fail, which is how a skill that shipped nowhere passed CI for weeks.
+    """
+    failures: list[str] = []
+    controls = 0
+    with tempfile.TemporaryDirectory(prefix="fairy-tale-install-control-") as tmp:
+        root = Path(tmp)
+        source_skills = root / "source"
+        target = root / "target"
+        for base in (source_skills, target):
+            skill = base / "sample-skill"
+            skill.mkdir(parents=True)
+            (skill / "SKILL.md").write_text("canonical\n")
+            (skill / "reference.md").write_text("companion\n")
+
+        controls += 1
+        if validate_distribution(target, source_skills):
+            failures.append("identical trees were reported as drift")
+
+        drifted = target / "sample-skill" / "SKILL.md"
+        drifted.write_text("drifted\n")
+        controls += 1
+        if not validate_distribution(target, source_skills):
+            failures.append("content drift at an unchanged file count went unseen")
+        drifted.write_text("canonical\n")
+
+        uninstalled = target / "sample-skill" / "reference.md"
+        uninstalled.unlink()
+        controls += 1
+        if not validate_distribution(target, source_skills):
+            failures.append("a source file that never shipped went unseen")
+        uninstalled.write_text("companion\n")
+
+        added = source_skills / "later-skill"
+        added.mkdir()
+        (added / "SKILL.md").write_text("added after the target was built\n")
+        controls += 1
+        if not validate_distribution(target, source_skills):
+            failures.append("a skill absent from the distribution went unseen")
+        shutil.rmtree(added)
+
+        stray = target / "stray-skill"
+        stray.mkdir()
+        (stray / "SKILL.md").write_text("no source counterpart\n")
+        controls += 1
+        if not validate_distribution(target, source_skills):
+            failures.append("an installed skill with no source went unseen")
+        shutil.rmtree(stray)
+    return failures, controls
+
+
+def run_update_path_controls(source: Path) -> list[str]:
+    """Exercise what happens on the second run against a populated target.
+
+    An installer that refuses every populated target can only ever install
+    once, so a lane keeps whatever version it was first given and a skill
+    added later never reaches it. These controls pin that contract down.
+    """
+    failures: list[str] = []
+    source_skills = source / "skills"
+    names = distributed_skill_names(source_skills)
+    if not names:
+        return ["no skills found to exercise the update path"]
+    sample = names[-1]
+
+    with tempfile.TemporaryDirectory(prefix="fairy-tale-install-update-") as tmp:
+        target = Path(tmp) / "skills"
+        run_install(target, source)
+        baseline = {name: file_digests(target / name) for name in names}
+
+        repeated = run_install(target, source, force=False, check=False)
+        if repeated.returncode != 0:
+            failures.append(
+                "re-running over an identical target was refused: "
+                f"rc={repeated.returncode}"
+            )
+        if {name: file_digests(target / name) for name in names} != baseline:
+            failures.append("re-running over an identical target modified it")
+
+        shutil.rmtree(target / sample)
+        restored = run_install(target, source, force=False, check=False)
+        if restored.returncode != 0:
+            failures.append(
+                f"a skill missing from the target was not installed: {sample}: "
+                f"rc={restored.returncode}"
+            )
+        elif file_digests(target / sample) != baseline[sample]:
+            failures.append(f"re-installed skill differs from the source: {sample}")
+
+        drifted = target / sample / "SKILL.md"
+        drifted.write_text(drifted.read_text() + "\ndrift\n")
+        after_drift = file_digests(target / sample)
+        refused = run_install(target, source, force=False, check=False)
+        if refused.returncode != 2:
+            failures.append(
+                f"a drifted target was not refused: rc={refused.returncode}"
+            )
+        if file_digests(target / sample) != after_drift:
+            failures.append("a refused run modified the target")
+
+        repaired = run_install(target, source, force=True, check=False)
+        if repaired.returncode != 0:
+            failures.append(f"--force did not replace drift: rc={repaired.returncode}")
+        elif file_digests(target / sample) != baseline[sample]:
+            failures.append(f"--force left the skill unlike the source: {sample}")
+
+        if len(names) >= 2:
+            blocker = names[0]
+            blocked = target / blocker / "SKILL.md"
+            blocked.write_text(blocked.read_text() + "\ndrift\n")
+            shutil.rmtree(target / sample)
+            partial = run_install(target, source, force=False, check=False)
+            if partial.returncode != 2:
+                failures.append(
+                    "a destination that cannot be replaced was not reported: "
+                    f"rc={partial.returncode}"
+                )
+            if not (target / sample).is_dir():
+                failures.append(
+                    "a refused destination kept a later skill out of the target: "
+                    f"{sample}"
+                )
+            run_install(target, source)
+
+        # A destination need not be a link itself to stop being a copy. One
+        # link anywhere inside it is enough, and the comparison reads straight
+        # through it.
+        kept = Path(tmp) / "kept"
+        kept.mkdir()
+        kept_file = kept / "linked-file"
+        shutil.copy(source_skills / sample / "SKILL.md", kept_file)
+        nested_file = target / sample / "SKILL.md"
+        nested_file.unlink()
+        nested_file.symlink_to(kept_file)
+        nested = run_install(target, source, force=False, check=False)
+        if nested.returncode != 2:
+            failures.append(
+                f"a destination holding a linked file was not refused: "
+                f"rc={nested.returncode}"
+            )
+        if not nested_file.is_symlink():
+            failures.append("a refused destination had its linked file replaced")
+
+        kept_dir = kept / "linked-dir"
+        source_subdir = next(
+            (
+                path
+                for path in sorted((source_skills / sample).iterdir())
+                if path.is_dir()
+            ),
+            None,
+        )
+        nested_dir = None
+        if source_subdir is not None:
+            shutil.copytree(source_subdir, kept_dir)
+            nested_dir = target / sample / source_subdir.name
+            shutil.rmtree(nested_dir)
+            nested_dir.symlink_to(kept_dir, target_is_directory=True)
+            linked_dir_run = run_install(target, source, force=False, check=False)
+            if linked_dir_run.returncode != 2:
+                failures.append(
+                    "a destination holding a linked directory was not refused: "
+                    f"rc={linked_dir_run.returncode}"
+                )
+            if not nested_dir.is_symlink():
+                failures.append(
+                    "a refused destination had its linked directory replaced"
+                )
+
+        forced_nested = run_install(target, source, force=True, check=False)
+        if forced_nested.returncode != 0:
+            failures.append(
+                f"--force did not replace linked entries: rc={forced_nested.returncode}"
+            )
+        if nested_file.is_symlink() or (nested_dir and nested_dir.is_symlink()):
+            failures.append("--force left a linked entry in place")
+        if not kept_file.exists() or (kept_dir.exists() != (nested_dir is not None)):
+            failures.append("--force removed what a destination link pointed at")
+        if file_digests(target / sample) != baseline[sample]:
+            failures.append(f"--force left the relinked skill unlike the source: {sample}")
+
+        linked_to = Path(tmp) / "elsewhere"
+        shutil.copytree(source_skills / sample, linked_to)
+        shutil.rmtree(target / sample)
+        (target / sample).symlink_to(linked_to, target_is_directory=True)
+        symlinked = run_install(target, source, force=False, check=False)
+        if symlinked.returncode != 2:
+            failures.append(
+                f"a symlinked destination was not refused: rc={symlinked.returncode}"
+            )
+        if not (target / sample).is_symlink():
+            failures.append("a refused symlinked destination was modified")
+        forced = run_install(target, source, force=True, check=False)
+        if forced.returncode != 0 or (target / sample).is_symlink():
+            failures.append("--force did not replace a symlinked destination")
+        elif file_digests(target / sample) != baseline[sample]:
+            failures.append(f"--force left the replaced skill unlike the source: {sample}")
+    return failures
+
+
+def run_boundary_controls(source: Path) -> list[str]:
+    """Refuse, before writing, the targets that resolve somewhere else.
+
+    A boundary tested against the path as written let a symlinked target write
+    outside it, and a target that resolved onto the source deleted the tree
+    being installed while installing it.
+    """
+    failures: list[str] = []
+    with tempfile.TemporaryDirectory(prefix="fairy-tale-install-boundary-") as tmp:
+        root = Path(tmp)
+        home = root / "home"
+        outside = root / "outside"
+        home.mkdir()
+        outside.mkdir()
+        link = home / "skills-link"
+        link.symlink_to(outside, target_is_directory=True)
+
+        escaped = subprocess.run(
+            [
+                "sh",
+                str(source / "install.sh"),
+                "--source",
+                str(source),
+                "--target",
+                str(link),
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            env={**os.environ, "HOME": str(home)},
+        )
+        if escaped.returncode == 0:
+            failures.append("a symlinked target reaching outside HOME was accepted")
+        if any(outside.iterdir()):
+            failures.append("a target outside HOME was written to before refusal")
+
+        # --create builds the missing part of the path under whatever the
+        # existing part turns out to be, so the symlink need not be the target
+        # itself to lead out of $HOME.
+        buried = subprocess.run(
+            [
+                "sh",
+                str(source / "install.sh"),
+                "--source",
+                str(source),
+                "--target",
+                str(link / "deep" / "skills"),
+                "--create",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            env={**os.environ, "HOME": str(home)},
+        )
+        if buried.returncode == 0:
+            failures.append("a symlinked ancestor was accepted with --create")
+        if any(outside.iterdir()):
+            failures.append("a target reached through a symlinked ancestor was written")
+
+        # `..` in a part of the path that does not exist yet still applies
+        # once the path is walked, so a target can climb out of $HOME through
+        # a directory that is only about to be created.
+        climbed = subprocess.run(
+            [
+                "sh",
+                str(source / "install.sh"),
+                "--source",
+                str(source),
+                "--target",
+                f"{home}/new/../../outside/climbed/skills",
+                "--create",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            env={**os.environ, "HOME": str(home)},
+        )
+        if climbed.returncode == 0:
+            failures.append("a target climbing out of HOME with .. was accepted")
+        if (outside / "climbed").exists():
+            failures.append("a target that climbed out of HOME was written")
+
+        inside = home / "nested" / "skills"
+        allowed = subprocess.run(
+            [
+                "sh",
+                str(source / "install.sh"),
+                "--source",
+                str(source),
+                "--target",
+                str(inside),
+                "--create",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            env={**os.environ, "HOME": str(home)},
+        )
+        if allowed.returncode != 0:
+            failures.append(
+                f"a target inside HOME was refused: rc={allowed.returncode}"
+            )
+
+        staged = root / "staged"
+        staged.mkdir()
+        shutil.copytree(source / "skills", staged / "skills")
+        shutil.copy(source / "install.sh", staged / "install.sh")
+        before = sorted(path.name for path in (staged / "skills").iterdir())
+        overlapping = subprocess.run(
+            [
+                "sh",
+                str(staged / "install.sh"),
+                "--source",
+                str(staged),
+                "--target",
+                str(staged / "skills"),
+                "--allow-outside-home",
+                "--force",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if overlapping.returncode == 0:
+            failures.append("a target overlapping the source tree was accepted")
+        after = sorted(path.name for path in (staged / "skills").iterdir())
+        if after != before:
+            failures.append(
+                f"a refused run consumed the source tree: {before} -> {after}"
+            )
+
+        climbing = subprocess.run(
+            [
+                "sh",
+                str(staged / "install.sh"),
+                "--source",
+                str(staged),
+                "--target",
+                f"{staged}/new/../skills",
+                "--allow-outside-home",
+                "--create",
+                "--force",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if climbing.returncode == 0:
+            failures.append("a target reaching the source through .. was accepted")
+        reached = sorted(path.name for path in (staged / "skills").iterdir())
+        if reached != before:
+            failures.append(
+                f"a target reaching the source through .. consumed it: "
+                f"{before} -> {reached}"
+            )
+    return failures
+
+
+def run_inspection_controls(source: Path) -> list[str]:
+    """What the installer does when it cannot search for links at all.
+
+    A missing tool was handled; a tool that ran and failed was not. A failed
+    search prints exactly what a tree with no links in it prints, so the two
+    have to be told apart by status rather than by silence.
+    """
+    failures: list[str] = []
+    source_skills = source / "skills"
+    names = distributed_skill_names(source_skills)
+    if not names:
+        return ["no skills found to exercise link inspection"]
+    sample = names[-1]
+
+    with tempfile.TemporaryDirectory(prefix="fairy-tale-install-inspect-") as tmp:
+        root = Path(tmp)
+        target = root / "skills"
+        run_install(target, source)
+
+        kept = root / "kept"
+        kept.mkdir()
+        kept_file = kept / "linked"
+        shutil.copy(source_skills / sample / "SKILL.md", kept_file)
+        linked = target / sample / "SKILL.md"
+        linked.unlink()
+        linked.symlink_to(kept_file)
+
+        borrowed = root / "bin"
+        borrowed.mkdir()
+        for name in ("sh", "diff", "cp", "rm", "mkdir"):
+            real = shutil.which(name)
+            if real:
+                (borrowed / name).symlink_to(real)
+        stub = borrowed / "find"
+
+        for label in ("absent", "failing"):
+            if label == "failing":
+                stub.write_text("#!/bin/sh\nexit 1\n")
+                stub.chmod(0o755)
+            result = subprocess.run(
+                [
+                    "sh",
+                    str(source / "install.sh"),
+                    "--source",
+                    str(source),
+                    "--target",
+                    str(target),
+                    "--allow-outside-home",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                env={**os.environ, "PATH": str(borrowed)},
+            )
+            if result.returncode == 0:
+                failures.append(
+                    f"a run that could not search for links ({label} find) "
+                    "reported success"
+                )
+            if not linked.is_symlink():
+                failures.append(
+                    f"a run that could not search for links ({label} find) "
+                    "changed the target"
+                )
     return failures
 
 
@@ -74,13 +553,21 @@ def main() -> int:
     source = args.source.resolve()
     with tempfile.TemporaryDirectory(prefix="fairy-tale-install-smoke-") as tmp:
         target = Path(tmp) / "skills"
-        run_install(target, source)
-        failures = validate_install(target)
+        print(run_install(target, source).stdout, end="")
+        failures = validate_install(target, source)
+        failures.extend(run_update_path_controls(source))
+        failures.extend(run_boundary_controls(source))
+        failures.extend(run_inspection_controls(source))
+        control_failures, controls = selftest_distribution_checks()
+        failures.extend(control_failures)
         if failures:
             for failure in failures:
                 print(f"FAIL {failure}", file=sys.stderr)
             return 1
-        print(f"OK install smoke passed for {target}")
+        print(
+            f"OK install smoke passed for {target} "
+            f"({controls} distribution controls)"
+        )
         return 0
 
 

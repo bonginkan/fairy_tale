@@ -53,6 +53,12 @@ Use `--agent claude` for `~/.claude/skills`, `--agent agents` for
 The installer fails closed if the target directory is missing unless `--create`
 is supplied.
 
+Every skill under `skills/` is installed, so a skill added to the repository
+reaches an existing target on the next run. Re-running is safe: a skill that
+already matches the source is left alone, a skill the target does not have yet
+is added, and `--force` is needed only to replace a skill whose contents differ
+from the source.
+
 From a source checkout, use the unified repository CLI to discover and run the
 same workflow checks without memorizing individual script paths:
 

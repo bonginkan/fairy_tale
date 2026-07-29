@@ -68,11 +68,30 @@ COMMONMARK_ENTITY_RE = re.compile(
 )
 WINDOWS_DRIVE_PATH_RE = re.compile(r"^[A-Za-z]:[\\/]")
 URI_SCHEME_PREFIX_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:")
-DISTRIBUTED_SKILL_NAMES = (
-    "fairy-tale",
-    "fairy-tale-benchmark-feedback",
-    "fairy-tale-legal-feedback",
-)
+SKILL_PACKAGE_ROOT = Path(__file__).resolve().parents[1] / "skills"
+
+
+def distributed_skill_names(
+    package_root: Path = SKILL_PACKAGE_ROOT,
+) -> tuple[str, ...]:
+    """Return every skill the source tree holds, in sorted order.
+
+    Derived, never listed: a hand-kept roster answers "what did someone
+    remember to add" instead of "what exists", and a skill added to the tree
+    after the roster was last touched is silently never distributed.
+    """
+    if not package_root.is_dir():
+        return ()
+    return tuple(
+        sorted(
+            entry.name
+            for entry in package_root.iterdir()
+            if (entry / "SKILL.md").is_file()
+        )
+    )
+
+
+DISTRIBUTED_SKILL_NAMES = distributed_skill_names()
 COMMONMARK_ESCAPABLE = frozenset(
     "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
 )
