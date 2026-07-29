@@ -77,23 +77,38 @@ esac
 # anywhere along it leads somewhere the text never mentions.
 physical_path() {
   pp_path="$1"
-  if [ -d "$pp_path" ]; then
-    (cd "$pp_path" && pwd -P)
+  while :; do
+    case "$pp_path" in
+      ?*/) pp_path="${pp_path%/}" ;;
+      *) break ;;
+    esac
+  done
+  # Climb to the deepest part that exists before resolving. --create makes the
+  # rest, and it makes it under whatever the existing part really is: checking
+  # only the immediate parent leaves a symlink further up unexamined.
+  pp_rest=""
+  while :; do
+    if [ -d "$pp_path" ]; then
+      pp_resolved="$(cd "$pp_path" && pwd -P)"
+      break
+    fi
+    pp_parent="${pp_path%/*}"
+    [ -z "$pp_parent" ] && pp_parent="/"
+    if [ "$pp_parent" = "$pp_path" ]; then
+      pp_resolved="$pp_path"
+      break
+    fi
+    pp_rest="${pp_path##*/}${pp_rest:+/}$pp_rest"
+    pp_path="$pp_parent"
+  done
+  if [ -z "$pp_rest" ]; then
+    printf '%s\n' "$pp_resolved"
     return
   fi
-  pp_base="${pp_path##*/}"
-  pp_dir="${pp_path%/*}"
-  [ "$pp_dir" = "$pp_path" ] && pp_dir="."
-  [ -z "$pp_dir" ] && pp_dir="/"
-  if [ -d "$pp_dir" ]; then
-    pp_parent="$(cd "$pp_dir" && pwd -P)"
-    case "$pp_parent" in
-      */) printf '%s%s\n' "$pp_parent" "$pp_base" ;;
-      *) printf '%s/%s\n' "$pp_parent" "$pp_base" ;;
-    esac
-  else
-    printf '%s\n' "$pp_path"
-  fi
+  case "$pp_resolved" in
+    */) printf '%s%s\n' "$pp_resolved" "$pp_rest" ;;
+    *) printf '%s/%s\n' "$pp_resolved" "$pp_rest" ;;
+  esac
 }
 
 # True when $2 is $1 or lives under it, compared as resolved paths.

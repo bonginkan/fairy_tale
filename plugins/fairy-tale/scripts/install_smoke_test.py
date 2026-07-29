@@ -299,6 +299,50 @@ def run_boundary_controls(source: Path) -> list[str]:
         if any(outside.iterdir()):
             failures.append("a target outside HOME was written to before refusal")
 
+        # --create builds the missing part of the path under whatever the
+        # existing part turns out to be, so the symlink need not be the target
+        # itself to lead out of $HOME.
+        buried = subprocess.run(
+            [
+                "sh",
+                str(source / "install.sh"),
+                "--source",
+                str(source),
+                "--target",
+                str(link / "deep" / "skills"),
+                "--create",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            env={**os.environ, "HOME": str(home)},
+        )
+        if buried.returncode == 0:
+            failures.append("a symlinked ancestor was accepted with --create")
+        if any(outside.iterdir()):
+            failures.append("a target reached through a symlinked ancestor was written")
+
+        inside = home / "nested" / "skills"
+        allowed = subprocess.run(
+            [
+                "sh",
+                str(source / "install.sh"),
+                "--source",
+                str(source),
+                "--target",
+                str(inside),
+                "--create",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            env={**os.environ, "HOME": str(home)},
+        )
+        if allowed.returncode != 0:
+            failures.append(
+                f"a target inside HOME was refused: rc={allowed.returncode}"
+            )
+
         staged = root / "staged"
         staged.mkdir()
         shutil.copytree(source / "skills", staged / "skills")
