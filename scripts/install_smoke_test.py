@@ -478,6 +478,73 @@ def run_boundary_controls(source: Path) -> list[str]:
     return failures
 
 
+def run_inspection_controls(source: Path) -> list[str]:
+    """What the installer does when it cannot search for links at all.
+
+    A missing tool was handled; a tool that ran and failed was not. A failed
+    search prints exactly what a tree with no links in it prints, so the two
+    have to be told apart by status rather than by silence.
+    """
+    failures: list[str] = []
+    source_skills = source / "skills"
+    names = distributed_skill_names(source_skills)
+    if not names:
+        return ["no skills found to exercise link inspection"]
+    sample = names[-1]
+
+    with tempfile.TemporaryDirectory(prefix="fairy-tale-install-inspect-") as tmp:
+        root = Path(tmp)
+        target = root / "skills"
+        run_install(target, source)
+
+        kept = root / "kept"
+        kept.mkdir()
+        kept_file = kept / "linked"
+        shutil.copy(source_skills / sample / "SKILL.md", kept_file)
+        linked = target / sample / "SKILL.md"
+        linked.unlink()
+        linked.symlink_to(kept_file)
+
+        borrowed = root / "bin"
+        borrowed.mkdir()
+        for name in ("sh", "diff", "cp", "rm", "mkdir"):
+            real = shutil.which(name)
+            if real:
+                (borrowed / name).symlink_to(real)
+        stub = borrowed / "find"
+
+        for label in ("absent", "failing"):
+            if label == "failing":
+                stub.write_text("#!/bin/sh\nexit 1\n")
+                stub.chmod(0o755)
+            result = subprocess.run(
+                [
+                    "sh",
+                    str(source / "install.sh"),
+                    "--source",
+                    str(source),
+                    "--target",
+                    str(target),
+                    "--allow-outside-home",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                env={**os.environ, "PATH": str(borrowed)},
+            )
+            if result.returncode == 0:
+                failures.append(
+                    f"a run that could not search for links ({label} find) "
+                    "reported success"
+                )
+            if not linked.is_symlink():
+                failures.append(
+                    f"a run that could not search for links ({label} find) "
+                    "changed the target"
+                )
+    return failures
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source", type=Path, default=ROOT)
@@ -490,6 +557,7 @@ def main() -> int:
         failures = validate_install(target, source)
         failures.extend(run_update_path_controls(source))
         failures.extend(run_boundary_controls(source))
+        failures.extend(run_inspection_controls(source))
         control_failures, controls = selftest_distribution_checks()
         failures.extend(control_failures)
         if failures:

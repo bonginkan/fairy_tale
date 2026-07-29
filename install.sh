@@ -131,9 +131,16 @@ path_contains() {
 # be established. A skill assembled from links is not a copy: its bytes live
 # where the installer never looked, and they can change or vanish after every
 # check this script performs has passed.
+# 0: holds a symlink. 1: holds none. 2: could not be established.
+# The answer has to come from find's own status. Reading it off the end of a
+# pipeline reports whatever the last stage made of the silence, and a find
+# that failed is silent in exactly the same way as a tree with no links in
+# it. "Could not be established" is kept separate from "holds one" so the
+# refusal says which of the two happened; both stop the run either way.
 holds_symlink() {
-  command -v find >/dev/null 2>&1 || return 0
-  [ -n "$(find "$1" -type l -print 2>/dev/null | head -n 1)" ]
+  command -v find >/dev/null 2>&1 || return 2
+  hs_found="$(find "$1" -type l -print 2>/dev/null)" || return 2
+  [ -n "$hs_found" ]
 }
 
 TARGET_PHYS="$(physical_path "$TARGET")"
@@ -218,8 +225,13 @@ else
       echo "missing skill source: $SRC/SKILL.md" >&2
       exit 1
     fi
-    if [ -L "$SRC" ] || holds_symlink "$SRC"; then
+    holds_symlink "$SRC" && SRC_LINKS=0 || SRC_LINKS=$?
+    if [ -L "$SRC" ] || [ "$SRC_LINKS" -eq 0 ]; then
       echo "source skill is not a plain tree of files: $SRC" >&2
+      exit 1
+    fi
+    if [ "$SRC_LINKS" -eq 2 ]; then
+      echo "cannot establish whether the source holds symlinks: $SRC" >&2
       exit 1
     fi
     if [ -e "$DEST" ] || [ -L "$DEST" ]; then
@@ -234,10 +246,17 @@ else
           REFUSED=$((REFUSED + 1))
           continue
         fi
-        if holds_symlink "$DEST"; then
+        holds_symlink "$DEST" && DEST_LINKS=0 || DEST_LINKS=$?
+        if [ "$DEST_LINKS" -eq 0 ]; then
           # diff reads through a link, so a destination stitched together from
           # links compares equal while holding none of what it reports.
           echo "destination holds a symlink; use --force to replace: $DEST" >&2
+          REFUSED=$((REFUSED + 1))
+          continue
+        fi
+        if [ "$DEST_LINKS" -eq 2 ]; then
+          echo "cannot establish whether the destination holds symlinks;" \
+            "use --force to replace: $DEST" >&2
           REFUSED=$((REFUSED + 1))
           continue
         fi
