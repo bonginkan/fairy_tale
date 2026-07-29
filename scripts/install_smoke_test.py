@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import os
 import shutil
 import subprocess
 import sys
@@ -262,6 +263,72 @@ def run_update_path_controls(source: Path) -> list[str]:
     return failures
 
 
+def run_boundary_controls(source: Path) -> list[str]:
+    """Refuse, before writing, the targets that resolve somewhere else.
+
+    A boundary tested against the path as written let a symlinked target write
+    outside it, and a target that resolved onto the source deleted the tree
+    being installed while installing it.
+    """
+    failures: list[str] = []
+    with tempfile.TemporaryDirectory(prefix="fairy-tale-install-boundary-") as tmp:
+        root = Path(tmp)
+        home = root / "home"
+        outside = root / "outside"
+        home.mkdir()
+        outside.mkdir()
+        link = home / "skills-link"
+        link.symlink_to(outside, target_is_directory=True)
+
+        escaped = subprocess.run(
+            [
+                "sh",
+                str(source / "install.sh"),
+                "--source",
+                str(source),
+                "--target",
+                str(link),
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            env={**os.environ, "HOME": str(home)},
+        )
+        if escaped.returncode == 0:
+            failures.append("a symlinked target reaching outside HOME was accepted")
+        if any(outside.iterdir()):
+            failures.append("a target outside HOME was written to before refusal")
+
+        staged = root / "staged"
+        staged.mkdir()
+        shutil.copytree(source / "skills", staged / "skills")
+        shutil.copy(source / "install.sh", staged / "install.sh")
+        before = sorted(path.name for path in (staged / "skills").iterdir())
+        overlapping = subprocess.run(
+            [
+                "sh",
+                str(staged / "install.sh"),
+                "--source",
+                str(staged),
+                "--target",
+                str(staged / "skills"),
+                "--allow-outside-home",
+                "--force",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if overlapping.returncode == 0:
+            failures.append("a target overlapping the source tree was accepted")
+        after = sorted(path.name for path in (staged / "skills").iterdir())
+        if after != before:
+            failures.append(
+                f"a refused run consumed the source tree: {before} -> {after}"
+            )
+    return failures
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source", type=Path, default=ROOT)
@@ -273,6 +340,7 @@ def main() -> int:
         print(run_install(target, source).stdout, end="")
         failures = validate_install(target, source)
         failures.extend(run_update_path_controls(source))
+        failures.extend(run_boundary_controls(source))
         control_failures, controls = selftest_distribution_checks()
         failures.extend(control_failures)
         if failures:

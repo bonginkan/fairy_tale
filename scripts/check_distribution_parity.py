@@ -28,6 +28,17 @@ SKILL_PACKAGE_ROOT = ROOT / "skills"
 # Never searched for mirrors: VCS internals, build output, vendored trees.
 DISCOVERY_SKIP_DIRS = {".git", "__pycache__", "dist", "node_modules", "target"}
 
+# The distribution surface, declared. Discovery alone cannot express intent: a
+# mirror that disappears looks like a repo that never had it, and any other
+# skills/ tree in the repo looks like a mirror. Declaring the surface and
+# discovering it independently makes both directions fail -- a declared mirror
+# gone, or an undeclared one appearing -- instead of quietly changing coverage.
+DECLARED_MIRROR_ROOTS = (
+    Path(".claude") / "skills",
+    Path(".agents") / "skills",
+    Path("plugins") / "fairy-tale" / "skills",
+)
+
 
 def mirror_roots(root: Path = ROOT) -> tuple[Path, ...]:
     """Discover every skills/ tree that mirrors the canonical one.
@@ -67,12 +78,35 @@ COMPANION_SKIP_FILES = {".DS_Store"}
 # ships no non-.md files, so nothing is lost by delegating it to check_parity().
 COMPANION_EXCLUDE_TOP = {"skills"}
 
-def md_files(base: Path) -> dict[Path, Path]:
-    """Map relative path -> absolute path for every *.md under ``base``."""
-    return {p.relative_to(base): p for p in base.rglob("*.md") if p.is_file()}
+def tree_files(base: Path) -> dict[Path, Path]:
+    """Map relative path -> absolute path for every file under ``base``.
+
+    Every file, not every *.md. A skill is whatever it ships; comparing only
+    the Markdown leaves its data, fixtures, and scripts free to differ between
+    copies while the check still reports agreement.
+    """
+    files: dict[Path, Path] = {}
+    for path in base.rglob("*"):
+        if not path.is_file():
+            continue
+        rel = path.relative_to(base)
+        if COMPANION_SKIP_PARTS & set(rel.parts) or path.name in COMPANION_SKIP_FILES:
+            continue
+        files[rel] = path
+    return files
 
 
-def check_parity(root: Path = ROOT) -> tuple[list[str], int, int]:
+def skill_names(base: Path) -> set[str]:
+    """Skill directory names directly under ``base``."""
+    if not base.is_dir():
+        return set()
+    return {entry.name for entry in base.iterdir() if (entry / "SKILL.md").is_file()}
+
+
+def check_parity(
+    root: Path = ROOT,
+    declared: tuple[Path, ...] = DECLARED_MIRROR_ROOTS,
+) -> tuple[list[str], int, int]:
     errors: list[str] = []
     package_root = root / "skills"
     if not package_root.is_dir():
@@ -80,19 +114,36 @@ def check_parity(root: Path = ROOT) -> tuple[list[str], int, int]:
     names = distributed_skill_names(package_root)
     if not names:
         return [f"no skills found under {package_root.name}"], 0, 0
-    roots = mirror_roots(root)
-    if not roots:
-        # Nothing to compare against reads exactly like nothing wrong.
-        return [f"no distribution mirrors found under {root}"], len(names), 0
+
+    discovered = {path.relative_to(root) for path in mirror_roots(root)}
+    for rel in sorted(set(declared) - discovered):
+        errors.append(f"declared distribution mirror is missing: {rel}")
+    for rel in sorted(discovered - set(declared)):
+        errors.append(f"undeclared skills tree found where mirrors are: {rel}")
+    if errors:
+        # The surface itself is in doubt; comparing against it would only
+        # report agreement with the wrong set.
+        return errors, len(names), len(declared)
+
+    roots = tuple(root / rel for rel in declared)
+    canonical_names = set(names)
+    for mirror_root in roots:
+        rel_root = mirror_root.relative_to(root)
+        mirrored_names = skill_names(mirror_root)
+        for extra in sorted(mirrored_names - canonical_names):
+            errors.append(f"{rel_root}: skill the source does not have: {extra}")
+        for absent in sorted(canonical_names - mirrored_names):
+            errors.append(f"{rel_root}: source skill not mirrored: {absent}")
+
     for name in names:
-        canonical = md_files(package_root / name)
+        canonical = tree_files(package_root / name)
         for mirror_root in roots:
             mirror = mirror_root / name
             rel_mirror = mirror.relative_to(root)
             if not mirror.exists():
                 errors.append(f"missing mirror: {rel_mirror}")
                 continue
-            mirrored = md_files(mirror)
+            mirrored = tree_files(mirror)
             for rel in sorted(set(canonical) - set(mirrored)):
                 errors.append(f"{rel_mirror}: missing {rel}")
             for rel in sorted(set(mirrored) - set(canonical)):
@@ -104,41 +155,70 @@ def check_parity(root: Path = ROOT) -> tuple[list[str], int, int]:
 
 
 def selftest_parity_discovery() -> tuple[list[str], int]:
-    """Prove the mirror check fails when there is nothing left to compare.
+    """Prove the parity check fails on each way a distribution can rot.
 
-    A parity run that found no mirrors reported success, so a mirror set that
-    shrank -- or vanished -- looked exactly like a mirror set that agreed.
+    Every case below once passed as success: a mirror that vanished, a mirror
+    holding a skill the source dropped, a skill only a mirror had, and a
+    non-Markdown file that shipped in one copy only.
     """
     failures: list[str] = []
     controls = 0
+    declared = (Path(".claude") / "skills",)
+
+    def expect(label: str, *, should_fail: bool) -> None:
+        nonlocal controls
+        controls += 1
+        errors = check_parity(root, declared)[0]
+        if should_fail and not errors:
+            failures.append(f"{label} was reported as success")
+        if not should_fail and errors:
+            failures.append(f"{label} was rejected: {errors}")
+
     with tempfile.TemporaryDirectory(prefix="fairy-tale-parity-control-") as tmp:
         root = Path(tmp)
         canonical = root / "skills" / "sample-skill"
         canonical.mkdir(parents=True)
         (canonical / "SKILL.md").write_text("canonical\n")
-        mirror = root / ".claude" / "skills" / "sample-skill"
-        mirror.mkdir(parents=True)
-        (mirror / "SKILL.md").write_text("canonical\n")
+        (canonical / "table.json").write_text('{"canonical": true}\n')
+        mirror_root = root / ".claude" / "skills"
+        shutil.copytree(root / "skills", mirror_root)
 
-        controls += 1
-        errors, skills, roots = check_parity(root)
-        if errors or (skills, roots) != (1, 1):
-            failures.append(
-                "a discovered, matching mirror was not accepted: "
-                f"{errors} skills={skills} roots={roots}"
-            )
+        expect("a declared, matching mirror", should_fail=False)
 
-        (mirror / "SKILL.md").write_text("drifted\n")
-        controls += 1
-        if not check_parity(root)[0]:
-            failures.append("drift in a discovered mirror went unseen")
-        (mirror / "SKILL.md").write_text("canonical\n")
+        (mirror_root / "sample-skill" / "SKILL.md").write_text("drifted\n")
+        expect("Markdown drift", should_fail=True)
+        (mirror_root / "sample-skill" / "SKILL.md").write_text("canonical\n")
 
-        shutil.rmtree(root / ".claude")
-        controls += 1
-        errors, _, roots = check_parity(root)
-        if not errors or roots:
-            failures.append("a run with no mirror left was reported as success")
+        (mirror_root / "sample-skill" / "table.json").write_text('{"drifted": 1}\n')
+        expect("drift in a file that is not Markdown", should_fail=True)
+        (mirror_root / "sample-skill" / "table.json").write_text('{"canonical": true}\n')
+
+        (canonical / "extra.json").write_text("only in the source\n")
+        expect("a source file missing from every mirror", should_fail=True)
+        (canonical / "extra.json").unlink()
+
+        orphan = mirror_root / "mirror-only-skill"
+        orphan.mkdir()
+        (orphan / "SKILL.md").write_text("no source counterpart\n")
+        expect("a skill only a mirror has", should_fail=True)
+        shutil.rmtree(orphan)
+
+        dropped = root / "skills" / "dropped-skill"
+        dropped.mkdir()
+        (dropped / "SKILL.md").write_text("about to be dropped\n")
+        shutil.copytree(dropped, mirror_root / "dropped-skill")
+        shutil.rmtree(dropped)
+        expect("a mirror keeping a skill the source dropped", should_fail=True)
+        shutil.rmtree(mirror_root / "dropped-skill")
+
+        undeclared = root / "fixtures" / "skills" / "sample-skill"
+        undeclared.mkdir(parents=True)
+        (undeclared / "SKILL.md").write_text("a fixture, not a mirror\n")
+        expect("an undeclared skills tree", should_fail=True)
+        shutil.rmtree(root / "fixtures")
+
+        shutil.rmtree(mirror_root)
+        expect("a declared mirror that is gone", should_fail=True)
     return failures, controls
 
 
@@ -206,9 +286,9 @@ def main() -> int:
     copies = skills * (1 + roots)
     print(
         f"Fairy Tale distribution parity OK: {copies} skill copies byte-identical "
-        f"(*.md) across {skills} skills and {roots} discovered mirrors "
-        f"({discovery_controls} discovery controls), {companions} mirrored "
-        f"companion artifacts byte-identical, and "
+        f"(every file) across {skills} skills and {roots} mirrors, declared and "
+        f"discovered in agreement ({discovery_controls} surface controls), "
+        f"{companions} mirrored companion artifacts byte-identical, and "
         f"{markdown_refs} Markdown references across {markdown_files} packaged "
         f"Markdown files resolve ({ref_controls} negative/positive controls)."
     )

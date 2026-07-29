@@ -72,11 +72,47 @@ case "$TARGET" in
   *) echo "--target must be an absolute path: $TARGET" >&2; exit 2 ;;
 esac
 
-if [ "$ALLOW_OUTSIDE_HOME" -eq 0 ]; then
-  case "$TARGET" in
-    "$HOME"/*) ;;
-    *) echo "refusing target outside HOME without --allow-outside-home: $TARGET" >&2; exit 2 ;;
+# Resolve a path the way the filesystem will, not the way it is spelled. A
+# boundary checked against the written path is not a boundary: a symlink
+# anywhere along it leads somewhere the text never mentions.
+physical_path() {
+  pp_path="$1"
+  if [ -d "$pp_path" ]; then
+    (cd "$pp_path" && pwd -P)
+    return
+  fi
+  pp_base="${pp_path##*/}"
+  pp_dir="${pp_path%/*}"
+  [ "$pp_dir" = "$pp_path" ] && pp_dir="."
+  [ -z "$pp_dir" ] && pp_dir="/"
+  if [ -d "$pp_dir" ]; then
+    pp_parent="$(cd "$pp_dir" && pwd -P)"
+    case "$pp_parent" in
+      */) printf '%s%s\n' "$pp_parent" "$pp_base" ;;
+      *) printf '%s/%s\n' "$pp_parent" "$pp_base" ;;
+    esac
+  else
+    printf '%s\n' "$pp_path"
+  fi
+}
+
+# True when $2 is $1 or lives under it, compared as resolved paths.
+path_contains() {
+  case "$2/" in
+    "$1"/*) return 0 ;;
   esac
+  return 1
+}
+
+TARGET_PHYS="$(physical_path "$TARGET")"
+
+if [ "$ALLOW_OUTSIDE_HOME" -eq 0 ]; then
+  HOME_PHYS="$(physical_path "$HOME")"
+  if ! path_contains "$HOME_PHYS" "$TARGET_PHYS"; then
+    echo "refusing target outside HOME without --allow-outside-home: $TARGET" >&2
+    echo "resolves to: $TARGET_PHYS" >&2
+    exit 2
+  fi
 fi
 
 if [ ! -d "$TARGET" ]; then
@@ -128,6 +164,18 @@ if [ ! -d "$SKILLS_SRC" ]; then
     exit 1
   fi
 else
+  SKILLS_PHYS="$(physical_path "$SKILLS_SRC")"
+  # --force removes a destination before copying onto it. When the destination
+  # is the source, or holds it, that removal deletes the very tree being
+  # installed and the run consumes its own input.
+  if path_contains "$SKILLS_PHYS" "$TARGET_PHYS" \
+    || path_contains "$TARGET_PHYS" "$SKILLS_PHYS"; then
+    echo "refusing a target that overlaps the source tree" >&2
+    echo "  target resolves to: $TARGET_PHYS" >&2
+    echo "  source resolves to: $SKILLS_PHYS" >&2
+    exit 2
+  fi
+
   INSTALLED=0
   REFUSED=0
   for SRC in "$SKILLS_SRC"/*; do
