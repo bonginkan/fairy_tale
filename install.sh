@@ -127,6 +127,15 @@ path_contains() {
   return 1
 }
 
+# True when the tree holds a symlink anywhere inside it, and when that cannot
+# be established. A skill assembled from links is not a copy: its bytes live
+# where the installer never looked, and they can change or vanish after every
+# check this script performs has passed.
+holds_symlink() {
+  command -v find >/dev/null 2>&1 || return 0
+  [ -n "$(find "$1" -type l -print 2>/dev/null | head -n 1)" ]
+}
+
 TARGET_PHYS="$(physical_path "$TARGET")"
 
 if [ "$ALLOW_OUTSIDE_HOME" -eq 0 ]; then
@@ -209,6 +218,10 @@ else
       echo "missing skill source: $SRC/SKILL.md" >&2
       exit 1
     fi
+    if [ -L "$SRC" ] || holds_symlink "$SRC"; then
+      echo "source skill is not a plain tree of files: $SRC" >&2
+      exit 1
+    fi
     if [ -e "$DEST" ] || [ -L "$DEST" ]; then
       if [ "$FORCE" -eq 0 ]; then
         # A refusal is about one destination. Ending the whole run here would
@@ -218,6 +231,13 @@ else
           # What this destination holds is decided elsewhere, and can change
           # after this run without the installer being involved.
           echo "destination is a symlink; use --force to replace: $DEST" >&2
+          REFUSED=$((REFUSED + 1))
+          continue
+        fi
+        if holds_symlink "$DEST"; then
+          # diff reads through a link, so a destination stitched together from
+          # links compares equal while holding none of what it reports.
+          echo "destination holds a symlink; use --force to replace: $DEST" >&2
           REFUSED=$((REFUSED + 1))
           continue
         fi

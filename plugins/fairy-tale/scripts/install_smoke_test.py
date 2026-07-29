@@ -244,6 +244,63 @@ def run_update_path_controls(source: Path) -> list[str]:
                 )
             run_install(target, source)
 
+        # A destination need not be a link itself to stop being a copy. One
+        # link anywhere inside it is enough, and the comparison reads straight
+        # through it.
+        kept = Path(tmp) / "kept"
+        kept.mkdir()
+        kept_file = kept / "linked-file"
+        shutil.copy(source_skills / sample / "SKILL.md", kept_file)
+        nested_file = target / sample / "SKILL.md"
+        nested_file.unlink()
+        nested_file.symlink_to(kept_file)
+        nested = run_install(target, source, force=False, check=False)
+        if nested.returncode != 2:
+            failures.append(
+                f"a destination holding a linked file was not refused: "
+                f"rc={nested.returncode}"
+            )
+        if not nested_file.is_symlink():
+            failures.append("a refused destination had its linked file replaced")
+
+        kept_dir = kept / "linked-dir"
+        source_subdir = next(
+            (
+                path
+                for path in sorted((source_skills / sample).iterdir())
+                if path.is_dir()
+            ),
+            None,
+        )
+        nested_dir = None
+        if source_subdir is not None:
+            shutil.copytree(source_subdir, kept_dir)
+            nested_dir = target / sample / source_subdir.name
+            shutil.rmtree(nested_dir)
+            nested_dir.symlink_to(kept_dir, target_is_directory=True)
+            linked_dir_run = run_install(target, source, force=False, check=False)
+            if linked_dir_run.returncode != 2:
+                failures.append(
+                    "a destination holding a linked directory was not refused: "
+                    f"rc={linked_dir_run.returncode}"
+                )
+            if not nested_dir.is_symlink():
+                failures.append(
+                    "a refused destination had its linked directory replaced"
+                )
+
+        forced_nested = run_install(target, source, force=True, check=False)
+        if forced_nested.returncode != 0:
+            failures.append(
+                f"--force did not replace linked entries: rc={forced_nested.returncode}"
+            )
+        if nested_file.is_symlink() or (nested_dir and nested_dir.is_symlink()):
+            failures.append("--force left a linked entry in place")
+        if not kept_file.exists() or (kept_dir.exists() != (nested_dir is not None)):
+            failures.append("--force removed what a destination link pointed at")
+        if file_digests(target / sample) != baseline[sample]:
+            failures.append(f"--force left the relinked skill unlike the source: {sample}")
+
         linked_to = Path(tmp) / "elsewhere"
         shutil.copytree(source_skills / sample, linked_to)
         shutil.rmtree(target / sample)
