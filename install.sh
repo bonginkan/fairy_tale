@@ -76,39 +76,47 @@ esac
 # boundary checked against the written path is not a boundary: a symlink
 # anywhere along it leads somewhere the text never mentions.
 physical_path() {
-  pp_path="$1"
-  while :; do
-    case "$pp_path" in
-      ?*/) pp_path="${pp_path%/}" ;;
-      *) break ;;
-    esac
-  done
-  # Climb to the deepest part that exists before resolving. --create makes the
-  # rest, and it makes it under whatever the existing part really is: checking
-  # only the immediate parent leaves a symlink further up unexamined.
-  pp_rest=""
-  while :; do
-    if [ -d "$pp_path" ]; then
-      pp_resolved="$(cd "$pp_path" && pwd -P)"
-      break
-    fi
-    pp_parent="${pp_path%/*}"
-    [ -z "$pp_parent" ] && pp_parent="/"
-    if [ "$pp_parent" = "$pp_path" ]; then
-      pp_resolved="$pp_path"
-      break
-    fi
-    pp_rest="${pp_path##*/}${pp_rest:+/}$pp_rest"
-    pp_path="$pp_parent"
-  done
-  if [ -z "$pp_rest" ]; then
-    printf '%s\n' "$pp_resolved"
-    return
-  fi
-  case "$pp_resolved" in
-    */) printf '%s%s\n' "$pp_resolved" "$pp_rest" ;;
-    *) printf '%s/%s\n' "$pp_resolved" "$pp_rest" ;;
+  # Walk the path one component at a time and resolve each step that exists.
+  # Anything less is a different path than the one the kernel will use: a
+  # symlink resolves to somewhere the text never names, and `..` applies to
+  # where the previous components actually led -- including through a
+  # component that does not exist yet and is about to be created.
+  pp_rest="$1"
+  case "$pp_rest" in
+    /*) pp_out="/" ;;
+    *) pp_out="$(pwd -P)" ;;
   esac
+  while [ -n "$pp_rest" ]; do
+    case "$pp_rest" in
+      /*) pp_rest="${pp_rest#/}"; continue ;;
+    esac
+    pp_head="${pp_rest%%/*}"
+    if [ "$pp_head" = "$pp_rest" ]; then
+      pp_rest=""
+    else
+      pp_rest="${pp_rest#*/}"
+    fi
+    case "$pp_head" in
+      '' | .)
+        continue
+        ;;
+      ..)
+        pp_out="${pp_out%/*}"
+        [ -z "$pp_out" ] && pp_out="/"
+        continue
+        ;;
+    esac
+    case "$pp_out" in
+      /) pp_next="/$pp_head" ;;
+      *) pp_next="$pp_out/$pp_head" ;;
+    esac
+    if [ -d "$pp_next" ]; then
+      pp_out="$(cd "$pp_next" && pwd -P)"
+    else
+      pp_out="$pp_next"
+    fi
+  done
+  printf '%s\n' "$pp_out"
 }
 
 # True when $2 is $1 or lives under it, compared as resolved paths.

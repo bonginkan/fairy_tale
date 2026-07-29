@@ -322,6 +322,29 @@ def run_boundary_controls(source: Path) -> list[str]:
         if any(outside.iterdir()):
             failures.append("a target reached through a symlinked ancestor was written")
 
+        # `..` in a part of the path that does not exist yet still applies
+        # once the path is walked, so a target can climb out of $HOME through
+        # a directory that is only about to be created.
+        climbed = subprocess.run(
+            [
+                "sh",
+                str(source / "install.sh"),
+                "--source",
+                str(source),
+                "--target",
+                f"{home}/new/../../outside/climbed/skills",
+                "--create",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            env={**os.environ, "HOME": str(home)},
+        )
+        if climbed.returncode == 0:
+            failures.append("a target climbing out of HOME with .. was accepted")
+        if (outside / "climbed").exists():
+            failures.append("a target that climbed out of HOME was written")
+
         inside = home / "nested" / "skills"
         allowed = subprocess.run(
             [
@@ -369,6 +392,31 @@ def run_boundary_controls(source: Path) -> list[str]:
         if after != before:
             failures.append(
                 f"a refused run consumed the source tree: {before} -> {after}"
+            )
+
+        climbing = subprocess.run(
+            [
+                "sh",
+                str(staged / "install.sh"),
+                "--source",
+                str(staged),
+                "--target",
+                f"{staged}/new/../skills",
+                "--allow-outside-home",
+                "--create",
+                "--force",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if climbing.returncode == 0:
+            failures.append("a target reaching the source through .. was accepted")
+        reached = sorted(path.name for path in (staged / "skills").iterdir())
+        if reached != before:
+            failures.append(
+                f"a target reaching the source through .. consumed it: "
+                f"{before} -> {reached}"
             )
     return failures
 
