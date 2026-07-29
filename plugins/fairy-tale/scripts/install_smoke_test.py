@@ -224,6 +224,41 @@ def run_update_path_controls(source: Path) -> list[str]:
             failures.append(f"--force did not replace drift: rc={repaired.returncode}")
         elif file_digests(target / sample) != baseline[sample]:
             failures.append(f"--force left the skill unlike the source: {sample}")
+
+        if len(names) >= 2:
+            blocker = names[0]
+            blocked = target / blocker / "SKILL.md"
+            blocked.write_text(blocked.read_text() + "\ndrift\n")
+            shutil.rmtree(target / sample)
+            partial = run_install(target, source, force=False, check=False)
+            if partial.returncode != 2:
+                failures.append(
+                    "a destination that cannot be replaced was not reported: "
+                    f"rc={partial.returncode}"
+                )
+            if not (target / sample).is_dir():
+                failures.append(
+                    "a refused destination kept a later skill out of the target: "
+                    f"{sample}"
+                )
+            run_install(target, source)
+
+        linked_to = Path(tmp) / "elsewhere"
+        shutil.copytree(source_skills / sample, linked_to)
+        shutil.rmtree(target / sample)
+        (target / sample).symlink_to(linked_to, target_is_directory=True)
+        symlinked = run_install(target, source, force=False, check=False)
+        if symlinked.returncode != 2:
+            failures.append(
+                f"a symlinked destination was not refused: rc={symlinked.returncode}"
+            )
+        if not (target / sample).is_symlink():
+            failures.append("a refused symlinked destination was modified")
+        forced = run_install(target, source, force=True, check=False)
+        if forced.returncode != 0 or (target / sample).is_symlink():
+            failures.append("--force did not replace a symlinked destination")
+        elif file_digests(target / sample) != baseline[sample]:
+            failures.append(f"--force left the replaced skill unlike the source: {sample}")
     return failures
 
 

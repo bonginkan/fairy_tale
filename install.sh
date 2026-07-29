@@ -34,7 +34,10 @@ Options:
 Every skill directory under skills/ is installed; there is no separate list to
 keep in step. Re-running is safe: a skill that already matches the source is
 left alone, and a skill missing from the target is added. --force is needed
-only to overwrite a skill whose contents differ from the source.
+only to overwrite a skill that differs from the source, or one whose
+destination is a symlink. A destination that cannot be replaced is reported
+and leaves the exit status non-zero, but it does not stop the skills after it
+from being installed.
 USAGE
 }
 
@@ -126,6 +129,7 @@ if [ ! -d "$SKILLS_SRC" ]; then
   fi
 else
   INSTALLED=0
+  REFUSED=0
   for SRC in "$SKILLS_SRC"/*; do
     [ -d "$SRC" ] || continue
     SKILL="${SRC##*/}"
@@ -134,21 +138,31 @@ else
       echo "missing skill source: $SRC/SKILL.md" >&2
       exit 1
     fi
-    if [ -e "$DEST" ] && [ "$FORCE" -eq 0 ]; then
-      # An identical destination is already the requested outcome. Refusing it
-      # would also refuse every later skill in this run, which is how a lane
-      # ends up frozen at the version it was first populated with.
-      if command -v diff >/dev/null 2>&1 && diff -r "$SRC" "$DEST" >/dev/null 2>&1; then
-        echo "up to date $DEST"
-        INSTALLED=$((INSTALLED + 1))
+    if [ -e "$DEST" ] || [ -L "$DEST" ]; then
+      if [ "$FORCE" -eq 0 ]; then
+        # A refusal is about one destination. Ending the whole run here would
+        # keep every later skill out of the target -- the way a lane stays
+        # frozen at whatever it was first given.
+        if [ -L "$DEST" ]; then
+          # What this destination holds is decided elsewhere, and can change
+          # after this run without the installer being involved.
+          echo "destination is a symlink; use --force to replace: $DEST" >&2
+          REFUSED=$((REFUSED + 1))
+          continue
+        fi
+        if command -v diff >/dev/null 2>&1 && diff -r "$SRC" "$DEST" >/dev/null 2>&1; then
+          echo "up to date $DEST"
+          INSTALLED=$((INSTALLED + 1))
+          continue
+        fi
+        echo "destination exists and differs; use --force to replace: $DEST" >&2
+        REFUSED=$((REFUSED + 1))
         continue
       fi
-      echo "destination exists and differs; use --force to replace: $DEST" >&2
-      exit 2
     fi
     echo "install $SRC -> $DEST"
     if [ "$DRY_RUN" -eq 0 ]; then
-      if [ -e "$DEST" ]; then
+      if [ -e "$DEST" ] || [ -L "$DEST" ]; then
         rm -rf "$DEST"
       fi
       cp -R "$SRC" "$DEST"
@@ -156,9 +170,13 @@ else
     INSTALLED=$((INSTALLED + 1))
   done
 
-  if [ "$INSTALLED" -eq 0 ]; then
+  if [ "$INSTALLED" -eq 0 ] && [ "$REFUSED" -eq 0 ]; then
     echo "no skills found under $SKILLS_SRC" >&2
     exit 1
+  fi
+  if [ "$REFUSED" -gt 0 ]; then
+    echo "$REFUSED skill(s) left unchanged; rerun with --force to replace them" >&2
+    exit 2
   fi
 fi
 

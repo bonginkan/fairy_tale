@@ -10,7 +10,10 @@ drift so a PR that updates one copy but not all four fails fast.
 
 from __future__ import annotations
 
+import os
+import shutil
 import sys
+import tempfile
 from pathlib import Path
 
 from skill_markdown_refs import (
@@ -22,15 +25,30 @@ from skill_markdown_refs import (
 ROOT = Path(__file__).resolve().parents[1]
 SKILL_PACKAGE_ROOT = ROOT / "skills"
 
-# Roots the canonical skill tree is mirrored into. Every skill under skills/ is
-# checked against every root: the mirrors carry the whole tree, so naming one
-# skill here would leave the newest skill -- the one most likely to drift --
-# unguarded.
-MIRROR_ROOTS = (
-    ROOT / ".claude" / "skills",
-    ROOT / ".agents" / "skills",
-    ROOT / "plugins" / "fairy-tale" / "skills",
-)
+# Never searched for mirrors: VCS internals, build output, vendored trees.
+DISCOVERY_SKIP_DIRS = {".git", "__pycache__", "dist", "node_modules", "target"}
+
+
+def mirror_roots(root: Path = ROOT) -> tuple[Path, ...]:
+    """Discover every skills/ tree that mirrors the canonical one.
+
+    Discovered, never listed. A roster of mirror roots is the same defect the
+    skill roster was: a root added later is simply never checked, and a line
+    deleted from the list takes its coverage with it without anything failing.
+    """
+    package_root = root / "skills"
+    names = set(distributed_skill_names(package_root))
+    if not names:
+        return ()
+    roots: list[Path] = []
+    for dirpath, dirnames, _ in os.walk(root):
+        dirnames[:] = [name for name in dirnames if name not in DISCOVERY_SKIP_DIRS]
+        here = Path(dirpath)
+        if here.name != "skills" or here == package_root:
+            continue
+        if any((here / name).is_dir() for name in names):
+            roots.append(here)
+    return tuple(sorted(roots))
 
 # Companion artifacts (adapters / schemas / scripts / docs / resources / ledgers /
 # crates / ...) are also mirrored into the plugin package. The skill *.md parity
@@ -54,20 +72,23 @@ def md_files(base: Path) -> dict[Path, Path]:
     return {p.relative_to(base): p for p in base.rglob("*.md") if p.is_file()}
 
 
-def check_parity() -> tuple[list[str], int]:
+def check_parity(root: Path = ROOT) -> tuple[list[str], int, int]:
     errors: list[str] = []
-    if not SKILL_PACKAGE_ROOT.is_dir():
-        rel_root = SKILL_PACKAGE_ROOT.relative_to(ROOT)
-        return [f"canonical skill tree missing: {rel_root}"], 0
-    names = distributed_skill_names(SKILL_PACKAGE_ROOT)
+    package_root = root / "skills"
+    if not package_root.is_dir():
+        return [f"canonical skill tree missing: {package_root.name}"], 0, 0
+    names = distributed_skill_names(package_root)
     if not names:
-        rel_root = SKILL_PACKAGE_ROOT.relative_to(ROOT)
-        return [f"no skills found under {rel_root}"], 0
+        return [f"no skills found under {package_root.name}"], 0, 0
+    roots = mirror_roots(root)
+    if not roots:
+        # Nothing to compare against reads exactly like nothing wrong.
+        return [f"no distribution mirrors found under {root}"], len(names), 0
     for name in names:
-        canonical = md_files(SKILL_PACKAGE_ROOT / name)
-        for mirror_root in MIRROR_ROOTS:
+        canonical = md_files(package_root / name)
+        for mirror_root in roots:
             mirror = mirror_root / name
-            rel_mirror = mirror.relative_to(ROOT)
+            rel_mirror = mirror.relative_to(root)
             if not mirror.exists():
                 errors.append(f"missing mirror: {rel_mirror}")
                 continue
@@ -79,7 +100,46 @@ def check_parity() -> tuple[list[str], int]:
             for rel in sorted(set(canonical) & set(mirrored)):
                 if canonical[rel].read_bytes() != mirrored[rel].read_bytes():
                     errors.append(f"{rel_mirror}: byte mismatch {rel}")
-    return errors, len(names)
+    return errors, len(names), len(roots)
+
+
+def selftest_parity_discovery() -> tuple[list[str], int]:
+    """Prove the mirror check fails when there is nothing left to compare.
+
+    A parity run that found no mirrors reported success, so a mirror set that
+    shrank -- or vanished -- looked exactly like a mirror set that agreed.
+    """
+    failures: list[str] = []
+    controls = 0
+    with tempfile.TemporaryDirectory(prefix="fairy-tale-parity-control-") as tmp:
+        root = Path(tmp)
+        canonical = root / "skills" / "sample-skill"
+        canonical.mkdir(parents=True)
+        (canonical / "SKILL.md").write_text("canonical\n")
+        mirror = root / ".claude" / "skills" / "sample-skill"
+        mirror.mkdir(parents=True)
+        (mirror / "SKILL.md").write_text("canonical\n")
+
+        controls += 1
+        errors, skills, roots = check_parity(root)
+        if errors or (skills, roots) != (1, 1):
+            failures.append(
+                "a discovered, matching mirror was not accepted: "
+                f"{errors} skills={skills} roots={roots}"
+            )
+
+        (mirror / "SKILL.md").write_text("drifted\n")
+        controls += 1
+        if not check_parity(root)[0]:
+            failures.append("drift in a discovered mirror went unseen")
+        (mirror / "SKILL.md").write_text("canonical\n")
+
+        shutil.rmtree(root / ".claude")
+        controls += 1
+        errors, _, roots = check_parity(root)
+        if not errors or roots:
+            failures.append("a run with no mirror left was reported as success")
+    return failures, controls
 
 
 def companion_candidates() -> list[Path]:
@@ -129,9 +189,11 @@ def main() -> int:
         SKILL_PACKAGE_ROOT
     )
     ref_selftest_errors, ref_controls = selftest_skill_markdown_refs()
-    parity_errors, skills = check_parity()
+    parity_errors, skills, roots = check_parity()
+    discovery_errors, discovery_controls = selftest_parity_discovery()
     errors = (
         parity_errors
+        + discovery_errors
         + ref_errors
         + ref_selftest_errors
         + companion_errors
@@ -141,11 +203,12 @@ def main() -> int:
         for err in errors:
             print(f"  - {err}")
         return 1
-    copies = skills * (1 + len(MIRROR_ROOTS))
+    copies = skills * (1 + roots)
     print(
         f"Fairy Tale distribution parity OK: {copies} skill copies byte-identical "
-        f"(*.md) across {skills} skills, {companions} mirrored companion artifacts "
-        f"byte-identical, and "
+        f"(*.md) across {skills} skills and {roots} discovered mirrors "
+        f"({discovery_controls} discovery controls), {companions} mirrored "
+        f"companion artifacts byte-identical, and "
         f"{markdown_refs} Markdown references across {markdown_files} packaged "
         f"Markdown files resolve ({ref_controls} negative/positive controls)."
     )
