@@ -83,17 +83,47 @@ def tree_files(base: Path) -> dict[Path, Path]:
 
     Every file, not every *.md. A skill is whatever it ships; comparing only
     the Markdown leaves its data, fixtures, and scripts free to differ between
-    copies while the check still reports agreement.
+    copies while the check still reports agreement. Symlinks are never walked
+    through, so a copy cannot be made of pointers into another copy.
     """
     files: dict[Path, Path] = {}
-    for path in base.rglob("*"):
-        if not path.is_file():
-            continue
-        rel = path.relative_to(base)
-        if COMPANION_SKIP_PARTS & set(rel.parts) or path.name in COMPANION_SKIP_FILES:
-            continue
-        files[rel] = path
+    if not base.is_dir() or base.is_symlink():
+        return files
+    for dirpath, dirnames, filenames in os.walk(base, followlinks=False):
+        here = Path(dirpath)
+        dirnames[:] = [
+            name
+            for name in dirnames
+            if name not in COMPANION_SKIP_PARTS and not (here / name).is_symlink()
+        ]
+        for name in filenames:
+            path = here / name
+            if path.is_symlink() or name in COMPANION_SKIP_FILES:
+                continue
+            files[path.relative_to(base)] = path
     return files
+
+
+def symlink_entries(base: Path) -> list[Path]:
+    """Relative paths of everything under ``base`` that is a symlink.
+
+    A copy assembled from links is not a copy. It compares equal while the
+    bytes live in the tree it was supposed to be independent of, and it ships
+    to consumers as a pointer to a path they do not have.
+    """
+    found: list[Path] = []
+    if not base.is_dir() or base.is_symlink():
+        return found
+    for dirpath, dirnames, filenames in os.walk(base, followlinks=False):
+        here = Path(dirpath)
+        for name in list(dirnames):
+            if (here / name).is_symlink():
+                found.append((here / name).relative_to(base))
+                dirnames.remove(name)
+        for name in filenames:
+            if (here / name).is_symlink():
+                found.append((here / name).relative_to(base))
+    return sorted(found)
 
 
 def skill_names(base: Path) -> set[str]:
@@ -127,6 +157,10 @@ def check_parity(
 
     roots = tuple(root / rel for rel in declared)
     canonical_names = set(names)
+    for tree in (package_root,) + roots:
+        rel_tree = tree.relative_to(root)
+        for rel in symlink_entries(tree):
+            errors.append(f"{rel_tree}: symlink where a copy is required: {rel}")
     for mirror_root in roots:
         rel_root = mirror_root.relative_to(root)
         mirrored_names = skill_names(mirror_root)
@@ -210,6 +244,20 @@ def selftest_parity_discovery() -> tuple[list[str], int]:
         shutil.rmtree(dropped)
         expect("a mirror keeping a skill the source dropped", should_fail=True)
         shutil.rmtree(mirror_root / "dropped-skill")
+
+        linked = mirror_root / "sample-skill" / "SKILL.md"
+        linked.unlink()
+        linked.symlink_to(canonical / "SKILL.md")
+        expect("a mirror file that only points at the source", should_fail=True)
+        linked.unlink()
+        linked.write_text("canonical\n")
+
+        linked_skill = mirror_root / "sample-skill"
+        shutil.rmtree(linked_skill)
+        linked_skill.symlink_to(canonical, target_is_directory=True)
+        expect("a mirror skill that only points at the source", should_fail=True)
+        linked_skill.unlink()
+        shutil.copytree(canonical, linked_skill)
 
         undeclared = root / "fixtures" / "skills" / "sample-skill"
         undeclared.mkdir(parents=True)
