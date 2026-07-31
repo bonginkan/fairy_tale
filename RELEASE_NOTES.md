@@ -1,5 +1,27 @@
 # Release Notes
 
+## 0.2.36 — Lane recovery, turn boundary, truncated receipts
+
+- Silence stops being read as unavailability. The usage-aware load balancer
+  record separates *unresponsive* from *unavailable*, makes the agent's own
+  session surface the terminal evidence, and records `unknown` when that
+  surface cannot be inspected.
+- Bounded in-lane recovery becomes the default path for an agent that looks
+  unresponsive: resume, restart, or relaunch it in its own session lane and
+  re-issue the pending handoff. Recovery is owned by the lane owner or an
+  authorised actor, resumes from the last safe checkpoint, and runs inside a
+  recorded retry budget that ends in escalation rather than another restart.
+- A cross-lane role transfer becomes an explicit authorised reassignment after
+  bounded recovery fails, never an automatic fallback for silence. Session
+  lanes are partitioned so task placement stays stable.
+- The Helix communication card defines the turn boundary: no next-increment
+  write until the required sign-offs are recorded against the current exact
+  head, partial review is not a boundary, a blocker returns to the same
+  increment, and a head change staleness-invalidates prior sign-offs.
+- A truncated inbound message is treated as incomplete. The remainder is
+  recovered from the transport's own history or message API, bounded by
+  thread, sender, and time window, with no inference and no unrelated tail.
+
 ## 0.2.35 — Implementation contract closure
 
 - Adds the Implementation contract closure record and its machine gate

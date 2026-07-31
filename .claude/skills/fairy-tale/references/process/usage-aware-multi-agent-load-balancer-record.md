@@ -18,7 +18,10 @@ capacity inputs:
     dnd_status:
     runtime_install_current:
     tool_availability:
-    source: primary_check | self_report | session_owner_observation
+    session_surface_checked: yes | no | not_applicable
+    recovery_attempted:
+    source: primary_check | session_surface | self_report |
+      session_owner_observation
     source_ref:
 eligible implementation agents:
 excluded agents and reason:
@@ -64,9 +67,36 @@ Assignment policy:
   canonical blocker triage record. Self-reported, stale, or unknown usage may
   inform reassignment but cannot create defer pressure in
   `fairy blocker validate`.
+- Separate *unresponsive* from *unavailable*. A missed mention, a silent
+  thread, an unanswered handoff, or a stalled checkpoint is evidence about the
+  channel, not about the agent. Establish availability from the agent's own
+  session surface — the terminal pane, session window, session log, or runtime
+  status view that the agent itself writes to — before recording it as blocked.
+  A process listing, transport acknowledgement, scheduler state, or another
+  agent's report is corroboration, not terminal evidence. When the session
+  surface cannot be inspected, record `unknown`, not `unavailable`.
+- When an assigned agent looks unresponsive, the default path is to restore
+  that same agent in its own session lane rather than to move its role. Session
+  lanes are partitioned so that task placement stays stable, so moving a role
+  out of its lane changes the placement design itself.
+- Bound the recovery. In-lane recovery is owned by the lane's own owner or by
+  an actor the loop profile authorises for that lane; an observing agent may
+  read the surface and request recovery, and performs it directly only under
+  that authorisation. Resume from the last safe checkpoint, never mid-mutation.
+  Record a retry budget and act within it: after the budget is exhausted,
+  escalate with terminal evidence instead of restarting again. State loss,
+  duplicated side effects, and restart loops are recovery failures, not
+  recovery.
+- Treat a cross-lane role transfer as an explicit reassignment decision, never
+  as an automatic fallback for silence. Transfer only after bounded in-lane
+  recovery has been attempted and failed, the failure is recorded with terminal
+  evidence, and the loop profile or session owner authorises it. Record the
+  recovery attempts, their outcomes, and the authorising reference.
 - If the implementation owner becomes quota-blocked, stale, tool-blocked, or
   DND-blocked mid-run, stop at the next safe boundary, record the blocker,
   rerun the load balancer, and reassign or pause before further mutation.
+  These are confirmed-unavailable states, distinct from the unresponsive case
+  above; they do not require an in-lane recovery attempt first.
 - Record the decision, inputs, exclusions, reviewer set, and reassign trigger
   in the run ledger or receipt so later loops can audit why the role split
   changed.
@@ -105,6 +135,9 @@ Usage Reading Reference:
   context, mark it `unknown` or `provisional`, explain the source gap, and
   prefer a fresh concrete eligible reading when assigning the implementation
   owner.
+- Session surface reads are observation only. Read the pane, window, or log; do
+  not send input, clear state, kill, or restart another lane merely to produce a
+  reading. Recovery is a separate, authorised, recorded step.
 
 Non-normative example:
 

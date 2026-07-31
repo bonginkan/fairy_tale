@@ -61,9 +61,38 @@ source / run / receipt refs:
   and artifact, then send at most one bounded re-notification before following
   the profile's escalation or reassignment path. Do not create an infinite
   mention loop, ping through DND, or infer authorization from silence.
+- Hold the turn boundary. When the loop profile requires a number of reviewer
+  sign-offs for an increment, the implementer does not open the next increment
+  and does not write to the shared artifact for it until those sign-offs are
+  recorded against the current exact head. Read-only scouting during the wait
+  is allowed, and is reported as scouting rather than as progress on the next
+  increment. Partial review is not a boundary: one sign-off out of two leaves
+  the turn open.
+- A blocker returns the loop to the same increment. Fix it on the current
+  increment and re-request review on the new head; do not carry an open blocker
+  forward by starting adjacent work beside it.
+- Sign-offs bind to an exact head. When the head changes, sign-offs already
+  recorded for that increment become stale and are re-collected, including when
+  the change is described as test-only, documentation-only, or cosmetic. State
+  which prior sign-offs are carried as unchanged-artifact evidence and which
+  are re-requested.
 - If a received message is only an address, recover nearby thread and ledger
   context before acting. If the intended artifact or action remains ambiguous,
   ask one short question instead of guessing.
+- Treat a received message that looks cut off as incomplete rather than as the
+  sender's final state. Signals include an unterminated sentence, list, table,
+  or code fence, a missing required field from the state block, a trailing
+  ellipsis or explicit continuation marker, and a length close to the
+  transport's message limit. Recover the remainder first: query the transport's
+  own history or message API with the credentials the receiving agent already
+  holds for that transport, bounded by the same thread, the same sender
+  identity, and a time window around the original message, then stitch only
+  consecutive parts from that sender in order.
+- Do not reconstruct missing content by inference, and do not treat an
+  unrelated later post as the continuation. If retrieval fails, name the
+  truncated part, quote the last intact fragment, and ask the sender for that
+  part only. Never expose credentials, raw tokens, or transport internals while
+  recovering, and do not widen the bounded window to find a plausible tail.
 - Treat cadence, soft/hard stall thresholds, retry budget, and escalation
   destination as loop-profile inputs. A hard stall triggers state readback and
   escalation; it is not a hard process timeout, forced termination, or

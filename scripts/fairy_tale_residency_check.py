@@ -76,6 +76,20 @@ SKILL_REFERENCE_MARKERS = {
         "External-channel ingestion record",
         "Job automation delegation record",
     ),
+    Path("fairy-tale/references/cards/helix-loop-communication-harness.md"): (
+        "Hold the turn boundary",
+        "Partial review is not a boundary",
+        "Sign-offs bind to an exact head",
+        "looks cut off",
+        "bounded by the same thread",
+    ),
+    Path("fairy-tale/references/process/usage-aware-multi-agent-load-balancer-record.md"): (
+        "Separate *unresponsive* from *unavailable*",
+        "in its own session lane",
+        "explicit reassignment decision",
+        "retry budget",
+        "Session surface reads are observation only",
+    ),
     Path("fairy-tale/references/feedback-governance.md"): (
         "Feedback Governance",
         "promotion",
