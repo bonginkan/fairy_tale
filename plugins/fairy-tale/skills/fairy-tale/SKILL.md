@@ -145,7 +145,8 @@ python3 scripts/fairy_tale_residency_check.py
    - For an active agent-to-agent handoff, review request, progress checkpoint,
      or state-change notice inside a loop: use the Helix Loop Communication
      Harness. Address the named counterpart and carry repo-qualified artifact,
-     exact-head, check, blocker, next-action, and acknowledgement state.
+     exact-head, check, blocker, next-action, and acknowledgement state. Hold the
+     turn boundary, and repair a truncated inbound message before acting.
      If a finding needs risk-aware priority, issue-only deferral, or an
      implementer objection, use the machine-validated Helix blocker triage
      record; never negotiate away its non-deferrable safety floor.
@@ -155,7 +156,9 @@ python3 scripts/fairy_tale_residency_check.py
      per-agent Do Not Disturb windows, verify coarse capacity from the local
      source when available, then choose the implementation owner from agents
      with usable coarse capacity, current runtime install, and no active DND
-     exclusion; remaining eligible agents review.
+     exclusion; remaining eligible agents review. Silence is not
+     unavailability: confirm from the session surface and recover in-lane
+     before any authorised cross-lane transfer.
    - For agent, tool, eval, memory, hook, or OSS-release work: apply the
      best-practice gate from `references/best-practices.md`.
    - For building or reviewing a real UI surface for design quality: use the
