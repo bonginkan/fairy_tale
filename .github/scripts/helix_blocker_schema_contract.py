@@ -109,6 +109,12 @@ def main() -> int:
     ]
     unreported_with_ref["final_readback"]["reported_to_human"] = False
     unreported_with_ref["final_readback"]["report_ref"] = "source:unexpected-report"
+    # A retained fix-now finding holds the ship, so the decision moves with it
+    # and this control keeps testing only the report-ref rule it is named for.
+    unreported_with_ref["final_readback"]["ship_decision"] = {
+        "decision": "hold",
+        "rationale": "A retained fix-now finding holds this increment.",
+    }
     expect_schema(
         unreported_with_ref,
         valid=False,
@@ -124,8 +130,94 @@ def main() -> int:
         label="reported readback needs an evidence ref",
     )
 
+    stage_basis_mismatch = copy.deepcopy(sample)
+    stage_basis_mismatch["loop"]["ship_stage"]["basis"] = "production_promotion"
+    expect_schema(
+        stage_basis_mismatch,
+        valid=False,
+        label="a dev ship cannot claim the production promotion basis",
+    )
+
+    unverified_with_check = copy.deepcopy(sample)
+    unverified_with_check["loop"]["ship_stage"]["happy_path"]["verified"] = False
+    expect_schema(
+        unverified_with_check,
+        valid=False,
+        label="an unverified normal path cannot carry a check ref",
+    )
+
+    floor_without_basis = copy.deepcopy(sample)
+    floor_without_basis["blockers"][2]["floor_basis"] = "not_applicable"
+    expect_schema(
+        floor_without_basis,
+        valid=False,
+        label="a safety-floor finding needs a demonstrated/precautionary basis",
+    )
+
+    basis_off_floor = copy.deepcopy(sample)
+    basis_off_floor["blockers"][0]["floor_basis"] = "precautionary"
+    expect_schema(
+        basis_off_floor,
+        valid=False,
+        label="a finding off the floor must record not_applicable",
+    )
+
+    demonstrated_security_defer = copy.deepcopy(sample)
+    demonstrated_security_defer["blockers"][2]["floor_basis"] = "demonstrated"
+    expect_schema(
+        demonstrated_security_defer,
+        valid=False,
+        label="a demonstrated security defect cannot be deferred",
+    )
+
+    happy_path_defer = copy.deepcopy(sample)
+    happy_path_defer["blockers"][0]["finding_class"] = "happy_path"
+    expect_schema(
+        happy_path_defer,
+        valid=False,
+        label="a normal-path finding cannot be deferred",
+    )
+
+    go_with_retained = copy.deepcopy(sample)
+    go_with_retained["final_readback"]["retained_blocker_ids"] = [
+        "false-positive-finding"
+    ]
+    expect_schema(
+        go_with_retained,
+        valid=False,
+        label="a go decision cannot carry retained fix-now findings",
+    )
+
     # Cross-array identities, risk arithmetic, freshness, and exact final
     # readback sets are authoritative in the runtime validator.
+    production_precautionary_defer = copy.deepcopy(sample)
+    production_precautionary_defer["loop"]["ship_stage"] = {
+        "stage": "production",
+        "basis": "production_promotion",
+        "basis_ref": "source:release-promotion",
+        "happy_path": copy.deepcopy(sample["loop"]["ship_stage"]["happy_path"]),
+    }
+    expect_schema(
+        production_precautionary_defer,
+        valid=True,
+        label="stage-conditioned floor deferral is runtime-bound",
+    )
+    if not validate_record(production_precautionary_defer):
+        raise AssertionError(
+            "runtime must reject a precautionary floor deferral at production stage"
+        )
+    controls += 1
+
+    green_hold = copy.deepcopy(sample)
+    green_hold["final_readback"]["ship_decision"] = {
+        "decision": "hold",
+        "rationale": "The reviewer would prefer one more hardening round first.",
+    }
+    expect_schema(green_hold, valid=True, label="green-hold rejection is runtime-bound")
+    if not validate_record(green_hold):
+        raise AssertionError("runtime must reject holding a green dev increment")
+    controls += 1
+
     same_role = copy.deepcopy(sample)
     same_role["loop"]["roles"]["reviewer_ids"][0] = "misa-3"
     expect_schema(same_role, valid=True, label="role separation is runtime-bound")

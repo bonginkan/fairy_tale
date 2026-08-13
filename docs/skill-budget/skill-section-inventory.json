@@ -2,10 +2,10 @@
   "purpose": "Parity checklist for the SKILL.md router/per-card restructure: every section listed here must remain reachable (in SKILL.md or via an extracted card referenced from the router). Compare with --inventory-compare to fail closed on silent drops.",
   "skill_md": "skills/fairy-tale/SKILL.md",
   "measured": {
-    "bytes": 18308,
-    "lines": 254,
-    "chars": 18252,
-    "est_tokens": 4577,
+    "bytes": 19017,
+    "lines": 256,
+    "chars": 18961,
+    "est_tokens": 4754,
     "estimation_basis": "est tokens = UTF-8 bytes / 4.0 (reporting only); head window enforced at 3.5 bytes/token (densest plausible tokenization); line budget uses exact lines",
     "head_window_bytes": 17500,
     "head_token_budget": 5000
@@ -16,40 +16,40 @@
       "title": "Non-negotiables",
       "line": 11,
       "byte_offset": 884,
-      "byte_end": 1625,
-      "est_tokens": 185
+      "byte_end": 1463,
+      "est_tokens": 145
     },
     {
       "level": 2,
       "title": "Residency Guard",
-      "line": 26,
-      "byte_offset": 1625,
-      "byte_end": 2322,
-      "est_tokens": 174
+      "line": 23,
+      "byte_offset": 1463,
+      "byte_end": 1805,
+      "est_tokens": 86
     },
     {
       "level": 2,
       "title": "Default workflow",
-      "line": 45,
-      "byte_offset": 2322,
-      "byte_end": 10972,
-      "est_tokens": 2162
+      "line": 31,
+      "byte_offset": 1805,
+      "byte_end": 11413,
+      "est_tokens": 2402
     },
     {
       "level": 2,
       "title": "Mode patterns",
-      "line": 189,
-      "byte_offset": 10972,
-      "byte_end": 16820,
-      "est_tokens": 1462
+      "line": 188,
+      "byte_offset": 11413,
+      "byte_end": 17432,
+      "est_tokens": 1505
     },
     {
       "level": 2,
       "title": "Supporting references",
       "line": 230,
-      "byte_offset": 16820,
-      "byte_end": 18308,
-      "est_tokens": 372
+      "byte_offset": 17432,
+      "byte_end": 19017,
+      "est_tokens": 396
     }
   ],
   "cards": [
@@ -108,6 +108,12 @@
       "est_tokens": 1370
     },
     {
+      "path": "references/cards/edison-ship-gate.md",
+      "title": "Edison Ship Gate: dev-deploy threshold",
+      "bytes": 3790,
+      "est_tokens": 948
+    },
+    {
       "path": "references/cards/effort-inversion-debugger.md",
       "title": "Effort Inversion Debugger",
       "bytes": 843,
@@ -164,8 +170,8 @@
     {
       "path": "references/cards/helix-loop-communication-harness.md",
       "title": "Helix Loop Communication Harness",
-      "bytes": 5022,
-      "est_tokens": 1256
+      "bytes": 7074,
+      "est_tokens": 1768
     },
     {
       "path": "references/cards/high-signal-research-synthesis.md",
@@ -534,6 +540,12 @@
       "est_tokens": 1370
     },
     {
+      "path": "skills/fairy-tale/references/cards/edison-ship-gate.md",
+      "bytes": 3790,
+      "lines": 55,
+      "est_tokens": 948
+    },
+    {
       "path": "skills/fairy-tale/references/cards/effort-inversion-debugger.md",
       "bytes": 843,
       "lines": 16,
@@ -589,9 +601,9 @@
     },
     {
       "path": "skills/fairy-tale/references/cards/helix-loop-communication-harness.md",
-      "bytes": 5022,
-      "lines": 84,
-      "est_tokens": 1256
+      "bytes": 7074,
+      "lines": 113,
+      "est_tokens": 1768
     },
     {
       "path": "skills/fairy-tale/references/cards/high-signal-research-synthesis.md",
@@ -883,9 +895,15 @@
     },
     {
       "path": "skills/fairy-tale/references/process/helix-blocker-triage-record.md",
-      "bytes": 1400,
-      "lines": 39,
-      "est_tokens": 350
+      "bytes": 3063,
+      "lines": 67,
+      "est_tokens": 766
+    },
+    {
+      "path": "skills/fairy-tale/references/process/implementation-contract-closure-record.md",
+      "bytes": 4915,
+      "lines": 88,
+      "est_tokens": 1229
     },
     {
       "path": "skills/fairy-tale/references/process/implicit-contract-discovery-family-router.md",
@@ -1027,9 +1045,9 @@
     },
     {
       "path": "skills/fairy-tale/references/process/usage-aware-multi-agent-load-balancer-record.md",
-      "bytes": 5388,
-      "lines": 117,
-      "est_tokens": 1347
+      "bytes": 7679,
+      "lines": 150,
+      "est_tokens": 1920
     },
     {
       "path": "skills/fairy-tale/references/process/voice-profile-card.md",
@@ -1039,9 +1057,15 @@
     },
     {
       "path": "skills/fairy-tale/references/process.md",
-      "bytes": 7977,
-      "lines": 59,
-      "est_tokens": 1994
+      "bytes": 8161,
+      "lines": 60,
+      "est_tokens": 2040
+    },
+    {
+      "path": "skills/fairy-tale/references/residency-guard.md",
+      "bytes": 695,
+      "lines": 18,
+      "est_tokens": 174
     },
     {
       "path": "skills/fairy-tale/references/similarity-refactoring-adapter.md",

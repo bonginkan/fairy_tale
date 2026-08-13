@@ -1,5 +1,37 @@
 # Release Notes
 
+## 0.2.37 — Edison Ship Gate: the dev-deploy threshold
+
+- A loop that converges only on a perfect increment does not converge. The new
+  Edison Ship Gate ships an increment to a dev / non-production target once its
+  normal path is verified, and turns everything off the safety floor into a
+  next-cycle issue instead of a blocker. Work on the deferred items continues;
+  the deploy stops waiting for them, so the humans who find what no harness
+  enumerates get to hit the artifact.
+- The relaxation is bought with evidence, never asserted. The blocker triage
+  record (schema 1.1) carries `loop.ship_stage`: the stage, its basis (owner
+  directive, non-production target, or early development), and the happy path
+  recorded as verified against a concrete executed check. An unverified normal
+  path leaves the production thresholds in force.
+- Under the gate the defer envelope widens to a residual risk score of 200 and
+  to high impact without measured pressure; critical impact stays fix-now.
+- The floor does not move. Every finding now records a `finding_class` and a
+  `floor_basis`: only *precautionary* hardening on the security floor may be
+  deferred, and only at a verified dev stage. A demonstrated reachable defect,
+  every other floor, and any finding classed against the shipped normal path
+  remain fix-now at every stage.
+- `final_readback.ship_decision` makes the outcome auditable: `go` cannot carry
+  a retained fix-now finding, a dev `go` needs the verified normal path, and a
+  dev increment with a verified normal path and nothing retained **cannot be
+  held** — holding a green increment is now a RED finding rather than
+  diligence.
+- Dev debt is deferred, never discharged: every dev-stage deferral re-blocks at
+  production promotion, and the rendered readback prints that promotion debt
+  with its issues.
+- SKILL.md stages validation in the head window and routes the new card; the
+  Residency Guard procedure moves to `references/residency-guard.md` so the
+  mode-pattern router still fits inside the post-compaction head window.
+
 ## 0.2.36 — Lane recovery, turn boundary, truncated receipts
 
 - Silence stops being read as unavailability. The usage-aware load balancer

@@ -1,7 +1,7 @@
 # SKILL.md section inventory (parity checklist)
 
 - Source: `skills/fairy-tale/SKILL.md`
-- Measured: 18308 bytes / 254 lines / ~4577 est tokens
+- Measured: 19017 bytes / 256 lines / ~4754 est tokens
 - Estimation basis: est tokens = UTF-8 bytes / 4.0 (reporting only); head window enforced at 3.5 bytes/token (densest plausible tokenization); line budget uses exact lines
 - Head window: first 5000 est tokens (= 17500 bytes)
 
@@ -10,11 +10,11 @@ in SKILL.md itself or as an extracted card reachable from the router.
 
 | # | level | section | line | byte offset | est tokens | in head window |
 |---|-------|---------|------|-------------|------------|----------------|
-| 1 | h2 | Non-negotiables | 11 | 884 | 185 | yes |
-| 2 | h2 | Residency Guard | 26 | 1625 | 174 | yes |
-| 3 | h2 | Default workflow | 45 | 2322 | 2162 | yes |
-| 4 | h2 | Mode patterns | 189 | 10972 | 1462 | yes |
-| 5 | h2 | Supporting references | 230 | 16820 | 372 | yes |
+| 1 | h2 | Non-negotiables | 11 | 884 | 145 | yes |
+| 2 | h2 | Residency Guard | 23 | 1463 | 86 | yes |
+| 3 | h2 | Default workflow | 31 | 1805 | 2402 | yes |
+| 4 | h2 | Mode patterns | 188 | 11413 | 1505 | yes |
+| 5 | h2 | Supporting references | 230 | 17432 | 396 | yes |
 
 ## References inventory
 
@@ -31,6 +31,7 @@ in SKILL.md itself or as an extracted card reachable from the router.
 | skills/fairy-tale/references/cards/cyber-frontier-defense-harness.md | 1222 | 21 | 306 |
 | skills/fairy-tale/references/cards/domain-router.md | 944 | 17 | 236 |
 | skills/fairy-tale/references/cards/e3-minimum-sufficient-execution-harness.md | 5478 | 120 | 1370 |
+| skills/fairy-tale/references/cards/edison-ship-gate.md | 3790 | 55 | 948 |
 | skills/fairy-tale/references/cards/effort-inversion-debugger.md | 843 | 16 | 211 |
 | skills/fairy-tale/references/cards/evaluated-feedback-loop.md | 1696 | 27 | 424 |
 | skills/fairy-tale/references/cards/evidence-table-harness.md | 293 | 7 | 73 |
@@ -40,7 +41,7 @@ in SKILL.md itself or as an extracted card reachable from the router.
 | skills/fairy-tale/references/cards/finance-proposal-completeness-gate.md | 10773 | 157 | 2693 |
 | skills/fairy-tale/references/cards/general-e2e-completion-harness.md | 2030 | 30 | 508 |
 | skills/fairy-tale/references/cards/generalization-and-latent-structure-harness-hidden-rules-executable-models-and-tacit-intent.md | 3350 | 50 | 838 |
-| skills/fairy-tale/references/cards/helix-loop-communication-harness.md | 5022 | 84 | 1256 |
+| skills/fairy-tale/references/cards/helix-loop-communication-harness.md | 7074 | 113 | 1768 |
 | skills/fairy-tale/references/cards/high-signal-research-synthesis.md | 238 | 7 | 60 |
 | skills/fairy-tale/references/cards/implementation-validation-gate.md | 4774 | 71 | 1194 |
 | skills/fairy-tale/references/cards/knowledge-crystallization-harness.md | 415 | 10 | 104 |
@@ -89,7 +90,8 @@ in SKILL.md itself or as an extracted card reachable from the router.
 | skills/fairy-tale/references/process/fusion-review-card.md | 604 | 28 | 151 |
 | skills/fairy-tale/references/process/generalization-audit-record.md | 560 | 21 | 140 |
 | skills/fairy-tale/references/process/glass-slipper-gate.md | 244 | 18 | 61 |
-| skills/fairy-tale/references/process/helix-blocker-triage-record.md | 1400 | 39 | 350 |
+| skills/fairy-tale/references/process/helix-blocker-triage-record.md | 3063 | 67 | 766 |
+| skills/fairy-tale/references/process/implementation-contract-closure-record.md | 4915 | 88 | 1229 |
 | skills/fairy-tale/references/process/implicit-contract-discovery-family-router.md | 1652 | 39 | 413 |
 | skills/fairy-tale/references/process/job-automation-delegation-record.md | 1260 | 37 | 315 |
 | skills/fairy-tale/references/process/knowledge-crystallization-record.md | 312 | 16 | 78 |
@@ -113,8 +115,9 @@ in SKILL.md itself or as an extracted card reachable from the router.
 | skills/fairy-tale/references/process/token-recipe-record.md | 803 | 21 | 201 |
 | skills/fairy-tale/references/process/tool-contract-card.md | 284 | 20 | 71 |
 | skills/fairy-tale/references/process/ui-affect-checklist.md | 287 | 17 | 72 |
-| skills/fairy-tale/references/process/usage-aware-multi-agent-load-balancer-record.md | 5388 | 117 | 1347 |
+| skills/fairy-tale/references/process/usage-aware-multi-agent-load-balancer-record.md | 7679 | 150 | 1920 |
 | skills/fairy-tale/references/process/voice-profile-card.md | 237 | 16 | 59 |
-| skills/fairy-tale/references/process.md | 7977 | 59 | 1994 |
+| skills/fairy-tale/references/process.md | 8161 | 60 | 2040 |
+| skills/fairy-tale/references/residency-guard.md | 695 | 18 | 174 |
 | skills/fairy-tale/references/similarity-refactoring-adapter.md | 2885 | 81 | 721 |
 | skills/fairy-tale/references/sources.md | 27183 | 545 | 6796 |

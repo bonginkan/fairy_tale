@@ -15,29 +15,42 @@ loop:
   implementer / two reviewers:
   explicit deadline / source / source ref:
   coarse usage / freshness / trusted source ref:
+  ship stage / basis / basis ref:
+  normal path verified / check ref / summary:
 blockers:
   id / summary:
   failure sequence / preconditions:
   probability / impact / risk rationale:
-  protected floor:
+  finding class:
+  protected floor / floor basis:
   fix estimate / evidence:
   finding reviewer / finding ref:
   objection / rebuttal / tie-break:
   disposition / priority / concurrence:
   issue / human report:
 final readback:
+  ship decision / rationale:
   deferred / retained / not-blocker ids:
   human report ref:
 ```
 
 The machine validator owns the decision semantics. Safety-floor findings
 (secret/credential, data loss, production, authority/permission, security, and
-required acceptance) are never deferrable. A defer decision needs low residual
-risk, concurrence from a registered reviewer distinct from the finding
-reviewer, a canonical issue, and an owner-visible final report. An implementer
-may directly refute the failure sequence once; the finding reviewer responds
-once, and a distinct reviewer tie-breaks rejection. Unresolved discussion
-remains fail-closed.
+required acceptance) are never deferrable, and neither is a finding classed
+against the shipped normal path. A defer decision needs low residual risk,
+concurrence from a registered reviewer distinct from the finding reviewer, a
+canonical issue, and an owner-visible final report. An implementer may directly
+refute the failure sequence once; the finding reviewer responds once, and a
+distinct reviewer tie-breaks rejection. Unresolved discussion remains
+fail-closed.
+
+The record states the stage it decides for. A `dev_deploy` stage whose normal
+path is verified against a concrete executed check applies the Edison Ship
+Gate: the residual-risk cap rises to 200, impact up to high defers without
+measured pressure, and precautionary hardening on the security floor becomes
+deferrable — while a demonstrated reachable defect, every other floor, and the
+normal path itself stay fix-now. A green dev increment cannot be held, and
+every dev-stage deferral re-blocks at production promotion.
 
 The validator proves deterministic record consistency at `evaluated_at`; it
 does not resolve mutable external locators or authorize a live merge by itself.

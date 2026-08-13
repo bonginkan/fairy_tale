@@ -43,9 +43,13 @@ except ImportError:  # pragma: no cover - import from repository root
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "1.1"
 DEFAULT_SAMPLE = ROOT / "examples" / "helix-blocker-triage.json"
 MAX_DEFERRABLE_RISK_SCORE = 60
+# Edison Ship Gate: a dev-stage increment with a verified normal path buys a
+# wider defer envelope, never a weaker floor. The cap still exists so a
+# dev deploy cannot absorb an arbitrarily probable severe failure.
+DEV_MAX_DEFERRABLE_RISK_SCORE = 200
 FRESH_USAGE_MINUTES = 60
 DEADLINE_RESERVE_MINUTES = 24 * 60
 
@@ -65,7 +69,11 @@ LOOP_KEYS = {
     "roles",
     "deadline",
     "usage",
+    "ship_stage",
 }
+SHIP_STAGE_KEYS = {"stage", "basis", "basis_ref", "happy_path"}
+HAPPY_PATH_KEYS = {"verified", "check_ref", "summary"}
+SHIP_DECISION_KEYS = {"decision", "rationale"}
 ROLE_KEYS = {"implementer_id", "reviewer_ids"}
 DEADLINE_KEYS = {"at", "source", "source_ref"}
 USAGE_KEYS = {
@@ -84,7 +92,9 @@ BLOCKER_KEYS = {
     "probability_percent",
     "impact",
     "risk_rationale",
+    "finding_class",
     "protected_floor",
+    "floor_basis",
     "estimated_fix_minutes",
     "evidence_refs",
     "finding_reviewer",
@@ -122,6 +132,7 @@ READBACK_KEYS = {
     "not_blocker_ids",
     "reported_to_human",
     "report_ref",
+    "ship_decision",
 }
 
 IMPACTS = {"negligible", "low", "medium", "high", "critical"}
@@ -141,6 +152,20 @@ PROTECTED_FLOORS = {
     "security",
     "required_acceptance",
 }
+FLOOR_BASES = {"not_applicable", "demonstrated", "precautionary"}
+FINDING_CLASSES = {"happy_path", "abnormal_path", "hardening", "other"}
+SHIP_STAGES = {"production", "dev_deploy"}
+SHIP_BASES = {
+    "production_promotion",
+    "owner_directive",
+    "non_production_target",
+    "early_development",
+}
+DEV_SHIP_BASES = SHIP_BASES - {"production_promotion"}
+SHIP_DECISIONS = {"go", "hold"}
+# The only floor a dev-stage ship may defer, and only when no reachable
+# failure sequence has been demonstrated against the deployed surface.
+DEV_DEFERRABLE_FLOORS = {"security"}
 DEADLINE_SOURCES = {"none", "explicit_owner", "explicit_policy"}
 USAGE_STATUSES = {"fresh", "stale", "unknown"}
 USAGE_SOURCES = {
@@ -402,6 +427,90 @@ def validate_usage(
     )
 
 
+def validate_ship_stage(value: Any, findings: list[Finding]) -> tuple[str | None, bool]:
+    """Return the ship stage and whether the Edison relaxation is earned.
+
+    The relaxation is bought with evidence: only a dev-stage increment whose
+    normal path is recorded as verified against a concrete check carries it.
+    An unverified happy path leaves the production thresholds in force.
+    """
+    ship = object_shape(
+        value,
+        path="helix.loop.ship_stage",
+        required=SHIP_STAGE_KEYS,
+        allowed=SHIP_STAGE_KEYS,
+        findings=findings,
+    )
+    if ship is None:
+        return None, False
+    stage = ship.get("stage")
+    basis = ship.get("basis")
+    if stage not in SHIP_STAGES:
+        add(findings, "helix.loop.ship_stage.stage", "ship stage is invalid")
+        stage = None
+    if basis not in SHIP_BASES:
+        add(findings, "helix.loop.ship_stage.basis", "ship basis is invalid")
+        basis = None
+    if stage == "production" and basis is not None and basis != "production_promotion":
+        add(
+            findings,
+            "helix.loop.ship_stage.basis",
+            "a production stage must record the production_promotion basis",
+        )
+    if stage == "dev_deploy" and basis is not None and basis not in DEV_SHIP_BASES:
+        add(
+            findings,
+            "helix.loop.ship_stage.basis",
+            "a dev ship needs an owner directive, a non-production target, "
+            "or early development as its basis",
+        )
+    if not evidence_list([ship.get("basis_ref")], nonempty=True):
+        add(
+            findings,
+            "helix.loop.ship_stage.basis_ref",
+            "ship stage needs a concrete basis_ref",
+        )
+    happy_path = object_shape(
+        ship.get("happy_path"),
+        path="helix.loop.ship_stage.happy_path",
+        required=HAPPY_PATH_KEYS,
+        allowed=HAPPY_PATH_KEYS,
+        findings=findings,
+    )
+    verified = False
+    if happy_path is not None:
+        raw_verified = happy_path.get("verified")
+        check_ref = happy_path.get("check_ref")
+        if not isinstance(raw_verified, bool):
+            add(
+                findings,
+                "helix.loop.ship_stage.happy_path.verified",
+                "happy_path.verified must be boolean",
+            )
+        elif raw_verified:
+            if evidence_list([check_ref], nonempty=True):
+                verified = True
+            else:
+                add(
+                    findings,
+                    "helix.loop.ship_stage.happy_path.check_ref",
+                    "a verified normal path needs a concrete executed check_ref",
+                )
+        elif check_ref is not None:
+            add(
+                findings,
+                "helix.loop.ship_stage.happy_path.check_ref",
+                "an unverified normal path cannot carry a check_ref",
+            )
+        if not has_text(happy_path.get("summary")):
+            add(
+                findings,
+                "helix.loop.ship_stage.happy_path.summary",
+                "happy_path summary is required",
+            )
+    return stage, stage == "dev_deploy" and verified
+
+
 def validate_objection(
     value: Any,
     *,
@@ -598,6 +707,8 @@ def validate_record(record: Any) -> list[Finding]:
     evaluated_at: datetime | None = None
     deadline_at: datetime | None = None
     usage_pressure = False
+    ship_stage: str | None = None
+    edison_mode = False
     repo: str | None = None
     if loop is not None:
         if not valid_id(loop.get("loop_id")):
@@ -620,6 +731,7 @@ def validate_record(record: Any) -> list[Finding]:
         implementer_id, reviewer_ids = validate_roles(loop.get("roles"), findings)
         deadline_at = validate_deadline(loop.get("deadline"), evaluated_at, findings)
         usage_pressure = validate_usage(loop.get("usage"), evaluated_at, findings)
+        ship_stage, edison_mode = validate_ship_stage(loop.get("ship_stage"), findings)
 
     blockers = top.get("blockers")
     blocker_ids: list[str] = []
@@ -676,10 +788,34 @@ def validate_record(record: Any) -> list[Finding]:
             blocker["risk_rationale"].strip()
         ) < 20:
             add(findings, f"{path}.risk_rationale", "risk rationale is too short")
+        finding_class = blocker.get("finding_class")
+        if finding_class not in FINDING_CLASSES:
+            add(findings, f"{path}.finding_class", "finding class is invalid")
+            finding_class = None
         protected_floor = blocker.get("protected_floor")
         if protected_floor not in PROTECTED_FLOORS:
             add(findings, f"{path}.protected_floor", "protected floor is invalid")
             protected_floor = None
+        floor_basis = blocker.get("floor_basis")
+        if floor_basis not in FLOOR_BASES:
+            add(findings, f"{path}.floor_basis", "floor basis is invalid")
+            floor_basis = None
+        elif protected_floor == "none" and floor_basis != "not_applicable":
+            add(
+                findings,
+                f"{path}.floor_basis",
+                "a finding off the safety floor must record not_applicable",
+            )
+        elif (
+            protected_floor is not None
+            and protected_floor != "none"
+            and floor_basis == "not_applicable"
+        ):
+            add(
+                findings,
+                f"{path}.floor_basis",
+                "a safety-floor finding must record demonstrated or precautionary",
+            )
         estimated_fix_minutes = blocker.get("estimated_fix_minutes")
         if (
             not isinstance(estimated_fix_minutes, int)
@@ -791,7 +927,21 @@ def validate_record(record: Any) -> list[Finding]:
             )
 
         if disposition == "defer_issue":
-            if protected_floor != "none":
+            if finding_class == "happy_path":
+                add(
+                    findings,
+                    f"{path}.resolution.disposition",
+                    "a finding on the shipped normal path cannot be deferred",
+                )
+            # Edison Ship Gate: a dev-stage ship may defer precautionary
+            # hardening on the security floor, never a demonstrated reachable
+            # defect and never another floor.
+            floor_deferrable = (
+                edison_mode
+                and protected_floor in DEV_DEFERRABLE_FLOORS
+                and floor_basis == "precautionary"
+            )
+            if protected_floor != "none" and not floor_deferrable:
                 add(
                     findings,
                     f"{path}.resolution.disposition",
@@ -807,17 +957,26 @@ def validate_record(record: Any) -> list[Finding]:
                 deadline_at=deadline_at,
                 estimated_fix_minutes=estimated_fix_minutes,
             )
-            minor = impact in {"negligible", "low"}
-            bounded_under_pressure = impact == "medium" and pressure
-            if score > MAX_DEFERRABLE_RISK_SCORE or not (
-                minor or bounded_under_pressure
-            ):
-                add(
-                    findings,
-                    f"{path}.resolution.defer_eligibility",
-                    "defer requires low residual risk plus minor impact, or "
-                    "medium impact with measured pressure",
-                )
+            if edison_mode:
+                if score > DEV_MAX_DEFERRABLE_RISK_SCORE or impact == "critical":
+                    add(
+                        findings,
+                        f"{path}.resolution.defer_eligibility",
+                        "a dev ship defers up to high impact within the dev risk "
+                        "cap; critical impact stays fix-now",
+                    )
+            else:
+                minor = impact in {"negligible", "low"}
+                bounded_under_pressure = impact == "medium" and pressure
+                if score > MAX_DEFERRABLE_RISK_SCORE or not (
+                    minor or bounded_under_pressure
+                ):
+                    add(
+                        findings,
+                        f"{path}.resolution.defer_eligibility",
+                        "defer requires low residual risk plus minor impact, or "
+                        "medium impact with measured pressure",
+                    )
             if not independent_concurrence:
                 add(
                     findings,
@@ -870,6 +1029,56 @@ def validate_record(record: Any) -> list[Finding]:
         findings=findings,
     )
     if readback is not None:
+        ship_decision = object_shape(
+            readback.get("ship_decision"),
+            path="helix.final_readback.ship_decision",
+            required=SHIP_DECISION_KEYS,
+            allowed=SHIP_DECISION_KEYS,
+            findings=findings,
+        )
+        if ship_decision is not None:
+            decision = ship_decision.get("decision")
+            rationale = ship_decision.get("rationale")
+            if decision not in SHIP_DECISIONS:
+                add(
+                    findings,
+                    "helix.final_readback.ship_decision.decision",
+                    "ship decision is invalid",
+                )
+                decision = None
+            if not has_text(rationale) or len(rationale.strip()) < 20:
+                add(
+                    findings,
+                    "helix.final_readback.ship_decision.rationale",
+                    "ship decision rationale is too short",
+                )
+            if decision == "go" and retained_ids:
+                add(
+                    findings,
+                    "helix.final_readback.ship_decision.decision",
+                    "a ship decision of go cannot carry retained fix-now findings",
+                )
+            if decision == "go" and ship_stage == "dev_deploy" and not edison_mode:
+                add(
+                    findings,
+                    "helix.final_readback.ship_decision.decision",
+                    "a dev ship needs the recorded normal path verified against "
+                    "a concrete check",
+                )
+            # Edison Ship Gate: holding a green dev increment is the
+            # perfectionism failure this gate exists to stop.
+            if (
+                decision == "hold"
+                and ship_stage == "dev_deploy"
+                and edison_mode
+                and not retained_ids
+            ):
+                add(
+                    findings,
+                    "helix.final_readback.ship_decision.decision",
+                    "a dev increment with a verified normal path and no retained "
+                    "fix-now finding cannot be held",
+                )
         expected_sets = (
             ("deferred_blocker_ids", deferred_ids),
             ("retained_blocker_ids", retained_ids),
@@ -954,6 +1163,13 @@ def render_markdown(record: dict[str, Any]) -> str:
             f"{deadline['source']})"
         )
     usage = loop["usage"]
+    ship = loop["ship_stage"]
+    happy_path = ship["happy_path"]
+    happy_path_summary = (
+        f"verified against `{happy_path['check_ref']}`"
+        if happy_path["verified"]
+        else "not verified"
+    )
     lines = [
         "# Helix Blocker Triage",
         "",
@@ -961,6 +1177,11 @@ def render_markdown(record: dict[str, Any]) -> str:
         f"- Repository: `{loop['repo']}`",
         f"- Exact head: `{loop['exact_head']}`",
         f"- Evaluated: `{loop['evaluated_at']}`",
+        (
+            f"- Ship stage: `{ship['stage']}` (basis `{ship['basis']}`, "
+            f"`{ship['basis_ref']}`)"
+        ),
+        f"- Normal path: {happy_path_summary} — {markdown_escape(happy_path['summary'])}",
         f"- Deadline: {deadline_summary}",
         (
             "- Usage: "
@@ -1025,18 +1246,46 @@ def render_markdown(record: dict[str, Any]) -> str:
                 f"- Implementer objection: {markdown_escape(blocker['objection']['rationale'])}"
             )
     readback = record["final_readback"]
+    ship_decision = readback["ship_decision"]
     lines.extend(
         [
             "",
             "## Final Readback",
             "",
+            f"- Ship decision: `{ship_decision['decision']}` to `{ship['stage']}`",
+            f"- Ship rationale: {markdown_escape(ship_decision['rationale'])}",
             "- Deferred: " + (", ".join(readback["deferred_blocker_ids"]) or "none"),
             "- Retained blockers: " + (", ".join(readback["retained_blocker_ids"]) or "none"),
             "- Not blockers: " + (", ".join(readback["not_blocker_ids"]) or "none"),
             "- Human report ref: " + (readback["report_ref"] or "not reported"),
-            "",
         ]
     )
+    if ship["stage"] == "dev_deploy" and readback["deferred_blocker_ids"]:
+        lines.extend(
+            [
+                "",
+                "## Promotion Debt",
+                "",
+                "These dev-stage deferrals re-block at production promotion "
+                "under the unrelaxed thresholds:",
+                "",
+            ]
+        )
+        deferred = {
+            blocker["id"]: blocker
+            for blocker in record["blockers"]
+            if blocker["id"] in set(readback["deferred_blocker_ids"])
+        }
+        for blocker_id in readback["deferred_blocker_ids"]:
+            blocker = deferred[blocker_id]
+            lines.append(
+                f"- `{markdown_escape(blocker_id)}` "
+                f"({markdown_escape(blocker['finding_class'])}, floor "
+                f"`{markdown_escape(blocker['protected_floor'])}`/"
+                f"`{markdown_escape(blocker['floor_basis'])}`): "
+                f"{blocker['resolution']['issue_url']}"
+            )
+    lines.append("")
     return "\n".join(lines)
 
 
@@ -1050,7 +1299,7 @@ def load_record(path: Path) -> dict[str, Any]:
 
 def sample_record() -> dict[str, Any]:
     return {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "artifact_type": "helix_blocker_triage",
         "loop": {
             "loop_id": "helix-balance-sample",
@@ -1075,6 +1324,16 @@ def sample_record() -> dict[str, Any]:
                 "source_ref": "usage:local-guard",
                 "observed_at": "2026-07-26T13:55:00+09:00",
             },
+            "ship_stage": {
+                "stage": "production",
+                "basis": "production_promotion",
+                "basis_ref": "source:release-promotion",
+                "happy_path": {
+                    "verified": True,
+                    "check_ref": "check:release-acceptance-suite",
+                    "summary": "The release acceptance suite passes on this head.",
+                },
+            },
         },
         "blockers": [
             {
@@ -1094,7 +1353,9 @@ def sample_record() -> dict[str, Any]:
                     "The sequence is rare and bounded to one recomputation "
                     "without data loss or authority impact."
                 ),
+                "finding_class": "abnormal_path",
                 "protected_floor": "none",
+                "floor_basis": "not_applicable",
                 "estimated_fix_minutes": 180,
                 "evidence_refs": ["test:capacity-eviction-probe"],
                 "finding_reviewer": {
@@ -1136,7 +1397,9 @@ def sample_record() -> dict[str, Any]:
                     "If true, the collision would corrupt a review input, but "
                     "the exact identity probe refutes the prerequisite."
                 ),
+                "finding_class": "other",
                 "protected_floor": "data_loss",
+                "floor_basis": "demonstrated",
                 "estimated_fix_minutes": 30,
                 "evidence_refs": ["test:path-identity-negative"],
                 "finding_reviewer": {
@@ -1170,6 +1433,13 @@ def sample_record() -> dict[str, Any]:
             },
         ],
         "final_readback": {
+            "ship_decision": {
+                "decision": "go",
+                "rationale": (
+                    "The acceptance suite passes and no fix-now finding is "
+                    "retained, so the promotion proceeds."
+                ),
+            },
             "deferred_blocker_ids": ["minor-capacity-eviction"],
             "retained_blocker_ids": [],
             "not_blocker_ids": ["false-positive-finding"],
@@ -1177,6 +1447,29 @@ def sample_record() -> dict[str, Any]:
             "report_ref": "source:owner-final-readback",
         },
     }
+
+
+def dev_sample_record() -> dict[str, Any]:
+    """A dev-stage record whose verified normal path earns the Edison gate."""
+    record = sample_record()
+    record["loop"]["ship_stage"] = {
+        "stage": "dev_deploy",
+        "basis": "non_production_target",
+        "basis_ref": "source:dev-environment-target",
+        "happy_path": {
+            "verified": True,
+            "check_ref": "check:dev-smoke-normal-path",
+            "summary": "The dev smoke run completes the normal path end to end.",
+        },
+    }
+    record["final_readback"]["ship_decision"] = {
+        "decision": "go",
+        "rationale": (
+            "The normal path is verified on the dev target and nothing "
+            "fix-now is retained, so humans get to hit it now."
+        ),
+    }
+    return record
 
 
 def run_selftest() -> int:
@@ -1244,6 +1537,10 @@ def run_selftest() -> int:
     unresolved["blockers"][1]["resolution"]["priority"] = "P0"
     unresolved["final_readback"]["not_blocker_ids"] = []
     unresolved["final_readback"]["retained_blocker_ids"] = ["false-positive-finding"]
+    unresolved["final_readback"]["ship_decision"] = {
+        "decision": "hold",
+        "rationale": "A retained fix-now finding holds the promotion.",
+    }
     blocked(unresolved, "distinct reviewer tie-break")
 
     sustained = copy.deepcopy(unresolved)
@@ -1350,6 +1647,160 @@ def run_selftest() -> int:
     bad_report_ref["final_readback"]["report_ref"] = "reported somewhere"
     blocked(bad_report_ref, "concrete final readback ref")
 
+    stage_mismatch = copy.deepcopy(base)
+    stage_mismatch["loop"]["ship_stage"]["basis"] = "owner_directive"
+    blocked(stage_mismatch, "production_promotion basis")
+
+    floor_basis_off_floor = copy.deepcopy(base)
+    floor_basis_off_floor["blockers"][0]["floor_basis"] = "demonstrated"
+    blocked(floor_basis_off_floor, "must record not_applicable")
+
+    floor_basis_missing = copy.deepcopy(base)
+    floor_basis_missing["blockers"][1]["floor_basis"] = "not_applicable"
+    blocked(floor_basis_missing, "demonstrated or precautionary")
+
+    # Edison Ship Gate controls.
+    dev_base = dev_sample_record()
+    check(not validate_record(dev_base), "dev-stage sample record is valid")
+
+    dev_stage_mismatch = copy.deepcopy(dev_base)
+    dev_stage_mismatch["loop"]["ship_stage"]["basis"] = "production_promotion"
+    blocked(dev_stage_mismatch, "owner directive, a non-production target")
+
+    def widen_to_high(record: dict[str, Any]) -> dict[str, Any]:
+        target = record["blockers"][0]
+        target["impact"] = "high"
+        target["probability_percent"] = 30
+        target["risk_rationale"] = (
+            "The abnormal path degrades a bounded dev workflow and is tracked "
+            "for the next increment rather than held before the deploy."
+        )
+        target["resolution"]["priority"] = "P2"
+        return record
+
+    dev_high_defer = widen_to_high(copy.deepcopy(dev_base))
+    check(
+        not validate_record(dev_high_defer),
+        "a verified dev normal path defers high-impact abnormal-path work",
+    )
+
+    production_high_defer = widen_to_high(copy.deepcopy(base))
+    blocked(production_high_defer, "medium impact with measured pressure")
+
+    unverified_dev = widen_to_high(copy.deepcopy(dev_base))
+    unverified_dev["loop"]["ship_stage"]["happy_path"] = {
+        "verified": False,
+        "check_ref": None,
+        "summary": "The dev smoke run has not been executed on this head.",
+    }
+    blocked(unverified_dev, "medium impact with measured pressure")
+
+    unverified_go = copy.deepcopy(dev_base)
+    unverified_go["loop"]["ship_stage"]["happy_path"] = {
+        "verified": False,
+        "check_ref": None,
+        "summary": "The dev smoke run has not been executed on this head.",
+    }
+    blocked(unverified_go, "normal path verified against a concrete check")
+
+    unverified_with_ref = copy.deepcopy(dev_base)
+    unverified_with_ref["loop"]["ship_stage"]["happy_path"] = {
+        "verified": False,
+        "check_ref": "check:dev-smoke-normal-path",
+        "summary": "An unverified claim cannot carry a check.",
+    }
+    blocked(unverified_with_ref, "cannot carry a check_ref")
+
+    dev_critical_defer = copy.deepcopy(dev_base)
+    target = dev_critical_defer["blockers"][0]
+    target["impact"] = "critical"
+    target["probability_percent"] = 20
+    target["risk_rationale"] = (
+        "A critical failure stays fix-now even on a dev target because the "
+        "deploy would carry it to every human tester."
+    )
+    target["resolution"]["priority"] = "P2"
+    blocked(dev_critical_defer, "critical impact stays fix-now")
+
+    def as_security(record: dict[str, Any], basis: str) -> dict[str, Any]:
+        target = record["blockers"][0]
+        target["finding_class"] = "hardening"
+        target["protected_floor"] = "security"
+        target["floor_basis"] = basis
+        target["summary"] = "A defence-in-depth header is still missing"
+        target["failure_sequence"] = (
+            "A response leaves the dev service without the hardening header, "
+            "so a future reachable path would lose one defence layer."
+        )
+        target["risk_rationale"] = (
+            "No reachable exploitation sequence has been demonstrated against "
+            "the dev surface; the header is layered defence."
+        )
+        target["resolution"]["priority"] = "P0"
+        return record
+
+    dev_precautionary_security = as_security(copy.deepcopy(dev_base), "precautionary")
+    check(
+        not validate_record(dev_precautionary_security),
+        "dev ship defers precautionary security hardening to an issue",
+    )
+
+    dev_demonstrated_security = as_security(copy.deepcopy(dev_base), "demonstrated")
+    dev_demonstrated_security["blockers"][0]["risk_rationale"] = (
+        "A reachable request sequence was demonstrated against the dev "
+        "surface, so the finding is a defect rather than hardening."
+    )
+    blocked(dev_demonstrated_security, "protected safety-floor blockers cannot be deferred")
+
+    production_precautionary_security = as_security(copy.deepcopy(base), "precautionary")
+    blocked(
+        production_precautionary_security,
+        "protected safety-floor blockers cannot be deferred",
+    )
+
+    dev_precautionary_data_loss = copy.deepcopy(dev_base)
+    dev_precautionary_data_loss["blockers"][0]["protected_floor"] = "data_loss"
+    dev_precautionary_data_loss["blockers"][0]["floor_basis"] = "precautionary"
+    dev_precautionary_data_loss["blockers"][0]["resolution"]["priority"] = "P0"
+    blocked(
+        dev_precautionary_data_loss,
+        "protected safety-floor blockers cannot be deferred",
+    )
+
+    dev_happy_path_defer = copy.deepcopy(dev_base)
+    dev_happy_path_defer["blockers"][0]["finding_class"] = "happy_path"
+    blocked(dev_happy_path_defer, "shipped normal path cannot be deferred")
+
+    green_hold = copy.deepcopy(dev_base)
+    green_hold["final_readback"]["ship_decision"] = {
+        "decision": "hold",
+        "rationale": "The reviewer would prefer another hardening round first.",
+    }
+    blocked(green_hold, "cannot be held")
+
+    retained_go = copy.deepcopy(dev_base)
+    retained = copy.deepcopy(retained_go["blockers"][0])
+    retained["id"] = "retained-normal-path-defect"
+    retained["finding_class"] = "happy_path"
+    retained["resolution"] = {
+        "disposition": "fix_now",
+        "priority": "P3",
+        "rationale": "The normal path must work before the dev deploy.",
+        "concurred_by": ["cc-misa-hime"],
+        "issue_url": None,
+        "human_report": None,
+    }
+    retained_go["blockers"].append(retained)
+    retained_go["final_readback"]["retained_blocker_ids"] = [
+        "retained-normal-path-defect"
+    ]
+    blocked(retained_go, "go cannot carry retained fix-now findings")
+
+    dev_render = render_markdown(dev_base)
+    check("Ship stage: `dev_deploy`" in dev_render, "render states the ship stage")
+    check("Ship decision: `go`" in dev_render, "render states the ship decision")
+    check("Promotion Debt" in dev_render, "render carries dev promotion debt")
+
     with tempfile.TemporaryDirectory(prefix=".helix-selftest-", dir=ROOT) as raw:
         tmp = Path(raw)
         record_path = tmp / "record.json"
@@ -1388,6 +1839,22 @@ def run_selftest() -> int:
     check(
         set(schema["$defs"]["blocker"]["required"]) == BLOCKER_KEYS,
         "schema blocker keys match runtime",
+    )
+    check(
+        set(schema["$defs"]["shipStage"]["required"]) == SHIP_STAGE_KEYS,
+        "schema ship-stage keys match runtime",
+    )
+    check(
+        set(schema["$defs"]["happyPath"]["required"]) == HAPPY_PATH_KEYS,
+        "schema happy-path keys match runtime",
+    )
+    check(
+        set(schema["$defs"]["shipDecision"]["required"]) == SHIP_DECISION_KEYS,
+        "schema ship-decision keys match runtime",
+    )
+    check(
+        set(schema["$defs"]["finalReadback"]["required"]) == READBACK_KEYS,
+        "schema readback keys match runtime",
     )
     print(f"Helix blocker triage selftest OK: {controls} controls")
     return 0
