@@ -376,6 +376,22 @@
         }
       ]
     },
+    "shipAttestation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reviewer_id",
+        "evidence_refs"
+      ],
+      "properties": {
+        "reviewer_id": {
+          "$ref": "#/$defs/id"
+        },
+        "evidence_refs": {
+          "$ref": "#/$defs/evidenceRefs"
+        }
+      }
+    },
     "shipStage": {
       "type": "object",
       "additionalProperties": false,
@@ -383,7 +399,8 @@
         "stage",
         "basis",
         "basis_ref",
-        "happy_path"
+        "happy_path",
+        "evidence_attestation"
       ],
       "properties": {
         "stage": {
@@ -405,6 +422,16 @@
         },
         "happy_path": {
           "$ref": "#/$defs/happyPath"
+        },
+        "evidence_attestation": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/shipAttestation"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "allOf": [
@@ -434,6 +461,43 @@
                   "non_production_target",
                   "early_development"
                 ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "stage": {
+                "const": "dev_deploy"
+              },
+              "happy_path": {
+                "properties": {
+                  "verified": {
+                    "const": true
+                  }
+                },
+                "required": [
+                  "verified"
+                ]
+              }
+            },
+            "required": [
+              "stage",
+              "happy_path"
+            ]
+          },
+          "then": {
+            "properties": {
+              "evidence_attestation": {
+                "$ref": "#/$defs/shipAttestation"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "evidence_attestation": {
+                "type": "null"
               }
             }
           }
@@ -889,6 +953,40 @@
             },
             "required": [
               "protected_floor"
+            ]
+          },
+          "then": {
+            "properties": {
+              "resolution": {
+                "properties": {
+                  "disposition": {
+                    "enum": [
+                      "fix_now",
+                      "not_blocker"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "protected_floor": {
+                "const": "security"
+              },
+              "finding_class": {
+                "enum": [
+                  "happy_path",
+                  "abnormal_path",
+                  "other"
+                ]
+              }
+            },
+            "required": [
+              "protected_floor",
+              "finding_class"
             ]
           },
           "then": {

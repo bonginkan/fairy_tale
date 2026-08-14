@@ -15,6 +15,17 @@ harness enumerates — a human using it.
   Record the increment's happy path as a concrete executed check with an
   evidence ref. An unverified or hand-waved happy path leaves the ordinary
   production thresholds in force — the relaxation is bought with evidence.
+- **The evidence needs a witness who is not the beneficiary.** The stage basis
+  and the normal-path check are locators the implementer writes, so a
+  registered reviewer other than the implementer attests to having confirmed
+  that the basis names a real authorized non-production target or directive
+  and that the check ran on this exact head. Without that attestation the
+  relaxation is not earned, whatever the record claims.
+- **Readiness, not authority.** A ship decision states that the increment is
+  ready for the recorded stage. It grants no deploy, merge, or access
+  authority, and it overrides neither the repository's own gates nor the
+  owner's standing policy: the `hold` rejection below rejects *diligence
+  theatre*, never someone else's authority to withhold a deploy.
 - **Ship rule.** With the normal path verified and no retained fix-now finding,
   the increment ships to the dev target. *Holding a green increment is a
   finding, not diligence.* The machine gate rejects `hold` in that state.
@@ -27,15 +38,18 @@ harness enumerates — a human using it.
   loss, production impact, an authority or permission boundary, a demonstrated
   reachable security defect, the increment's own required acceptance criteria,
   and any finding that breaks the verified normal path are fix-now at every
-  stage. Deferring a floor finding by relabelling it precautionary is the abuse
-  this gate is most likely to attract; a precautionary classification claims
-  only that no reachable failure sequence has been demonstrated, and any
+  stage. The one security exception is *hardening*: a finding of any other
+  class wearing the security floor is a defect, and relabelling its basis
+  precautionary does not make it deferrable. A precautionary classification
+  claims only that no reachable failure sequence has been demonstrated, and any
   demonstration converts it back to fix-now.
 - **Deferral stays a recorded transaction.** Same-repository issue, one
   registered reviewer concurring who is not the finding reviewer, an
   owner-visible report, and the exact final readback — unchanged from ordinary
-  triage. "Issue it and move" is a promotion of the *threshold*, never a
-  weakening of the *record*.
+  triage. Deferring on the *floor* costs more: every registered reviewer
+  concurs, because the precautionary claim's only witness is the panel's
+  reading of the failure sequence. "Issue it and move" is a promotion of the
+  *threshold*, never a weakening of the *record*.
 - **Promotion re-blocks.** Every dev-stage deferral re-enters as a blocking
   candidate at production, under the unrelaxed thresholds. Dev debt is
   deferred, never discharged, so shipping fast never silently ships weak.

@@ -17,6 +17,7 @@ loop:
   coarse usage / freshness / trusted source ref:
   ship stage / basis / basis ref:
   normal path verified / check ref / summary:
+  evidence attestation reviewer / refs (dev ship only):
 blockers:
   id / summary:
   failure sequence / preconditions:
@@ -45,12 +46,18 @@ distinct reviewer tie-breaks rejection. Unresolved discussion remains
 fail-closed.
 
 The record states the stage it decides for. A `dev_deploy` stage whose normal
-path is verified against a concrete executed check applies the Edison Ship
-Gate: the residual-risk cap rises to 200, impact up to high defers without
-measured pressure, and precautionary hardening on the security floor becomes
-deferrable — while a demonstrated reachable defect, every other floor, and the
-normal path itself stay fix-now. A green dev increment cannot be held, and
-every dev-stage deferral re-blocks at production promotion.
+path is verified against a concrete executed check, and whose basis and check a
+registered reviewer other than the implementer attests to having confirmed,
+applies the Edison Ship Gate: the residual-risk cap rises to 200, impact up to
+high defers without measured pressure, and precautionary `hardening` on the
+security floor becomes deferrable with every registered reviewer concurring —
+while a demonstrated reachable defect, a security finding of any other class,
+every other floor, and the normal path itself stay fix-now. A green dev
+increment cannot be held, and every dev-stage deferral re-blocks at production
+promotion. A ship decision states readiness for the recorded stage; it grants
+no deploy, merge, or access authority and overrides no repository gate or owner
+policy. Records written under schema 1.0 upgrade through
+`./fairy blocker migrate` rather than expiring.
 
 The validator proves deterministic record consistency at `evaluated_at`; it
 does not resolve mutable external locators or authorize a live merge by itself.

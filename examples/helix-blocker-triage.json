@@ -35,6 +35,13 @@
         "verified": true,
         "check_ref": "check:dev-smoke-normal-path",
         "summary": "The dev smoke run completes the normal path end to end on this head."
+      },
+      "evidence_attestation": {
+        "reviewer_id": "codex-misa",
+        "evidence_refs": [
+          "run:reviewer-dev-smoke-rerun",
+          "source:dev-target-authorization"
+        ]
       }
     }
   },
@@ -154,7 +161,8 @@
         "priority": "P0",
         "rationale": "Precautionary hardening is tracked as the first item of the next cycle; any demonstrated reachable path converts it back to fix-now.",
         "concurred_by": [
-          "codex-misa"
+          "codex-misa",
+          "cc-misa-hime"
         ],
         "issue_url": "https://github.com/bonginkan/fairy_tale/issues/94",
         "human_report": {

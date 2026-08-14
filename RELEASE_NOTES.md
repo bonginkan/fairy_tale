@@ -15,11 +15,26 @@
   path leaves the production thresholds in force.
 - Under the gate the defer envelope widens to a residual risk score of 200 and
   to high impact without measured pressure; critical impact stays fix-now.
+- The evidence itself needs a witness who is not its beneficiary:
+  `ship_stage.evidence_attestation` names the registered reviewer — never the
+  implementer — who confirmed that the basis denotes a real authorized target
+  or directive and that the normal-path check ran on this exact head. A
+  missing, self-written, or unsupported attestation leaves the production
+  thresholds in force.
 - The floor does not move. Every finding now records a `finding_class` and a
   `floor_basis`: only *precautionary* hardening on the security floor may be
-  deferred, and only at a verified dev stage. A demonstrated reachable defect,
-  every other floor, and any finding classed against the shipped normal path
-  remain fix-now at every stage.
+  deferred — the finding must be classed `hardening`, so a reachable defect
+  cannot reach the issue queue by relabelling its basis — only at a verified,
+  attested dev stage, and only with every registered reviewer concurring. A
+  demonstrated reachable defect, every other floor, and any finding classed
+  against the shipped normal path remain fix-now at every stage.
+- A ship decision is a readiness statement, not an authority grant: `go`
+  confers no deploy, merge, or access authority and overrides no repository
+  gate or owner policy. The rendered readback prints that boundary.
+- Records persisted under schema 1.0 upgrade rather than expire.
+  `fairy blocker migrate` maps them onto the production stage with an
+  unverified normal path and no attestation — never granting an envelope the
+  old record did not earn — and validates the result before writing it.
 - `final_readback.ship_decision` makes the outcome auditable: `go` cannot carry
   a retained fix-now finding, a dev `go` needs the verified normal path, and a
   dev increment with a verified normal path and nothing retained **cannot be

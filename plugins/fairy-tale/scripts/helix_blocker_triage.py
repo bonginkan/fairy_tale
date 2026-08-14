@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import copy
+import io
 import json
 import math
 import re
@@ -44,6 +46,10 @@ except ImportError:  # pragma: no cover - import from repository root
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_VERSION = "1.1"
+# The persisted contract records already written against the previous version.
+# They stay readable through `migrate`, which upgrades them without inventing
+# evidence the original record never carried.
+MIGRATABLE_SCHEMA_VERSION = "1.0"
 DEFAULT_SAMPLE = ROOT / "examples" / "helix-blocker-triage.json"
 MAX_DEFERRABLE_RISK_SCORE = 60
 # Edison Ship Gate: a dev-stage increment with a verified normal path buys a
@@ -71,8 +77,9 @@ LOOP_KEYS = {
     "usage",
     "ship_stage",
 }
-SHIP_STAGE_KEYS = {"stage", "basis", "basis_ref", "happy_path"}
+SHIP_STAGE_KEYS = {"stage", "basis", "basis_ref", "happy_path", "evidence_attestation"}
 HAPPY_PATH_KEYS = {"verified", "check_ref", "summary"}
+SHIP_ATTESTATION_KEYS = {"reviewer_id", "evidence_refs"}
 SHIP_DECISION_KEYS = {"decision", "rationale"}
 ROLE_KEYS = {"implementer_id", "reviewer_ids"}
 DEADLINE_KEYS = {"at", "source", "source_ref"}
@@ -427,12 +434,21 @@ def validate_usage(
     )
 
 
-def validate_ship_stage(value: Any, findings: list[Finding]) -> tuple[str | None, bool]:
+def validate_ship_stage(
+    value: Any,
+    *,
+    implementer_id: str | None,
+    reviewer_ids: list[str],
+    findings: list[Finding],
+) -> tuple[str | None, bool]:
     """Return the ship stage and whether the Edison relaxation is earned.
 
-    The relaxation is bought with evidence: only a dev-stage increment whose
-    normal path is recorded as verified against a concrete check carries it.
-    An unverified happy path leaves the production thresholds in force.
+    The relaxation is bought with evidence, and the evidence is bought with a
+    witness: only a dev-stage increment whose normal path is recorded as
+    verified against a concrete check, and whose basis and check a registered
+    reviewer other than the implementer attests to having confirmed, carries
+    it. An unverified happy path, or one the implementer alone asserts, leaves
+    the production thresholds in force.
     """
     ship = object_shape(
         value,
@@ -508,7 +524,77 @@ def validate_ship_stage(value: Any, findings: list[Finding]) -> tuple[str | None
                 "helix.loop.ship_stage.happy_path.summary",
                 "happy_path summary is required",
             )
-    return stage, stage == "dev_deploy" and verified
+    attested = validate_ship_attestation(
+        ship.get("evidence_attestation"),
+        relaxation_claimed=stage == "dev_deploy" and verified,
+        implementer_id=implementer_id,
+        reviewer_ids=reviewer_ids,
+        findings=findings,
+    )
+    return stage, stage == "dev_deploy" and verified and attested
+
+
+def validate_ship_attestation(
+    value: Any,
+    *,
+    relaxation_claimed: bool,
+    implementer_id: str | None,
+    reviewer_ids: list[str],
+    findings: list[Finding],
+) -> bool:
+    """Check the reviewer attestation that the ship evidence is real.
+
+    ``basis_ref`` and ``happy_path.check_ref`` are locators the implementer
+    writes; a locator asserted by the party it benefits is not evidence. The
+    attestation names the registered reviewer who confirmed that the basis
+    denotes a real authorized non-production target or directive and that the
+    normal-path check was executed on this exact head.
+    """
+    path = "helix.loop.ship_stage.evidence_attestation"
+    if not relaxation_claimed:
+        if value is not None:
+            add(
+                findings,
+                path,
+                "only a dev ship with a verified normal path carries an "
+                "evidence attestation",
+            )
+        return False
+    if value is None:
+        add(
+            findings,
+            path,
+            "a dev ship needs a registered reviewer to attest the recorded "
+            "basis and normal-path check",
+        )
+        return False
+    attestation = object_shape(
+        value,
+        path=path,
+        required=SHIP_ATTESTATION_KEYS,
+        allowed=SHIP_ATTESTATION_KEYS,
+        findings=findings,
+    )
+    if attestation is None:
+        return False
+    attested = True
+    reviewer_id = attestation.get("reviewer_id")
+    if reviewer_id not in reviewer_ids or reviewer_id == implementer_id:
+        add(
+            findings,
+            f"{path}.reviewer_id",
+            "the attesting reviewer must be a registered reviewer who is not "
+            "the implementer",
+        )
+        attested = False
+    if not evidence_list(attestation.get("evidence_refs"), nonempty=True):
+        add(
+            findings,
+            f"{path}.evidence_refs",
+            "the attestation needs the concrete refs the reviewer confirmed",
+        )
+        attested = False
+    return attested
 
 
 def validate_objection(
@@ -686,8 +772,16 @@ def validate_record(record: Any) -> list[Finding]:
     )
     if top is None:
         return findings
-    if top.get("schema_version") != SCHEMA_VERSION:
-        add(findings, "helix.schema_version", "schema_version must be 1.0")
+    schema_version = top.get("schema_version")
+    if schema_version == MIGRATABLE_SCHEMA_VERSION:
+        add(
+            findings,
+            "helix.schema_version",
+            f"schema_version {MIGRATABLE_SCHEMA_VERSION} is superseded; upgrade "
+            "the record with `fairy blocker migrate`",
+        )
+    elif schema_version != SCHEMA_VERSION:
+        add(findings, "helix.schema_version", f"schema_version must be {SCHEMA_VERSION}")
     if top.get("artifact_type") != "helix_blocker_triage":
         add(
             findings,
@@ -731,7 +825,12 @@ def validate_record(record: Any) -> list[Finding]:
         implementer_id, reviewer_ids = validate_roles(loop.get("roles"), findings)
         deadline_at = validate_deadline(loop.get("deadline"), evaluated_at, findings)
         usage_pressure = validate_usage(loop.get("usage"), evaluated_at, findings)
-        ship_stage, edison_mode = validate_ship_stage(loop.get("ship_stage"), findings)
+        ship_stage, edison_mode = validate_ship_stage(
+            loop.get("ship_stage"),
+            implementer_id=implementer_id,
+            reviewer_ids=reviewer_ids,
+            findings=findings,
+        )
 
     blockers = top.get("blockers")
     blocker_ids: list[str] = []
@@ -935,10 +1034,14 @@ def validate_record(record: Any) -> list[Finding]:
                 )
             # Edison Ship Gate: a dev-stage ship may defer precautionary
             # hardening on the security floor, never a demonstrated reachable
-            # defect and never another floor.
+            # defect, never another floor, and never a finding of another class
+            # wearing the security floor. The class is checked here because the
+            # document contract promises "precautionary hardening only", and a
+            # promise the runtime does not read is not a control.
             floor_deferrable = (
                 edison_mode
                 and protected_floor in DEV_DEFERRABLE_FLOORS
+                and finding_class == "hardening"
                 and floor_basis == "precautionary"
             )
             if protected_floor != "none" and not floor_deferrable:
@@ -947,6 +1050,23 @@ def validate_record(record: Any) -> list[Finding]:
                     f"{path}.resolution.disposition",
                     "protected safety-floor blockers cannot be deferred",
                 )
+            elif floor_deferrable:
+                # The precautionary claim is the one claim whose only witness
+                # is the panel's reading of the failure sequence, so deferring
+                # on the floor takes the whole registered panel rather than the
+                # single concurrence an off-floor deferral needs.
+                absent = [
+                    reviewer
+                    for reviewer in reviewer_ids
+                    if reviewer not in concurred_by
+                ]
+                if absent:
+                    add(
+                        findings,
+                        f"{path}.resolution.concurred_by",
+                        "deferring a safety-floor finding needs every "
+                        "registered reviewer to concur: " + ", ".join(absent),
+                    )
             score = (
                 probability_value * IMPACT_WEIGHTS[impact]
                 if probability_value is not None and impact in IMPACT_WEIGHTS
@@ -1254,6 +1374,10 @@ def render_markdown(record: dict[str, Any]) -> str:
             "",
             f"- Ship decision: `{ship_decision['decision']}` to `{ship['stage']}`",
             f"- Ship rationale: {markdown_escape(ship_decision['rationale'])}",
+            "- Ship authority: readiness only — this record states that the "
+            "increment is ready for the recorded stage. It grants no deploy, "
+            "merge, or access authority, and does not override the "
+            "repository's own gates or the owner's standing policy.",
             "- Deferred: " + (", ".join(readback["deferred_blocker_ids"]) or "none"),
             "- Retained blockers: " + (", ".join(readback["retained_blocker_ids"]) or "none"),
             "- Not blockers: " + (", ".join(readback["not_blocker_ids"]) or "none"),
@@ -1297,6 +1421,81 @@ def load_record(path: Path) -> dict[str, Any]:
     return record
 
 
+def migrate_record(record: Any) -> dict[str, Any]:
+    """Upgrade a persisted schema 1.0 record to the current schema.
+
+    A schema change that silently invalidates every stored record is a data
+    break wearing a version number. The upgrade is faithful rather than
+    generous: 1.0 decided under the unrelaxed thresholds, so the migrated
+    record states the production stage with an unverified normal path and no
+    attestation. It cannot hand an old record an envelope the old record never
+    earned, and the result is validated here rather than trusted.
+    """
+    if not isinstance(record, dict):
+        raise ArtifactError("a triage record must be a JSON object")
+    version = record.get("schema_version")
+    if version == SCHEMA_VERSION:
+        raise ArtifactError(f"record is already schema {SCHEMA_VERSION}")
+    if version != MIGRATABLE_SCHEMA_VERSION:
+        raise ArtifactError(
+            f"only schema {MIGRATABLE_SCHEMA_VERSION} records can be migrated"
+        )
+    upgraded = copy.deepcopy(record)
+    upgraded["schema_version"] = SCHEMA_VERSION
+
+    loop = upgraded.get("loop")
+    if not isinstance(loop, dict):
+        raise ArtifactError("helix.loop must be an object")
+    if "ship_stage" in loop:
+        raise ArtifactError("a schema 1.0 record cannot already carry a ship_stage")
+    loop["ship_stage"] = {
+        "stage": "production",
+        "basis": "production_promotion",
+        "basis_ref": loop.get("artifact_ref"),
+        "happy_path": {
+            "verified": False,
+            "check_ref": None,
+            "summary": (
+                "Migrated from schema 1.0, which recorded no normal-path check, "
+                "so the unrelaxed thresholds stay in force."
+            ),
+        },
+        "evidence_attestation": None,
+    }
+
+    blockers = upgraded.get("blockers")
+    if not isinstance(blockers, list) or not blockers:
+        raise ArtifactError("helix.blockers must be a non-empty list")
+    for blocker in blockers:
+        if not isinstance(blocker, dict):
+            raise ArtifactError("every blocker must be an object")
+        blocker.setdefault("finding_class", "other")
+        blocker.setdefault(
+            "floor_basis",
+            "not_applicable" if blocker.get("protected_floor") == "none" else "demonstrated",
+        )
+
+    readback = upgraded.get("final_readback")
+    if not isinstance(readback, dict):
+        raise ArtifactError("helix.final_readback must be an object")
+    held = bool(readback.get("retained_blocker_ids"))
+    readback.setdefault(
+        "ship_decision",
+        {
+            "decision": "hold" if held else "go",
+            "rationale": (
+                "Migrated from schema 1.0: a retained fix-now finding holds "
+                "this increment."
+                if held
+                else "Migrated from schema 1.0: no fix-now finding is retained, "
+                "so the recorded decision stands."
+            ),
+        },
+    )
+    require_valid(upgraded)
+    return upgraded
+
+
 def sample_record() -> dict[str, Any]:
     return {
         "schema_version": "1.1",
@@ -1333,6 +1532,7 @@ def sample_record() -> dict[str, Any]:
                     "check_ref": "check:release-acceptance-suite",
                     "summary": "The release acceptance suite passes on this head.",
                 },
+                "evidence_attestation": None,
             },
         },
         "blockers": [
@@ -1461,6 +1661,10 @@ def dev_sample_record() -> dict[str, Any]:
             "check_ref": "check:dev-smoke-normal-path",
             "summary": "The dev smoke run completes the normal path end to end.",
         },
+        "evidence_attestation": {
+            "reviewer_id": "codex-misa",
+            "evidence_refs": ["run:reviewer-dev-smoke-rerun"],
+        },
     }
     record["final_readback"]["ship_decision"] = {
         "decision": "go",
@@ -1469,6 +1673,18 @@ def dev_sample_record() -> dict[str, Any]:
             "fix-now is retained, so humans get to hit it now."
         ),
     }
+    return record
+
+
+def legacy_sample_record() -> dict[str, Any]:
+    """The canonical sample as schema 1.0 wrote it, before the ship stage."""
+    record = sample_record()
+    record["schema_version"] = MIGRATABLE_SCHEMA_VERSION
+    del record["loop"]["ship_stage"]
+    del record["final_readback"]["ship_decision"]
+    for blocker in record["blockers"]:
+        del blocker["finding_class"]
+        del blocker["floor_basis"]
     return record
 
 
@@ -1727,6 +1943,7 @@ def run_selftest() -> int:
         target["finding_class"] = "hardening"
         target["protected_floor"] = "security"
         target["floor_basis"] = basis
+        target["resolution"]["concurred_by"] = ["cc-misa-hime", "codex-misa"]
         target["summary"] = "A defence-in-depth header is still missing"
         target["failure_sequence"] = (
             "A response leaves the dev service without the hardening header, "
@@ -1771,6 +1988,57 @@ def run_selftest() -> int:
     dev_happy_path_defer["blockers"][0]["finding_class"] = "happy_path"
     blocked(dev_happy_path_defer, "shipped normal path cannot be deferred")
 
+    # The security exception is for hardening. A reachable abnormal-path or
+    # unclassified defect wearing the security floor must not reach the issue
+    # queue by relabelling its basis precautionary.
+    for escaping_class in ("abnormal_path", "other"):
+        dev_class_escape = as_security(copy.deepcopy(dev_base), "precautionary")
+        dev_class_escape["blockers"][0]["finding_class"] = escaping_class
+        dev_class_escape["blockers"][0]["failure_sequence"] = (
+            "An unauthenticated dev request reaches the privileged handler "
+            "through the unguarded fallback route and returns tenant data."
+        )
+        blocked(
+            dev_class_escape,
+            "protected safety-floor blockers cannot be deferred",
+        )
+
+    dev_security_single_concurrence = as_security(
+        copy.deepcopy(dev_base), "precautionary"
+    )
+    dev_security_single_concurrence["blockers"][0]["resolution"]["concurred_by"] = [
+        "cc-misa-hime"
+    ]
+    blocked(dev_security_single_concurrence, "every registered reviewer to concur")
+
+    unattested_dev = copy.deepcopy(dev_base)
+    unattested_dev["loop"]["ship_stage"]["evidence_attestation"] = None
+    blocked(unattested_dev, "registered reviewer to attest the recorded basis")
+
+    unattested_envelope = widen_to_high(copy.deepcopy(dev_base))
+    unattested_envelope["loop"]["ship_stage"]["evidence_attestation"] = None
+    blocked(unattested_envelope, "medium impact with measured pressure")
+
+    self_attested_dev = copy.deepcopy(dev_base)
+    self_attested_dev["loop"]["ship_stage"]["evidence_attestation"] = {
+        "reviewer_id": "misa-3",
+        "evidence_refs": ["run:implementer-dev-smoke"],
+    }
+    blocked(self_attested_dev, "registered reviewer who is not the implementer")
+
+    unsupported_attestation = copy.deepcopy(dev_base)
+    unsupported_attestation["loop"]["ship_stage"]["evidence_attestation"][
+        "evidence_refs"
+    ] = []
+    blocked(unsupported_attestation, "concrete refs the reviewer confirmed")
+
+    production_attestation = copy.deepcopy(base)
+    production_attestation["loop"]["ship_stage"]["evidence_attestation"] = {
+        "reviewer_id": "codex-misa",
+        "evidence_refs": ["run:reviewer-acceptance-rerun"],
+    }
+    blocked(production_attestation, "only a dev ship with a verified normal path")
+
     green_hold = copy.deepcopy(dev_base)
     green_hold["final_readback"]["ship_decision"] = {
         "decision": "hold",
@@ -1800,6 +2068,85 @@ def run_selftest() -> int:
     check("Ship stage: `dev_deploy`" in dev_render, "render states the ship stage")
     check("Ship decision: `go`" in dev_render, "render states the ship decision")
     check("Promotion Debt" in dev_render, "render carries dev promotion debt")
+    check(
+        "Ship authority: readiness only" in dev_render,
+        "render states the readiness-only authority boundary",
+    )
+    check(
+        "no deploy, merge, or access authority" in dev_render,
+        "render denies deploy authority to the ship decision",
+    )
+
+    # Schema 1.0 compatibility: the persisted records written before the ship
+    # stage existed stay readable through a tested upgrade path.
+    legacy = legacy_sample_record()
+    blocked(legacy, "is superseded; upgrade the record with `fairy blocker migrate`")
+    migrated = migrate_record(legacy)
+    check(not validate_record(migrated), "a migrated 1.0 record validates")
+    check(
+        migrated["loop"]["ship_stage"]["stage"] == "production"
+        and migrated["loop"]["ship_stage"]["happy_path"]["verified"] is False
+        and migrated["loop"]["ship_stage"]["evidence_attestation"] is None,
+        "migration keeps the unrelaxed production thresholds",
+    )
+    check(
+        all(blocker["finding_class"] == "other" for blocker in migrated["blockers"]),
+        "migration classes unlabelled findings conservatively",
+    )
+    check(
+        migrated["blockers"][1]["floor_basis"] == "demonstrated",
+        "migration treats an unlabelled floor finding as demonstrated",
+    )
+
+    migrated_widened = widen_to_high(copy.deepcopy(migrated))
+    blocked(migrated_widened, "medium impact with measured pressure")
+
+    for rejected, label in (
+        (sample_record(), "already current"),
+        ({"schema_version": "0.9"}, "unknown version"),
+    ):
+        try:
+            migrate_record(rejected)
+        except ArtifactError:
+            controls += 1
+        else:
+            raise AssertionError(f"migration must reject a {label} record")
+
+    legacy_held = legacy_sample_record()
+    legacy_held["blockers"][0]["resolution"] = {
+        "disposition": "fix_now",
+        "priority": "P3",
+        "rationale": "The finding is repaired inside this increment.",
+        "concurred_by": ["cc-misa-hime"],
+        "issue_url": None,
+        "human_report": None,
+    }
+    legacy_held["final_readback"]["deferred_blocker_ids"] = []
+    legacy_held["final_readback"]["retained_blocker_ids"] = ["minor-capacity-eviction"]
+    legacy_held["final_readback"]["reported_to_human"] = False
+    legacy_held["final_readback"]["report_ref"] = ""
+    migrated_held = migrate_record(legacy_held)
+    check(
+        migrated_held["final_readback"]["ship_decision"]["decision"] == "hold",
+        "migration derives hold from a retained fix-now finding",
+    )
+
+    with tempfile.TemporaryDirectory(prefix=".helix-migrate-", dir=ROOT) as raw:
+        tmp = Path(raw)
+        legacy_path = tmp / "legacy.json"
+        upgraded_path = tmp / "upgraded.json"
+        legacy_path.write_text(
+            json.dumps(legacy_sample_record(), indent=2) + "\n", encoding="utf-8"
+        )
+        with contextlib.redirect_stdout(io.StringIO()):
+            migrate_status = command_migrate(
+                argparse.Namespace(record=legacy_path, output=upgraded_path)
+            )
+        check(migrate_status == 0, "CLI migration writes the upgraded record")
+        check(
+            not validate_record(json.loads(upgraded_path.read_text(encoding="utf-8"))),
+            "the written upgrade validates from disk",
+        )
 
     with tempfile.TemporaryDirectory(prefix=".helix-selftest-", dir=ROOT) as raw:
         tmp = Path(raw)
@@ -1849,6 +2196,14 @@ def run_selftest() -> int:
         "schema happy-path keys match runtime",
     )
     check(
+        set(schema["$defs"]["shipAttestation"]["required"]) == SHIP_ATTESTATION_KEYS,
+        "schema ship-attestation keys match runtime",
+    )
+    check(
+        schema["properties"]["schema_version"]["const"] == SCHEMA_VERSION,
+        "schema version constant matches runtime",
+    )
+    check(
         set(schema["$defs"]["shipDecision"]["required"]) == SHIP_DECISION_KEYS,
         "schema ship-decision keys match runtime",
     )
@@ -1883,6 +2238,19 @@ def command_render(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_migrate(args: argparse.Namespace) -> int:
+    record_path = canonical_artifact_path(args.record, "Helix blocker triage record")
+    require_distinct_paths(
+        record_path,
+        args.output,
+        "record and migrated output paths must be distinct",
+    )
+    upgraded = migrate_record(load_json(record_path))
+    write_text_atomic(args.output, json.dumps(upgraded, indent=2) + "\n")
+    print(args.output)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -1891,6 +2259,12 @@ def build_parser() -> argparse.ArgumentParser:
     render = subparsers.add_parser("render", help="render a validated Markdown readback")
     render.add_argument("--record", type=Path, required=True)
     render.add_argument("--output", type=Path, required=True)
+    migrate = subparsers.add_parser(
+        "migrate",
+        help=f"upgrade a schema {MIGRATABLE_SCHEMA_VERSION} record to {SCHEMA_VERSION}",
+    )
+    migrate.add_argument("--record", type=Path, required=True)
+    migrate.add_argument("--output", type=Path, required=True)
     subparsers.add_parser("selftest", help="run deterministic hostile controls")
     sample = subparsers.add_parser("sample", help="validate the committed sample")
     sample.add_argument("--record", type=Path, default=DEFAULT_SAMPLE)
@@ -1905,6 +2279,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return command_validate(args)
         if args.command == "render":
             return command_render(args)
+        if args.command == "migrate":
+            return command_migrate(args)
         if args.command == "selftest":
             return run_selftest()
         if args.command == "sample":

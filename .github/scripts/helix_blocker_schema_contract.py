@@ -21,7 +21,11 @@ ROOT = Path(
 ).resolve()
 sys.path.insert(0, str(ROOT))
 
-from scripts.helix_blocker_triage import validate_record  # noqa: E402
+from scripts.helix_blocker_triage import (  # noqa: E402
+    legacy_sample_record,
+    migrate_record,
+    validate_record,
+)
 
 
 def main() -> int:
@@ -170,6 +174,32 @@ def main() -> int:
         label="a demonstrated security defect cannot be deferred",
     )
 
+    for escaping_class in ("abnormal_path", "other"):
+        security_class_escape = copy.deepcopy(sample)
+        security_class_escape["blockers"][2]["finding_class"] = escaping_class
+        expect_schema(
+            security_class_escape,
+            valid=False,
+            label=f"a {escaping_class} security finding cannot be deferred",
+        )
+
+    missing_attestation = copy.deepcopy(sample)
+    missing_attestation["loop"]["ship_stage"]["evidence_attestation"] = None
+    expect_schema(
+        missing_attestation,
+        valid=False,
+        label="a verified dev ship needs a reviewer evidence attestation",
+    )
+
+    production_attestation = copy.deepcopy(sample)
+    production_attestation["loop"]["ship_stage"]["stage"] = "production"
+    production_attestation["loop"]["ship_stage"]["basis"] = "production_promotion"
+    expect_schema(
+        production_attestation,
+        valid=False,
+        label="a production stage cannot carry a ship evidence attestation",
+    )
+
     happy_path_defer = copy.deepcopy(sample)
     happy_path_defer["blockers"][0]["finding_class"] = "happy_path"
     expect_schema(
@@ -196,6 +226,7 @@ def main() -> int:
         "basis": "production_promotion",
         "basis_ref": "source:release-promotion",
         "happy_path": copy.deepcopy(sample["loop"]["ship_stage"]["happy_path"]),
+        "evidence_attestation": None,
     }
     expect_schema(
         production_precautionary_defer,
@@ -261,6 +292,43 @@ def main() -> int:
     expect_schema(excessive_risk, valid=True, label="risk arithmetic is runtime-bound")
     if not validate_record(excessive_risk):
         raise AssertionError("runtime must reject excessive defer risk")
+    controls += 1
+
+    self_attested = copy.deepcopy(sample)
+    self_attested["loop"]["ship_stage"]["evidence_attestation"]["reviewer_id"] = "misa-3"
+    expect_schema(
+        self_attested,
+        valid=True,
+        label="attesting-reviewer identity is runtime-bound",
+    )
+    if not validate_record(self_attested):
+        raise AssertionError(
+            "runtime must reject a ship attestation written by the implementer"
+        )
+    controls += 1
+
+    single_floor_concurrence = copy.deepcopy(sample)
+    single_floor_concurrence["blockers"][2]["resolution"]["concurred_by"] = [
+        "codex-misa"
+    ]
+    expect_schema(
+        single_floor_concurrence,
+        valid=True,
+        label="floor-deferral panel size is runtime-bound",
+    )
+    if not validate_record(single_floor_concurrence):
+        raise AssertionError(
+            "runtime must reject a floor deferral without the full reviewer panel"
+        )
+    controls += 1
+
+    # The persisted 1.0 contract keeps a tested upgrade path into this schema.
+    legacy = legacy_sample_record()
+    expect_schema(legacy, valid=False, label="schema 1.0 is not the current contract")
+    migrated = migrate_record(legacy)
+    expect_schema(migrated, valid=True, label="a migrated 1.0 record satisfies the schema")
+    if validate_record(migrated):
+        raise AssertionError("runtime must accept the migrated 1.0 record")
     controls += 1
 
     print(f"Helix blocker schema contract OK: {controls} controls")
