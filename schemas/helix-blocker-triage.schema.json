@@ -13,7 +13,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "1.0"
+      "const": "1.1"
     },
     "artifact_type": {
       "const": "helix_blocker_triage"
@@ -29,7 +29,8 @@
         "evaluated_at",
         "roles",
         "deadline",
-        "usage"
+        "usage",
+        "ship_stage"
       ],
       "properties": {
         "loop_id": {
@@ -57,6 +58,9 @@
         },
         "usage": {
           "$ref": "#/$defs/usage"
+        },
+        "ship_stage": {
+          "$ref": "#/$defs/shipStage"
         }
       }
     },
@@ -315,6 +319,210 @@
           }
         }
       ]
+    },
+    "happyPath": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "verified",
+        "check_ref",
+        "summary"
+      ],
+      "properties": {
+        "verified": {
+          "type": "boolean"
+        },
+        "check_ref": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/evidenceRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "verified": {
+                "const": true
+              }
+            },
+            "required": [
+              "verified"
+            ]
+          },
+          "then": {
+            "properties": {
+              "check_ref": {
+                "$ref": "#/$defs/evidenceRef"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "check_ref": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "shipAttestation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reviewer_id",
+        "evidence_refs"
+      ],
+      "properties": {
+        "reviewer_id": {
+          "$ref": "#/$defs/id"
+        },
+        "evidence_refs": {
+          "$ref": "#/$defs/evidenceRefs"
+        }
+      }
+    },
+    "shipStage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage",
+        "basis",
+        "basis_ref",
+        "happy_path",
+        "evidence_attestation"
+      ],
+      "properties": {
+        "stage": {
+          "enum": [
+            "production",
+            "dev_deploy"
+          ]
+        },
+        "basis": {
+          "enum": [
+            "production_promotion",
+            "owner_directive",
+            "non_production_target",
+            "early_development"
+          ]
+        },
+        "basis_ref": {
+          "$ref": "#/$defs/evidenceRef"
+        },
+        "happy_path": {
+          "$ref": "#/$defs/happyPath"
+        },
+        "evidence_attestation": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/shipAttestation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "stage": {
+                "const": "production"
+              }
+            },
+            "required": [
+              "stage"
+            ]
+          },
+          "then": {
+            "properties": {
+              "basis": {
+                "const": "production_promotion"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "basis": {
+                "enum": [
+                  "owner_directive",
+                  "non_production_target",
+                  "early_development"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "stage": {
+                "const": "dev_deploy"
+              },
+              "happy_path": {
+                "properties": {
+                  "verified": {
+                    "const": true
+                  }
+                },
+                "required": [
+                  "verified"
+                ]
+              }
+            },
+            "required": [
+              "stage",
+              "happy_path"
+            ]
+          },
+          "then": {
+            "properties": {
+              "evidence_attestation": {
+                "$ref": "#/$defs/shipAttestation"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "evidence_attestation": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "shipDecision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision",
+        "rationale"
+      ],
+      "properties": {
+        "decision": {
+          "enum": [
+            "go",
+            "hold"
+          ]
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 20
+        }
+      }
     },
     "nullablePercentage": {
       "oneOf": [
@@ -602,7 +810,9 @@
         "probability_percent",
         "impact",
         "risk_rationale",
+        "finding_class",
         "protected_floor",
+        "floor_basis",
         "estimated_fix_minutes",
         "evidence_refs",
         "finding_reviewer",
@@ -648,6 +858,14 @@
           "type": "string",
           "minLength": 20
         },
+        "finding_class": {
+          "enum": [
+            "happy_path",
+            "abnormal_path",
+            "hardening",
+            "other"
+          ]
+        },
         "protected_floor": {
           "enum": [
             "none",
@@ -657,6 +875,13 @@
             "authority_permission",
             "security",
             "required_acceptance"
+          ]
+        },
+        "floor_basis": {
+          "enum": [
+            "not_applicable",
+            "demonstrated",
+            "precautionary"
           ]
         },
         "estimated_fix_minutes": {
@@ -688,18 +913,136 @@
           "if": {
             "properties": {
               "protected_floor": {
+                "const": "none"
+              }
+            },
+            "required": [
+              "protected_floor"
+            ]
+          },
+          "then": {
+            "properties": {
+              "floor_basis": {
+                "const": "not_applicable"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "floor_basis": {
+                "enum": [
+                  "demonstrated",
+                  "precautionary"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "protected_floor": {
                 "enum": [
                   "secret_credential",
                   "data_loss",
                   "production",
                   "authority_permission",
-                  "security",
                   "required_acceptance"
                 ]
               }
             },
             "required": [
               "protected_floor"
+            ]
+          },
+          "then": {
+            "properties": {
+              "resolution": {
+                "properties": {
+                  "disposition": {
+                    "enum": [
+                      "fix_now",
+                      "not_blocker"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "protected_floor": {
+                "const": "security"
+              },
+              "finding_class": {
+                "enum": [
+                  "happy_path",
+                  "abnormal_path",
+                  "other"
+                ]
+              }
+            },
+            "required": [
+              "protected_floor",
+              "finding_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "resolution": {
+                "properties": {
+                  "disposition": {
+                    "enum": [
+                      "fix_now",
+                      "not_blocker"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "protected_floor": {
+                "const": "security"
+              },
+              "floor_basis": {
+                "const": "demonstrated"
+              }
+            },
+            "required": [
+              "protected_floor",
+              "floor_basis"
+            ]
+          },
+          "then": {
+            "properties": {
+              "resolution": {
+                "properties": {
+                  "disposition": {
+                    "enum": [
+                      "fix_now",
+                      "not_blocker"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "finding_class": {
+                "const": "happy_path"
+              }
+            },
+            "required": [
+              "finding_class"
             ]
           },
           "then": {
@@ -727,9 +1070,13 @@
         "retained_blocker_ids",
         "not_blocker_ids",
         "reported_to_human",
-        "report_ref"
+        "report_ref",
+        "ship_decision"
       ],
       "properties": {
+        "ship_decision": {
+          "$ref": "#/$defs/shipDecision"
+        },
         "deferred_blocker_ids": {
           "$ref": "#/$defs/ids"
         },
@@ -747,6 +1094,32 @@
         }
       },
       "allOf": [
+        {
+          "if": {
+            "properties": {
+              "ship_decision": {
+                "properties": {
+                  "decision": {
+                    "const": "go"
+                  }
+                },
+                "required": [
+                  "decision"
+                ]
+              }
+            },
+            "required": [
+              "ship_decision"
+            ]
+          },
+          "then": {
+            "properties": {
+              "retained_blocker_ids": {
+                "maxItems": 0
+              }
+            }
+          }
+        },
         {
           "if": {
             "properties": {

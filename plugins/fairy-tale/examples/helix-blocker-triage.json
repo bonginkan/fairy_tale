@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "artifact_type": "helix_blocker_triage",
   "loop": {
     "loop_id": "helix-balance-sample",
@@ -26,21 +26,40 @@
       "source": "primary_check",
       "source_ref": "usage:local-guard",
       "observed_at": "2026-07-26T13:55:00+09:00"
+    },
+    "ship_stage": {
+      "stage": "dev_deploy",
+      "basis": "non_production_target",
+      "basis_ref": "source:dev-environment-target",
+      "happy_path": {
+        "verified": true,
+        "check_ref": "check:dev-smoke-normal-path",
+        "summary": "The dev smoke run completes the normal path end to end on this head."
+      },
+      "evidence_attestation": {
+        "reviewer_id": "codex-misa",
+        "evidence_refs": [
+          "run:reviewer-dev-smoke-rerun",
+          "source:dev-target-authorization"
+        ]
+      }
     }
   },
   "blockers": [
     {
       "id": "minor-capacity-eviction",
-      "summary": "Rare bounded capacity eviction remains",
-      "failure_sequence": "A saturated optional cache evicts one low-priority entry, which forces one later request to recompute.",
+      "summary": "Saturated cache degrades the retry path",
+      "failure_sequence": "A saturated optional cache evicts one low-priority entry, so a later retry recomputes it and the abnormal path runs slower than designed.",
       "preconditions": [
         "optional cache is at its configured capacity",
         "a lower-priority entry is selected for eviction"
       ],
-      "probability_percent": 2,
-      "impact": "low",
-      "risk_rationale": "The sequence is rare and bounded to one recomputation without data loss or authority impact.",
+      "probability_percent": 30,
+      "impact": "high",
+      "risk_rationale": "The degradation is confined to the retry path on a non-production target, and the normal path the deploy exists to expose is unaffected.",
+      "finding_class": "abnormal_path",
       "protected_floor": "none",
+      "floor_basis": "not_applicable",
       "estimated_fix_minutes": 180,
       "evidence_refs": [
         "test:capacity-eviction-probe"
@@ -52,8 +71,8 @@
       "objection": null,
       "resolution": {
         "disposition": "defer_issue",
-        "priority": "P3",
-        "rationale": "Low residual risk is tracked without consuming the remaining convergence window.",
+        "priority": "P2",
+        "rationale": "Abnormal-path hardening becomes the next increment so humans can exercise the working normal path now.",
         "concurred_by": [
           "cc-misa-hime"
         ],
@@ -61,7 +80,7 @@
         "human_report": {
           "audience": "human_owner",
           "reported": true,
-          "summary": "The rare optional-cache eviction is deferred to issue #94 with no safety-floor impact.",
+          "summary": "The retry-path degradation ships as issue #94 and re-blocks at production promotion.",
           "report_ref": "source:owner-final-readback"
         }
       }
@@ -76,7 +95,9 @@
       "probability_percent": 20,
       "impact": "medium",
       "risk_rationale": "If true, the collision would corrupt a review input, but the exact identity probe refutes the prerequisite.",
+      "finding_class": "other",
       "protected_floor": "data_loss",
+      "floor_basis": "demonstrated",
       "estimated_fix_minutes": 30,
       "evidence_refs": [
         "test:path-identity-negative"
@@ -112,11 +133,55 @@
         "issue_url": null,
         "human_report": null
       }
+    },
+    {
+      "id": "precautionary-transport-hardening",
+      "summary": "Defence-in-depth transport header is still missing",
+      "failure_sequence": "A dev response leaves the service without the hardening header, so a future reachable path would lose one defence layer.",
+      "preconditions": [
+        "the dev service answers an unauthenticated health request"
+      ],
+      "probability_percent": 40,
+      "impact": "medium",
+      "risk_rationale": "No reachable exploitation sequence has been demonstrated against the dev surface; the header is layered defence rather than a defect.",
+      "finding_class": "hardening",
+      "protected_floor": "security",
+      "floor_basis": "precautionary",
+      "estimated_fix_minutes": 60,
+      "evidence_refs": [
+        "check:dev-header-scan"
+      ],
+      "finding_reviewer": {
+        "reviewer_id": "cc-misa-hime",
+        "finding_ref": "issue:header-hardening-finding"
+      },
+      "objection": null,
+      "resolution": {
+        "disposition": "defer_issue",
+        "priority": "P0",
+        "rationale": "Precautionary hardening is tracked as the first item of the next cycle; any demonstrated reachable path converts it back to fix-now.",
+        "concurred_by": [
+          "codex-misa",
+          "cc-misa-hime"
+        ],
+        "issue_url": "https://github.com/bonginkan/fairy_tale/issues/94",
+        "human_report": {
+          "audience": "human_owner",
+          "reported": true,
+          "summary": "The missing hardening header ships as issue #94 and re-blocks at production promotion.",
+          "report_ref": "source:owner-final-readback"
+        }
+      }
     }
   ],
   "final_readback": {
+    "ship_decision": {
+      "decision": "go",
+      "rationale": "The normal path is verified on the dev target and nothing fix-now is retained, so the increment ships and humans can hit it."
+    },
     "deferred_blocker_ids": [
-      "minor-capacity-eviction"
+      "minor-capacity-eviction",
+      "precautionary-transport-hardening"
     ],
     "retained_blocker_ids": [],
     "not_blocker_ids": [

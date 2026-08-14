@@ -37,6 +37,7 @@ SKILL_MARKERS = {
         "Usage-Aware Multi-Agent Load Balancer",
         "Excess / Redundancy / Legacy-Surface",
         "Scope gate (apply first)",
+        "Edison Ship Gate",
         "fairy-tale-benchmark-feedback",
     ),
     "fairy-tale-benchmark-feedback": (
@@ -75,6 +76,18 @@ SKILL_REFERENCE_MARKERS = {
         "Usage Reading Reference",
         "External-channel ingestion record",
         "Job automation delegation record",
+    ),
+    Path("fairy-tale/references/residency-guard.md"): (
+        "Residency Guard",
+        "silently degraded prompt stack",
+        "fairy_tale_residency_check.py",
+    ),
+    Path("fairy-tale/references/cards/edison-ship-gate.md"): (
+        "Edison Ship Gate",
+        "Holding a green increment",
+        "The floor does not move",
+        "Promotion re-blocks",
+        "Recall is not suppressed",
     ),
     Path("fairy-tale/references/cards/helix-loop-communication-harness.md"): (
         "Hold the turn boundary",
