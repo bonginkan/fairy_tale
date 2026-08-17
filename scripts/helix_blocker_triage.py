@@ -393,7 +393,14 @@ def validate_pinned_source(
         )
     parse_timestamp(shape.get("captured_at"), f"{path}.captured_at", findings)
     edits = shape.get("edit_count")
-    if edits is not None and (not isinstance(edits, int) or isinstance(edits, bool) or edits < 0):
+    # JSON counts 1.0 as an integer, so a stored record can carry a float here.
+    # Accepting it keeps this layer from disagreeing with the schema it follows.
+    if edits is not None and (
+        isinstance(edits, bool)
+        or not isinstance(edits, (int, float))
+        or (isinstance(edits, float) and not edits.is_integer())
+        or edits < 0
+    ):
         add(findings, f"{path}.edit_count", "edit_count must be null or a count")
 
 
@@ -2992,9 +2999,23 @@ def run_selftest() -> int:
         wired = copy.deepcopy(base)
         mutate(wired)
         check(
-            bool(validate_record_full(wired)),
+            bool(validate_record(wired)),
             f"the runtime validator for {label} is reached",
         )
+
+    # A cross-object rule the schema cannot state at all: the priority role is
+    # active while no reviewer holds it. If the runtime layer were bypassed this
+    # would pass, which is what makes it a wiring control rather than a shape one.
+    unreachable_by_schema = copy.deepcopy(base)
+    unreachable_by_schema["loop"]["roles"]["priority_reviewer_id"] = None
+    check(
+        not validate_against_schema(unreachable_by_schema),
+        "the schema alone cannot see an unheld active priority role",
+    )
+    check(
+        bool(validate_record(unreachable_by_schema)),
+        "the runtime layer catches what the schema cannot express",
+    )
 
     # RFC 3339 permits a lowercase zone designator, and the schema pattern
     # allows it. The parser used to accept only the uppercase form, so the two
