@@ -392,8 +392,9 @@ def not_after_evaluation(
 ) -> datetime | None:
     """Parse an instant and reject one that postdates the evaluation.
 
-    The timestamp family is nine fields. Checking them one at a time is how four
-    of them ended up unchecked, so every member goes through here.
+    Every instant the schema declares goes through here. The family is
+    enumerated from the schema in the self-controls rather than listed, because
+    hand-listing it is what left members unchecked twice.
     """
     parsed = parse_timestamp(value, path, findings)
     if parsed is not None and evaluated_at is not None and parsed > evaluated_at:
@@ -811,6 +812,7 @@ def validate_deadline(
     # Phases cycle across rounds, so the unit of ordering is the round, not the
     # whole list — dropping the global check left nothing enforcing order.
     rounds: list[list[str]] = []
+    round_readings: list[list[tuple[datetime | None, str]]] = []
     round_starts: list[datetime | None] = []
     for reading in readings if isinstance(readings, list) else []:
         if not isinstance(reading, dict):
@@ -818,12 +820,24 @@ def validate_deadline(
         phase = reading.get("phase")
         if phase not in ordered_phases:
             continue
-        if phase == "round_start" or not rounds:
+        instant = parse_timestamp(reading.get("at"), "helix.loop.deadline", [])
+        if phase == "round_start":
             rounds.append([])
-            round_starts.append(
-                parse_timestamp(reading.get("at"), "helix.loop.deadline", [])
+            round_readings.append([])
+            round_starts.append(instant)
+        elif not rounds:
+            # Opening a round here would turn a stray leading reading into a
+            # phantom round 1, so the real first round becomes round 2 and the
+            # forecast numbering silently shifts.
+            add(
+                findings,
+                "helix.loop.deadline.clock_readings",
+                f"a {phase} reading precedes the first round_start; a round has "
+                "to be started before anything can happen in it",
             )
+            continue
         rounds[-1].append(phase)
+        round_readings[-1].append((instant, phase))
     round_windows = [
         (start, round_starts[position + 1] if position + 1 < len(round_starts) else None)
         for position, start in enumerate(round_starts)
@@ -931,6 +945,39 @@ def validate_deadline(
                 and 1 <= round_number <= len(round_windows)
             ):
                 window_start, window_end = round_windows[round_number - 1]
+                own_round = round_readings[round_number - 1]
+                if forecast_at not in [
+                    instant for instant, _phase in own_round if instant is not None
+                ]:
+                    add(
+                        findings,
+                        f"helix.loop.deadline.forecasts[{index}].at",
+                        "a forecast is emitted at a moment the clock was read; its "
+                        "time must be one of that round's readings, or the "
+                        "remaining time it reports was computed from nothing",
+                    )
+                close = next(
+                    (
+                        instant
+                        for instant, phase in own_round
+                        if phase == "ship_decision" and instant is not None
+                    ),
+                    None,
+                )
+                if close is not None and forecast_at >= close:
+                    add(
+                        findings,
+                        f"helix.loop.deadline.forecasts[{index}].at",
+                        "the ship decision closes the round, so a forecast for it "
+                        "cannot be emitted at or after that decision",
+                    )
+                if window_end is not None and forecast_at >= window_end:
+                    add(
+                        findings,
+                        f"helix.loop.deadline.forecasts[{index}].at",
+                        "a forecast belongs to its own round, so it cannot land on "
+                        "or after the next round's start",
+                    )
                 if window_start is not None and forecast_at < window_start:
                     add(
                         findings,
@@ -2379,6 +2426,23 @@ def render_markdown(record: dict[str, Any]) -> str:
     usage = loop["usage"]
     ship = loop["ship_stage"]
     target = loop["target"]
+    deadline_instant = (
+        datetime.fromisoformat(deadline["at"].replace("Z", "+00:00").replace("z", "+00:00"))
+        if isinstance(deadline.get("at"), str)
+        else None
+    )
+
+    def _forecast_instant(item: dict[str, Any]) -> datetime | None:
+        raw = item.get("at")
+        if not isinstance(raw, str):
+            return None
+        try:
+            return datetime.fromisoformat(
+                raw.replace("Z", "+00:00").replace("z", "+00:00")
+            )
+        except ValueError:
+            return None
+
     envelope = loop["claim_envelope"]
     branch = loop["working_branch"]
     authority = loop["priority_authority"]
@@ -2428,9 +2492,19 @@ def render_markdown(record: dict[str, Any]) -> str:
                     + ("; fits" if item["fits"] else "; does not fit")
                     + f"; next {markdown_escape(item['next'])}"
                     + (
-                        f", settled {item['settled']['outcome']}"
+                        "; "
+                        + (
+                            f"{(deadline_instant - _forecast_instant(item)).total_seconds() / 3600:.1f}h remaining"
+                            if deadline_instant is not None
+                            and _forecast_instant(item) is not None
+                            else "remaining time unknown"
+                        )
+                    )
+                    + (
+                        f"; settled {item['settled']['outcome']} at "
+                        f"`{item['settled']['at']}`"
                         if item.get("settled")
-                        else ", unsettled"
+                        else "; unsettled"
                     )
                     for item in deadline["forecasts"]
                 )
@@ -3547,6 +3621,55 @@ def run_selftest() -> int:
     )
     blocked(registered_mid_window, "after the first round has begun")
 
+    # MISA L's fourth path, pinned on the PR: a leading disposition became a
+    # phantom round 1, so the real first round was numbered 2 and a two-forecast
+    # record validated. Reproduced from their exact construction.
+    phantom_round = copy.deepcopy(base)
+    phantom_round["loop"]["deadline"]["clock_readings"] = [
+        {"at": "2026-07-26T13:45:00+09:00", "phase": "disposition"},
+        {"at": "2026-07-26T13:50:00+09:00", "phase": "round_start"},
+        {"at": "2026-07-26T13:55:00+09:00", "phase": "disposition"},
+    ]
+    phantom_round["loop"]["deadline"]["forecasts"][0]["at"] = (
+        "2026-07-26T13:45:00+09:00"
+    )
+    phantom_second = copy.deepcopy(phantom_round["loop"]["deadline"]["forecasts"][0])
+    phantom_second["round"] = 2
+    phantom_second["at"] = "2026-07-26T13:55:00+09:00"
+    phantom_round["loop"]["deadline"]["forecasts"].append(phantom_second)
+    blocked(phantom_round, "precedes the first round_start")
+
+    # The three forecast-instant paths MISA L reached, each rejected for its own
+    # reason: a forecast on the next round's start, one at a moment no clock was
+    # read, and one at or after the ship decision that closes its round.
+    on_next_round_start = copy.deepcopy(base)
+    on_next_round_start["loop"]["deadline"]["clock_readings"] = [
+        {"at": "2026-07-26T13:50:00+09:00", "phase": "round_start"},
+        {"at": "2026-07-26T13:52:00+09:00", "phase": "disposition"},
+        {"at": "2026-07-26T13:55:00+09:00", "phase": "round_start"},
+        {"at": "2026-07-26T13:58:00+09:00", "phase": "disposition"},
+    ]
+    on_next_round_start["loop"]["deadline"]["forecasts"][0]["at"] = (
+        "2026-07-26T13:55:00+09:00"
+    )
+    second = copy.deepcopy(on_next_round_start["loop"]["deadline"]["forecasts"][0])
+    second["round"] = 2
+    second["at"] = "2026-07-26T13:58:00+09:00"
+    on_next_round_start["loop"]["deadline"]["forecasts"].append(second)
+    blocked(on_next_round_start, "cannot land on or after the next round's start")
+
+    unread_moment = copy.deepcopy(base)
+    unread_moment["loop"]["deadline"]["forecasts"][0]["at"] = (
+        "2026-07-26T13:53:00+09:00"
+    )
+    blocked(unread_moment, "at a moment the clock was read")
+
+    after_ship_decision = copy.deepcopy(base)
+    after_ship_decision["loop"]["deadline"]["forecasts"][0]["at"] = (
+        "2026-07-26T14:00:00+09:00"
+    )
+    blocked(after_ship_decision, "closes the round")
+
     dropped_item = copy.deepcopy(base)
     dropped_item["loop"]["deadline"]["forecasts"][0]["outstanding"] = []
     blocked(dropped_item, "accounts for every pre-registered item")
@@ -3561,68 +3684,143 @@ def run_selftest() -> int:
     # $ref to $defs/timestamp, minus the two that are legitimately in the future
     # (the deadline itself, and the evaluation everything else is measured
     # against). Hand-listing this family is what let two members slip.
+    # The timestamp family, walked out of the schema itself rather than listed
+    # here. A hand-written list is what let forecast.settled.at slip twice, and
+    # a list cannot notice a field added later: this enumerates every
+    # $ref to $defs/timestamp reachable in the sample and mutates each one.
     FUTURE = "2099-01-01T00:00:00+09:00"
-    for label, mutate in (
-        (
-            "clock reading",
-            lambda r: r["loop"]["deadline"]["clock_readings"][0].__setitem__(
-                "at", FUTURE
-            ),
-        ),
-        (
-            "minimum shape registration",
-            lambda r: r["loop"]["deadline"]["minimum_shape"].__setitem__(
-                "registered_at", FUTURE
-            ),
-        ),
-        (
-            "forecast",
-            lambda r: r["loop"]["deadline"]["forecasts"][0].__setitem__("at", FUTURE),
-        ),
-        (
-            "forecast settlement",
-            lambda r: r["loop"]["deadline"]["forecasts"][0].__setitem__(
-                "settled", {"at": FUTURE, "outcome": "as_forecast"}
-            ),
-        ),
-        (
-            "deadline source capture",
-            lambda r: r["loop"]["deadline"]["source_pin"].__setitem__(
-                "captured_at", FUTURE
-            ),
-        ),
-        (
-            "priority directive capture",
-            lambda r: r["loop"]["priority_authority"]["directive"].__setitem__(
-                "captured_at", FUTURE
-            ),
-        ),
-        (
-            "target directive capture",
-            lambda r: r["loop"]["target"]["directive_refs"][0].__setitem__(
-                "captured_at", FUTURE
-            ),
-        ),
-        (
-            "claim snapshot capture",
-            lambda r: r["loop"]["claim_envelope"]["claim_snapshot_refs"][0].__setitem__(
-                "captured_at", FUTURE
-            ),
-        ),
-        (
-            "target resolution",
-            lambda r: r["loop"]["target"].__setitem__("resolved_at", FUTURE),
-        ),
-        (
-            "usage observation",
-            lambda r: r["loop"]["usage"].__setitem__("observed_at", FUTURE),
-        ),
-    ):
+    schema_root = _schema_document()
+    # deadline.at is a future instant by definition, and evaluated_at is the
+    # reference every other instant is compared against.
+    exempt = {("loop", "deadline", "at"), ("loop", "evaluated_at")}
+
+    def timestamp_paths(
+        node: Any, schema: Any, trail: tuple[str, ...]
+    ) -> list[tuple[str, ...]]:
+        schema = _resolve(schema, schema_root)
+        if not isinstance(schema, dict):
+            return []
+        found: list[tuple[str, ...]] = []
+        # Branches contribute properties in addition to the base, so walking
+        # only the matching branch loses everything declared alongside it.
+        for branch in ("oneOf", "anyOf", "allOf"):
+            for option in schema.get(branch, []):
+                resolved = _resolve(option, schema_root)
+                if isinstance(resolved, dict) and _schema_matches(
+                    node, resolved, schema_root
+                ):
+                    found.extend(timestamp_paths(node, resolved, trail))
+        if isinstance(node, str):
+            if schema.get("format") == "date-time":
+                found.append(trail)
+            return found
+        if isinstance(node, dict):
+            for key, sub in schema.get("properties", {}).items():
+                if key in node:
+                    resolved = _resolve(sub, schema_root)
+                    if (
+                        isinstance(node[key], str)
+                        and isinstance(resolved, dict)
+                        and resolved.get("format") == "date-time"
+                    ):
+                        found.append(trail + (key,))
+                    else:
+                        found.extend(timestamp_paths(node[key], sub, trail + (key,)))
+        elif isinstance(node, list):
+            item_schema = schema.get("items")
+            if item_schema is not None:
+                for index, item in enumerate(node):
+                    found.extend(
+                        timestamp_paths(item, item_schema, trail + (str(index),))
+                    )
+        return found
+
+    # Walking the sample only finds fields the sample happens to carry, so a new
+    # schema field nobody added to the sample stays invisible — which is exactly
+    # how a timestamp field would slip in unvalidated. Enumerate from the schema
+    # and require every one to be reachable in the sample or explicitly exempt.
+    def schema_timestamp_paths(
+        schema: Any, trail: tuple[str, ...], seen: frozenset[str]
+    ) -> list[tuple[str, ...]]:
+        if isinstance(schema, dict) and "$ref" in schema:
+            ref = schema["$ref"]
+            if ref == "#/$defs/timestamp":
+                return [trail]
+            if ref in seen:
+                return []
+            return schema_timestamp_paths(
+                _resolve(schema, schema_root), trail, seen | {ref}
+            )
+        if not isinstance(schema, dict):
+            return []
+        out: list[tuple[str, ...]] = []
+        for key, sub in schema.get("properties", {}).items():
+            out.extend(schema_timestamp_paths(sub, trail + (key,), seen))
+        if "items" in schema:
+            out.extend(schema_timestamp_paths(schema["items"], trail + ("*",), seen))
+        for branch in ("oneOf", "anyOf", "allOf"):
+            for option in schema.get(branch, []):
+                out.extend(schema_timestamp_paths(option, trail, seen))
+        for branch in ("then", "else"):
+            if branch in schema:
+                out.extend(schema_timestamp_paths(schema[branch], trail, seen))
+        return out
+
+    schema_declared = {
+        path for path in schema_timestamp_paths(schema_root, (), frozenset())
+    }
+    # A settlement only exists once the deadline has passed, so the pre-deadline
+    # sample cannot carry one. Coverage is demonstrated across the records the
+    # suite actually exercises rather than bent into a single fixture.
+    settled_record = copy.deepcopy(base)
+    settled_record["loop"]["evaluated_at"] = "2026-07-28T12:00:00+09:00"
+    settled_record["loop"]["usage"]["observed_at"] = "2026-07-28T11:30:00+09:00"
+    settled_record["loop"]["deadline"]["forecasts"][0]["settled"] = {
+        "at": "2026-07-27T15:00:00+09:00",
+        "outcome": "as_forecast",
+    }
+    check(
+        not validate_record_full(settled_record),
+        "a settled forecast after the deadline is valid",
+    )
+    covered = {
+        tuple("*" if step.isdigit() else step for step in path)
+        for record in (base, settled_record)
+        for path in timestamp_paths(record, schema_root, ())
+    }
+    uncovered = {
+        path
+        for path in schema_declared
+        if path not in covered and path not in exempt
+    }
+    check(
+        not uncovered,
+        "every schema timestamp is reachable in the sample: "
+        + (", ".join(".".join(path) for path in sorted(uncovered)) or "none missing"),
+    )
+
+    derived = [
+        path
+        for path in dict.fromkeys(timestamp_paths(base, schema_root, ()))
+        if path not in exempt
+    ]
+    check(
+        len(derived) >= 9,
+        f"the timestamp family is derived from the schema (found {len(derived)})",
+    )
+    for path in derived:
         future_member = copy.deepcopy(base)
-        mutate(future_member)
+        target: Any = future_member
+        for step in path[:-1]:
+            target = target[int(step)] if step.isdigit() else target[step]
+        last = path[-1]
+        if last.isdigit():
+            target[int(last)] = FUTURE
+        else:
+            target[last] = FUTURE
         check(
             bool(validate_record_full(future_member)),
-            f"a {label} in the future is rejected",
+            "a future " + ".".join(path) + " is rejected",
         )
 
     # A legitimate second round: phases cycle, and each recorded round carries
@@ -3635,6 +3833,9 @@ def run_selftest() -> int:
         {"at": "2026-07-26T13:58:00+09:00", "phase": "disposition"},
         {"at": "2026-07-26T14:00:00+09:00", "phase": "ship_decision"},
     ]
+    second_round["loop"]["deadline"]["forecasts"][0]["at"] = (
+        "2026-07-26T13:52:00+09:00"
+    )
     later = copy.deepcopy(second_round["loop"]["deadline"]["forecasts"][0])
     later["round"] = 2
     later["at"] = "2026-07-26T13:58:00+09:00"
@@ -3660,6 +3861,11 @@ def run_selftest() -> int:
     check(
         not validate_record_full(expired_before_start()),
         "a deadline that expired before the first round is recordable",
+    )
+
+    check(
+        "settled as_forecast at" in render_markdown(settled_record),
+        "the readback carries the settlement instant, not only its outcome",
     )
 
     check(
@@ -3937,6 +4143,7 @@ def run_selftest() -> int:
         "Working branch:",
         "Deadline source:",
         "Forecasts:",
+        "h remaining;",
     ):
         check(needle in rendered, f"readback carries {needle.rstrip(':')!r}")
 
