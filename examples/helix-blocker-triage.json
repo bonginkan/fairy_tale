@@ -21,15 +21,15 @@
       "source_ref": "source:owner-deadline",
       "clock_readings": [
         {
-          "at": "2026-08-17T06:00:00Z",
+          "at": "2026-07-26T13:50:00+09:00",
           "phase": "round_start"
         },
         {
-          "at": "2026-08-17T06:40:00Z",
+          "at": "2026-07-26T13:55:00+09:00",
           "phase": "disposition"
         },
         {
-          "at": "2026-08-17T07:05:00Z",
+          "at": "2026-07-26T14:00:00+09:00",
           "phase": "ship_decision"
         }
       ],
@@ -41,14 +41,30 @@
           "multi-directive card"
         ],
         "hash": "0000000000000000000000000000000000000000000000000000000000000000",
-        "registered_at": "2026-08-17T06:00:00Z"
+        "registered_at": "2026-07-26T13:50:00+09:00"
       },
       "source_pin": {
-        "ref": "discord:1538754403111272468",
+        "ref": "source:owner-deadline",
         "content_hash": "4444444444444444444444444444444444444444444444444444444444444444",
         "captured_at": "2026-08-17T06:00:00Z",
         "edit_count": 0
-      }
+      },
+      "forecasts": [
+        {
+          "round": 1,
+          "at": "2026-07-26T13:55:00+09:00",
+          "passed": [
+            "locate-the-target card"
+          ],
+          "outstanding": [
+            "owner-priority card",
+            "multi-directive card"
+          ],
+          "fits": true,
+          "next": "multi-directive card",
+          "settled": null
+        }
+      ]
     },
     "usage": {
       "primary_5h_remaining": 12,

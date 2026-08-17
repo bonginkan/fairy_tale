@@ -96,6 +96,7 @@ DEADLINE_KEYS = {
     "clock_readings",
     "minimum_shape",
     "source_pin",
+    "forecasts",
 }
 USAGE_KEYS = {
     "primary_5h_remaining",
@@ -552,6 +553,80 @@ def validate_minimum_shape(value: Any, findings: list[Finding]) -> None:
     parse_timestamp(shape.get("registered_at"), f"{path}.registered_at", findings)
 
 
+FORECAST_KEYS = {
+    "round",
+    "at",
+    "passed",
+    "outstanding",
+    "fits",
+    "next",
+    "settled",
+}
+FORECAST_OUTCOMES = {"as_forecast", "earlier", "later", "abandoned"}
+
+
+def validate_forecast(
+    value: Any,
+    path: str,
+    named_items: set[str],
+    evaluated_at: datetime | None,
+    findings: list[Finding],
+) -> None:
+    """A forecast that names items outside the pre-registered set is not about it."""
+    shape = object_shape(
+        value,
+        path=path,
+        required=FORECAST_KEYS - {"settled"},
+        allowed=FORECAST_KEYS,
+        findings=findings,
+    )
+    if shape is None:
+        return
+    at_forecast = parse_timestamp(shape.get("at"), f"{path}.at", findings)
+    if at_forecast is not None and evaluated_at is not None and at_forecast > evaluated_at:
+        add(findings, f"{path}.at", "a forecast cannot be made after the evaluation")
+    passed = shape.get("passed")
+    outstanding = shape.get("outstanding")
+    for key, items in (("passed", passed), ("outstanding", outstanding)):
+        if not isinstance(items, list) or any(
+            not isinstance(item, str) or not item.strip() for item in items
+        ):
+            add(findings, f"{path}.{key}", f"{key} must be named items")
+            return
+    stated = set(passed) | set(outstanding)
+    if named_items and not stated <= named_items:
+        add(
+            findings,
+            f"{path}.passed",
+            "a forecast reports on the pre-registered set, so it cannot name "
+            "items outside it: "
+            + ", ".join(sorted(stated - named_items)),
+        )
+    if named_items and set(passed) & set(outstanding):
+        add(
+            findings,
+            f"{path}.outstanding",
+            "an item cannot be both passed and outstanding",
+        )
+    if not isinstance(shape.get("fits"), bool):
+        add(findings, f"{path}.fits", "fits must state whether the remainder fits")
+    if not isinstance(shape.get("next"), str) or not shape.get("next", "").strip():
+        add(findings, f"{path}.next", "a forecast names what is taken next")
+    settled = shape.get("settled")
+    if settled is not None:
+        settled_shape = object_shape(
+            settled,
+            path=f"{path}.settled",
+            required={"at", "outcome"},
+            allowed={"at", "outcome"},
+            findings=findings,
+        )
+        if settled_shape is not None:
+            parse_timestamp(settled_shape.get("at"), f"{path}.settled.at", findings)
+            if settled_shape.get("outcome") not in FORECAST_OUTCOMES:
+                add(findings, f"{path}.settled.outcome", "settlement outcome is invalid")
+
+
 def validate_deadline(
     value: Any,
     evaluated_at: datetime | None,
@@ -560,7 +635,14 @@ def validate_deadline(
     deadline = object_shape(
         value,
         path="helix.loop.deadline",
-        required={"at", "source", "source_ref", "clock_readings", "source_pin"},
+        required={
+            "at",
+            "source",
+            "source_ref",
+            "clock_readings",
+            "source_pin",
+            "forecasts",
+        },
         allowed=DEADLINE_KEYS,
         findings=findings,
     )
@@ -585,6 +667,12 @@ def validate_deadline(
                 "helix.loop.deadline.clock_readings",
                 "no deadline is in force, so there is nothing to read a clock "
                 "against; time-awareness authority does not arise here",
+            )
+        if value.get("forecasts"):
+            add(
+                findings,
+                "helix.loop.deadline.forecasts",
+                "no deadline is in force, so there is nothing to forecast against",
             )
         if value.get("source_pin") is not None:
             add(
@@ -621,6 +709,13 @@ def validate_deadline(
             "remaining time is computed from readings, never felt",
         )
     pin = value.get("source_pin")
+    if isinstance(pin, dict) and pin.get("ref") != source_ref:
+        add(
+            findings,
+            "helix.loop.deadline.source_pin",
+            "the pinned source and source_ref must name the same thing, or the "
+            "deadline can be justified by one source and evidenced by another",
+        )
     if not isinstance(pin, dict):
         add(
             findings,
@@ -638,6 +733,75 @@ def validate_deadline(
             "an in-force deadline needs the minimum coherent set pre-registered "
             "by name; deciding at the end makes whatever passed the definition",
         )
+    # The clock readings, the pre-registration, and the evaluation have to sit in
+    # a possible order. Without this a record can register its minimum shape and
+    # read its clock after the evaluation it supposedly informed.
+    ordered_phases = ("round_start", "disposition", "ship_decision")
+    seen: list[tuple[int, datetime]] = []
+    for index, reading in enumerate(readings if isinstance(readings, list) else []):
+        if not isinstance(reading, dict):
+            continue
+        at_reading = parse_timestamp(
+            reading.get("at"), f"helix.loop.deadline.clock_readings[{index}].at", findings
+        )
+        phase = reading.get("phase")
+        if at_reading is None or phase not in ordered_phases:
+            continue
+        if evaluated_at is not None and at_reading > evaluated_at:
+            add(
+                findings,
+                f"helix.loop.deadline.clock_readings[{index}].at",
+                "a clock reading cannot be later than the evaluation it informed",
+            )
+        seen.append((ordered_phases.index(phase), at_reading))
+    for (earlier_phase, earlier_at), (later_phase, later_at) in zip(seen, seen[1:]):
+        if later_phase < earlier_phase or later_at < earlier_at:
+            add(
+                findings,
+                "helix.loop.deadline.clock_readings",
+                "clock readings must run forward through the round: a disposition "
+                "cannot precede its round start",
+            )
+            break
+    named_items: set[str] = set()
+    candidate_shape = value.get("minimum_shape")
+    if isinstance(candidate_shape, dict) and isinstance(
+        candidate_shape.get("named_items"), list
+    ):
+        named_items = {
+            item for item in candidate_shape["named_items"] if isinstance(item, str)
+        }
+    forecasts = value.get("forecasts")
+    if not isinstance(forecasts, list) or not forecasts:
+        add(
+            findings,
+            "helix.loop.deadline.forecasts",
+            "an in-force deadline carries a forecast per round; a forecast never "
+            "recorded cannot be settled against the outcome afterwards",
+        )
+    else:
+        for index, forecast in enumerate(forecasts):
+            validate_forecast(
+                forecast,
+                f"helix.loop.deadline.forecasts[{index}]",
+                named_items,
+                evaluated_at,
+                findings,
+            )
+    shape_value = value.get("minimum_shape")
+    if isinstance(shape_value, dict):
+        registered = parse_timestamp(
+            shape_value.get("registered_at"),
+            "helix.loop.deadline.minimum_shape.registered_at",
+            findings,
+        )
+        if registered is not None and evaluated_at is not None and registered > evaluated_at:
+            add(
+                findings,
+                "helix.loop.deadline.minimum_shape.registered_at",
+                "the minimum shape is pre-registered at the start of the window, "
+                "so it cannot be registered after the evaluation",
+            )
     if not evidence_list([source_ref], nonempty=True):
         add(
             findings,
@@ -1945,6 +2109,32 @@ def render_markdown(record: dict[str, Any]) -> str:
         ),
         f"- Normal path: {happy_path_summary} — {markdown_escape(happy_path['summary'])}",
         f"- Deadline: {deadline_summary}",
+        (
+            "- Deadline source: "
+            + (
+                f"`{deadline['source_pin']['ref']}`"
+                f"@`{deadline['source_pin']['content_hash'][:12]}`"
+                if isinstance(deadline.get("source_pin"), dict)
+                else "not in force"
+            )
+        ),
+        (
+            "- Forecasts: "
+            + (
+                "; ".join(
+                    f"r{item['round']}@`{item['at']}` "
+                    f"{len(item['passed'])} passed / {len(item['outstanding'])} outstanding, "
+                    + ("fits" if item["fits"] else "does not fit")
+                    + (
+                        f", settled {item['settled']['outcome']}"
+                        if item.get("settled")
+                        else ", unsettled"
+                    )
+                    for item in deadline["forecasts"]
+                )
+                or "none (no deadline in force)"
+            )
+        ),
         # The cards require that the record says who held the priority role,
         # where the change belongs, what the claim was pinned to, and which
         # branch the effort was fixed to. Evidence that never reaches the human
@@ -2192,11 +2382,14 @@ def migrate_record(record: Any) -> dict[str, Any]:
         deadline.setdefault("clock_readings", [])
         deadline.setdefault("minimum_shape", None)
         deadline.setdefault("source_pin", None)
+        deadline.setdefault("forecasts", [])
     else:
         if not deadline.get("clock_readings"):
             missing.append("deadline.clock_readings")
         if not deadline.get("source_pin"):
             missing.append("deadline.source_pin")
+        if not deadline.get("forecasts"):
+            missing.append("deadline.forecasts")
     if missing:
         raise ArtifactError(
             "schema 1.2 records evidence the 1.1 record does not carry; attach it "
@@ -2294,8 +2487,8 @@ def sample_record() -> dict[str, Any]:
                 },
                 "clock_readings": [
                     {"at": "2026-07-26T13:50:00+09:00", "phase": "round_start"},
-                    {"at": "2026-07-26T14:30:00+09:00", "phase": "disposition"},
-                    {"at": "2026-07-26T15:00:00+09:00", "phase": "ship_decision"},
+                    {"at": "2026-07-26T13:55:00+09:00", "phase": "disposition"},
+                    {"at": "2026-07-26T14:00:00+09:00", "phase": "ship_decision"},
                 ],
                 "minimum_shape": {
                     "owner_goal_ref": "source:owner-deadline",
@@ -2303,6 +2496,17 @@ def sample_record() -> dict[str, Any]:
                     "hash": "a" * 64,
                     "registered_at": "2026-07-26T13:50:00+09:00",
                 },
+                "forecasts": [
+                    {
+                        "round": 1,
+                        "at": "2026-07-26T13:55:00+09:00",
+                        "passed": ["path identity fix"],
+                        "outstanding": ["capacity eviction guard"],
+                        "fits": True,
+                        "next": "capacity eviction guard",
+                        "settled": None,
+                    }
+                ],
             },
             "target": {
                 "repo": "bonginkan/fairy_tale",
@@ -2948,6 +3152,7 @@ def run_selftest() -> int:
             "source_pin": None,
             "clock_readings": [],
             "minimum_shape": None,
+            "forecasts": [],
         }
         no_deadline_legacy["loop"]["priority_authority"] = {
             "active": False,
@@ -3009,6 +3214,38 @@ def run_selftest() -> int:
             f"the runtime validator for {label} is reached",
         )
 
+    # The forecast has to be about the pre-registered set, and the deadline has
+    # to be justified and evidenced by the same source.
+    stray_forecast = copy.deepcopy(base)
+    stray_forecast["loop"]["deadline"]["forecasts"][0]["passed"] = ["something else"]
+    blocked(stray_forecast, "cannot name items outside it")
+
+    both_ways = copy.deepcopy(base)
+    both_ways["loop"]["deadline"]["forecasts"][0]["outstanding"] = [
+        "path identity fix"
+    ]
+    blocked(both_ways, "cannot be both passed and outstanding")
+
+    missing_forecast = copy.deepcopy(base)
+    missing_forecast["loop"]["deadline"]["forecasts"] = []
+    blocked(missing_forecast, "a forecast per round")
+
+    split_source = copy.deepcopy(base)
+    split_source["loop"]["deadline"]["source_pin"]["ref"] = "source:somewhere-else"
+    blocked(split_source, "must name the same thing")
+
+    late_reading = copy.deepcopy(base)
+    late_reading["loop"]["deadline"]["clock_readings"][0]["at"] = (
+        "2026-07-27T09:00:00+09:00"
+    )
+    blocked(late_reading, "cannot be later than the evaluation")
+
+    late_registration = copy.deepcopy(base)
+    late_registration["loop"]["deadline"]["minimum_shape"]["registered_at"] = (
+        "2026-07-27T09:00:00+09:00"
+    )
+    blocked(late_registration, "cannot be registered after the evaluation")
+
     # Both integer-typed fields, because fixing one of a family and calling it
     # done is how the schema and runtime layers drift apart a field at a time.
     for label, mutate, rejected in (
@@ -3065,7 +3302,7 @@ def run_selftest() -> int:
     # layers disagreed on a legal timestamp.
     lowercase_zone = copy.deepcopy(base)
     lowercase_zone["loop"]["deadline"]["minimum_shape"]["registered_at"] = (
-        "2026-07-26T13:50:00z"
+        "2026-07-26T04:50:00z"
     )
     check(
         not validate_record_full(lowercase_zone),
@@ -3113,6 +3350,8 @@ def run_selftest() -> int:
         "Target:",
         "Claim envelope:",
         "Working branch:",
+        "Deadline source:",
+        "Forecasts:",
     ):
         check(needle in rendered, f"readback carries {needle.rstrip(':')!r}")
 
@@ -3192,6 +3431,7 @@ def run_selftest() -> int:
         "source_pin": None,
         "clock_readings": [],
         "minimum_shape": None,
+        "forecasts": [],
     }
     # With no directive in force the priority role does not arise either.
     absent_deadline["loop"]["priority_authority"] = {"active": False, "directive": None}

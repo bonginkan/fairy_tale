@@ -164,7 +164,8 @@
         "source",
         "source_ref",
         "clock_readings",
-        "source_pin"
+        "source_pin",
+        "forecasts"
       ],
       "properties": {
         "at": {
@@ -257,6 +258,13 @@
             }
           ],
           "description": "The deadline's source, pinned by content. Null only when no deadline is in force."
+        },
+        "forecasts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/forecast"
+          },
+          "description": "Per-round forecasts. Empty only when no deadline is in force."
         }
       },
       "allOf": [
@@ -281,6 +289,9 @@
               },
               "source_pin": {
                 "type": "null"
+              },
+              "forecasts": {
+                "maxItems": 0
               }
             }
           },
@@ -294,6 +305,9 @@
               },
               "source_pin": {
                 "type": "object"
+              },
+              "forecasts": {
+                "minItems": 1
               }
             }
           }
@@ -319,6 +333,9 @@
               },
               "source_pin": {
                 "type": "null"
+              },
+              "forecasts": {
+                "maxItems": 0
               }
             }
           },
@@ -332,6 +349,9 @@
               },
               "source_pin": {
                 "type": "object"
+              },
+              "forecasts": {
+                "minItems": 1
               }
             },
             "required": [
@@ -1507,6 +1527,77 @@
           }
         }
       ]
+    },
+    "forecast": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "round",
+        "at",
+        "passed",
+        "outstanding",
+        "fits",
+        "next"
+      ],
+      "description": "One line per round: what the clock read, which pre-registered items have passed and which have not, whether the remainder fits at the current rate, and what is taken next. `settled` records the reconciliation after the deadline; a forecast never settled improves no future estimate.",
+      "properties": {
+        "round": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "passed": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "outstanding": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "fits": {
+          "type": "boolean"
+        },
+        "next": {
+          "type": "string",
+          "minLength": 1
+        },
+        "settled": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "at",
+                "outcome"
+              ],
+              "properties": {
+                "at": {
+                  "$ref": "#/$defs/timestamp"
+                },
+                "outcome": {
+                  "enum": [
+                    "as_forecast",
+                    "earlier",
+                    "later",
+                    "abandoned"
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
     }
   }
 }
