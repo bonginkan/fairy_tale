@@ -15,6 +15,16 @@ harness enumerates — a human using it.
   Record the increment's happy path as a concrete executed check with an
   evidence ref. An unverified or hand-waved happy path leaves the ordinary
   production thresholds in force — the relaxation is bought with evidence.
+- **The claim's witness is not written by its author.** What the increment
+  claims to close is read from sources the implementer cannot rewrite mid-review
+  — the verified owner directive, the linked issue's acceptance, and contracts
+  and required tests already present in the merge base. Merge-base contracts are
+  fixed by commit; a directive or an issue body is not, so pin those by content
+  hash with the capture time and verify the recorded edit count before relying on
+  them. The pull request body is
+  a copy, not the source. Narrowing the claim after review begins is a change of
+  claim: existing sign-offs lapse, as on head drift. A test added by this
+  increment is not a witness for it.
 - **The evidence needs a witness who is not the beneficiary.** The stage basis
   and the normal-path check are locators the implementer writes, so a
   registered reviewer other than the implementer attests to having confirmed
@@ -29,11 +39,19 @@ harness enumerates — a human using it.
 - **Ship rule.** With the normal path verified and no retained fix-now finding,
   the increment ships to the dev target. *Holding a green increment is a
   finding, not diligence.* The machine gate rejects `hold` in that state.
+  "No retained fix-now" means none outstanding, not none newly raised this
+  round: a round that discovers nothing new while earlier fix-now findings remain
+  open does not ship.
 - **Everything else becomes the next cycle, not a blocker.** Abnormal-path
   robustness, error handling, retries, load and edge behaviour, and
   precautionary security hardening are recorded as issues in the same
   repository, carried in the owner-visible readback, and worked in the next
-  increment. Work continues on them; the *deploy* does not wait for them.
+  increment on the same working branch as the effort that deferred them —
+  deferral moves work in time, never onto another branch. Work continues on
+  them; the *deploy* does not wait for them. This clause disposes of technical
+  findings about the increment's behaviour; it does not reach the invariants
+  governing how the work is carried out, which are not findings and are not
+  deferrable by it.
 - **The floor does not move.** Demonstrated secret or credential exposure, data
   loss, production impact, an authority or permission boundary, a demonstrated
   reachable security defect, the increment's own required acceptance criteria,
@@ -43,6 +61,23 @@ harness enumerates — a human using it.
   precautionary does not make it deferrable. A precautionary classification
   claims only that no reachable failure sequence has been demonstrated, and any
   demonstration converts it back to fix-now.
+- **Breaking the normal path has conditions, and evidence is not one of them.**
+  A normal-path break is floor when all of these hold: the behaviour is recorded
+  in a source the increment's author did not write; it is observable to callers
+  or users rather than internal; the increment does not claim to change it; and
+  it concretely fails on this exact head with a named failure sequence and a
+  reachable locator. Execution evidence and an independent attestation are the
+  standard for *sustaining* the block, not for establishing it: with the
+  substance shown but evidence outstanding, hold and escalate immediately —
+  never ship because the paperwork lagged, and never demote because it did. If
+  no attester is available, escalate to the owner rather than downgrading.
+- **When reviewers split on floor membership, refutation is asymmetric.** The
+  side asserting the floor shows the canonical locator, the failure sequence,
+  and the exact-head evidence. The objecting side is not required to produce the
+  same three — that is not how absence is shown — but must refute one of them on
+  evidence. One objection, one rebuttal; a sustained refutation defeats the floor
+  claim, an unrefuted assertion carries it, and a split with grounds on both
+  sides escalates to the owner. Neither majority nor precedence decides it.
 - **Deferral stays a recorded transaction.** Same-repository issue, one
   registered reviewer concurring who is not the finding reviewer, an
   owner-visible report, and the exact final readback — unchanged from ordinary

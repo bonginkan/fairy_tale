@@ -1,5 +1,34 @@
 # Release Notes
 
+## 0.2.38 — Helix: target location, owner priority, one effort per branch
+
+- A wrong target is not corrected by working carefully inside it. **Locate the
+  Target Before Solving** puts target resolution ahead of content: the subject of
+  a directive names the target and the familiar verb does not, the signals the
+  implementer cannot rewrite are read first, reviewers resolve the target
+  independently before reading content, and a new or corrected directive
+  re-opens the target of work already signed off.
+- **Owner-Priority Review and Time-Awareness** gives the second reviewer a
+  disposition role bounded so it orders findings without deleting them, and
+  bounded again so it cannot downgrade the floor. Deadlines are read from a clock
+  and need a recorded source; the minimum coherent set is pre-registered by name
+  at the start of the window, because deciding at the end makes whatever passed
+  the definition.
+- **Multiple Directives Are One Effort** stops a set of instructions being solved
+  one at a time. The directive set is read from its refs and changes three ways —
+  addition, replacement, and correction of where an earlier directive is carried
+  out. The working branch is fixed at owner-goal scope, and fixing means not
+  moving it rather than cutting a fresh one per effort.
+- **GitHub Is the Exchange Surface** moves reviewable work off chat attachments.
+  Identity comes from the forge's own refs rather than hand-built hashes and
+  version labels, and an artifact long enough to split across messages belongs in
+  a file instead.
+- The Edison Ship Gate gains four bounds: the claim's witness is not written by
+  its author, a normal-path break has substantive conditions with evidence as the
+  standard for sustaining rather than establishing it, a split on floor
+  membership is refuted asymmetrically, and "no retained fix-now" means none
+  outstanding rather than none newly raised this round.
+
 ## 0.2.37 — Edison Ship Gate: the dev-deploy threshold
 
 - A loop that converges only on a perfect increment does not converge. The new
