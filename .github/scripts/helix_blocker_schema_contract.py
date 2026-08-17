@@ -22,6 +22,7 @@ ROOT = Path(
 sys.path.insert(0, str(ROOT))
 
 from scripts.helix_blocker_triage import (  # noqa: E402
+    validate_against_schema,
     legacy_sample_record,
     migrate_record,
     validate_record,
@@ -51,7 +52,17 @@ def main() -> int:
             raise AssertionError(
                 f"{label}: expected schema valid={valid}, errors={detail or 'none'}"
             )
-        controls += 1
+        # The dependency-free evaluator the CLI uses and jsonschema must agree,
+        # or the canonical entrypoint diverges from CI again — a keyword the
+        # evaluator does not implement would make CI the stricter gate, which is
+        # the failure this evaluator was added to remove.
+        evaluator_says = bool(validate_against_schema(instance))
+        if evaluator_says == valid:
+            raise AssertionError(
+                f"{label}: evaluator and jsonschema disagree — "
+                f"jsonschema_valid={not bool(errors)} evaluator_valid={not evaluator_says}"
+            )
+        controls += 2
 
     expect_schema(sample, valid=True, label="sample positive")
 
@@ -330,6 +341,17 @@ def main() -> int:
     if validate_record(migrated):
         raise AssertionError("runtime must accept the migrated 1.0 record")
     controls += 1
+
+    # S2: a format keyword the evaluator did not implement made CI stricter than
+
+    # the CLI. Locked here so the next timestamp field cannot reopen it.
+
+    bad_timestamp = copy.deepcopy(sample)
+
+    bad_timestamp["loop"]["deadline"]["minimum_shape"]["registered_at"] = "yesterday"
+
+    expect_schema(bad_timestamp, valid=False, label="date-time format is enforced")
+
 
     print(f"Helix blocker schema contract OK: {controls} controls")
     return 0

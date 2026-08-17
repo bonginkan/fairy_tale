@@ -1102,6 +1102,11 @@ def _schema_errors(
         return fail(path, f"must be one of {sorted(map(str, schema['enum']))}")
 
     if isinstance(value, str):
+        # `format` is deliberately not implemented here: jsonschema treats it as
+        # advisory unless an optional format library is installed, and CI does
+        # not install one. Implementing it would make this evaluator stricter
+        # than CI — the same divergence in the other direction. Timestamp
+        # contracts are carried by `pattern`, which both engines enforce.
         pattern = schema.get("pattern")
         if pattern is not None and not re.search(pattern, value):
             return fail(path, f"must match {pattern}")

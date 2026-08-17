@@ -94,7 +94,9 @@
     },
     "timestamp": {
       "type": "string",
-      "format": "date-time"
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}[Tt]\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?([Zz]|[+-]\\d{2}:\\d{2})$",
+      "description": "RFC 3339 date-time. The pattern carries the contract because `format` is advisory unless an optional format library is installed, so relying on it alone leaves timestamps unchecked in both the CLI evaluator and CI."
     },
     "evidenceRef": {
       "type": "string",
