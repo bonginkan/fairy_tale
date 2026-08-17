@@ -82,13 +82,21 @@ LOOP_KEYS = {
     "target",
     "claim_envelope",
     "working_branch",
+    "priority_authority",
 }
 SHIP_STAGE_KEYS = {"stage", "basis", "basis_ref", "happy_path", "evidence_attestation"}
 HAPPY_PATH_KEYS = {"verified", "check_ref", "summary"}
 SHIP_ATTESTATION_KEYS = {"reviewer_id", "evidence_refs"}
 SHIP_DECISION_KEYS = {"decision", "rationale"}
 ROLE_KEYS = {"implementer_id", "reviewer_ids", "priority_reviewer_id"}
-DEADLINE_KEYS = {"at", "source", "source_ref", "clock_readings", "minimum_shape"}
+DEADLINE_KEYS = {
+    "at",
+    "source",
+    "source_ref",
+    "clock_readings",
+    "minimum_shape",
+    "source_pin",
+}
 USAGE_KEYS = {
     "primary_5h_remaining",
     "secondary_weekly_remaining",
@@ -259,7 +267,7 @@ def parse_timestamp(value: Any, path: str, findings: list[Finding]) -> datetime 
         add(findings, path, "must be a timezone-qualified timestamp")
         return None
     try:
-        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00").replace("z", "+00:00"))
     except ValueError:
         add(findings, path, "must be an ISO 8601 timestamp")
         return None
@@ -295,7 +303,12 @@ def validate_roles(value: Any, findings: list[Finding]) -> tuple[str | None, lis
         add(findings, "helix.loop.roles.reviewer_ids", "reviewer id is malformed")
         reviewers = []
     priority_reviewer = roles.get("priority_reviewer_id")
-    if not valid_id(priority_reviewer):
+    if priority_reviewer is None:
+        # Absent is legitimate: with no owner directive in force the role does
+        # not arise. The loop-level authority state decides whether that is
+        # consistent, so nothing is reported here.
+        pass
+    elif not valid_id(priority_reviewer):
         add(
             findings,
             "helix.loop.roles.priority_reviewer_id",
@@ -367,7 +380,8 @@ def validate_pinned_source(
     )
     if shape is None:
         return
-    if not evidence_list([shape.get("ref")], nonempty=True):
+    ref = shape.get("ref")
+    if not isinstance(ref, str) or not ref.strip():
         add(findings, f"{path}.ref", "pinned source needs a concrete ref")
     digest = shape.get("content_hash")
     if not isinstance(digest, str) or not CONTENT_HASH_RE.fullmatch(digest):
@@ -395,7 +409,8 @@ def validate_target(value: Any, findings: list[Finding]) -> None:
     if shape is None:
         return
     for key in ("repo", "path", "layer", "canonical_owner"):
-        if not evidence_list([shape.get(key)], nonempty=True):
+        field = shape.get(key)
+        if not isinstance(field, str) or not field.strip():
             add(findings, f"{path}.{key}", f"target {key} must be recorded")
     refs = shape.get("directive_refs")
     if not isinstance(refs, list) or not refs:
@@ -461,9 +476,11 @@ def validate_working_branch(value: Any, findings: list[Finding]) -> None:
     )
     if shape is None:
         return
-    if not evidence_list([shape.get("name")], nonempty=True):
+    name = shape.get("name")
+    if not isinstance(name, str) or not name.strip():
         add(findings, f"{path}.name", "the fixed working branch must be named")
-    if not evidence_list([shape.get("fixed_by_ref")], nonempty=True):
+    fixed_by = shape.get("fixed_by_ref")
+    if not isinstance(fixed_by, str) or not fixed_by.strip():
         add(
             findings,
             f"{path}.fixed_by_ref",
@@ -501,7 +518,8 @@ def validate_minimum_shape(value: Any, findings: list[Finding]) -> None:
     )
     if shape is None:
         return
-    if not evidence_list([shape.get("owner_goal_ref")], nonempty=True):
+    goal = shape.get("owner_goal_ref")
+    if not isinstance(goal, str) or not goal.strip():
         add(findings, f"{path}.owner_goal_ref", "the pre-registered shape needs its owner goal")
     items = shape.get("named_items")
     if not unique_text_list(items, nonempty=True) or not items:
@@ -525,7 +543,7 @@ def validate_deadline(
     deadline = object_shape(
         value,
         path="helix.loop.deadline",
-        required={"at", "source", "source_ref", "clock_readings"},
+        required={"at", "source", "source_ref", "clock_readings", "source_pin"},
         allowed=DEADLINE_KEYS,
         findings=findings,
     )
@@ -551,6 +569,12 @@ def validate_deadline(
                 "no deadline is in force, so there is nothing to read a clock "
                 "against; time-awareness authority does not arise here",
             )
+        if value.get("source_pin") is not None:
+            add(
+                findings,
+                "helix.loop.deadline.source_pin",
+                "no deadline is in force, so there is no source to pin",
+            )
         if value.get("minimum_shape") is not None:
             add(
                 findings,
@@ -565,6 +589,13 @@ def validate_deadline(
     # that the pre-registered shape exists, because a promise the runtime does
     # not read is not a control.
     readings = value.get("clock_readings")
+    if isinstance(readings, list):
+        for index, reading in enumerate(readings):
+            validate_clock_reading(
+                reading, f"helix.loop.deadline.clock_readings[{index}]", findings
+            )
+    if value.get("minimum_shape") is not None:
+        validate_minimum_shape(value.get("minimum_shape"), findings)
     if not isinstance(readings, list) or not readings:
         add(
             findings,
@@ -572,6 +603,16 @@ def validate_deadline(
             "an in-force deadline needs at least one real clock reading; "
             "remaining time is computed from readings, never felt",
         )
+    pin = value.get("source_pin")
+    if not isinstance(pin, dict):
+        add(
+            findings,
+            "helix.loop.deadline.source_pin",
+            "an in-force deadline names a source that can be edited later; pin it "
+            "by content so the date it was read from cannot move",
+        )
+    else:
+        validate_pinned_source(pin, "helix.loop.deadline.source_pin", findings)
     shape = value.get("minimum_shape")
     if not isinstance(shape, dict):
         add(
@@ -1053,9 +1094,27 @@ _TYPE_CHECKS: dict[str, Any] = {
     "string": lambda v: isinstance(v, str),
     "boolean": lambda v: isinstance(v, bool),
     "null": lambda v: v is None,
-    "integer": lambda v: isinstance(v, int) and not isinstance(v, bool),
+    # JSON Schema counts 1.0 as an integer; Python does not. Using isinstance
+    # alone made this evaluator reject values jsonschema accepts.
+    "integer": lambda v: (isinstance(v, int) and not isinstance(v, bool))
+    or (isinstance(v, float) and v.is_integer()),
     "number": lambda v: isinstance(v, (int, float)) and not isinstance(v, bool),
 }
+
+
+def _json_equal(left: Any, right: Any) -> bool:
+    """JSON Schema value equality, where `true` and `1` are different values.
+
+    Python treats booleans as integers, so `1 == True` and a plain `==` would
+    let a boolean satisfy a numeric const or enum and vice versa.
+    """
+    if isinstance(left, bool) != isinstance(right, bool):
+        return False
+    if isinstance(left, (int, float)) and isinstance(right, (int, float)):
+        return left == right
+    if type(left) is not type(right):
+        return False
+    return left == right
 
 
 def _schema_matches(value: Any, schema: Any, root: dict[str, Any]) -> bool:
@@ -1096,9 +1155,11 @@ def _schema_errors(
         if not any(_TYPE_CHECKS.get(name, lambda _v: True)(value) for name in names):
             return fail(path, f"must be {' or '.join(names)}")
 
-    if "const" in schema and value != schema["const"]:
+    if "const" in schema and not _json_equal(value, schema["const"]):
         return fail(path, f"must equal {schema['const']!r}")
-    if "enum" in schema and value not in schema["enum"]:
+    if "enum" in schema and not any(
+        _json_equal(value, option) for option in schema["enum"]
+    ):
         return fail(path, f"must be one of {sorted(map(str, schema['enum']))}")
 
     if isinstance(value, str):
@@ -1205,6 +1266,20 @@ def validate_record_full(record: Any) -> list[Finding]:
     that decides. Two gates disagreeing is worse than one, because the weaker
     one is the one people run.
     """
+    # Version routing first: a superseded record should be told how to upgrade,
+    # not handed a shape error about the version field it legitimately carries.
+    if isinstance(record, dict):
+        version = record.get("schema_version")
+        if version in MIGRATABLE_SCHEMA_VERSIONS:
+            return [
+                Finding(
+                    code="helix.schema_version",
+                    message=(
+                        f"schema_version {version} is superseded; upgrade the "
+                        "record with `fairy blocker migrate`"
+                    ),
+                )
+            ]
     schema_findings = validate_against_schema(record)
     if schema_findings:
         # A record that is not the right shape cannot be reasoned about across
@@ -1276,6 +1351,45 @@ def validate_record(record: Any) -> list[Finding]:
         )
         implementer_id, reviewer_ids = validate_roles(loop.get("roles"), findings)
         deadline_at = validate_deadline(loop.get("deadline"), evaluated_at, findings)
+        authority = loop.get("priority_authority")
+        if isinstance(authority, dict):
+            active = authority.get("active")
+            directive = authority.get("directive")
+            if active is True:
+                if directive is None:
+                    add(
+                        findings,
+                        "helix.loop.priority_authority.directive",
+                        "an active priority role must name the directive it arises "
+                        "from, pinned by content",
+                    )
+                else:
+                    validate_pinned_source(
+                        directive, "helix.loop.priority_authority.directive", findings
+                    )
+                if loop.get("roles", {}).get("priority_reviewer_id") is None:
+                    add(
+                        findings,
+                        "helix.loop.roles.priority_reviewer_id",
+                        "the priority role is active, so exactly one reviewer holds it",
+                    )
+            elif active is False:
+                if directive is not None:
+                    add(
+                        findings,
+                        "helix.loop.priority_authority.directive",
+                        "an inactive priority role cannot cite a directive",
+                    )
+                if loop.get("roles", {}).get("priority_reviewer_id") is not None:
+                    add(
+                        findings,
+                        "helix.loop.roles.priority_reviewer_id",
+                        "with no directive in force the priority role does not arise, "
+                        "so no reviewer holds it",
+                    )
+        validate_target(loop.get("target"), findings)
+        validate_claim_envelope(loop.get("claim_envelope"), findings)
+        validate_working_branch(loop.get("working_branch"), findings)
         usage_pressure = validate_usage(loop.get("usage"), evaluated_at, findings)
         ship_stage, edison_mode = validate_ship_stage(
             loop.get("ship_stage"),
@@ -1755,8 +1869,8 @@ def validate_record(record: Any) -> list[Finding]:
                 "a cited owner approval, or returning to the recorded branch "
                 "and consolidating",
             )
-        elif remedy == "approval_produced" and not evidence_list(
-            [approval], nonempty=True
+        elif remedy == "approval_produced" and not (
+            isinstance(approval, str) and approval.strip()
         ):
             add(
                 findings,
@@ -1785,9 +1899,9 @@ def render_markdown(record: dict[str, Any]) -> str:
     deadline_summary = "none"
     if deadline["at"] is not None:
         evaluated_at = datetime.fromisoformat(
-            loop["evaluated_at"].replace("Z", "+00:00")
+            loop["evaluated_at"].replace("Z", "+00:00").replace("z", "+00:00")
         )
-        deadline_at = datetime.fromisoformat(deadline["at"].replace("Z", "+00:00"))
+        deadline_at = datetime.fromisoformat(deadline["at"].replace("Z", "+00:00").replace("z", "+00:00"))
         remaining_hours = (deadline_at - evaluated_at).total_seconds() / 3600
         deadline_summary = (
             f"{deadline['at']} ({remaining_hours:.1f}h remaining at evaluation; "
@@ -1798,6 +1912,7 @@ def render_markdown(record: dict[str, Any]) -> str:
     target = loop["target"]
     envelope = loop["claim_envelope"]
     branch = loop["working_branch"]
+    authority = loop["priority_authority"]
     happy_path = ship["happy_path"]
     happy_path_summary = (
         f"verified against `{happy_path['check_ref']}`"
@@ -1821,7 +1936,16 @@ def render_markdown(record: dict[str, Any]) -> str:
         # where the change belongs, what the claim was pinned to, and which
         # branch the effort was fixed to. Evidence that never reaches the human
         # readback is evidence only the validator can see.
-        f"- Priority reviewer: `{loop['roles']['priority_reviewer_id']}`",
+        (
+            "- Priority authority: "
+            + (
+                f"active from `{authority['directive']['ref']}`"
+                f"@`{authority['directive']['content_hash'][:12]}`, held by "
+                f"`{loop['roles']['priority_reviewer_id']}`"
+                if authority.get("active")
+                else "not in force (no owner directive; the role does not arise)"
+            )
+        ),
         (
             "- Clock readings: "
             + (
@@ -2036,12 +2160,30 @@ def migrate_record(record: Any) -> dict[str, Any]:
         for name in ("target", "claim_envelope", "working_branch")
         if not isinstance(loop.get(name), dict)
     ]
+    if not isinstance(loop.get("priority_authority"), dict):
+        missing.append("priority_authority")
     roles = loop.get("roles")
-    if not isinstance(roles, dict) or not roles.get("priority_reviewer_id"):
+    if not isinstance(roles, dict) or "priority_reviewer_id" not in roles:
         missing.append("roles.priority_reviewer_id")
     deadline = loop.get("deadline")
-    if not isinstance(deadline, dict) or not deadline.get("clock_readings"):
-        missing.append("deadline.clock_readings")
+    if not isinstance(deadline, dict):
+        missing.append("deadline")
+    elif deadline.get("source") == "none":
+        # No deadline was in force, so there was no clock to read and no window
+        # to register a shape in. Demanding them here would make the record the
+        # schema calls correct impossible to migrate.
+        if deadline.get("clock_readings"):
+            raise ArtifactError(
+                "a record with no deadline in force cannot carry clock readings"
+            )
+        deadline.setdefault("clock_readings", [])
+        deadline.setdefault("minimum_shape", None)
+        deadline.setdefault("source_pin", None)
+    else:
+        if not deadline.get("clock_readings"):
+            missing.append("deadline.clock_readings")
+        if not deadline.get("source_pin"):
+            missing.append("deadline.source_pin")
     if missing:
         raise ArtifactError(
             "schema 1.2 records evidence the 1.1 record does not carry; attach it "
@@ -2118,10 +2260,25 @@ def sample_record() -> dict[str, Any]:
                 "reviewer_ids": ["codex-misa", "cc-misa-hime"],
                 "priority_reviewer_id": "codex-misa",
             },
+            "priority_authority": {
+                "active": True,
+                "directive": {
+                    "ref": "source:owner-priority-directive",
+                    "content_hash": "d" * 64,
+                    "captured_at": "2026-07-26T13:45:00+09:00",
+                    "edit_count": 0,
+                },
+            },
             "deadline": {
                 "at": "2026-07-27T14:00:00+09:00",
                 "source": "explicit_owner",
                 "source_ref": "source:owner-deadline",
+                "source_pin": {
+                    "ref": "source:owner-deadline",
+                    "content_hash": "e" * 64,
+                    "captured_at": "2026-07-26T13:45:00+09:00",
+                    "edit_count": 0,
+                },
                 "clock_readings": [
                     {"at": "2026-07-26T13:50:00+09:00", "phase": "round_start"},
                     {"at": "2026-07-26T14:30:00+09:00", "phase": "disposition"},
@@ -2739,6 +2896,118 @@ def run_selftest() -> int:
 
     # Schema 1.0 compatibility: the persisted records written before the ship
     # stage existed stay readable through a tested upgrade path.
+    # The priority role and its directive must agree, in both directions, or an
+    # unpinned authority is recordable and a legitimate absent one is not.
+    active_without_directive = copy.deepcopy(base)
+    active_without_directive["loop"]["priority_authority"]["directive"] = None
+    blocked(active_without_directive, "must name the directive it arises from")
+
+    active_without_holder = copy.deepcopy(base)
+    active_without_holder["loop"]["roles"]["priority_reviewer_id"] = None
+    blocked(active_without_holder, "exactly one reviewer holds it")
+
+    inactive_with_holder = copy.deepcopy(base)
+    inactive_with_holder["loop"]["priority_authority"] = {
+        "active": False,
+        "directive": None,
+    }
+    blocked(inactive_with_holder, "the priority role does not arise")
+
+    unpinned_deadline = copy.deepcopy(base)
+    unpinned_deadline["loop"]["deadline"]["source_pin"] = None
+    blocked(unpinned_deadline, "pin it by content")
+
+    # A record with no deadline in force must be migratable: the schema calls it
+    # correct, so the upgrade path has to accept it rather than demanding a
+    # clock reading that legitimately does not exist.
+    for version in MIGRATABLE_SCHEMA_VERSIONS:
+        no_deadline_legacy = legacy_sample_record()
+        no_deadline_legacy["schema_version"] = version
+        if version == "1.0":
+            no_deadline_legacy["final_readback"].pop("ship_decision", None)
+            for blocker in no_deadline_legacy["blockers"]:
+                blocker.pop("finding_class", None)
+                blocker.pop("floor_basis", None)
+        no_deadline_legacy["loop"]["deadline"] = {
+            "at": None,
+            "source": "none",
+            "source_ref": "",
+            "source_pin": None,
+            "clock_readings": [],
+            "minimum_shape": None,
+        }
+        no_deadline_legacy["loop"]["priority_authority"] = {
+            "active": False,
+            "directive": None,
+        }
+        no_deadline_legacy["loop"]["roles"]["priority_reviewer_id"] = None
+        upgraded_no_deadline = migrate_record(no_deadline_legacy)
+        check(
+            upgraded_no_deadline["schema_version"] == SCHEMA_VERSION,
+            f"a schema {version} record with no deadline in force still migrates",
+        )
+
+    # A superseded record is routed to the upgrade path, not handed a shape
+    # error about the version field it correctly carries.
+    for version in MIGRATABLE_SCHEMA_VERSIONS:
+        superseded = legacy_sample_record()
+        superseded["schema_version"] = version
+        routed = validate_record_full(superseded)
+        check(
+            any("fairy blocker migrate" in item.message for item in routed),
+            f"a schema {version} record is routed to the upgrade path",
+        )
+
+    # These validators existed but nothing called them, so the schema layer was
+    # doing all the work and their cross-object rules were inert. One control
+    # per validator, so a future refactor that drops the call site goes red.
+    for label, mutate in (
+        ("target fields", lambda r: r["loop"]["target"].__setitem__("repo", "")),
+        (
+            "target directive pinning",
+            lambda r: r["loop"]["target"]["directive_refs"][0].__setitem__(
+                "content_hash", "nope"
+            ),
+        ),
+        (
+            "envelope pinning",
+            lambda r: r["loop"]["claim_envelope"]["claim_snapshot_refs"][0].__setitem__(
+                "content_hash", "nope"
+            ),
+        ),
+        ("branch naming", lambda r: r["loop"]["working_branch"].__setitem__("name", "")),
+        (
+            "clock reading phase",
+            lambda r: r["loop"]["deadline"]["clock_readings"][0].__setitem__(
+                "phase", "whenever"
+            ),
+        ),
+        (
+            "minimum shape items",
+            lambda r: r["loop"]["deadline"]["minimum_shape"].__setitem__(
+                "named_items", []
+            ),
+        ),
+    ):
+        wired = copy.deepcopy(base)
+        mutate(wired)
+        check(
+            bool(validate_record_full(wired)),
+            f"the runtime validator for {label} is reached",
+        )
+
+    # RFC 3339 permits a lowercase zone designator, and the schema pattern
+    # allows it. The parser used to accept only the uppercase form, so the two
+    # layers disagreed on a legal timestamp.
+    lowercase_zone = copy.deepcopy(base)
+    lowercase_zone["loop"]["deadline"]["minimum_shape"]["registered_at"] = (
+        "2026-07-26T13:50:00z"
+    )
+    check(
+        not validate_record_full(lowercase_zone),
+        "a lowercase RFC 3339 zone designator is accepted by both layers",
+    )
+
     # A 1.0 record must still upgrade: the previous release promised persisted
     # records upgrade rather than expire, and the 1.2 evidence is demanded from
     # the operator rather than invented, exactly as for 1.1.
@@ -2774,7 +3043,7 @@ def run_selftest() -> int:
     # record satisfies the validator and tells the owner nothing.
     rendered = render_markdown(base)
     for needle in (
-        "Priority reviewer:",
+        "Priority authority:",
         "Clock readings:",
         "Minimum shape:",
         "Target:",
@@ -2856,9 +3125,13 @@ def run_selftest() -> int:
         "at": None,
         "source": "none",
         "source_ref": "",
+        "source_pin": None,
         "clock_readings": [],
         "minimum_shape": None,
     }
+    # With no directive in force the priority role does not arise either.
+    absent_deadline["loop"]["priority_authority"] = {"active": False, "directive": None}
+    absent_deadline["loop"]["roles"]["priority_reviewer_id"] = None
     check(
         not validate_record_full(absent_deadline),
         "an absent deadline needs no clock reading and no pre-registered shape",

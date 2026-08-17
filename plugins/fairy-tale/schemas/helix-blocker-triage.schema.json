@@ -33,7 +33,8 @@
         "ship_stage",
         "target",
         "claim_envelope",
-        "working_branch"
+        "working_branch",
+        "priority_authority"
       ],
       "properties": {
         "loop_id": {
@@ -73,6 +74,9 @@
         },
         "working_branch": {
           "$ref": "#/$defs/workingBranch"
+        },
+        "priority_authority": {
+          "$ref": "#/$defs/priorityAuthority"
         }
       }
     },
@@ -140,8 +144,15 @@
           ]
         },
         "priority_reviewer_id": {
-          "$ref": "#/$defs/id",
-          "description": "The single reviewer holding the owner-priority disposition role. Must be one of reviewer_ids and must not be implementer_id. 'the second reviewer' names nobody once there are three."
+          "oneOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The single reviewer holding the owner-priority disposition role, or null when no owner directive is in force and the role does not arise. 'the second reviewer' names nobody once there are three."
         }
       }
     },
@@ -152,7 +163,8 @@
         "at",
         "source",
         "source_ref",
-        "clock_readings"
+        "clock_readings",
+        "source_pin"
       ],
       "properties": {
         "at": {
@@ -234,6 +246,17 @@
               "$ref": "#/$defs/timestamp"
             }
           }
+        },
+        "source_pin": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/pinnedSource"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The deadline's source, pinned by content. Null only when no deadline is in force."
         }
       },
       "allOf": [
@@ -255,6 +278,9 @@
               },
               "source_ref": {
                 "const": ""
+              },
+              "source_pin": {
+                "type": "null"
               }
             }
           },
@@ -265,6 +291,9 @@
               },
               "source_ref": {
                 "$ref": "#/$defs/evidenceRef"
+              },
+              "source_pin": {
+                "type": "object"
               }
             }
           }
@@ -287,6 +316,9 @@
               },
               "minimum_shape": {
                 "type": "null"
+              },
+              "source_pin": {
+                "type": "null"
               }
             }
           },
@@ -296,6 +328,9 @@
                 "minItems": 1
               },
               "minimum_shape": {
+                "type": "object"
+              },
+              "source_pin": {
                 "type": "object"
               }
             },
@@ -1408,6 +1443,70 @@
           ]
         }
       }
+    },
+    "priorityAuthority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "active",
+        "directive"
+      ],
+      "description": "Whether the owner-priority role arises at all, and the directive it arises from. Without this an unpinned authority is recordable and a legitimate 'no directive' state is not.",
+      "properties": {
+        "active": {
+          "type": "boolean"
+        },
+        "directive": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/pinnedSource"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "active": {
+                "const": true
+              }
+            },
+            "required": [
+              "active"
+            ]
+          },
+          "then": {
+            "properties": {
+              "directive": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "active": {
+                "const": false
+              }
+            },
+            "required": [
+              "active"
+            ]
+          },
+          "then": {
+            "properties": {
+              "directive": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
     }
   }
 }

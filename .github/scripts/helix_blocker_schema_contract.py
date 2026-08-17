@@ -342,6 +342,49 @@ def main() -> int:
         raise AssertionError("runtime must accept the migrated 1.0 record")
     controls += 1
 
+    # Draft 2020-12 semantics the evaluator has to share with jsonschema, both
+
+    # directions. Without these the parity check passes while the two engines
+
+    # disagree on values a stored record can actually contain.
+
+    integral_float = copy.deepcopy(sample)
+
+    integral_float["loop"]["target"]["directive_refs"][0]["edit_count"] = 1.0
+
+    expect_schema(integral_float, valid=True, label="integral float is an integer")
+
+
+    integral_float_minutes = copy.deepcopy(sample)
+
+    integral_float_minutes["blockers"][0]["estimated_fix_minutes"] = 1.0
+
+    expect_schema(
+
+        integral_float_minutes, valid=True, label="integral float fix minutes"
+
+    )
+
+
+    numeric_for_boolean = copy.deepcopy(sample)
+
+    for candidate in numeric_for_boolean["blockers"]:
+
+        report = candidate["resolution"].get("human_report")
+
+        if isinstance(report, dict):
+
+            report["reported"] = 1
+
+            break
+
+    expect_schema(
+
+        numeric_for_boolean, valid=False, label="1 does not satisfy a true const"
+
+    )
+
+
     # S2: a format keyword the evaluator did not implement made CI stricter than
 
     # the CLI. Locked here so the next timestamp field cannot reopen it.
