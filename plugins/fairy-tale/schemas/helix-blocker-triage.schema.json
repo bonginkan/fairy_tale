@@ -195,7 +195,8 @@
                 ]
               }
             }
-          }
+          },
+          "minItems": 1
         },
         "minimum_shape": {
           "type": [
@@ -265,6 +266,30 @@
                 "$ref": "#/$defs/evidenceRef"
               }
             }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "source": {
+                "not": {
+                  "const": "none"
+                }
+              }
+            },
+            "required": [
+              "source"
+            ]
+          },
+          "then": {
+            "properties": {
+              "minimum_shape": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "minimum_shape"
+            ]
           }
         }
       ]
@@ -1333,7 +1358,8 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/pinnedSource"
-          }
+          },
+          "minItems": 1
         }
       }
     },

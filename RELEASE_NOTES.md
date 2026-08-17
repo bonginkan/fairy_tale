@@ -4,11 +4,12 @@
 
 - A wrong target is not corrected by working carefully inside it. **Locate the
   Target Before Solving** puts target resolution ahead of content: the subject of
-  a directive names the target and the familiar verb does not, the signals the
-  implementer cannot rewrite are read first, reviewers resolve the target
-  independently before reading content, and a new or corrected directive
-  re-opens the target of work already signed off.
-- **Owner-Priority Review and Time-Awareness** gives the second reviewer a
+  a directive names the target and an explicit naming governs wherever it
+  appears, ambient signals corroborate rather than decide, a conflict fails
+  closed to the owner, reviewers resolve the target independently before reading
+  content, and a new or corrected directive re-opens the target of work already
+  approved, applied, or copied onward.
+- **Owner-Priority Review and Time-Awareness** gives exactly one named reviewer a
   disposition role bounded so it orders findings without deleting them, and
   bounded again so it cannot downgrade the floor. Deadlines are read from a clock
   and need a recorded source; the minimum coherent set is pre-registered by name

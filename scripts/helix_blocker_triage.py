@@ -161,6 +161,7 @@ PROTECTED_FLOORS = {
     "authority_permission",
     "security",
     "required_acceptance",
+    "unapproved_branch_change",
 }
 FLOOR_BASES = {"not_applicable", "demonstrated", "precautionary"}
 FINDING_CLASSES = {"happy_path", "abnormal_path", "hardening", "other"}
@@ -349,6 +350,26 @@ def validate_deadline(
             )
         return None
     parsed = parse_timestamp(at, "helix.loop.deadline.at", findings)
+    # A deadline that no one read the clock against is a felt deadline. The
+    # schema requires the array; the runtime requires that it is not empty and
+    # that the pre-registered shape exists, because a promise the runtime does
+    # not read is not a control.
+    readings = value.get("clock_readings")
+    if not isinstance(readings, list) or not readings:
+        add(
+            findings,
+            "helix.loop.deadline.clock_readings",
+            "an in-force deadline needs at least one real clock reading; "
+            "remaining time is computed from readings, never felt",
+        )
+    shape = value.get("minimum_shape")
+    if not isinstance(shape, dict):
+        add(
+            findings,
+            "helix.loop.deadline.minimum_shape",
+            "an in-force deadline needs the minimum coherent set pre-registered "
+            "by name; deciding at the end makes whatever passed the definition",
+        )
     if not evidence_list([source_ref], nonempty=True):
         add(
             findings,
@@ -1293,6 +1314,38 @@ def validate_record(record: Any) -> list[Finding]:
                 "helix.final_readback.report_ref",
                 "reported readback needs a concrete report_ref",
             )
+
+    # An unapproved branch change has exactly two exits, and the record has to
+    # show which one was taken. Without this the floor value can be raised and
+    # the record closed with remedy "none" and no approval anywhere — the floor
+    # stated in the schema but never read at runtime.
+    branch_floor_raised = any(
+        isinstance(blocker, dict)
+        and blocker.get("protected_floor") == "unapproved_branch_change"
+        for blocker in (blockers if isinstance(blockers, list) else [])
+    )
+    if branch_floor_raised:
+        branch = loop.get("working_branch") if isinstance(loop, dict) else None
+        branch = branch if isinstance(branch, dict) else {}
+        remedy = branch.get("remedy")
+        approval = branch.get("approval_ref")
+        if remedy not in {"approval_produced", "returned_and_consolidated"}:
+            add(
+                findings,
+                "helix.loop.working_branch.remedy",
+                "an unapproved branch change must record which exit was taken: "
+                "a cited owner approval, or returning to the recorded branch "
+                "and consolidating",
+            )
+        elif remedy == "approval_produced" and not evidence_list(
+            [approval], nonempty=True
+        ):
+            add(
+                findings,
+                "helix.loop.working_branch.approval_ref",
+                "approval_produced needs the owner approval as a citable ref; "
+                "a recollection is not evidence",
+            )
     return findings
 
 
@@ -2196,6 +2249,59 @@ def run_selftest() -> int:
 
     # Schema 1.0 compatibility: the persisted records written before the ship
     # stage existed stay readable through a tested upgrade path.
+    # The unapproved-branch floor: raised without an exit, deferred at any
+    # concurrence, and approval claimed without a ref. Each of these is a way
+    # the value could be stated in the schema and never enforced at runtime.
+    branch_no_exit = copy.deepcopy(base)
+    branch_no_exit["blockers"][0]["protected_floor"] = "unapproved_branch_change"
+    branch_no_exit["blockers"][0]["floor_basis"] = "demonstrated"
+    blocked(branch_no_exit, "must record which exit was taken")
+
+    branch_deferred = copy.deepcopy(dev_base)
+    branch_deferred["blockers"][0]["protected_floor"] = "unapproved_branch_change"
+    branch_deferred["blockers"][0]["floor_basis"] = "precautionary"
+    branch_deferred["blockers"][0]["finding_class"] = "hardening"
+    branch_deferred["blockers"][0]["resolution"]["disposition"] = "defer_issue"
+    blocked(branch_deferred, "not deferrable at any level of concurrence")
+
+    branch_unevidenced_approval = copy.deepcopy(base)
+    branch_unevidenced_approval["blockers"][0]["protected_floor"] = (
+        "unapproved_branch_change"
+    )
+    branch_unevidenced_approval["blockers"][0]["floor_basis"] = "demonstrated"
+    branch_unevidenced_approval["loop"]["working_branch"]["remedy"] = (
+        "approval_produced"
+    )
+    branch_unevidenced_approval["loop"]["working_branch"]["approval_ref"] = ""
+    blocked(branch_unevidenced_approval, "citable ref")
+
+    # A deadline nobody read a clock against, and one whose shape was never
+    # pre-registered: both are the felt deadline the card forbids.
+    unread_clock = copy.deepcopy(base)
+    unread_clock["loop"]["deadline"]["clock_readings"] = []
+    blocked(unread_clock, "at least one real clock reading")
+
+    unregistered_shape = copy.deepcopy(base)
+    unregistered_shape["loop"]["deadline"]["minimum_shape"] = None
+    blocked(unregistered_shape, "pre-registered")
+
+    # Migration refuses to invent the 1.2 evidence. Without a record that is
+    # actually missing it, the refusal is unreachable and therefore untested.
+    stripped_legacy = legacy_sample_record()
+    for key in ("target", "claim_envelope", "working_branch"):
+        stripped_legacy["loop"].pop(key, None)
+    stripped_legacy["loop"]["roles"].pop("priority_reviewer_id", None)
+    stripped_legacy["loop"]["deadline"].pop("clock_readings", None)
+    try:
+        migrate_record(stripped_legacy)
+    except ArtifactError as exc:
+        check(
+            "attach it before migrating" in str(exc),
+            "migration refuses to invent the evidence 1.1 never captured",
+        )
+    else:
+        check(False, "migration invented the 1.2 evidence")
+
     legacy = legacy_sample_record()
     blocked(legacy, "is superseded; upgrade the record with `fairy blocker migrate`")
     migrated = migrate_record(legacy)
