@@ -1,6 +1,6 @@
 ---
 name: fairy-tale
-description: Fable/Mythos workflow harness for E3 complexity-aware minimum-sufficient execution, loop/spiral engineering, Helix blocker triage, double-helix learning loops, evolutionary spirals, job automation, agent handoffs, silent-loop auto-resume, do-not-disturb windows, usage-aware multi-agent load balancing, closure checks, negative-space discovery, excess/redundancy/legacy-surface review, finance proposal completeness, e2e completion, GUI dogfood QA, creator-proxy WWCD elaboration, migration, research synthesis, benchmark/legal reasoning, UI design best practices, UI/3D/creative work, token-consumption optimization (memoization), mechanism discovery, and defensive security process design.
+description: Fable/Mythos harness for E3 minimum-sufficient execution, loop/spiral engineering, Helix blocker triage, double-helix learning loops, evolutionary spirals, job automation, agent handoffs, silent-loop resume, do-not-disturb windows, usage-aware load balancing, closure checks, negative-space discovery, excess/redundancy/legacy-surface review, finance completeness, e2e completion, GUI dogfood QA, creator-proxy WWCD, migration, research synthesis, benchmark/legal reasoning, UI best practices, UI/3D/creative work, token optimization, mechanism discovery, defensive security design, directive target location, owner-priority deadline review, one-effort one-branch work, and GitHub artifact handoff.
 ---
 
 # Fairy Tale

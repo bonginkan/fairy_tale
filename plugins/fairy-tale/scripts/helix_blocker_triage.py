@@ -50,6 +50,9 @@ SCHEMA_VERSION = "1.2"
 # They stay readable through `migrate`, which upgrades them without inventing
 # evidence the original record never carried.
 MIGRATABLE_SCHEMA_VERSION = "1.1"
+# 1.0 records still upgrade, chained 1.0 -> 1.1 -> 1.2, because the previous
+# release promised persisted records upgrade rather than expire.
+MIGRATABLE_SCHEMA_VERSIONS = ("1.0", "1.1")
 DEFAULT_SAMPLE = ROOT / "examples" / "helix-blocker-triage.json"
 MAX_DEFERRABLE_RISK_SCORE = 60
 # Edison Ship Gate: a dev-stage increment with a verified normal path buys a
@@ -321,6 +324,199 @@ def validate_roles(value: Any, findings: list[Finding]) -> tuple[str | None, lis
     return implementer, list(reviewers)
 
 
+TARGET_KEYS = {
+    "repo",
+    "path",
+    "layer",
+    "canonical_owner",
+    "directive_refs",
+    "propagation_path",
+    "duplication_policy",
+    "resolved_at",
+}
+TARGET_REQUIRED = {
+    "repo",
+    "path",
+    "layer",
+    "canonical_owner",
+    "directive_refs",
+    "duplication_policy",
+}
+DUPLICATION_POLICIES = {"canonical_only", "mirrored_byte_identical", "reference_only"}
+PINNED_SOURCE_KEYS = {"ref", "content_hash", "captured_at", "edit_count"}
+PINNED_SOURCE_REQUIRED = {"ref", "content_hash", "captured_at"}
+CLAIM_ENVELOPE_KEYS = {"baseline_ref", "claim_snapshot_refs"}
+WORKING_BRANCH_KEYS = {"name", "fixed_by_ref", "approval_ref", "remedy"}
+WORKING_BRANCH_REQUIRED = {"name", "fixed_by_ref"}
+BRANCH_REMEDIES = {"none", "approval_produced", "returned_and_consolidated"}
+CLOCK_PHASES = {"round_start", "disposition", "ship_decision"}
+MINIMUM_SHAPE_KEYS = {"owner_goal_ref", "named_items", "hash", "registered_at"}
+CONTENT_HASH_RE = re.compile(r"^[0-9a-f]{64}$")
+
+
+def validate_pinned_source(
+    value: Any, path: str, findings: list[Finding]
+) -> None:
+    """A source that can be edited later is pinned by content, not by ref."""
+    shape = object_shape(
+        value,
+        path=path,
+        required=PINNED_SOURCE_REQUIRED,
+        allowed=PINNED_SOURCE_KEYS,
+        findings=findings,
+    )
+    if shape is None:
+        return
+    if not evidence_list([shape.get("ref")], nonempty=True):
+        add(findings, f"{path}.ref", "pinned source needs a concrete ref")
+    digest = shape.get("content_hash")
+    if not isinstance(digest, str) or not CONTENT_HASH_RE.fullmatch(digest):
+        add(
+            findings,
+            f"{path}.content_hash",
+            "pinned source needs a sha256 content hash; a ref alone does not fix "
+            "bytes that the author can still edit",
+        )
+    parse_timestamp(shape.get("captured_at"), f"{path}.captured_at", findings)
+    edits = shape.get("edit_count")
+    if edits is not None and (not isinstance(edits, int) or isinstance(edits, bool) or edits < 0):
+        add(findings, f"{path}.edit_count", "edit_count must be null or a count")
+
+
+def validate_target(value: Any, findings: list[Finding]) -> None:
+    path = "helix.loop.target"
+    shape = object_shape(
+        value,
+        path=path,
+        required=TARGET_REQUIRED,
+        allowed=TARGET_KEYS,
+        findings=findings,
+    )
+    if shape is None:
+        return
+    for key in ("repo", "path", "layer", "canonical_owner"):
+        if not evidence_list([shape.get(key)], nonempty=True):
+            add(findings, f"{path}.{key}", f"target {key} must be recorded")
+    refs = shape.get("directive_refs")
+    if not isinstance(refs, list) or not refs:
+        add(
+            findings,
+            f"{path}.directive_refs",
+            "the target must name the directive it was resolved from",
+        )
+    else:
+        for index, ref in enumerate(refs):
+            validate_pinned_source(ref, f"{path}.directive_refs[{index}]", findings)
+    policy = shape.get("duplication_policy")
+    if policy not in DUPLICATION_POLICIES:
+        add(findings, f"{path}.duplication_policy", "duplication policy is invalid")
+    trail = shape.get("propagation_path")
+    if trail is not None and not unique_text_list(trail, nonempty=True):
+        add(findings, f"{path}.propagation_path", "propagation path must be unique refs")
+    if shape.get("resolved_at") is not None:
+        parse_timestamp(shape.get("resolved_at"), f"{path}.resolved_at", findings)
+
+
+def validate_claim_envelope(value: Any, findings: list[Finding]) -> None:
+    path = "helix.loop.claim_envelope"
+    shape = object_shape(
+        value,
+        path=path,
+        required=CLAIM_ENVELOPE_KEYS,
+        allowed=CLAIM_ENVELOPE_KEYS,
+        findings=findings,
+    )
+    if shape is None:
+        return
+    baseline = shape.get("baseline_ref")
+    if not isinstance(baseline, str) or not SHA_RE.fullmatch(baseline):
+        add(
+            findings,
+            f"{path}.baseline_ref",
+            "baseline_ref must be a commit id, not a movable name: a branch ref "
+            "makes the fixed half of the envelope as mutable as the half it is "
+            "supposed to anchor",
+        )
+    refs = shape.get("claim_snapshot_refs")
+    if not isinstance(refs, list) or not refs:
+        add(
+            findings,
+            f"{path}.claim_snapshot_refs",
+            "the envelope needs the pinned directive or acceptance; judging on "
+            "the merge-base half alone drops the other half of the claim",
+        )
+    else:
+        for index, ref in enumerate(refs):
+            validate_pinned_source(ref, f"{path}.claim_snapshot_refs[{index}]", findings)
+
+
+def validate_working_branch(value: Any, findings: list[Finding]) -> None:
+    path = "helix.loop.working_branch"
+    shape = object_shape(
+        value,
+        path=path,
+        required=WORKING_BRANCH_REQUIRED,
+        allowed=WORKING_BRANCH_KEYS,
+        findings=findings,
+    )
+    if shape is None:
+        return
+    if not evidence_list([shape.get("name")], nonempty=True):
+        add(findings, f"{path}.name", "the fixed working branch must be named")
+    if not evidence_list([shape.get("fixed_by_ref")], nonempty=True):
+        add(
+            findings,
+            f"{path}.fixed_by_ref",
+            "record the ref that fixed the branch; without it there is no "
+            "original to return to and the invariant is unenforceable",
+        )
+    remedy = shape.get("remedy")
+    if remedy is not None and remedy not in BRANCH_REMEDIES:
+        add(findings, f"{path}.remedy", "branch remedy is invalid")
+
+
+def validate_clock_reading(value: Any, path: str, findings: list[Finding]) -> None:
+    shape = object_shape(
+        value,
+        path=path,
+        required={"at", "phase"},
+        allowed={"at", "phase"},
+        findings=findings,
+    )
+    if shape is None:
+        return
+    parse_timestamp(shape.get("at"), f"{path}.at", findings)
+    if shape.get("phase") not in CLOCK_PHASES:
+        add(findings, f"{path}.phase", "clock reading phase is invalid")
+
+
+def validate_minimum_shape(value: Any, findings: list[Finding]) -> None:
+    path = "helix.loop.deadline.minimum_shape"
+    shape = object_shape(
+        value,
+        path=path,
+        required=MINIMUM_SHAPE_KEYS,
+        allowed=MINIMUM_SHAPE_KEYS,
+        findings=findings,
+    )
+    if shape is None:
+        return
+    if not evidence_list([shape.get("owner_goal_ref")], nonempty=True):
+        add(findings, f"{path}.owner_goal_ref", "the pre-registered shape needs its owner goal")
+    items = shape.get("named_items")
+    if not unique_text_list(items, nonempty=True) or not items:
+        add(
+            findings,
+            f"{path}.named_items",
+            "the minimum shape is named items, never a count: '8 of 10' is not "
+            "evidence when the remaining 2 are the substance",
+        )
+    digest = shape.get("hash")
+    if not isinstance(digest, str) or not CONTENT_HASH_RE.fullmatch(digest):
+        add(findings, f"{path}.hash", "the pre-registered shape needs a sha256 hash")
+    parse_timestamp(shape.get("registered_at"), f"{path}.registered_at", findings)
+
+
 def validate_deadline(
     value: Any,
     evaluated_at: datetime | None,
@@ -347,6 +543,20 @@ def validate_deadline(
                 findings,
                 "helix.loop.deadline.none",
                 "an absent deadline must use at=null and source_ref=\"\"",
+            )
+        if value.get("clock_readings"):
+            add(
+                findings,
+                "helix.loop.deadline.clock_readings",
+                "no deadline is in force, so there is nothing to read a clock "
+                "against; time-awareness authority does not arise here",
+            )
+        if value.get("minimum_shape") is not None:
+            add(
+                findings,
+                "helix.loop.deadline.minimum_shape",
+                "a minimum shape is pre-registered against a deadline window; "
+                "with no deadline in force there is no window to register it in",
             )
         return None
     parsed = parse_timestamp(at, "helix.loop.deadline.at", findings)
@@ -810,6 +1020,194 @@ def validate_human_report(value: Any, path: str, findings: list[Finding]) -> boo
     return valid
 
 
+SCHEMA_PATH = Path(__file__).resolve().parent.parent / "schemas" / "helix-blocker-triage.schema.json"
+
+
+def _schema_document() -> dict[str, Any]:
+    """The canonical schema, read from disk so there is one source of truth."""
+    try:
+        return json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:  # pragma: no cover - packaging fault
+        raise ArtifactError(f"canonical schema is missing at {SCHEMA_PATH}") from exc
+
+
+def _resolve(schema: Any, root: dict[str, Any]) -> Any:
+    seen = 0
+    while isinstance(schema, dict) and "$ref" in schema:
+        ref = schema["$ref"]
+        if not isinstance(ref, str) or not ref.startswith("#/"):
+            raise ArtifactError(f"unsupported schema reference {ref!r}")
+        node: Any = root
+        for part in ref[2:].split("/"):
+            node = node[part.replace("~1", "/").replace("~0", "~")]
+        schema = node
+        seen += 1
+        if seen > 32:
+            raise ArtifactError("schema reference cycle")
+    return schema
+
+
+_TYPE_CHECKS: dict[str, Any] = {
+    "object": lambda v: isinstance(v, dict),
+    "array": lambda v: isinstance(v, list),
+    "string": lambda v: isinstance(v, str),
+    "boolean": lambda v: isinstance(v, bool),
+    "null": lambda v: v is None,
+    "integer": lambda v: isinstance(v, int) and not isinstance(v, bool),
+    "number": lambda v: isinstance(v, (int, float)) and not isinstance(v, bool),
+}
+
+
+def _schema_matches(value: Any, schema: Any, root: dict[str, Any]) -> bool:
+    return not _schema_errors(value, schema, root, "", collect=False)
+
+
+def _schema_errors(
+    value: Any,
+    schema: Any,
+    root: dict[str, Any],
+    path: str,
+    collect: bool = True,
+) -> list[tuple[str, str]]:
+    """Evaluate the subset of Draft 2020-12 this schema actually uses.
+
+    The CLI is the authoritative gate, so it has to enforce what the canonical
+    schema says rather than a hand-copy of it. Reading the schema keeps the two
+    from drifting: a constraint added to the file takes effect here without a
+    second implementation to forget.
+    """
+    schema = _resolve(schema, root)
+    out: list[tuple[str, str]] = []
+
+    def fail(where: str, message: str) -> list[tuple[str, str]]:
+        out.append((where or "helix", message))
+        return out
+
+    if schema is True or schema == {}:
+        return out
+    if schema is False:
+        return fail(path, "value is not permitted here")
+    if not isinstance(schema, dict):
+        return out
+
+    declared = schema.get("type")
+    if declared is not None:
+        names = declared if isinstance(declared, list) else [declared]
+        if not any(_TYPE_CHECKS.get(name, lambda _v: True)(value) for name in names):
+            return fail(path, f"must be {' or '.join(names)}")
+
+    if "const" in schema and value != schema["const"]:
+        return fail(path, f"must equal {schema['const']!r}")
+    if "enum" in schema and value not in schema["enum"]:
+        return fail(path, f"must be one of {sorted(map(str, schema['enum']))}")
+
+    if isinstance(value, str):
+        pattern = schema.get("pattern")
+        if pattern is not None and not re.search(pattern, value):
+            return fail(path, f"must match {pattern}")
+        minimum_length = schema.get("minLength")
+        if minimum_length is not None and len(value) < minimum_length:
+            return fail(path, f"must be at least {minimum_length} character(s)")
+
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        low = schema.get("minimum")
+        if low is not None and value < low:
+            return fail(path, f"must be >= {low}")
+        high = schema.get("maximum")
+        if high is not None and value > high:
+            return fail(path, f"must be <= {high}")
+
+    if isinstance(value, list):
+        low = schema.get("minItems")
+        if low is not None and len(value) < low:
+            return fail(path, f"needs at least {low} item(s)")
+        high = schema.get("maxItems")
+        if high is not None and len(value) > high:
+            return fail(path, f"allows at most {high} item(s)")
+        if schema.get("uniqueItems") and len(
+            {json.dumps(item, sort_keys=True) for item in value}
+        ) != len(value):
+            return fail(path, "items must be unique")
+        item_schema = schema.get("items")
+        if item_schema is not None:
+            for index, item in enumerate(value):
+                out.extend(
+                    _schema_errors(item, item_schema, root, f"{path}[{index}]", collect)
+                )
+                if out and not collect:
+                    return out
+
+    if isinstance(value, dict):
+        for key in schema.get("required", []):
+            if key not in value:
+                fail(path, f"missing required key {key!r}")
+                if not collect:
+                    return out
+        properties = schema.get("properties", {})
+        for key, sub in properties.items():
+            if key in value:
+                out.extend(
+                    _schema_errors(
+                        value[key], sub, root, f"{path}.{key}" if path else key, collect
+                    )
+                )
+                if out and not collect:
+                    return out
+        if schema.get("additionalProperties") is False:
+            for key in value:
+                if key not in properties:
+                    fail(path, f"unknown key {key!r}")
+                    if not collect:
+                        return out
+
+    for sub in schema.get("allOf", []):
+        out.extend(_schema_errors(value, sub, root, path, collect))
+        if out and not collect:
+            return out
+    if "anyOf" in schema and not any(
+        _schema_matches(value, sub, root) for sub in schema["anyOf"]
+    ):
+        return fail(path, "does not satisfy any permitted shape")
+    if "oneOf" in schema:
+        matched = sum(1 for sub in schema["oneOf"] if _schema_matches(value, sub, root))
+        if matched != 1:
+            return fail(path, "must satisfy exactly one permitted shape")
+    if "not" in schema and _schema_matches(value, schema["not"], root):
+        return fail(path, "matches a forbidden shape")
+    if "if" in schema:
+        branch = "then" if _schema_matches(value, schema["if"], root) else "else"
+        if branch in schema:
+            out.extend(_schema_errors(value, schema[branch], root, path, collect))
+
+    return out
+
+
+def validate_against_schema(record: Any) -> list[Finding]:
+    """Canonical-schema findings, evaluated from the schema file itself."""
+    root = _schema_document()
+    return [
+        Finding(code=where or "helix", message=message)
+        for where, message in _schema_errors(record, root, root, "")
+    ]
+
+
+def validate_record_full(record: Any) -> list[Finding]:
+    """The authoritative check: canonical schema, then cross-object rules.
+
+    `fairy blocker validate` used to call the runtime checks alone, so any
+    constraint expressed only in the schema — an enum value, a pattern, a
+    minItems — was rejected by the contract test in CI and accepted by the CLI
+    that decides. Two gates disagreeing is worse than one, because the weaker
+    one is the one people run.
+    """
+    schema_findings = validate_against_schema(record)
+    if schema_findings:
+        # A record that is not the right shape cannot be reasoned about across
+        # objects; reporting both sets would bury the shape error in noise.
+        return schema_findings
+    return validate_record(record)
+
+
 def validate_record(record: Any) -> list[Finding]:
     findings: list[Finding] = []
     top = object_shape(
@@ -822,7 +1220,7 @@ def validate_record(record: Any) -> list[Finding]:
     if top is None:
         return findings
     schema_version = top.get("schema_version")
-    if schema_version == MIGRATABLE_SCHEMA_VERSION:
+    if schema_version in MIGRATABLE_SCHEMA_VERSIONS:
         add(
             findings,
             "helix.schema_version",
@@ -1365,7 +1763,7 @@ def validate_record(record: Any) -> list[Finding]:
 
 
 def require_valid(record: Any) -> None:
-    findings = validate_record(record)
+    findings = validate_record_full(record)
     if findings:
         detail = "; ".join(f"{item.code}: {item.message}" for item in findings)
         raise ArtifactError(detail)
@@ -1392,6 +1790,9 @@ def render_markdown(record: dict[str, Any]) -> str:
         )
     usage = loop["usage"]
     ship = loop["ship_stage"]
+    target = loop["target"]
+    envelope = loop["claim_envelope"]
+    branch = loop["working_branch"]
     happy_path = ship["happy_path"]
     happy_path_summary = (
         f"verified against `{happy_path['check_ref']}`"
@@ -1411,6 +1812,69 @@ def render_markdown(record: dict[str, Any]) -> str:
         ),
         f"- Normal path: {happy_path_summary} — {markdown_escape(happy_path['summary'])}",
         f"- Deadline: {deadline_summary}",
+        # The cards require that the record says who held the priority role,
+        # where the change belongs, what the claim was pinned to, and which
+        # branch the effort was fixed to. Evidence that never reaches the human
+        # readback is evidence only the validator can see.
+        f"- Priority reviewer: `{loop['roles']['priority_reviewer_id']}`",
+        (
+            "- Clock readings: "
+            + (
+                ", ".join(
+                    f"`{reading['phase']}`@`{reading['at']}`"
+                    for reading in deadline["clock_readings"]
+                )
+                or "none (no deadline in force)"
+            )
+        ),
+        (
+            "- Minimum shape: "
+            + (
+                "not pre-registered (no deadline in force)"
+                if deadline.get("minimum_shape") is None
+                else (
+                    f"`{deadline['minimum_shape']['hash'][:12]}` from "
+                    f"`{deadline['minimum_shape']['owner_goal_ref']}` — "
+                    + ", ".join(
+                        markdown_escape(item)
+                        for item in deadline["minimum_shape"]["named_items"]
+                    )
+                )
+            )
+        ),
+        (
+            f"- Target: `{target['repo']}` `{target['path']}` "
+            f"({target['layer']}, owner `{target['canonical_owner']}`, "
+            f"{target['duplication_policy']})"
+        ),
+        (
+            "- Target resolved from: "
+            + ", ".join(
+                f"`{ref['ref']}`@`{ref['content_hash'][:12]}`"
+                for ref in target["directive_refs"]
+            )
+        ),
+        (
+            f"- Claim envelope: baseline `{envelope['baseline_ref'][:12]}` + "
+            + ", ".join(
+                f"`{ref['ref']}`@`{ref['content_hash'][:12]}`"
+                for ref in envelope["claim_snapshot_refs"]
+            )
+        ),
+        (
+            f"- Working branch: `{branch['name']}` fixed by "
+            f"`{branch['fixed_by_ref']}`"
+            + (
+                ""
+                if branch.get("remedy") in (None, "none")
+                else f" — remedy `{branch['remedy']}`"
+                + (
+                    f" (`{branch['approval_ref']}`)"
+                    if branch.get("approval_ref")
+                    else ""
+                )
+            )
+        ),
         (
             "- Usage: "
             f"primary={usage['primary_5h_remaining']}, "
@@ -1544,9 +2008,11 @@ def migrate_record(record: Any) -> dict[str, Any]:
     version = record.get("schema_version")
     if version == SCHEMA_VERSION:
         raise ArtifactError(f"record is already schema {SCHEMA_VERSION}")
-    if version != MIGRATABLE_SCHEMA_VERSION:
+    if version not in MIGRATABLE_SCHEMA_VERSIONS:
         raise ArtifactError(
-            f"only schema {MIGRATABLE_SCHEMA_VERSION} records can be migrated"
+            "only schema "
+            + " or ".join(MIGRATABLE_SCHEMA_VERSIONS)
+            + " records can be migrated"
         )
     upgraded = copy.deepcopy(record)
     upgraded["schema_version"] = SCHEMA_VERSION
@@ -1578,6 +2044,10 @@ def migrate_record(record: Any) -> dict[str, Any]:
             + ", ".join(missing)
         )
     if "ship_stage" in loop:
+        if version != "1.1":
+            raise ArtifactError(
+                f"a schema {version} record cannot already carry a ship_stage"
+            )
         require_valid(upgraded)
         return upgraded
     loop["ship_stage"] = {
@@ -2264,6 +2734,50 @@ def run_selftest() -> int:
 
     # Schema 1.0 compatibility: the persisted records written before the ship
     # stage existed stay readable through a tested upgrade path.
+    # A 1.0 record must still upgrade: the previous release promised persisted
+    # records upgrade rather than expire, and the 1.2 evidence is demanded from
+    # the operator rather than invented, exactly as for 1.1.
+    v1_0 = legacy_sample_record()
+    v1_0["schema_version"] = "1.0"
+    v1_0["final_readback"].pop("ship_decision", None)
+    for blocker in v1_0["blockers"]:
+        blocker.pop("finding_class", None)
+        blocker.pop("floor_basis", None)
+    migrated_v1_0 = migrate_record(v1_0)
+    check(
+        migrated_v1_0["schema_version"] == SCHEMA_VERSION,
+        "a schema 1.0 record chains through to the current schema",
+    )
+    check(
+        migrated_v1_0["loop"]["ship_stage"]["stage"] == "production",
+        "the 1.0 upgrade keeps the unrelaxed stage it decided under",
+    )
+
+    stripped_v1_0 = copy.deepcopy(v1_0)
+    stripped_v1_0["loop"].pop("target", None)
+    try:
+        migrate_record(stripped_v1_0)
+    except ArtifactError as exc:
+        check(
+            "attach it before migrating" in str(exc),
+            "the 1.0 upgrade also refuses to invent the 1.2 evidence",
+        )
+    else:
+        check(False, "the 1.0 upgrade invented the 1.2 evidence")
+
+    # The human readback has to carry the evidence the cards require, or the
+    # record satisfies the validator and tells the owner nothing.
+    rendered = render_markdown(base)
+    for needle in (
+        "Priority reviewer:",
+        "Clock readings:",
+        "Minimum shape:",
+        "Target:",
+        "Claim envelope:",
+        "Working branch:",
+    ):
+        check(needle in rendered, f"readback carries {needle.rstrip(':')!r}")
+
     # The unapproved-branch floor: raised without an exit, deferred at any
     # concurrence, and approval claimed without a ref. Each of these is a way
     # the value could be stated in the schema and never enforced at runtime.
@@ -2289,6 +2803,76 @@ def run_selftest() -> int:
     )
     branch_unevidenced_approval["loop"]["working_branch"]["approval_ref"] = ""
     blocked(branch_unevidenced_approval, "citable ref")
+
+    # The authoritative entrypoint must enforce the canonical schema, not a
+    # hand-copy of it. Each of these is rejected by the schema file; before the
+    # entrypoint was unified they were accepted by the CLI that decides.
+    for label, mutate in (
+        ("target", lambda r: r["loop"].__setitem__("target", {})),
+        ("claim_envelope", lambda r: r["loop"].__setitem__("claim_envelope", {})),
+        ("working_branch", lambda r: r["loop"].__setitem__("working_branch", {})),
+        (
+            "clock_readings",
+            lambda r: r["loop"]["deadline"].__setitem__("clock_readings", [{}]),
+        ),
+        (
+            "minimum_shape",
+            lambda r: r["loop"]["deadline"].__setitem__("minimum_shape", {}),
+        ),
+        (
+            "shape hash",
+            lambda r: r["loop"]["deadline"]["minimum_shape"].__setitem__(
+                "hash", "latest"
+            ),
+        ),
+        (
+            "fixed_by_ref",
+            lambda r: r["loop"]["working_branch"].__setitem__("fixed_by_ref", ""),
+        ),
+        (
+            "snapshot refs",
+            lambda r: r["loop"]["claim_envelope"].__setitem__(
+                "claim_snapshot_refs", []
+            ),
+        ),
+    ):
+        shaped = copy.deepcopy(base)
+        mutate(shaped)
+        check(
+            bool(validate_record_full(shaped)),
+            f"authoritative entrypoint enforces the schema shape of {label}",
+        )
+
+    # Both deadline branches, because the constraint is conditional: an absent
+    # deadline legitimately has no clock to read and no window to register a
+    # shape in, and an in-force one must have both.
+    absent_deadline = copy.deepcopy(base)
+    absent_deadline["loop"]["deadline"] = {
+        "at": None,
+        "source": "none",
+        "source_ref": "",
+        "clock_readings": [],
+        "minimum_shape": None,
+    }
+    check(
+        not validate_record_full(absent_deadline),
+        "an absent deadline needs no clock reading and no pre-registered shape",
+    )
+
+    absent_with_clock = copy.deepcopy(absent_deadline)
+    absent_with_clock["loop"]["deadline"]["clock_readings"] = [
+        {"at": "2026-07-26T13:50:00+09:00", "phase": "round_start"}
+    ]
+    blocked(absent_with_clock, "nothing to read a clock against")
+
+    absent_with_shape = copy.deepcopy(absent_deadline)
+    absent_with_shape["loop"]["deadline"]["minimum_shape"] = {
+        "owner_goal_ref": "source:none",
+        "named_items": ["x"],
+        "hash": "c" * 64,
+        "registered_at": "2026-07-26T13:50:00+09:00",
+    }
+    blocked(absent_with_shape, "no window to register it in")
 
     movable_baseline = copy.deepcopy(base)
     movable_baseline["loop"]["claim_envelope"]["baseline_ref"] = "main"

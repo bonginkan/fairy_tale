@@ -195,8 +195,7 @@
                 ]
               }
             }
-          },
-          "minItems": 1
+          }
         },
         "minimum_shape": {
           "type": [
@@ -272,9 +271,7 @@
           "if": {
             "properties": {
               "source": {
-                "not": {
-                  "const": "none"
-                }
+                "const": "none"
               }
             },
             "required": [
@@ -283,6 +280,19 @@
           },
           "then": {
             "properties": {
+              "clock_readings": {
+                "maxItems": 0
+              },
+              "minimum_shape": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "clock_readings": {
+                "minItems": 1
+              },
               "minimum_shape": {
                 "type": "object"
               }
