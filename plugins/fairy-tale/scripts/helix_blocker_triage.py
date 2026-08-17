@@ -254,6 +254,21 @@ def evidence_list(value: Any, *, nonempty: bool = False) -> bool:
     )
 
 
+def json_integer(value: Any) -> bool:
+    """JSON Schema `integer`: any number with no fractional part.
+
+    Python's isinstance(v, int) is narrower — it rejects 1.0, which JSON
+    produces for an integral literal and which the schema accepts. Both members
+    of the integer family use this so the two layers cannot drift apart one
+    field at a time.
+    """
+    if isinstance(value, bool):
+        return False
+    if isinstance(value, int):
+        return True
+    return isinstance(value, float) and value.is_integer()
+
+
 def finite_number(value: Any) -> bool:
     return (
         isinstance(value, (int, float))
@@ -395,12 +410,7 @@ def validate_pinned_source(
     edits = shape.get("edit_count")
     # JSON counts 1.0 as an integer, so a stored record can carry a float here.
     # Accepting it keeps this layer from disagreeing with the schema it follows.
-    if edits is not None and (
-        isinstance(edits, bool)
-        or not isinstance(edits, (int, float))
-        or (isinstance(edits, float) and not edits.is_integer())
-        or edits < 0
-    ):
+    if edits is not None and (not json_integer(edits) or edits < 0):
         add(findings, f"{path}.edit_count", "edit_count must be null or a count")
 
 
@@ -1489,11 +1499,7 @@ def validate_record(record: Any) -> list[Finding]:
                 "a safety-floor finding must record demonstrated or precautionary",
             )
         estimated_fix_minutes = blocker.get("estimated_fix_minutes")
-        if (
-            not isinstance(estimated_fix_minutes, int)
-            or isinstance(estimated_fix_minutes, bool)
-            or estimated_fix_minutes <= 0
-        ):
+        if not json_integer(estimated_fix_minutes) or estimated_fix_minutes <= 0:
             add(findings, f"{path}.estimated_fix_minutes", "fix estimate must be positive")
             estimated_fix_minutes = None
         if not evidence_list(blocker.get("evidence_refs"), nonempty=True):
@@ -3001,6 +3007,43 @@ def run_selftest() -> int:
         check(
             bool(validate_record(wired)),
             f"the runtime validator for {label} is reached",
+        )
+
+    # Both integer-typed fields, because fixing one of a family and calling it
+    # done is how the schema and runtime layers drift apart a field at a time.
+    for label, mutate, rejected in (
+        (
+            "edit_count integral float",
+            lambda r: r["loop"]["target"]["directive_refs"][0].__setitem__(
+                "edit_count", 1.0
+            ),
+            False,
+        ),
+        (
+            "fix minutes integral float",
+            lambda r: r["blockers"][0].__setitem__("estimated_fix_minutes", 30.0),
+            False,
+        ),
+        (
+            "edit_count fractional",
+            lambda r: r["loop"]["target"]["directive_refs"][0].__setitem__(
+                "edit_count", 1.5
+            ),
+            True,
+        ),
+        (
+            "fix minutes fractional",
+            lambda r: r["blockers"][0].__setitem__("estimated_fix_minutes", 1.5),
+            True,
+        ),
+    ):
+        numeric = copy.deepcopy(base)
+        mutate(numeric)
+        schema_rejects = bool(validate_against_schema(numeric))
+        runtime_rejects = bool(validate_record(numeric))
+        check(
+            schema_rejects == runtime_rejects == rejected,
+            f"schema and runtime agree on {label}",
         )
 
     # A cross-object rule the schema cannot state at all: the priority role is
