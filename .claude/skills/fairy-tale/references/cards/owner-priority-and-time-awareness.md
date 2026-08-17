@@ -39,7 +39,9 @@ from feeling rather than from a clock produces a plan nobody can check.
   a deadline and ship against it.
 - **Pre-register the minimum coherent set, by name.** At the start of the
   deadline window, list the named items that must pass for the delivery to be
-  coherent. Deciding at the end makes whatever passed the definition, so "it came
+  coherent. A deadline that had already passed before the first round began has
+  no window start to register at: record it as observed, with no forecast and no
+  invented shape, rather than manufacturing either after the fact. Deciding at the end makes whatever passed the definition, so "it came
   together" becomes unfalsifiable. Time reorders what is attempted; it never
   redefines completion. Shrinking the set is an owner escalation, not a
   reviewer's discretion. Counts are not names: "8 of 10" is not evidence when the
@@ -50,8 +52,12 @@ from feeling rather than from a clock produces a plan nobody can check.
   findings — never the owner's directive set, which narrows only by the owner's
   own supersession or an escalation answered. Re-cutting an increment is not a
   licence to drop directives, and the floor is never trimmed to make a date.
-- **Emit a forecast each round, and settle it afterwards.** One line: time
-  remaining, which pre-registered items have passed and which have not, whether
-  the remainder fits at the current rate, and what is taken next. Reconcile the
-  forecast against the outcome after the deadline; a forecast never settled
-  improves no future estimate.
+- **Emit a forecast each round inside the deadline window, and settle it
+  afterwards.** One line: time remaining, which pre-registered items have passed
+  and which have not, whether the remainder fits at the current rate, and what is
+  taken next. Reconcile each against the outcome once the deadline passes; a
+  forecast never settled improves no future estimate. Rounds that begin after the
+  deadline are recorded but forecast nothing — a prediction of an outcome that
+  has already happened is not one, and work continuing past a deadline belongs to
+  a new window with its own verified source rather than to more forecasts against
+  the old one.

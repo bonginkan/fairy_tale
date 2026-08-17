@@ -242,8 +242,8 @@
     {
       "path": "references/cards/owner-priority-and-time-awareness.md",
       "title": "Owner-Priority Review and Time-Awareness",
-      "bytes": 3970,
-      "est_tokens": 992
+      "bytes": 4499,
+      "est_tokens": 1125
     },
     {
       "path": "references/cards/refactoring-similarity-harness.md",
@@ -697,9 +697,9 @@
     },
     {
       "path": "skills/fairy-tale/references/cards/owner-priority-and-time-awareness.md",
-      "bytes": 3970,
-      "lines": 57,
-      "est_tokens": 992
+      "bytes": 4499,
+      "lines": 63,
+      "est_tokens": 1125
     },
     {
       "path": "skills/fairy-tale/references/cards/refactoring-similarity-harness.md",

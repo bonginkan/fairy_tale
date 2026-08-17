@@ -53,7 +53,7 @@ in SKILL.md itself or as an extracted card reachable from the router.
 | skills/fairy-tale/references/cards/multi-directive-single-branch.md | 5236 | 73 | 1309 |
 | skills/fairy-tale/references/cards/mythos-defensive-harness.md | 349 | 9 | 87 |
 | skills/fairy-tale/references/cards/narrative-empathy-harness-prose-conversation-and-ui-feel.md | 772 | 14 | 193 |
-| skills/fairy-tale/references/cards/owner-priority-and-time-awareness.md | 3970 | 57 | 992 |
+| skills/fairy-tale/references/cards/owner-priority-and-time-awareness.md | 4499 | 63 | 1125 |
 | skills/fairy-tale/references/cards/refactoring-similarity-harness.md | 2265 | 34 | 566 |
 | skills/fairy-tale/references/cards/spatial-forge-harness-3d-cad-and-simulation-work.md | 932 | 16 | 233 |
 | skills/fairy-tale/references/cards/steady-behavior-harness.md | 761 | 14 | 190 |

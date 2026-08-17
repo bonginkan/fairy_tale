@@ -98,6 +98,8 @@ SKILL_REFERENCE_MARKERS = {
     ),
     Path("fairy-tale/references/cards/owner-priority-and-time-awareness.md"): (
         "Owner-Priority Review and Time-Awareness",
+        "inside the deadline window",
+        "forecast nothing",
         "Priority governs order, never existence",
         "The two axes do not overlap",
         "Observe the clock; do not feel it",
