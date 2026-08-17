@@ -776,14 +776,7 @@ def validate_deadline(
         validate_pinned_source(
             pin, "helix.loop.deadline.source_pin", findings, evaluated_at
         )
-    shape = value.get("minimum_shape")
-    if not isinstance(shape, dict):
-        add(
-            findings,
-            "helix.loop.deadline.minimum_shape",
-            "an in-force deadline needs the minimum coherent set pre-registered "
-            "by name; deciding at the end makes whatever passed the definition",
-        )
+    named_items: set[str] = set()
     # The clock readings, the pre-registration, and the evaluation have to sit in
     # a possible order. Without this a record can register its minimum shape and
     # read its clock after the evaluation it supposedly informed.
@@ -814,7 +807,58 @@ def validate_deadline(
                 "cycle across rounds but the clock does not go backwards",
             )
             break
-    named_items: set[str] = set()
+    # Group readings into rounds at each round_start, then order within a round.
+    # Phases cycle across rounds, so the unit of ordering is the round, not the
+    # whole list — dropping the global check left nothing enforcing order.
+    rounds: list[list[str]] = []
+    round_starts: list[datetime | None] = []
+    for reading in readings if isinstance(readings, list) else []:
+        if not isinstance(reading, dict):
+            continue
+        phase = reading.get("phase")
+        if phase not in ordered_phases:
+            continue
+        if phase == "round_start" or not rounds:
+            rounds.append([])
+            round_starts.append(
+                parse_timestamp(reading.get("at"), "helix.loop.deadline", [])
+            )
+        rounds[-1].append(phase)
+    round_windows = [
+        (start, round_starts[position + 1] if position + 1 < len(round_starts) else None)
+        for position, start in enumerate(round_starts)
+    ]
+    deadline_instant = parse_timestamp(at, "helix.loop.deadline.at", [])
+    deadline_round_count = (
+        sum(
+            1
+            for start in round_starts
+            if start is not None and deadline_instant is not None and start <= deadline_instant
+        )
+        if deadline_instant is not None
+        else len(round_starts)
+    )
+    if isinstance(readings, list) and readings and not any(
+        isinstance(reading, dict) and reading.get("phase") == "round_start"
+        for reading in readings
+    ):
+        add(
+            findings,
+            "helix.loop.deadline.clock_readings",
+            "a round has to start before it can be disposed of, so the readings "
+            "must include a round_start",
+        )
+    for index, phases in enumerate(rounds):
+        positions = [ordered_phases.index(phase) for phase in phases]
+        if positions != sorted(positions):
+            add(
+                findings,
+                "helix.loop.deadline.clock_readings",
+                f"round {index + 1} runs its phases out of order: a disposition "
+                "cannot precede the round start it belongs to",
+            )
+            break
+    round_count = len(rounds)
     candidate_shape = value.get("minimum_shape")
     if isinstance(candidate_shape, dict) and isinstance(
         candidate_shape.get("named_items"), list
@@ -824,21 +868,36 @@ def validate_deadline(
         }
     forecasts = value.get("forecasts")
     if isinstance(forecasts, list) and forecasts:
-        rounds = [
+        forecast_rounds = [
             item.get("round") for item in forecasts if isinstance(item, dict)
         ]
-        if len(set(rounds)) != len(rounds):
+        if len(set(forecast_rounds)) != len(forecast_rounds):
             add(
                 findings,
                 "helix.loop.deadline.forecasts",
                 "each round forecasts once; duplicate rounds make the sequence "
                 "unreadable",
             )
-        elif rounds != sorted(rounds):
+        elif forecast_rounds != sorted(forecast_rounds):
             add(
                 findings,
                 "helix.loop.deadline.forecasts",
                 "forecasts are recorded in round order",
+            )
+        elif deadline_round_count and forecast_rounds != list(
+            range(1, deadline_round_count + 1)
+        ):
+            # Exactly one forecast per recorded round. Allowing the final round
+            # to be unforecast would let any record call itself mid-round and
+            # omit the forecast permanently, and there is no lifecycle state
+            # here to tell a real in-progress record from that claim.
+            add(
+                findings,
+                "helix.loop.deadline.forecasts",
+                "exactly one forecast per round inside the deadline window: the "
+                f"clock shows {deadline_round_count} such round(s), the forecasts "
+                "number "
+                + (", ".join(str(item) for item in forecast_rounds) or "none"),
             )
         parsed_at = parse_timestamp(at, "helix.loop.deadline.at", [])
         past_deadline = (
@@ -850,32 +909,123 @@ def validate_deadline(
             if not isinstance(item, dict):
                 continue
             settled = item.get("settled")
-            if past_deadline and settled is None:
+            if (
+                parsed_at is not None
+                and evaluated_at is not None
+                and evaluated_at >= parsed_at
+                and settled is None
+            ):
                 add(
                     findings,
                     f"helix.loop.deadline.forecasts[{index}].settled",
                     "the deadline has passed, so this forecast is settled against "
                     "the outcome; an unsettled forecast improves no estimate",
                 )
-            if isinstance(settled, dict) and parsed_at is not None:
+            forecast_at = parse_timestamp(
+                item.get("at"), f"helix.loop.deadline.forecasts[{index}].at", []
+            )
+            round_number = item.get("round")
+            if (
+                forecast_at is not None
+                and isinstance(round_number, int)
+                and 1 <= round_number <= len(round_windows)
+            ):
+                window_start, window_end = round_windows[round_number - 1]
+                if window_start is not None and forecast_at < window_start:
+                    add(
+                        findings,
+                        f"helix.loop.deadline.forecasts[{index}].at",
+                        f"a forecast for round {round_number} cannot predate that "
+                        "round's start",
+                    )
+                bound = window_end if window_end is not None else evaluated_at
+                if bound is not None and forecast_at > bound:
+                    add(
+                        findings,
+                        f"helix.loop.deadline.forecasts[{index}].at",
+                        f"a forecast for round {round_number} belongs inside that "
+                        "round, not after it has ended",
+                    )
+            round_start_at = (
+                round_windows[round_number - 1][0]
+                if isinstance(round_number, int)
+                and 1 <= round_number <= len(round_windows)
+                else None
+            )
+            within_window = (
+                round_start_at is not None
+                and parsed_at is not None
+                and round_start_at <= parsed_at
+            )
+            if (
+                within_window
+                and forecast_at is not None
+                and parsed_at is not None
+                and forecast_at > parsed_at
+            ):
+                add(
+                    findings,
+                    f"helix.loop.deadline.forecasts[{index}].at",
+                    "a forecast for a round inside the deadline window is made "
+                    "inside that window, not after the deadline has passed",
+                )
+            if isinstance(settled, dict):
                 settled_at = parse_timestamp(
                     settled.get("at"),
                     f"helix.loop.deadline.forecasts[{index}].settled.at",
                     [],
                 )
-                if settled_at is not None and settled_at < parsed_at:
+                if settled_at is not None and parsed_at is not None and settled_at < parsed_at:
                     add(
                         findings,
                         f"helix.loop.deadline.forecasts[{index}].settled.at",
                         "a forecast is settled after the deadline it forecast, not "
                         "before it",
                     )
-    if not isinstance(forecasts, list) or not forecasts:
+                if (
+                    settled_at is not None
+                    and forecast_at is not None
+                    and settled_at < forecast_at
+                ):
+                    add(
+                        findings,
+                        f"helix.loop.deadline.forecasts[{index}].settled.at",
+                        "a forecast cannot be settled before it was made",
+                    )
+                if (
+                    settled_at is not None
+                    and evaluated_at is not None
+                    and settled_at > evaluated_at
+                ):
+                    add(
+                        findings,
+                        f"helix.loop.deadline.forecasts[{index}].settled.at",
+                        "a settlement cannot be recorded after the evaluation that "
+                        "reports it",
+                    )
+    shape = value.get("minimum_shape")
+    if deadline_round_count and not isinstance(shape, dict):
+        add(
+            findings,
+            "helix.loop.deadline.minimum_shape",
+            "a deadline whose window contains a round needs the minimum coherent "
+            "set pre-registered by name; deciding at the end makes whatever "
+            "passed the definition",
+        )
+    if deadline_round_count and (not isinstance(forecasts, list) or not forecasts):
         add(
             findings,
             "helix.loop.deadline.forecasts",
-            "an in-force deadline carries a forecast per round; a forecast never "
-            "recorded cannot be settled against the outcome afterwards",
+            "a deadline whose window contains a round carries a forecast for it; "
+            "a forecast never recorded cannot be settled against the outcome",
+        )
+    elif not deadline_round_count and forecasts:
+        add(
+            findings,
+            "helix.loop.deadline.forecasts",
+            "the deadline had already passed when the first round started, so "
+            "there is nothing it could have forecast; work after it belongs to a "
+            "new window with its own verified source",
         )
     else:
         for index, forecast in enumerate(forecasts):
@@ -909,7 +1059,20 @@ def validate_deadline(
             ),
             None,
         )
-        if (
+        if not deadline_round_count:
+            if (
+                registered is not None
+                and deadline_instant is not None
+                and registered > deadline_instant
+            ):
+                add(
+                    findings,
+                    "helix.loop.deadline.minimum_shape.registered_at",
+                    "this deadline expired before the first round, so a shape "
+                    "registered after it was invented afterwards rather than "
+                    "pre-registered",
+                )
+        elif (
             registered is not None
             and first_round_start is not None
             and registered > first_round_start
@@ -2250,7 +2413,11 @@ def render_markdown(record: dict[str, Any]) -> str:
         (
             "- Forecasts: "
             + (
-                "; ".join(
+                "none — no deadline in force"
+                if deadline.get("at") is None
+                else "none — the deadline expired before the first recorded round"
+                if not deadline["forecasts"]
+                else "; ".join(
                     f"r{item['round']}@`{item['at']}` passed "
                     + (", ".join(markdown_escape(x) for x in item["passed"]) or "none")
                     + " / outstanding "
@@ -2267,7 +2434,6 @@ def render_markdown(record: dict[str, Any]) -> str:
                     )
                     for item in deadline["forecasts"]
                 )
-                or "none (no deadline in force)"
             )
         ),
         # The cards require that the record says who held the priority role,
@@ -3363,7 +3529,7 @@ def run_selftest() -> int:
 
     missing_forecast = copy.deepcopy(base)
     missing_forecast["loop"]["deadline"]["forecasts"] = []
-    blocked(missing_forecast, "a forecast per round")
+    blocked(missing_forecast, "carries a forecast for it")
 
     split_source = copy.deepcopy(base)
     split_source["loop"]["deadline"]["source_pin"]["ref"] = "source:somewhere-else"
@@ -3391,19 +3557,214 @@ def run_selftest() -> int:
     )
     blocked(duplicate_round, "each round forecasts once")
 
-    # A legitimate second round: the phase sequence cycles, and that must be
-    # accepted or a multi-round record cannot be written at all.
+    # The timestamp family derived from the schema rather than recalled: every
+    # $ref to $defs/timestamp, minus the two that are legitimately in the future
+    # (the deadline itself, and the evaluation everything else is measured
+    # against). Hand-listing this family is what let two members slip.
+    FUTURE = "2099-01-01T00:00:00+09:00"
+    for label, mutate in (
+        (
+            "clock reading",
+            lambda r: r["loop"]["deadline"]["clock_readings"][0].__setitem__(
+                "at", FUTURE
+            ),
+        ),
+        (
+            "minimum shape registration",
+            lambda r: r["loop"]["deadline"]["minimum_shape"].__setitem__(
+                "registered_at", FUTURE
+            ),
+        ),
+        (
+            "forecast",
+            lambda r: r["loop"]["deadline"]["forecasts"][0].__setitem__("at", FUTURE),
+        ),
+        (
+            "forecast settlement",
+            lambda r: r["loop"]["deadline"]["forecasts"][0].__setitem__(
+                "settled", {"at": FUTURE, "outcome": "as_forecast"}
+            ),
+        ),
+        (
+            "deadline source capture",
+            lambda r: r["loop"]["deadline"]["source_pin"].__setitem__(
+                "captured_at", FUTURE
+            ),
+        ),
+        (
+            "priority directive capture",
+            lambda r: r["loop"]["priority_authority"]["directive"].__setitem__(
+                "captured_at", FUTURE
+            ),
+        ),
+        (
+            "target directive capture",
+            lambda r: r["loop"]["target"]["directive_refs"][0].__setitem__(
+                "captured_at", FUTURE
+            ),
+        ),
+        (
+            "claim snapshot capture",
+            lambda r: r["loop"]["claim_envelope"]["claim_snapshot_refs"][0].__setitem__(
+                "captured_at", FUTURE
+            ),
+        ),
+        (
+            "target resolution",
+            lambda r: r["loop"]["target"].__setitem__("resolved_at", FUTURE),
+        ),
+        (
+            "usage observation",
+            lambda r: r["loop"]["usage"].__setitem__("observed_at", FUTURE),
+        ),
+    ):
+        future_member = copy.deepcopy(base)
+        mutate(future_member)
+        check(
+            bool(validate_record_full(future_member)),
+            f"a {label} in the future is rejected",
+        )
+
+    # A legitimate second round: phases cycle, and each recorded round carries
+    # its own forecast. This must pass or a multi-round record is unwritable.
     second_round = copy.deepcopy(base)
-    second_round["loop"]["deadline"]["clock_readings"].append(
-        {"at": "2026-07-26T14:00:00+09:00", "phase": "round_start"}
-    )
+    second_round["loop"]["deadline"]["clock_readings"] = [
+        {"at": "2026-07-26T13:50:00+09:00", "phase": "round_start"},
+        {"at": "2026-07-26T13:52:00+09:00", "phase": "disposition"},
+        {"at": "2026-07-26T13:55:00+09:00", "phase": "round_start"},
+        {"at": "2026-07-26T13:58:00+09:00", "phase": "disposition"},
+        {"at": "2026-07-26T14:00:00+09:00", "phase": "ship_decision"},
+    ]
     later = copy.deepcopy(second_round["loop"]["deadline"]["forecasts"][0])
     later["round"] = 2
+    later["at"] = "2026-07-26T13:58:00+09:00"
     second_round["loop"]["deadline"]["forecasts"].append(later)
     check(
         not validate_record_full(second_round),
         "a second round may restart the phase sequence",
     )
+
+    # Every mutation MISA L reached the full entrypoint with, each rejected for
+    # its own reason rather than by a shape check that happens to catch it.
+    # A deadline that expired before the first recorded round is an observation
+    # worth keeping, not an error: the work was handed over already late. It
+    # forecasts nothing, so it needs no forecast and no pre-registered shape,
+    # but a shape invented after the fact is still refused.
+    def expired_before_start() -> dict[str, Any]:
+        record = copy.deepcopy(base)
+        record["loop"]["deadline"]["at"] = "2026-07-26T13:00:00+09:00"
+        record["loop"]["deadline"]["forecasts"] = []
+        record["loop"]["deadline"]["minimum_shape"] = None
+        return record
+
+    check(
+        not validate_record_full(expired_before_start()),
+        "a deadline that expired before the first round is recordable",
+    )
+
+    check(
+        "expired before the first recorded round"
+        in render_markdown(expired_before_start()),
+        "the readback distinguishes an expired deadline from no deadline",
+    )
+
+    invented_shape = expired_before_start()
+    invented_shape["loop"]["deadline"]["minimum_shape"] = {
+        "owner_goal_ref": "source:owner-deadline",
+        "named_items": ["path identity fix"],
+        "hash": "a" * 64,
+        "registered_at": "2026-07-26T13:50:00+09:00",
+    }
+    blocked(invented_shape, "invented afterwards rather than pre-registered")
+
+    forecast_for_expired = expired_before_start()
+    forecast_for_expired["loop"]["deadline"]["forecasts"] = copy.deepcopy(
+        base["loop"]["deadline"]["forecasts"]
+    )
+    blocked(forecast_for_expired, "nothing it could have forecast")
+
+    shape_without_deadline = copy.deepcopy(base)
+    shape_without_deadline["loop"]["deadline"] = {
+        "at": None,
+        "source": "none",
+        "source_ref": "",
+        "source_pin": None,
+        "clock_readings": [],
+        "minimum_shape": None,
+        "forecasts": [],
+    }
+    shape_without_deadline["loop"]["priority_authority"] = {
+        "active": False,
+        "directive": None,
+    }
+    shape_without_deadline["loop"]["roles"]["priority_reviewer_id"] = None
+    shape_without_deadline["loop"]["deadline"]["minimum_shape"] = {
+        "owner_goal_ref": "source:none",
+        "named_items": ["x"],
+        "hash": "c" * 64,
+        "registered_at": "2026-07-26T13:50:00+09:00",
+    }
+    blocked(shape_without_deadline, "no window to register it in")
+
+    # A round that begins after the deadline is ordinary: work ran late, or a
+    # round was held to settle. Rules that forbid it make such a record
+    # unwritable, which is the third over-strict shape this effort produced.
+    post_deadline_round = copy.deepcopy(base)
+    post_deadline_round["loop"]["evaluated_at"] = "2026-07-28T12:00:00+09:00"
+    post_deadline_round["loop"]["deadline"]["clock_readings"] = [
+        {"at": "2026-07-26T13:50:00+09:00", "phase": "round_start"},
+        {"at": "2026-07-26T13:55:00+09:00", "phase": "disposition"},
+        {"at": "2026-07-28T09:00:00+09:00", "phase": "round_start"},
+        {"at": "2026-07-28T10:00:00+09:00", "phase": "ship_decision"},
+    ]
+    settled_stamp = {"at": "2026-07-28T11:00:00+09:00", "outcome": "later"}
+    post_deadline_round["loop"]["deadline"]["forecasts"][0]["settled"] = settled_stamp
+    post_deadline_round["loop"]["usage"]["observed_at"] = "2026-07-28T11:30:00+09:00"
+    check(
+        not validate_record_full(post_deadline_round),
+        "a round beginning after the deadline is representable",
+    )
+
+    gapped_rounds = copy.deepcopy(base)
+    skipped = copy.deepcopy(gapped_rounds["loop"]["deadline"]["forecasts"][0])
+    skipped["round"] = 3
+    gapped_rounds["loop"]["deadline"]["forecasts"].append(skipped)
+    blocked(gapped_rounds, "exactly one forecast per round inside the deadline window")
+
+    unforecast_round = copy.deepcopy(base)
+    unforecast_round["loop"]["deadline"]["clock_readings"].append(
+        {"at": "2026-07-26T14:00:00+09:00", "phase": "round_start"}
+    )
+    blocked(unforecast_round, "exactly one forecast per round inside the deadline window")
+
+    no_round_start = copy.deepcopy(base)
+    no_round_start["loop"]["deadline"]["clock_readings"] = [
+        {"at": "2026-07-26T13:55:00+09:00", "phase": "disposition"}
+    ]
+    blocked(no_round_start, "must include a round_start")
+
+    # Out of order inside one round: the ship decision precedes the disposition
+    # it should follow, with no second round_start to split them.
+    out_of_order_round = copy.deepcopy(base)
+    out_of_order_round["loop"]["deadline"]["clock_readings"] = [
+        {"at": "2026-07-26T13:50:00+09:00", "phase": "round_start"},
+        {"at": "2026-07-26T13:55:00+09:00", "phase": "ship_decision"},
+        {"at": "2026-07-26T13:58:00+09:00", "phase": "disposition"},
+    ]
+    blocked(out_of_order_round, "runs its phases out of order")
+
+    settled_after_evaluation = copy.deepcopy(base)
+    settled_after_evaluation["loop"]["deadline"]["forecasts"][0]["settled"] = {
+        "at": "2026-07-29T00:00:00+09:00",
+        "outcome": "as_forecast",
+    }
+    blocked(settled_after_evaluation, "after the evaluation that reports it")
+
+    forecast_after_deadline = copy.deepcopy(base)
+    forecast_after_deadline["loop"]["deadline"]["forecasts"][0]["at"] = (
+        "2026-07-28T00:00:00+09:00"
+    )
+    blocked(forecast_after_deadline, "not after the deadline has passed")
 
     backwards_clock = copy.deepcopy(base)
     backwards_clock["loop"]["deadline"]["clock_readings"][2]["at"] = (
@@ -3692,7 +4053,7 @@ def run_selftest() -> int:
 
     unregistered_shape = copy.deepcopy(base)
     unregistered_shape["loop"]["deadline"]["minimum_shape"] = None
-    blocked(unregistered_shape, "pre-registered")
+    blocked(unregistered_shape, "pre-registered by name")
 
     # Migration refuses to invent the 1.2 evidence. Without a record that is
     # actually missing it, the refusal is unreachable and therefore untested.

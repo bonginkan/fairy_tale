@@ -217,7 +217,7 @@
             "object",
             "null"
           ],
-          "description": "Minimum coherent set pre-registered at the start of the deadline window. Null only when no deadline is in force.",
+          "description": "Named items pre-registered at the start of the deadline window. Null when no deadline is in force, and permitted to be null when the deadline had already passed before the first recorded round — there is no window start to register at. The runtime enforces which case applies, because the distinction depends on the clock readings.",
           "additionalProperties": false,
           "required": [
             "owner_goal_ref",
@@ -264,7 +264,7 @@
           "items": {
             "$ref": "#/$defs/forecast"
           },
-          "description": "Per-round forecasts. Empty only when no deadline is in force."
+          "description": "One forecast per round inside the active deadline window, in round order. A round beginning after the deadline is ordinary work and forecasts nothing, because a forecast of an outcome that already happened is not one; such work belongs to a new window with its own source. A deadline with no round inside its own window was already past when the work began and is not in force. Empty only when no deadline is in force."
         }
       },
       "allOf": [
@@ -306,8 +306,11 @@
               "source_pin": {
                 "type": "object"
               },
-              "forecasts": {
-                "minItems": 1
+              "minimum_shape": {
+                "type": [
+                  "object",
+                  "null"
+                ]
               }
             }
           }
@@ -345,18 +348,15 @@
                 "minItems": 1
               },
               "minimum_shape": {
-                "type": "object"
+                "type": [
+                  "object",
+                  "null"
+                ]
               },
               "source_pin": {
                 "type": "object"
-              },
-              "forecasts": {
-                "minItems": 1
               }
-            },
-            "required": [
-              "minimum_shape"
-            ]
+            }
           }
         }
       ]
