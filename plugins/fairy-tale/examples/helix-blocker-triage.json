@@ -46,7 +46,7 @@
       "source_pin": {
         "ref": "source:owner-deadline",
         "content_hash": "4444444444444444444444444444444444444444444444444444444444444444",
-        "captured_at": "2026-08-17T06:00:00Z",
+        "captured_at": "2026-07-26T13:45:00+09:00",
         "edit_count": 0
       },
       "forecasts": [
@@ -100,7 +100,7 @@
         {
           "ref": "discord:1538803731246612531",
           "content_hash": "1111111111111111111111111111111111111111111111111111111111111111",
-          "captured_at": "2026-08-17T06:00:00Z",
+          "captured_at": "2026-07-26T13:45:00+09:00",
           "edit_count": 0
         }
       ],
@@ -110,7 +110,7 @@
         ".claude/skills/fairy-tale"
       ],
       "duplication_policy": "mirrored_byte_identical",
-      "resolved_at": "2026-08-17T06:00:00Z"
+      "resolved_at": "2026-07-26T13:45:00+09:00"
     },
     "claim_envelope": {
       "baseline_ref": "3a1cb439402e27bedb42b7690130a8abd49189a7",
@@ -118,7 +118,7 @@
         {
           "ref": "https://github.com/bonginkan/fairy_tale/issues/108",
           "content_hash": "2222222222222222222222222222222222222222222222222222222222222222",
-          "captured_at": "2026-08-17T06:00:00Z",
+          "captured_at": "2026-07-26T13:45:00+09:00",
           "edit_count": 0
         }
       ]
@@ -134,7 +134,7 @@
       "directive": {
         "ref": "discord:1538751526879629403",
         "content_hash": "3333333333333333333333333333333333333333333333333333333333333333",
-        "captured_at": "2026-08-17T06:00:00Z",
+        "captured_at": "2026-07-26T13:45:00+09:00",
         "edit_count": 0
       }
     }

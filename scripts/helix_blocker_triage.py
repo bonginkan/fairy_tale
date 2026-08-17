@@ -383,8 +383,29 @@ MINIMUM_SHAPE_KEYS = {"owner_goal_ref", "named_items", "hash", "registered_at"}
 CONTENT_HASH_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
+def not_after_evaluation(
+    value: Any,
+    path: str,
+    evaluated_at: datetime | None,
+    findings: list[Finding],
+    subject: str,
+) -> datetime | None:
+    """Parse an instant and reject one that postdates the evaluation.
+
+    The timestamp family is nine fields. Checking them one at a time is how four
+    of them ended up unchecked, so every member goes through here.
+    """
+    parsed = parse_timestamp(value, path, findings)
+    if parsed is not None and evaluated_at is not None and parsed > evaluated_at:
+        add(findings, path, f"{subject} cannot be later than the evaluation")
+    return parsed
+
+
 def validate_pinned_source(
-    value: Any, path: str, findings: list[Finding]
+    value: Any,
+    path: str,
+    findings: list[Finding],
+    evaluated_at: datetime | None = None,
 ) -> None:
     """A source that can be edited later is pinned by content, not by ref."""
     shape = object_shape(
@@ -407,7 +428,13 @@ def validate_pinned_source(
             "pinned source needs a sha256 content hash; a ref alone does not fix "
             "bytes that the author can still edit",
         )
-    parse_timestamp(shape.get("captured_at"), f"{path}.captured_at", findings)
+    not_after_evaluation(
+        shape.get("captured_at"),
+        f"{path}.captured_at",
+        evaluated_at,
+        findings,
+        "a source capture",
+    )
     edits = shape.get("edit_count")
     # JSON counts 1.0 as an integer, so a stored record can carry a float here.
     # Accepting it keeps this layer from disagreeing with the schema it follows.
@@ -415,7 +442,9 @@ def validate_pinned_source(
         add(findings, f"{path}.edit_count", "edit_count must be null or a count")
 
 
-def validate_target(value: Any, findings: list[Finding]) -> None:
+def validate_target(
+    value: Any, findings: list[Finding], evaluated_at: datetime | None = None
+) -> None:
     path = "helix.loop.target"
     shape = object_shape(
         value,
@@ -439,7 +468,9 @@ def validate_target(value: Any, findings: list[Finding]) -> None:
         )
     else:
         for index, ref in enumerate(refs):
-            validate_pinned_source(ref, f"{path}.directive_refs[{index}]", findings)
+            validate_pinned_source(
+                ref, f"{path}.directive_refs[{index}]", findings, evaluated_at
+            )
     policy = shape.get("duplication_policy")
     if policy not in DUPLICATION_POLICIES:
         add(findings, f"{path}.duplication_policy", "duplication policy is invalid")
@@ -447,10 +478,18 @@ def validate_target(value: Any, findings: list[Finding]) -> None:
     if trail is not None and not unique_text_list(trail, nonempty=True):
         add(findings, f"{path}.propagation_path", "propagation path must be unique refs")
     if shape.get("resolved_at") is not None:
-        parse_timestamp(shape.get("resolved_at"), f"{path}.resolved_at", findings)
+        not_after_evaluation(
+            shape.get("resolved_at"),
+            f"{path}.resolved_at",
+            evaluated_at,
+            findings,
+            "a target resolution",
+        )
 
 
-def validate_claim_envelope(value: Any, findings: list[Finding]) -> None:
+def validate_claim_envelope(
+    value: Any, findings: list[Finding], evaluated_at: datetime | None = None
+) -> None:
     path = "helix.loop.claim_envelope"
     shape = object_shape(
         value,
@@ -480,7 +519,9 @@ def validate_claim_envelope(value: Any, findings: list[Finding]) -> None:
         )
     else:
         for index, ref in enumerate(refs):
-            validate_pinned_source(ref, f"{path}.claim_snapshot_refs[{index}]", findings)
+            validate_pinned_source(
+                ref, f"{path}.claim_snapshot_refs[{index}]", findings, evaluated_at
+            )
 
 
 def validate_working_branch(value: Any, findings: list[Finding]) -> None:
@@ -594,6 +635,14 @@ def validate_forecast(
             add(findings, f"{path}.{key}", f"{key} must be named items")
             return
     stated = set(passed) | set(outstanding)
+    if named_items and stated != named_items:
+        add(
+            findings,
+            f"{path}.outstanding",
+            "a forecast accounts for every pre-registered item; dropping one from "
+            "both lists reports on a set nobody registered: missing "
+            + (", ".join(sorted(named_items - stated)) or "none"),
+        )
     if named_items and not stated <= named_items:
         add(
             findings,
@@ -724,7 +773,9 @@ def validate_deadline(
             "by content so the date it was read from cannot move",
         )
     else:
-        validate_pinned_source(pin, "helix.loop.deadline.source_pin", findings)
+        validate_pinned_source(
+            pin, "helix.loop.deadline.source_pin", findings, evaluated_at
+        )
     shape = value.get("minimum_shape")
     if not isinstance(shape, dict):
         add(
@@ -737,7 +788,7 @@ def validate_deadline(
     # a possible order. Without this a record can register its minimum shape and
     # read its clock after the evaluation it supposedly informed.
     ordered_phases = ("round_start", "disposition", "ship_decision")
-    seen: list[tuple[int, datetime]] = []
+    seen: list[datetime] = []
     for index, reading in enumerate(readings if isinstance(readings, list) else []):
         if not isinstance(reading, dict):
             continue
@@ -753,14 +804,14 @@ def validate_deadline(
                 f"helix.loop.deadline.clock_readings[{index}].at",
                 "a clock reading cannot be later than the evaluation it informed",
             )
-        seen.append((ordered_phases.index(phase), at_reading))
-    for (earlier_phase, earlier_at), (later_phase, later_at) in zip(seen, seen[1:]):
-        if later_phase < earlier_phase or later_at < earlier_at:
+        seen.append(at_reading)
+    for earlier_at, later_at in zip(seen, seen[1:]):
+        if later_at < earlier_at:
             add(
                 findings,
                 "helix.loop.deadline.clock_readings",
-                "clock readings must run forward through the round: a disposition "
-                "cannot precede its round start",
+                "clock readings must run forward in time; the phase sequence may "
+                "cycle across rounds but the clock does not go backwards",
             )
             break
     named_items: set[str] = set()
@@ -772,6 +823,53 @@ def validate_deadline(
             item for item in candidate_shape["named_items"] if isinstance(item, str)
         }
     forecasts = value.get("forecasts")
+    if isinstance(forecasts, list) and forecasts:
+        rounds = [
+            item.get("round") for item in forecasts if isinstance(item, dict)
+        ]
+        if len(set(rounds)) != len(rounds):
+            add(
+                findings,
+                "helix.loop.deadline.forecasts",
+                "each round forecasts once; duplicate rounds make the sequence "
+                "unreadable",
+            )
+        elif rounds != sorted(rounds):
+            add(
+                findings,
+                "helix.loop.deadline.forecasts",
+                "forecasts are recorded in round order",
+            )
+        parsed_at = parse_timestamp(at, "helix.loop.deadline.at", [])
+        past_deadline = (
+            parsed_at is not None
+            and evaluated_at is not None
+            and evaluated_at > parsed_at
+        )
+        for index, item in enumerate(forecasts):
+            if not isinstance(item, dict):
+                continue
+            settled = item.get("settled")
+            if past_deadline and settled is None:
+                add(
+                    findings,
+                    f"helix.loop.deadline.forecasts[{index}].settled",
+                    "the deadline has passed, so this forecast is settled against "
+                    "the outcome; an unsettled forecast improves no estimate",
+                )
+            if isinstance(settled, dict) and parsed_at is not None:
+                settled_at = parse_timestamp(
+                    settled.get("at"),
+                    f"helix.loop.deadline.forecasts[{index}].settled.at",
+                    [],
+                )
+                if settled_at is not None and settled_at < parsed_at:
+                    add(
+                        findings,
+                        f"helix.loop.deadline.forecasts[{index}].settled.at",
+                        "a forecast is settled after the deadline it forecast, not "
+                        "before it",
+                    )
     if not isinstance(forecasts, list) or not forecasts:
         add(
             findings,
@@ -795,6 +893,34 @@ def validate_deadline(
             "helix.loop.deadline.minimum_shape.registered_at",
             findings,
         )
+        parsed_deadline = parse_timestamp(at, "helix.loop.deadline.at", [])
+        if registered is not None and parsed_deadline is not None and registered > parsed_deadline:
+            add(
+                findings,
+                "helix.loop.deadline.minimum_shape.registered_at",
+                "the minimum shape is registered at the start of the window, so it "
+                "cannot be registered after the deadline closes it",
+            )
+        first_round_start = next(
+            (
+                parse_timestamp(reading.get("at"), "helix.loop.deadline", [])
+                for reading in (readings if isinstance(readings, list) else [])
+                if isinstance(reading, dict) and reading.get("phase") == "round_start"
+            ),
+            None,
+        )
+        if (
+            registered is not None
+            and first_round_start is not None
+            and registered > first_round_start
+        ):
+            add(
+                findings,
+                "helix.loop.deadline.minimum_shape.registered_at",
+                "the minimum shape is pre-registered at the start of the window, so "
+                "it cannot be registered after the first round has begun: deciding "
+                "later makes whatever passed the definition",
+            )
         if registered is not None and evaluated_at is not None and registered > evaluated_at:
             add(
                 findings,
@@ -1546,7 +1672,10 @@ def validate_record(record: Any) -> list[Finding]:
                     )
                 else:
                     validate_pinned_source(
-                        directive, "helix.loop.priority_authority.directive", findings
+                        directive,
+                        "helix.loop.priority_authority.directive",
+                        findings,
+                        evaluated_at,
                     )
                 if loop.get("roles", {}).get("priority_reviewer_id") is None:
                     add(
@@ -1568,8 +1697,8 @@ def validate_record(record: Any) -> list[Finding]:
                         "with no directive in force the priority role does not arise, "
                         "so no reviewer holds it",
                     )
-        validate_target(loop.get("target"), findings)
-        validate_claim_envelope(loop.get("claim_envelope"), findings)
+        validate_target(loop.get("target"), findings, evaluated_at)
+        validate_claim_envelope(loop.get("claim_envelope"), findings, evaluated_at)
         validate_working_branch(loop.get("working_branch"), findings)
         usage_pressure = validate_usage(loop.get("usage"), evaluated_at, findings)
         ship_stage, edison_mode = validate_ship_stage(
@@ -2122,9 +2251,15 @@ def render_markdown(record: dict[str, Any]) -> str:
             "- Forecasts: "
             + (
                 "; ".join(
-                    f"r{item['round']}@`{item['at']}` "
-                    f"{len(item['passed'])} passed / {len(item['outstanding'])} outstanding, "
-                    + ("fits" if item["fits"] else "does not fit")
+                    f"r{item['round']}@`{item['at']}` passed "
+                    + (", ".join(markdown_escape(x) for x in item["passed"]) or "none")
+                    + " / outstanding "
+                    + (
+                        ", ".join(markdown_escape(x) for x in item["outstanding"])
+                        or "none"
+                    )
+                    + ("; fits" if item["fits"] else "; does not fit")
+                    + f"; next {markdown_escape(item['next'])}"
                     + (
                         f", settled {item['settled']['outcome']}"
                         if item.get("settled")
@@ -3239,6 +3374,95 @@ def run_selftest() -> int:
         "2026-07-27T09:00:00+09:00"
     )
     blocked(late_reading, "cannot be later than the evaluation")
+
+    registered_mid_window = copy.deepcopy(base)
+    registered_mid_window["loop"]["deadline"]["minimum_shape"]["registered_at"] = (
+        "2026-07-26T13:57:00+09:00"
+    )
+    blocked(registered_mid_window, "after the first round has begun")
+
+    dropped_item = copy.deepcopy(base)
+    dropped_item["loop"]["deadline"]["forecasts"][0]["outstanding"] = []
+    blocked(dropped_item, "accounts for every pre-registered item")
+
+    duplicate_round = copy.deepcopy(base)
+    duplicate_round["loop"]["deadline"]["forecasts"].append(
+        copy.deepcopy(duplicate_round["loop"]["deadline"]["forecasts"][0])
+    )
+    blocked(duplicate_round, "each round forecasts once")
+
+    # A legitimate second round: the phase sequence cycles, and that must be
+    # accepted or a multi-round record cannot be written at all.
+    second_round = copy.deepcopy(base)
+    second_round["loop"]["deadline"]["clock_readings"].append(
+        {"at": "2026-07-26T14:00:00+09:00", "phase": "round_start"}
+    )
+    later = copy.deepcopy(second_round["loop"]["deadline"]["forecasts"][0])
+    later["round"] = 2
+    second_round["loop"]["deadline"]["forecasts"].append(later)
+    check(
+        not validate_record_full(second_round),
+        "a second round may restart the phase sequence",
+    )
+
+    backwards_clock = copy.deepcopy(base)
+    backwards_clock["loop"]["deadline"]["clock_readings"][2]["at"] = (
+        "2026-07-26T13:00:00+09:00"
+    )
+    blocked(backwards_clock, "the clock does not go backwards")
+
+    # Settlement is recorded after the deadline it forecast, and once the
+    # deadline has passed it is recorded at all.
+    settled_early = copy.deepcopy(base)
+    settled_early["loop"]["deadline"]["forecasts"][0]["settled"] = {
+        "at": "2026-07-26T14:00:00+09:00",
+        "outcome": "as_forecast",
+    }
+    blocked(settled_early, "settled after the deadline it forecast")
+
+    past_deadline_unsettled = copy.deepcopy(base)
+    past_deadline_unsettled["loop"]["evaluated_at"] = "2026-07-28T09:00:00+09:00"
+    blocked(past_deadline_unsettled, "settled against the outcome")
+
+    late_capture = copy.deepcopy(base)
+    late_capture["loop"]["target"]["directive_refs"][0]["captured_at"] = (
+        "2026-07-27T09:00:00+09:00"
+    )
+    blocked(late_capture, "a source capture cannot be later than the evaluation")
+
+    late_resolution = copy.deepcopy(base)
+    late_resolution["loop"]["target"]["resolved_at"] = "2026-07-27T09:00:00+09:00"
+    blocked(late_resolution, "a target resolution cannot be later than the evaluation")
+
+    for owner, mutate in (
+        (
+            "priority directive",
+            lambda r: r["loop"]["priority_authority"]["directive"].__setitem__(
+                "captured_at", "2026-07-27T09:00:00+09:00"
+            ),
+        ),
+        (
+            "claim snapshot",
+            lambda r: r["loop"]["claim_envelope"]["claim_snapshot_refs"][0].__setitem__(
+                "captured_at", "2026-07-27T09:00:00+09:00"
+            ),
+        ),
+        (
+            "deadline pin",
+            lambda r: r["loop"]["deadline"]["source_pin"].__setitem__(
+                "captured_at", "2026-07-27T09:00:00+09:00"
+            ),
+        ),
+    ):
+        late_member = copy.deepcopy(base)
+        mutate(late_member)
+        blocked(late_member, "a source capture cannot be later than the evaluation")
+
+    registration_after_deadline = copy.deepcopy(base)
+    registration_after_deadline["loop"]["deadline"]["minimum_shape"][
+        "registered_at"
+    ] = "2026-07-28T09:00:00+09:00"
+    blocked(registration_after_deadline, "after the deadline closes it")
 
     late_registration = copy.deepcopy(base)
     late_registration["loop"]["deadline"]["minimum_shape"]["registered_at"] = (
