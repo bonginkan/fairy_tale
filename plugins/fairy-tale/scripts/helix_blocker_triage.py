@@ -3799,28 +3799,55 @@ def run_selftest() -> int:
         + (", ".join(".".join(path) for path in sorted(uncovered)) or "none missing"),
     )
 
-    derived = [
-        path
-        for path in dict.fromkeys(timestamp_paths(base, schema_root, ()))
-        if path not in exempt
+    # Each declared timestamp is mapped to a fixture that actually carries it,
+    # and the mapping is compared to the schema by exact equality. Deriving the
+    # mutations from `base` alone left settled.at checked for reachability but
+    # never mutated, so an unvalidated timestamp reachable only in a special
+    # state stayed green.
+    fixtures: list[tuple[str, dict[str, Any]]] = [
+        ("sample", base),
+        ("settled", settled_record),
     ]
+    path_to_fixture: dict[tuple[str, ...], tuple[str, dict[str, Any]]] = {}
+    for fixture_name, fixture in fixtures:
+        for concrete in timestamp_paths(fixture, schema_root, ()):
+            generic = tuple(
+                "*" if step.isdigit() else step for step in concrete
+            )
+            if generic in exempt:
+                continue
+            path_to_fixture.setdefault(generic, (fixture_name, fixture))
+
     check(
-        len(derived) >= 9,
-        f"the timestamp family is derived from the schema (found {len(derived)})",
+        set(path_to_fixture) == schema_declared - exempt,
+        "every declared timestamp maps to a fixture carrying it; unmapped: "
+        + (
+            ", ".join(
+                ".".join(path)
+                for path in sorted((schema_declared - exempt) - set(path_to_fixture))
+            )
+            or "none"
+        ),
     )
-    for path in derived:
-        future_member = copy.deepcopy(base)
+
+    for generic, (fixture_name, fixture) in sorted(path_to_fixture.items()):
+        concrete = next(
+            candidate
+            for candidate in timestamp_paths(fixture, schema_root, ())
+            if tuple("*" if step.isdigit() else step for step in candidate) == generic
+        )
+        future_member = copy.deepcopy(fixture)
         target: Any = future_member
-        for step in path[:-1]:
+        for step in concrete[:-1]:
             target = target[int(step)] if step.isdigit() else target[step]
-        last = path[-1]
+        last = concrete[-1]
         if last.isdigit():
             target[int(last)] = FUTURE
         else:
             target[last] = FUTURE
         check(
             bool(validate_record_full(future_member)),
-            "a future " + ".".join(path) + " is rejected",
+            f"a future {'.'.join(generic)} is rejected (in the {fixture_name} fixture)",
         )
 
     # A legitimate second round: phases cycle, and each recorded round carries
