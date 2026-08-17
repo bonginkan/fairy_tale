@@ -1486,8 +1486,32 @@ def migrate_record(record: Any) -> dict[str, Any]:
     loop = upgraded.get("loop")
     if not isinstance(loop, dict):
         raise ArtifactError("helix.loop must be an object")
+    # 1.2 adds records of evidence that a 1.1 record never captured: where the
+    # change belongs, which sources the claim was pinned against, which branch
+    # the effort was fixed to, who held the priority role, and what the clock
+    # actually read. None of that can be reconstructed from the old record, and
+    # inventing it would forge exactly the provenance the fields exist to carry.
+    # The upgrade therefore asks the operator for it rather than guessing.
+    missing = [
+        name
+        for name in ("target", "claim_envelope", "working_branch")
+        if not isinstance(loop.get(name), dict)
+    ]
+    roles = loop.get("roles")
+    if not isinstance(roles, dict) or not roles.get("priority_reviewer_id"):
+        missing.append("roles.priority_reviewer_id")
+    deadline = loop.get("deadline")
+    if not isinstance(deadline, dict) or not deadline.get("clock_readings"):
+        missing.append("deadline.clock_readings")
+    if missing:
+        raise ArtifactError(
+            "schema 1.2 records evidence the 1.1 record does not carry; attach it "
+            "before migrating rather than letting the upgrade invent it: "
+            + ", ".join(missing)
+        )
     if "ship_stage" in loop:
-        raise ArtifactError("a schema 1.0 record cannot already carry a ship_stage")
+        require_valid(upgraded)
+        return upgraded
     loop["ship_stage"] = {
         "stage": "production",
         "basis": "production_promotion",
@@ -1538,7 +1562,7 @@ def migrate_record(record: Any) -> dict[str, Any]:
 
 def sample_record() -> dict[str, Any]:
     return {
-        "schema_version": "1.1",
+        "schema_version": SCHEMA_VERSION,
         "artifact_type": "helix_blocker_triage",
         "loop": {
             "loop_id": "helix-balance-sample",
@@ -1549,11 +1573,57 @@ def sample_record() -> dict[str, Any]:
             "roles": {
                 "implementer_id": "misa-3",
                 "reviewer_ids": ["codex-misa", "cc-misa-hime"],
+                "priority_reviewer_id": "codex-misa",
             },
             "deadline": {
                 "at": "2026-07-27T14:00:00+09:00",
                 "source": "explicit_owner",
                 "source_ref": "source:owner-deadline",
+                "clock_readings": [
+                    {"at": "2026-07-26T13:50:00+09:00", "phase": "round_start"},
+                    {"at": "2026-07-26T14:30:00+09:00", "phase": "disposition"},
+                    {"at": "2026-07-26T15:00:00+09:00", "phase": "ship_decision"},
+                ],
+                "minimum_shape": {
+                    "owner_goal_ref": "source:owner-deadline",
+                    "named_items": ["path identity fix", "capacity eviction guard"],
+                    "hash": "a" * 64,
+                    "registered_at": "2026-07-26T13:50:00+09:00",
+                },
+            },
+            "target": {
+                "repo": "bonginkan/fairy_tale",
+                "path": "skills/fairy-tale/references/cards",
+                "layer": "canonical skill cards",
+                "canonical_owner": "bonginkan/fairy_tale",
+                "directive_refs": [
+                    {
+                        "ref": "source:owner-directive",
+                        "content_hash": "b" * 64,
+                        "captured_at": "2026-07-26T13:45:00+09:00",
+                        "edit_count": 0,
+                    }
+                ],
+                "propagation_path": ["plugins/fairy-tale/skills/fairy-tale"],
+                "duplication_policy": "mirrored_byte_identical",
+                "resolved_at": "2026-07-26T13:45:00+09:00",
+            },
+            "claim_envelope": {
+                "baseline_ref": "0" * 40,
+                "claim_snapshot_refs": [
+                    {
+                        "ref": "source:owner-directive",
+                        "content_hash": "b" * 64,
+                        "captured_at": "2026-07-26T13:45:00+09:00",
+                        "edit_count": 0,
+                    }
+                ],
+            },
+            "working_branch": {
+                "name": "dev-matsumoto",
+                "fixed_by_ref": "source:owner-branch-fix",
+                "approval_ref": None,
+                "remedy": "none",
             },
             "usage": {
                 "primary_5h_remaining": 12,
@@ -1717,7 +1787,14 @@ def dev_sample_record() -> dict[str, Any]:
 
 
 def legacy_sample_record() -> dict[str, Any]:
-    """The canonical sample as schema 1.0 wrote it, before the ship stage."""
+    """The canonical sample as the previous schema wrote it.
+
+    The 1.2 evidence stays attached here because migration refuses to invent
+    it: an operator upgrading a stored record supplies the target, envelope,
+    branch, priority holder, and clock readings, and the upgrade validates what
+    they supplied. Stripping them would test that migration fabricates, which
+    is the behaviour the refusal exists to prevent.
+    """
     record = sample_record()
     record["schema_version"] = MIGRATABLE_SCHEMA_VERSION
     del record["loop"]["ship_stage"]
