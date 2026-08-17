@@ -45,11 +45,14 @@ except ImportError:  # pragma: no cover - import from repository root
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SCHEMA_VERSION = "1.1"
+SCHEMA_VERSION = "1.2"
 # The persisted contract records already written against the previous version.
 # They stay readable through `migrate`, which upgrades them without inventing
 # evidence the original record never carried.
-MIGRATABLE_SCHEMA_VERSION = "1.0"
+MIGRATABLE_SCHEMA_VERSION = "1.1"
+# 1.0 records still upgrade, chained 1.0 -> 1.1 -> 1.2, because the previous
+# release promised persisted records upgrade rather than expire.
+MIGRATABLE_SCHEMA_VERSIONS = ("1.0", "1.1")
 DEFAULT_SAMPLE = ROOT / "examples" / "helix-blocker-triage.json"
 MAX_DEFERRABLE_RISK_SCORE = 60
 # Edison Ship Gate: a dev-stage increment with a verified normal path buys a
@@ -76,13 +79,25 @@ LOOP_KEYS = {
     "deadline",
     "usage",
     "ship_stage",
+    "target",
+    "claim_envelope",
+    "working_branch",
+    "priority_authority",
 }
 SHIP_STAGE_KEYS = {"stage", "basis", "basis_ref", "happy_path", "evidence_attestation"}
 HAPPY_PATH_KEYS = {"verified", "check_ref", "summary"}
 SHIP_ATTESTATION_KEYS = {"reviewer_id", "evidence_refs"}
 SHIP_DECISION_KEYS = {"decision", "rationale"}
-ROLE_KEYS = {"implementer_id", "reviewer_ids"}
-DEADLINE_KEYS = {"at", "source", "source_ref"}
+ROLE_KEYS = {"implementer_id", "reviewer_ids", "priority_reviewer_id"}
+DEADLINE_KEYS = {
+    "at",
+    "source",
+    "source_ref",
+    "clock_readings",
+    "minimum_shape",
+    "source_pin",
+    "forecasts",
+}
 USAGE_KEYS = {
     "primary_5h_remaining",
     "secondary_weekly_remaining",
@@ -158,6 +173,7 @@ PROTECTED_FLOORS = {
     "authority_permission",
     "security",
     "required_acceptance",
+    "unapproved_branch_change",
 }
 FLOOR_BASES = {"not_applicable", "demonstrated", "precautionary"}
 FINDING_CLASSES = {"happy_path", "abnormal_path", "hardening", "other"}
@@ -173,6 +189,10 @@ SHIP_DECISIONS = {"go", "hold"}
 # The only floor a dev-stage ship may defer, and only when no reachable
 # failure sequence has been demonstrated against the deployed surface.
 DEV_DEFERRABLE_FLOORS = {"security"}
+# Unconditional floor values: no demonstrated reach is required to raise them and
+# no level of concurrence defers them. Their only exits are a cited owner
+# approval or returning to the recorded branch and consolidating.
+NON_DEFERRABLE_FLOORS = {"unapproved_branch_change"}
 DEADLINE_SOURCES = {"none", "explicit_owner", "explicit_policy"}
 USAGE_STATUSES = {"fresh", "stale", "unknown"}
 USAGE_SOURCES = {
@@ -235,6 +255,21 @@ def evidence_list(value: Any, *, nonempty: bool = False) -> bool:
     )
 
 
+def json_integer(value: Any) -> bool:
+    """JSON Schema `integer`: any number with no fractional part.
+
+    Python's isinstance(v, int) is narrower — it rejects 1.0, which JSON
+    produces for an integral literal and which the schema accepts. Both members
+    of the integer family use this so the two layers cannot drift apart one
+    field at a time.
+    """
+    if isinstance(value, bool):
+        return False
+    if isinstance(value, int):
+        return True
+    return isinstance(value, float) and value.is_integer()
+
+
 def finite_number(value: Any) -> bool:
     return (
         isinstance(value, (int, float))
@@ -248,7 +283,7 @@ def parse_timestamp(value: Any, path: str, findings: list[Finding]) -> datetime 
         add(findings, path, "must be a timezone-qualified timestamp")
         return None
     try:
-        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00").replace("z", "+00:00"))
     except ValueError:
         add(findings, path, "must be an ISO 8601 timestamp")
         return None
@@ -283,6 +318,32 @@ def validate_roles(value: Any, findings: list[Finding]) -> tuple[str | None, lis
     elif not all(valid_id(item) for item in reviewers):
         add(findings, "helix.loop.roles.reviewer_ids", "reviewer id is malformed")
         reviewers = []
+    priority_reviewer = roles.get("priority_reviewer_id")
+    if priority_reviewer is None:
+        # Absent is legitimate: with no owner directive in force the role does
+        # not arise. The loop-level authority state decides whether that is
+        # consistent, so nothing is reported here.
+        pass
+    elif not valid_id(priority_reviewer):
+        add(
+            findings,
+            "helix.loop.roles.priority_reviewer_id",
+            "priority_reviewer_id is malformed; 'the second reviewer' names nobody "
+            "once there are three",
+        )
+    else:
+        if reviewers and priority_reviewer not in reviewers:
+            add(
+                findings,
+                "helix.loop.roles.priority_reviewer_id",
+                "priority_reviewer_id must be one of reviewer_ids",
+            )
+        if implementer is not None and priority_reviewer == implementer:
+            add(
+                findings,
+                "helix.loop.roles.priority_reviewer_id",
+                "implementer cannot hold the owner-priority disposition role",
+            )
     if implementer is not None and implementer in reviewers:
         add(
             findings,
@@ -290,6 +351,330 @@ def validate_roles(value: Any, findings: list[Finding]) -> tuple[str | None, lis
             "implementer cannot be a registered reviewer",
         )
     return implementer, list(reviewers)
+
+
+TARGET_KEYS = {
+    "repo",
+    "path",
+    "layer",
+    "canonical_owner",
+    "directive_refs",
+    "propagation_path",
+    "duplication_policy",
+    "resolved_at",
+}
+TARGET_REQUIRED = {
+    "repo",
+    "path",
+    "layer",
+    "canonical_owner",
+    "directive_refs",
+    "duplication_policy",
+}
+DUPLICATION_POLICIES = {"canonical_only", "mirrored_byte_identical", "reference_only"}
+PINNED_SOURCE_KEYS = {"ref", "content_hash", "captured_at", "edit_count"}
+PINNED_SOURCE_REQUIRED = {"ref", "content_hash", "captured_at"}
+CLAIM_ENVELOPE_KEYS = {"baseline_ref", "claim_snapshot_refs"}
+WORKING_BRANCH_KEYS = {"name", "fixed_by_ref", "approval_ref", "remedy"}
+WORKING_BRANCH_REQUIRED = {"name", "fixed_by_ref"}
+BRANCH_REMEDIES = {"none", "approval_produced", "returned_and_consolidated"}
+CLOCK_PHASES = {"round_start", "disposition", "ship_decision"}
+MINIMUM_SHAPE_KEYS = {"owner_goal_ref", "named_items", "hash", "registered_at"}
+CONTENT_HASH_RE = re.compile(r"^[0-9a-f]{64}$")
+
+
+def not_after_evaluation(
+    value: Any,
+    path: str,
+    evaluated_at: datetime | None,
+    findings: list[Finding],
+    subject: str,
+) -> datetime | None:
+    """Parse an instant and reject one that postdates the evaluation.
+
+    Every instant the schema declares goes through here. The family is
+    enumerated from the schema in the self-controls rather than listed, because
+    hand-listing it is what left members unchecked twice.
+    """
+    parsed = parse_timestamp(value, path, findings)
+    if parsed is not None and evaluated_at is not None and parsed > evaluated_at:
+        add(findings, path, f"{subject} cannot be later than the evaluation")
+    return parsed
+
+
+def validate_pinned_source(
+    value: Any,
+    path: str,
+    findings: list[Finding],
+    evaluated_at: datetime | None = None,
+) -> None:
+    """A source that can be edited later is pinned by content, not by ref."""
+    shape = object_shape(
+        value,
+        path=path,
+        required=PINNED_SOURCE_REQUIRED,
+        allowed=PINNED_SOURCE_KEYS,
+        findings=findings,
+    )
+    if shape is None:
+        return
+    ref = shape.get("ref")
+    if not isinstance(ref, str) or not ref.strip():
+        add(findings, f"{path}.ref", "pinned source needs a concrete ref")
+    digest = shape.get("content_hash")
+    if not isinstance(digest, str) or not CONTENT_HASH_RE.fullmatch(digest):
+        add(
+            findings,
+            f"{path}.content_hash",
+            "pinned source needs a sha256 content hash; a ref alone does not fix "
+            "bytes that the author can still edit",
+        )
+    not_after_evaluation(
+        shape.get("captured_at"),
+        f"{path}.captured_at",
+        evaluated_at,
+        findings,
+        "a source capture",
+    )
+    edits = shape.get("edit_count")
+    # JSON counts 1.0 as an integer, so a stored record can carry a float here.
+    # Accepting it keeps this layer from disagreeing with the schema it follows.
+    if edits is not None and (not json_integer(edits) or edits < 0):
+        add(findings, f"{path}.edit_count", "edit_count must be null or a count")
+
+
+def validate_target(
+    value: Any, findings: list[Finding], evaluated_at: datetime | None = None
+) -> None:
+    path = "helix.loop.target"
+    shape = object_shape(
+        value,
+        path=path,
+        required=TARGET_REQUIRED,
+        allowed=TARGET_KEYS,
+        findings=findings,
+    )
+    if shape is None:
+        return
+    for key in ("repo", "path", "layer", "canonical_owner"):
+        field = shape.get(key)
+        if not isinstance(field, str) or not field.strip():
+            add(findings, f"{path}.{key}", f"target {key} must be recorded")
+    refs = shape.get("directive_refs")
+    if not isinstance(refs, list) or not refs:
+        add(
+            findings,
+            f"{path}.directive_refs",
+            "the target must name the directive it was resolved from",
+        )
+    else:
+        for index, ref in enumerate(refs):
+            validate_pinned_source(
+                ref, f"{path}.directive_refs[{index}]", findings, evaluated_at
+            )
+    policy = shape.get("duplication_policy")
+    if policy not in DUPLICATION_POLICIES:
+        add(findings, f"{path}.duplication_policy", "duplication policy is invalid")
+    trail = shape.get("propagation_path")
+    if trail is not None and not unique_text_list(trail, nonempty=True):
+        add(findings, f"{path}.propagation_path", "propagation path must be unique refs")
+    if shape.get("resolved_at") is not None:
+        not_after_evaluation(
+            shape.get("resolved_at"),
+            f"{path}.resolved_at",
+            evaluated_at,
+            findings,
+            "a target resolution",
+        )
+
+
+def validate_claim_envelope(
+    value: Any, findings: list[Finding], evaluated_at: datetime | None = None
+) -> None:
+    path = "helix.loop.claim_envelope"
+    shape = object_shape(
+        value,
+        path=path,
+        required=CLAIM_ENVELOPE_KEYS,
+        allowed=CLAIM_ENVELOPE_KEYS,
+        findings=findings,
+    )
+    if shape is None:
+        return
+    baseline = shape.get("baseline_ref")
+    if not isinstance(baseline, str) or not SHA_RE.fullmatch(baseline):
+        add(
+            findings,
+            f"{path}.baseline_ref",
+            "baseline_ref must be a commit id, not a movable name: a branch ref "
+            "makes the fixed half of the envelope as mutable as the half it is "
+            "supposed to anchor",
+        )
+    refs = shape.get("claim_snapshot_refs")
+    if not isinstance(refs, list) or not refs:
+        add(
+            findings,
+            f"{path}.claim_snapshot_refs",
+            "the envelope needs the pinned directive or acceptance; judging on "
+            "the merge-base half alone drops the other half of the claim",
+        )
+    else:
+        for index, ref in enumerate(refs):
+            validate_pinned_source(
+                ref, f"{path}.claim_snapshot_refs[{index}]", findings, evaluated_at
+            )
+
+
+def validate_working_branch(value: Any, findings: list[Finding]) -> None:
+    path = "helix.loop.working_branch"
+    shape = object_shape(
+        value,
+        path=path,
+        required=WORKING_BRANCH_REQUIRED,
+        allowed=WORKING_BRANCH_KEYS,
+        findings=findings,
+    )
+    if shape is None:
+        return
+    name = shape.get("name")
+    if not isinstance(name, str) or not name.strip():
+        add(findings, f"{path}.name", "the fixed working branch must be named")
+    fixed_by = shape.get("fixed_by_ref")
+    if not isinstance(fixed_by, str) or not fixed_by.strip():
+        add(
+            findings,
+            f"{path}.fixed_by_ref",
+            "record the ref that fixed the branch; without it there is no "
+            "original to return to and the invariant is unenforceable",
+        )
+    remedy = shape.get("remedy")
+    if remedy is not None and remedy not in BRANCH_REMEDIES:
+        add(findings, f"{path}.remedy", "branch remedy is invalid")
+
+
+def validate_clock_reading(value: Any, path: str, findings: list[Finding]) -> None:
+    shape = object_shape(
+        value,
+        path=path,
+        required={"at", "phase"},
+        allowed={"at", "phase"},
+        findings=findings,
+    )
+    if shape is None:
+        return
+    parse_timestamp(shape.get("at"), f"{path}.at", findings)
+    if shape.get("phase") not in CLOCK_PHASES:
+        add(findings, f"{path}.phase", "clock reading phase is invalid")
+
+
+def validate_minimum_shape(value: Any, findings: list[Finding]) -> None:
+    path = "helix.loop.deadline.minimum_shape"
+    shape = object_shape(
+        value,
+        path=path,
+        required=MINIMUM_SHAPE_KEYS,
+        allowed=MINIMUM_SHAPE_KEYS,
+        findings=findings,
+    )
+    if shape is None:
+        return
+    goal = shape.get("owner_goal_ref")
+    if not isinstance(goal, str) or not goal.strip():
+        add(findings, f"{path}.owner_goal_ref", "the pre-registered shape needs its owner goal")
+    items = shape.get("named_items")
+    if not unique_text_list(items, nonempty=True) or not items:
+        add(
+            findings,
+            f"{path}.named_items",
+            "the minimum shape is named items, never a count: '8 of 10' is not "
+            "evidence when the remaining 2 are the substance",
+        )
+    digest = shape.get("hash")
+    if not isinstance(digest, str) or not CONTENT_HASH_RE.fullmatch(digest):
+        add(findings, f"{path}.hash", "the pre-registered shape needs a sha256 hash")
+    parse_timestamp(shape.get("registered_at"), f"{path}.registered_at", findings)
+
+
+FORECAST_KEYS = {
+    "round",
+    "at",
+    "passed",
+    "outstanding",
+    "fits",
+    "next",
+    "settled",
+}
+FORECAST_OUTCOMES = {"as_forecast", "earlier", "later", "abandoned"}
+
+
+def validate_forecast(
+    value: Any,
+    path: str,
+    named_items: set[str],
+    evaluated_at: datetime | None,
+    findings: list[Finding],
+) -> None:
+    """A forecast that names items outside the pre-registered set is not about it."""
+    shape = object_shape(
+        value,
+        path=path,
+        required=FORECAST_KEYS - {"settled"},
+        allowed=FORECAST_KEYS,
+        findings=findings,
+    )
+    if shape is None:
+        return
+    at_forecast = parse_timestamp(shape.get("at"), f"{path}.at", findings)
+    if at_forecast is not None and evaluated_at is not None and at_forecast > evaluated_at:
+        add(findings, f"{path}.at", "a forecast cannot be made after the evaluation")
+    passed = shape.get("passed")
+    outstanding = shape.get("outstanding")
+    for key, items in (("passed", passed), ("outstanding", outstanding)):
+        if not isinstance(items, list) or any(
+            not isinstance(item, str) or not item.strip() for item in items
+        ):
+            add(findings, f"{path}.{key}", f"{key} must be named items")
+            return
+    stated = set(passed) | set(outstanding)
+    if named_items and stated != named_items:
+        add(
+            findings,
+            f"{path}.outstanding",
+            "a forecast accounts for every pre-registered item; dropping one from "
+            "both lists reports on a set nobody registered: missing "
+            + (", ".join(sorted(named_items - stated)) or "none"),
+        )
+    if named_items and not stated <= named_items:
+        add(
+            findings,
+            f"{path}.passed",
+            "a forecast reports on the pre-registered set, so it cannot name "
+            "items outside it: "
+            + ", ".join(sorted(stated - named_items)),
+        )
+    if named_items and set(passed) & set(outstanding):
+        add(
+            findings,
+            f"{path}.outstanding",
+            "an item cannot be both passed and outstanding",
+        )
+    if not isinstance(shape.get("fits"), bool):
+        add(findings, f"{path}.fits", "fits must state whether the remainder fits")
+    if not isinstance(shape.get("next"), str) or not shape.get("next", "").strip():
+        add(findings, f"{path}.next", "a forecast names what is taken next")
+    settled = shape.get("settled")
+    if settled is not None:
+        settled_shape = object_shape(
+            settled,
+            path=f"{path}.settled",
+            required={"at", "outcome"},
+            allowed={"at", "outcome"},
+            findings=findings,
+        )
+        if settled_shape is not None:
+            parse_timestamp(settled_shape.get("at"), f"{path}.settled.at", findings)
+            if settled_shape.get("outcome") not in FORECAST_OUTCOMES:
+                add(findings, f"{path}.settled.outcome", "settlement outcome is invalid")
 
 
 def validate_deadline(
@@ -300,7 +685,14 @@ def validate_deadline(
     deadline = object_shape(
         value,
         path="helix.loop.deadline",
-        required=DEADLINE_KEYS,
+        required={
+            "at",
+            "source",
+            "source_ref",
+            "clock_readings",
+            "source_pin",
+            "forecasts",
+        },
         allowed=DEADLINE_KEYS,
         findings=findings,
     )
@@ -319,8 +711,433 @@ def validate_deadline(
                 "helix.loop.deadline.none",
                 "an absent deadline must use at=null and source_ref=\"\"",
             )
+        if value.get("clock_readings"):
+            add(
+                findings,
+                "helix.loop.deadline.clock_readings",
+                "no deadline is in force, so there is nothing to read a clock "
+                "against; time-awareness authority does not arise here",
+            )
+        if value.get("forecasts"):
+            add(
+                findings,
+                "helix.loop.deadline.forecasts",
+                "no deadline is in force, so there is nothing to forecast against",
+            )
+        if value.get("source_pin") is not None:
+            add(
+                findings,
+                "helix.loop.deadline.source_pin",
+                "no deadline is in force, so there is no source to pin",
+            )
+        if value.get("minimum_shape") is not None:
+            add(
+                findings,
+                "helix.loop.deadline.minimum_shape",
+                "a minimum shape is pre-registered against a deadline window; "
+                "with no deadline in force there is no window to register it in",
+            )
         return None
     parsed = parse_timestamp(at, "helix.loop.deadline.at", findings)
+    # A deadline that no one read the clock against is a felt deadline. The
+    # schema requires the array; the runtime requires that it is not empty and
+    # that the pre-registered shape exists, because a promise the runtime does
+    # not read is not a control.
+    readings = value.get("clock_readings")
+    if isinstance(readings, list):
+        for index, reading in enumerate(readings):
+            validate_clock_reading(
+                reading, f"helix.loop.deadline.clock_readings[{index}]", findings
+            )
+    if value.get("minimum_shape") is not None:
+        validate_minimum_shape(value.get("minimum_shape"), findings)
+    if not isinstance(readings, list) or not readings:
+        add(
+            findings,
+            "helix.loop.deadline.clock_readings",
+            "an in-force deadline needs at least one real clock reading; "
+            "remaining time is computed from readings, never felt",
+        )
+    pin = value.get("source_pin")
+    if isinstance(pin, dict) and pin.get("ref") != source_ref:
+        add(
+            findings,
+            "helix.loop.deadline.source_pin",
+            "the pinned source and source_ref must name the same thing, or the "
+            "deadline can be justified by one source and evidenced by another",
+        )
+    if not isinstance(pin, dict):
+        add(
+            findings,
+            "helix.loop.deadline.source_pin",
+            "an in-force deadline names a source that can be edited later; pin it "
+            "by content so the date it was read from cannot move",
+        )
+    else:
+        validate_pinned_source(
+            pin, "helix.loop.deadline.source_pin", findings, evaluated_at
+        )
+    named_items: set[str] = set()
+    # The clock readings, the pre-registration, and the evaluation have to sit in
+    # a possible order. Without this a record can register its minimum shape and
+    # read its clock after the evaluation it supposedly informed.
+    ordered_phases = ("round_start", "disposition", "ship_decision")
+    seen: list[datetime] = []
+    for index, reading in enumerate(readings if isinstance(readings, list) else []):
+        if not isinstance(reading, dict):
+            continue
+        at_reading = parse_timestamp(
+            reading.get("at"), f"helix.loop.deadline.clock_readings[{index}].at", findings
+        )
+        phase = reading.get("phase")
+        if at_reading is None or phase not in ordered_phases:
+            continue
+        if evaluated_at is not None and at_reading > evaluated_at:
+            add(
+                findings,
+                f"helix.loop.deadline.clock_readings[{index}].at",
+                "a clock reading cannot be later than the evaluation it informed",
+            )
+        seen.append(at_reading)
+    for earlier_at, later_at in zip(seen, seen[1:]):
+        if later_at < earlier_at:
+            add(
+                findings,
+                "helix.loop.deadline.clock_readings",
+                "clock readings must run forward in time; the phase sequence may "
+                "cycle across rounds but the clock does not go backwards",
+            )
+            break
+    # Group readings into rounds at each round_start, then order within a round.
+    # Phases cycle across rounds, so the unit of ordering is the round, not the
+    # whole list — dropping the global check left nothing enforcing order.
+    rounds: list[list[str]] = []
+    round_readings: list[list[tuple[datetime | None, str]]] = []
+    round_starts: list[datetime | None] = []
+    for reading in readings if isinstance(readings, list) else []:
+        if not isinstance(reading, dict):
+            continue
+        phase = reading.get("phase")
+        if phase not in ordered_phases:
+            continue
+        instant = parse_timestamp(reading.get("at"), "helix.loop.deadline", [])
+        if phase == "round_start":
+            rounds.append([])
+            round_readings.append([])
+            round_starts.append(instant)
+        elif not rounds:
+            # Opening a round here would turn a stray leading reading into a
+            # phantom round 1, so the real first round becomes round 2 and the
+            # forecast numbering silently shifts.
+            add(
+                findings,
+                "helix.loop.deadline.clock_readings",
+                f"a {phase} reading precedes the first round_start; a round has "
+                "to be started before anything can happen in it",
+            )
+            continue
+        rounds[-1].append(phase)
+        round_readings[-1].append((instant, phase))
+    round_windows = [
+        (start, round_starts[position + 1] if position + 1 < len(round_starts) else None)
+        for position, start in enumerate(round_starts)
+    ]
+    deadline_instant = parse_timestamp(at, "helix.loop.deadline.at", [])
+    deadline_round_count = (
+        sum(
+            1
+            for start in round_starts
+            if start is not None and deadline_instant is not None and start <= deadline_instant
+        )
+        if deadline_instant is not None
+        else len(round_starts)
+    )
+    if isinstance(readings, list) and readings and not any(
+        isinstance(reading, dict) and reading.get("phase") == "round_start"
+        for reading in readings
+    ):
+        add(
+            findings,
+            "helix.loop.deadline.clock_readings",
+            "a round has to start before it can be disposed of, so the readings "
+            "must include a round_start",
+        )
+    for index, phases in enumerate(rounds):
+        positions = [ordered_phases.index(phase) for phase in phases]
+        if positions != sorted(positions):
+            add(
+                findings,
+                "helix.loop.deadline.clock_readings",
+                f"round {index + 1} runs its phases out of order: a disposition "
+                "cannot precede the round start it belongs to",
+            )
+            break
+    round_count = len(rounds)
+    candidate_shape = value.get("minimum_shape")
+    if isinstance(candidate_shape, dict) and isinstance(
+        candidate_shape.get("named_items"), list
+    ):
+        named_items = {
+            item for item in candidate_shape["named_items"] if isinstance(item, str)
+        }
+    forecasts = value.get("forecasts")
+    if isinstance(forecasts, list) and forecasts:
+        forecast_rounds = [
+            item.get("round") for item in forecasts if isinstance(item, dict)
+        ]
+        if len(set(forecast_rounds)) != len(forecast_rounds):
+            add(
+                findings,
+                "helix.loop.deadline.forecasts",
+                "each round forecasts once; duplicate rounds make the sequence "
+                "unreadable",
+            )
+        elif forecast_rounds != sorted(forecast_rounds):
+            add(
+                findings,
+                "helix.loop.deadline.forecasts",
+                "forecasts are recorded in round order",
+            )
+        elif deadline_round_count and forecast_rounds != list(
+            range(1, deadline_round_count + 1)
+        ):
+            # Exactly one forecast per recorded round. Allowing the final round
+            # to be unforecast would let any record call itself mid-round and
+            # omit the forecast permanently, and there is no lifecycle state
+            # here to tell a real in-progress record from that claim.
+            add(
+                findings,
+                "helix.loop.deadline.forecasts",
+                "exactly one forecast per round inside the deadline window: the "
+                f"clock shows {deadline_round_count} such round(s), the forecasts "
+                "number "
+                + (", ".join(str(item) for item in forecast_rounds) or "none"),
+            )
+        parsed_at = parse_timestamp(at, "helix.loop.deadline.at", [])
+        past_deadline = (
+            parsed_at is not None
+            and evaluated_at is not None
+            and evaluated_at > parsed_at
+        )
+        for index, item in enumerate(forecasts):
+            if not isinstance(item, dict):
+                continue
+            settled = item.get("settled")
+            if (
+                parsed_at is not None
+                and evaluated_at is not None
+                and evaluated_at >= parsed_at
+                and settled is None
+            ):
+                add(
+                    findings,
+                    f"helix.loop.deadline.forecasts[{index}].settled",
+                    "the deadline has passed, so this forecast is settled against "
+                    "the outcome; an unsettled forecast improves no estimate",
+                )
+            forecast_at = parse_timestamp(
+                item.get("at"), f"helix.loop.deadline.forecasts[{index}].at", []
+            )
+            round_number = item.get("round")
+            if (
+                forecast_at is not None
+                and isinstance(round_number, int)
+                and 1 <= round_number <= len(round_windows)
+            ):
+                window_start, window_end = round_windows[round_number - 1]
+                own_round = round_readings[round_number - 1]
+                if forecast_at not in [
+                    instant for instant, _phase in own_round if instant is not None
+                ]:
+                    add(
+                        findings,
+                        f"helix.loop.deadline.forecasts[{index}].at",
+                        "a forecast is emitted at a moment the clock was read; its "
+                        "time must be one of that round's readings, or the "
+                        "remaining time it reports was computed from nothing",
+                    )
+                close = next(
+                    (
+                        instant
+                        for instant, phase in own_round
+                        if phase == "ship_decision" and instant is not None
+                    ),
+                    None,
+                )
+                if close is not None and forecast_at >= close:
+                    add(
+                        findings,
+                        f"helix.loop.deadline.forecasts[{index}].at",
+                        "the ship decision closes the round, so a forecast for it "
+                        "cannot be emitted at or after that decision",
+                    )
+                if window_end is not None and forecast_at >= window_end:
+                    add(
+                        findings,
+                        f"helix.loop.deadline.forecasts[{index}].at",
+                        "a forecast belongs to its own round, so it cannot land on "
+                        "or after the next round's start",
+                    )
+                if window_start is not None and forecast_at < window_start:
+                    add(
+                        findings,
+                        f"helix.loop.deadline.forecasts[{index}].at",
+                        f"a forecast for round {round_number} cannot predate that "
+                        "round's start",
+                    )
+                bound = window_end if window_end is not None else evaluated_at
+                if bound is not None and forecast_at > bound:
+                    add(
+                        findings,
+                        f"helix.loop.deadline.forecasts[{index}].at",
+                        f"a forecast for round {round_number} belongs inside that "
+                        "round, not after it has ended",
+                    )
+            round_start_at = (
+                round_windows[round_number - 1][0]
+                if isinstance(round_number, int)
+                and 1 <= round_number <= len(round_windows)
+                else None
+            )
+            within_window = (
+                round_start_at is not None
+                and parsed_at is not None
+                and round_start_at <= parsed_at
+            )
+            if (
+                within_window
+                and forecast_at is not None
+                and parsed_at is not None
+                and forecast_at > parsed_at
+            ):
+                add(
+                    findings,
+                    f"helix.loop.deadline.forecasts[{index}].at",
+                    "a forecast for a round inside the deadline window is made "
+                    "inside that window, not after the deadline has passed",
+                )
+            if isinstance(settled, dict):
+                settled_at = parse_timestamp(
+                    settled.get("at"),
+                    f"helix.loop.deadline.forecasts[{index}].settled.at",
+                    [],
+                )
+                if settled_at is not None and parsed_at is not None and settled_at < parsed_at:
+                    add(
+                        findings,
+                        f"helix.loop.deadline.forecasts[{index}].settled.at",
+                        "a forecast is settled after the deadline it forecast, not "
+                        "before it",
+                    )
+                if (
+                    settled_at is not None
+                    and forecast_at is not None
+                    and settled_at < forecast_at
+                ):
+                    add(
+                        findings,
+                        f"helix.loop.deadline.forecasts[{index}].settled.at",
+                        "a forecast cannot be settled before it was made",
+                    )
+                if (
+                    settled_at is not None
+                    and evaluated_at is not None
+                    and settled_at > evaluated_at
+                ):
+                    add(
+                        findings,
+                        f"helix.loop.deadline.forecasts[{index}].settled.at",
+                        "a settlement cannot be recorded after the evaluation that "
+                        "reports it",
+                    )
+    shape = value.get("minimum_shape")
+    if deadline_round_count and not isinstance(shape, dict):
+        add(
+            findings,
+            "helix.loop.deadline.minimum_shape",
+            "a deadline whose window contains a round needs the minimum coherent "
+            "set pre-registered by name; deciding at the end makes whatever "
+            "passed the definition",
+        )
+    if deadline_round_count and (not isinstance(forecasts, list) or not forecasts):
+        add(
+            findings,
+            "helix.loop.deadline.forecasts",
+            "a deadline whose window contains a round carries a forecast for it; "
+            "a forecast never recorded cannot be settled against the outcome",
+        )
+    elif not deadline_round_count and forecasts:
+        add(
+            findings,
+            "helix.loop.deadline.forecasts",
+            "the deadline had already passed when the first round started, so "
+            "there is nothing it could have forecast; work after it belongs to a "
+            "new window with its own verified source",
+        )
+    else:
+        for index, forecast in enumerate(forecasts):
+            validate_forecast(
+                forecast,
+                f"helix.loop.deadline.forecasts[{index}]",
+                named_items,
+                evaluated_at,
+                findings,
+            )
+    shape_value = value.get("minimum_shape")
+    if isinstance(shape_value, dict):
+        registered = parse_timestamp(
+            shape_value.get("registered_at"),
+            "helix.loop.deadline.minimum_shape.registered_at",
+            findings,
+        )
+        parsed_deadline = parse_timestamp(at, "helix.loop.deadline.at", [])
+        if registered is not None and parsed_deadline is not None and registered > parsed_deadline:
+            add(
+                findings,
+                "helix.loop.deadline.minimum_shape.registered_at",
+                "the minimum shape is registered at the start of the window, so it "
+                "cannot be registered after the deadline closes it",
+            )
+        first_round_start = next(
+            (
+                parse_timestamp(reading.get("at"), "helix.loop.deadline", [])
+                for reading in (readings if isinstance(readings, list) else [])
+                if isinstance(reading, dict) and reading.get("phase") == "round_start"
+            ),
+            None,
+        )
+        if not deadline_round_count:
+            if (
+                registered is not None
+                and deadline_instant is not None
+                and registered > deadline_instant
+            ):
+                add(
+                    findings,
+                    "helix.loop.deadline.minimum_shape.registered_at",
+                    "this deadline expired before the first round, so a shape "
+                    "registered after it was invented afterwards rather than "
+                    "pre-registered",
+                )
+        elif (
+            registered is not None
+            and first_round_start is not None
+            and registered > first_round_start
+        ):
+            add(
+                findings,
+                "helix.loop.deadline.minimum_shape.registered_at",
+                "the minimum shape is pre-registered at the start of the window, so "
+                "it cannot be registered after the first round has begun: deciding "
+                "later makes whatever passed the definition",
+            )
+        if registered is not None and evaluated_at is not None and registered > evaluated_at:
+            add(
+                findings,
+                "helix.loop.deadline.minimum_shape.registered_at",
+                "the minimum shape is pre-registered at the start of the window, "
+                "so it cannot be registered after the evaluation",
+            )
     if not evidence_list([source_ref], nonempty=True):
         add(
             findings,
@@ -761,6 +1578,233 @@ def validate_human_report(value: Any, path: str, findings: list[Finding]) -> boo
     return valid
 
 
+SCHEMA_PATH = Path(__file__).resolve().parent.parent / "schemas" / "helix-blocker-triage.schema.json"
+
+
+def _schema_document() -> dict[str, Any]:
+    """The canonical schema, read from disk so there is one source of truth."""
+    try:
+        return json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:  # pragma: no cover - packaging fault
+        raise ArtifactError(f"canonical schema is missing at {SCHEMA_PATH}") from exc
+
+
+def _resolve(schema: Any, root: dict[str, Any]) -> Any:
+    seen = 0
+    while isinstance(schema, dict) and "$ref" in schema:
+        ref = schema["$ref"]
+        if not isinstance(ref, str) or not ref.startswith("#/"):
+            raise ArtifactError(f"unsupported schema reference {ref!r}")
+        node: Any = root
+        for part in ref[2:].split("/"):
+            node = node[part.replace("~1", "/").replace("~0", "~")]
+        schema = node
+        seen += 1
+        if seen > 32:
+            raise ArtifactError("schema reference cycle")
+    return schema
+
+
+_TYPE_CHECKS: dict[str, Any] = {
+    "object": lambda v: isinstance(v, dict),
+    "array": lambda v: isinstance(v, list),
+    "string": lambda v: isinstance(v, str),
+    "boolean": lambda v: isinstance(v, bool),
+    "null": lambda v: v is None,
+    # JSON Schema counts 1.0 as an integer; Python does not. Using isinstance
+    # alone made this evaluator reject values jsonschema accepts.
+    "integer": lambda v: (isinstance(v, int) and not isinstance(v, bool))
+    or (isinstance(v, float) and v.is_integer()),
+    "number": lambda v: isinstance(v, (int, float)) and not isinstance(v, bool),
+}
+
+
+def _json_equal(left: Any, right: Any) -> bool:
+    """JSON Schema value equality, where `true` and `1` are different values.
+
+    Python treats booleans as integers, so `1 == True` and a plain `==` would
+    let a boolean satisfy a numeric const or enum and vice versa.
+    """
+    if isinstance(left, bool) != isinstance(right, bool):
+        return False
+    if isinstance(left, (int, float)) and isinstance(right, (int, float)):
+        return left == right
+    if type(left) is not type(right):
+        return False
+    return left == right
+
+
+def _schema_matches(value: Any, schema: Any, root: dict[str, Any]) -> bool:
+    return not _schema_errors(value, schema, root, "", collect=False)
+
+
+def _schema_errors(
+    value: Any,
+    schema: Any,
+    root: dict[str, Any],
+    path: str,
+    collect: bool = True,
+) -> list[tuple[str, str]]:
+    """Evaluate the subset of Draft 2020-12 this schema actually uses.
+
+    The CLI is the authoritative gate, so it has to enforce what the canonical
+    schema says rather than a hand-copy of it. Reading the schema keeps the two
+    from drifting: a constraint added to the file takes effect here without a
+    second implementation to forget.
+    """
+    schema = _resolve(schema, root)
+    out: list[tuple[str, str]] = []
+
+    def fail(where: str, message: str) -> list[tuple[str, str]]:
+        out.append((where or "helix", message))
+        return out
+
+    if schema is True or schema == {}:
+        return out
+    if schema is False:
+        return fail(path, "value is not permitted here")
+    if not isinstance(schema, dict):
+        return out
+
+    declared = schema.get("type")
+    if declared is not None:
+        names = declared if isinstance(declared, list) else [declared]
+        if not any(_TYPE_CHECKS.get(name, lambda _v: True)(value) for name in names):
+            return fail(path, f"must be {' or '.join(names)}")
+
+    if "const" in schema and not _json_equal(value, schema["const"]):
+        return fail(path, f"must equal {schema['const']!r}")
+    if "enum" in schema and not any(
+        _json_equal(value, option) for option in schema["enum"]
+    ):
+        return fail(path, f"must be one of {sorted(map(str, schema['enum']))}")
+
+    if isinstance(value, str):
+        # `format` is deliberately not implemented here: jsonschema treats it as
+        # advisory unless an optional format library is installed, and CI does
+        # not install one. Implementing it would make this evaluator stricter
+        # than CI — the same divergence in the other direction. Timestamp
+        # contracts are carried by `pattern`, which both engines enforce.
+        pattern = schema.get("pattern")
+        if pattern is not None and not re.search(pattern, value):
+            return fail(path, f"must match {pattern}")
+        minimum_length = schema.get("minLength")
+        if minimum_length is not None and len(value) < minimum_length:
+            return fail(path, f"must be at least {minimum_length} character(s)")
+
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        low = schema.get("minimum")
+        if low is not None and value < low:
+            return fail(path, f"must be >= {low}")
+        high = schema.get("maximum")
+        if high is not None and value > high:
+            return fail(path, f"must be <= {high}")
+
+    if isinstance(value, list):
+        low = schema.get("minItems")
+        if low is not None and len(value) < low:
+            return fail(path, f"needs at least {low} item(s)")
+        high = schema.get("maxItems")
+        if high is not None and len(value) > high:
+            return fail(path, f"allows at most {high} item(s)")
+        if schema.get("uniqueItems") and len(
+            {json.dumps(item, sort_keys=True) for item in value}
+        ) != len(value):
+            return fail(path, "items must be unique")
+        item_schema = schema.get("items")
+        if item_schema is not None:
+            for index, item in enumerate(value):
+                out.extend(
+                    _schema_errors(item, item_schema, root, f"{path}[{index}]", collect)
+                )
+                if out and not collect:
+                    return out
+
+    if isinstance(value, dict):
+        for key in schema.get("required", []):
+            if key not in value:
+                fail(path, f"missing required key {key!r}")
+                if not collect:
+                    return out
+        properties = schema.get("properties", {})
+        for key, sub in properties.items():
+            if key in value:
+                out.extend(
+                    _schema_errors(
+                        value[key], sub, root, f"{path}.{key}" if path else key, collect
+                    )
+                )
+                if out and not collect:
+                    return out
+        if schema.get("additionalProperties") is False:
+            for key in value:
+                if key not in properties:
+                    fail(path, f"unknown key {key!r}")
+                    if not collect:
+                        return out
+
+    for sub in schema.get("allOf", []):
+        out.extend(_schema_errors(value, sub, root, path, collect))
+        if out and not collect:
+            return out
+    if "anyOf" in schema and not any(
+        _schema_matches(value, sub, root) for sub in schema["anyOf"]
+    ):
+        return fail(path, "does not satisfy any permitted shape")
+    if "oneOf" in schema:
+        matched = sum(1 for sub in schema["oneOf"] if _schema_matches(value, sub, root))
+        if matched != 1:
+            return fail(path, "must satisfy exactly one permitted shape")
+    if "not" in schema and _schema_matches(value, schema["not"], root):
+        return fail(path, "matches a forbidden shape")
+    if "if" in schema:
+        branch = "then" if _schema_matches(value, schema["if"], root) else "else"
+        if branch in schema:
+            out.extend(_schema_errors(value, schema[branch], root, path, collect))
+
+    return out
+
+
+def validate_against_schema(record: Any) -> list[Finding]:
+    """Canonical-schema findings, evaluated from the schema file itself."""
+    root = _schema_document()
+    return [
+        Finding(code=where or "helix", message=message)
+        for where, message in _schema_errors(record, root, root, "")
+    ]
+
+
+def validate_record_full(record: Any) -> list[Finding]:
+    """The authoritative check: canonical schema, then cross-object rules.
+
+    `fairy blocker validate` used to call the runtime checks alone, so any
+    constraint expressed only in the schema — an enum value, a pattern, a
+    minItems — was rejected by the contract test in CI and accepted by the CLI
+    that decides. Two gates disagreeing is worse than one, because the weaker
+    one is the one people run.
+    """
+    # Version routing first: a superseded record should be told how to upgrade,
+    # not handed a shape error about the version field it legitimately carries.
+    if isinstance(record, dict):
+        version = record.get("schema_version")
+        if version in MIGRATABLE_SCHEMA_VERSIONS:
+            return [
+                Finding(
+                    code="helix.schema_version",
+                    message=(
+                        f"schema_version {version} is superseded; upgrade the "
+                        "record with `fairy blocker migrate`"
+                    ),
+                )
+            ]
+    schema_findings = validate_against_schema(record)
+    if schema_findings:
+        # A record that is not the right shape cannot be reasoned about across
+        # objects; reporting both sets would bury the shape error in noise.
+        return schema_findings
+    return validate_record(record)
+
+
 def validate_record(record: Any) -> list[Finding]:
     findings: list[Finding] = []
     top = object_shape(
@@ -773,7 +1817,7 @@ def validate_record(record: Any) -> list[Finding]:
     if top is None:
         return findings
     schema_version = top.get("schema_version")
-    if schema_version == MIGRATABLE_SCHEMA_VERSION:
+    if schema_version in MIGRATABLE_SCHEMA_VERSIONS:
         add(
             findings,
             "helix.schema_version",
@@ -824,6 +1868,48 @@ def validate_record(record: Any) -> list[Finding]:
         )
         implementer_id, reviewer_ids = validate_roles(loop.get("roles"), findings)
         deadline_at = validate_deadline(loop.get("deadline"), evaluated_at, findings)
+        authority = loop.get("priority_authority")
+        if isinstance(authority, dict):
+            active = authority.get("active")
+            directive = authority.get("directive")
+            if active is True:
+                if directive is None:
+                    add(
+                        findings,
+                        "helix.loop.priority_authority.directive",
+                        "an active priority role must name the directive it arises "
+                        "from, pinned by content",
+                    )
+                else:
+                    validate_pinned_source(
+                        directive,
+                        "helix.loop.priority_authority.directive",
+                        findings,
+                        evaluated_at,
+                    )
+                if loop.get("roles", {}).get("priority_reviewer_id") is None:
+                    add(
+                        findings,
+                        "helix.loop.roles.priority_reviewer_id",
+                        "the priority role is active, so exactly one reviewer holds it",
+                    )
+            elif active is False:
+                if directive is not None:
+                    add(
+                        findings,
+                        "helix.loop.priority_authority.directive",
+                        "an inactive priority role cannot cite a directive",
+                    )
+                if loop.get("roles", {}).get("priority_reviewer_id") is not None:
+                    add(
+                        findings,
+                        "helix.loop.roles.priority_reviewer_id",
+                        "with no directive in force the priority role does not arise, "
+                        "so no reviewer holds it",
+                    )
+        validate_target(loop.get("target"), findings, evaluated_at)
+        validate_claim_envelope(loop.get("claim_envelope"), findings, evaluated_at)
+        validate_working_branch(loop.get("working_branch"), findings)
         usage_pressure = validate_usage(loop.get("usage"), evaluated_at, findings)
         ship_stage, edison_mode = validate_ship_stage(
             loop.get("ship_stage"),
@@ -916,11 +2002,7 @@ def validate_record(record: Any) -> list[Finding]:
                 "a safety-floor finding must record demonstrated or precautionary",
             )
         estimated_fix_minutes = blocker.get("estimated_fix_minutes")
-        if (
-            not isinstance(estimated_fix_minutes, int)
-            or isinstance(estimated_fix_minutes, bool)
-            or estimated_fix_minutes <= 0
-        ):
+        if not json_integer(estimated_fix_minutes) or estimated_fix_minutes <= 0:
             add(findings, f"{path}.estimated_fix_minutes", "fix estimate must be positive")
             estimated_fix_minutes = None
         if not evidence_list(blocker.get("evidence_refs"), nonempty=True):
@@ -1044,6 +2126,18 @@ def validate_record(record: Any) -> list[Finding]:
                 and finding_class == "hardening"
                 and floor_basis == "precautionary"
             )
+            # An unapproved branch change is unconditional: it cannot be
+            # relabelled precautionary to reach the dev-stage defer envelope,
+            # because it is not a claim about the increment's behaviour at all.
+            if protected_floor in NON_DEFERRABLE_FLOORS:
+                floor_deferrable = False
+                add(
+                    findings,
+                    f"{path}.resolution.disposition",
+                    "an unapproved branch change is not deferrable at any level of "
+                    "concurrence; its only exits are a cited owner approval or "
+                    "returning to the recorded branch and consolidating",
+                )
             if protected_floor != "none" and not floor_deferrable:
                 add(
                     findings,
@@ -1253,11 +2347,58 @@ def validate_record(record: Any) -> list[Finding]:
                 "helix.final_readback.report_ref",
                 "reported readback needs a concrete report_ref",
             )
+
+    # An unapproved branch change has exactly two exits, and the record has to
+    # show which one was taken. Without this the floor value can be raised and
+    # the record closed with remedy "none" and no approval anywhere — the floor
+    # stated in the schema but never read at runtime.
+    # The envelope's immutable half is only immutable if its ref cannot move.
+    # exact_head is enforced both in the schema and here; baseline_ref carries
+    # the same promise and gets the same treatment.
+    envelope = loop.get("claim_envelope") if isinstance(loop, dict) else None
+    if isinstance(envelope, dict):
+        baseline = envelope.get("baseline_ref")
+        if not isinstance(baseline, str) or not SHA_RE.fullmatch(baseline):
+            add(
+                findings,
+                "helix.loop.claim_envelope.baseline_ref",
+                "baseline_ref must be a commit id, not a movable name: a branch "
+                "ref makes the fixed half of the envelope as mutable as the "
+                "half it is supposed to anchor",
+            )
+
+    branch_floor_raised = any(
+        isinstance(blocker, dict)
+        and blocker.get("protected_floor") == "unapproved_branch_change"
+        for blocker in (blockers if isinstance(blockers, list) else [])
+    )
+    if branch_floor_raised:
+        branch = loop.get("working_branch") if isinstance(loop, dict) else None
+        branch = branch if isinstance(branch, dict) else {}
+        remedy = branch.get("remedy")
+        approval = branch.get("approval_ref")
+        if remedy not in {"approval_produced", "returned_and_consolidated"}:
+            add(
+                findings,
+                "helix.loop.working_branch.remedy",
+                "an unapproved branch change must record which exit was taken: "
+                "a cited owner approval, or returning to the recorded branch "
+                "and consolidating",
+            )
+        elif remedy == "approval_produced" and not (
+            isinstance(approval, str) and approval.strip()
+        ):
+            add(
+                findings,
+                "helix.loop.working_branch.approval_ref",
+                "approval_produced needs the owner approval as a citable ref; "
+                "a recollection is not evidence",
+            )
     return findings
 
 
 def require_valid(record: Any) -> None:
-    findings = validate_record(record)
+    findings = validate_record_full(record)
     if findings:
         detail = "; ".join(f"{item.code}: {item.message}" for item in findings)
         raise ArtifactError(detail)
@@ -1274,9 +2415,9 @@ def render_markdown(record: dict[str, Any]) -> str:
     deadline_summary = "none"
     if deadline["at"] is not None:
         evaluated_at = datetime.fromisoformat(
-            loop["evaluated_at"].replace("Z", "+00:00")
+            loop["evaluated_at"].replace("Z", "+00:00").replace("z", "+00:00")
         )
-        deadline_at = datetime.fromisoformat(deadline["at"].replace("Z", "+00:00"))
+        deadline_at = datetime.fromisoformat(deadline["at"].replace("Z", "+00:00").replace("z", "+00:00"))
         remaining_hours = (deadline_at - evaluated_at).total_seconds() / 3600
         deadline_summary = (
             f"{deadline['at']} ({remaining_hours:.1f}h remaining at evaluation; "
@@ -1284,6 +2425,27 @@ def render_markdown(record: dict[str, Any]) -> str:
         )
     usage = loop["usage"]
     ship = loop["ship_stage"]
+    target = loop["target"]
+    deadline_instant = (
+        datetime.fromisoformat(deadline["at"].replace("Z", "+00:00").replace("z", "+00:00"))
+        if isinstance(deadline.get("at"), str)
+        else None
+    )
+
+    def _forecast_instant(item: dict[str, Any]) -> datetime | None:
+        raw = item.get("at")
+        if not isinstance(raw, str):
+            return None
+        try:
+            return datetime.fromisoformat(
+                raw.replace("Z", "+00:00").replace("z", "+00:00")
+            )
+        except ValueError:
+            return None
+
+    envelope = loop["claim_envelope"]
+    branch = loop["working_branch"]
+    authority = loop["priority_authority"]
     happy_path = ship["happy_path"]
     happy_path_summary = (
         f"verified against `{happy_path['check_ref']}`"
@@ -1303,6 +2465,123 @@ def render_markdown(record: dict[str, Any]) -> str:
         ),
         f"- Normal path: {happy_path_summary} — {markdown_escape(happy_path['summary'])}",
         f"- Deadline: {deadline_summary}",
+        (
+            "- Deadline source: "
+            + (
+                f"`{deadline['source_pin']['ref']}`"
+                f"@`{deadline['source_pin']['content_hash'][:12]}`"
+                if isinstance(deadline.get("source_pin"), dict)
+                else "not in force"
+            )
+        ),
+        (
+            "- Forecasts: "
+            + (
+                "none — no deadline in force"
+                if deadline.get("at") is None
+                else "none — the deadline expired before the first recorded round"
+                if not deadline["forecasts"]
+                else "; ".join(
+                    f"r{item['round']}@`{item['at']}` passed "
+                    + (", ".join(markdown_escape(x) for x in item["passed"]) or "none")
+                    + " / outstanding "
+                    + (
+                        ", ".join(markdown_escape(x) for x in item["outstanding"])
+                        or "none"
+                    )
+                    + ("; fits" if item["fits"] else "; does not fit")
+                    + f"; next {markdown_escape(item['next'])}"
+                    + (
+                        "; "
+                        + (
+                            f"{(deadline_instant - _forecast_instant(item)).total_seconds() / 3600:.1f}h remaining"
+                            if deadline_instant is not None
+                            and _forecast_instant(item) is not None
+                            else "remaining time unknown"
+                        )
+                    )
+                    + (
+                        f"; settled {item['settled']['outcome']} at "
+                        f"`{item['settled']['at']}`"
+                        if item.get("settled")
+                        else "; unsettled"
+                    )
+                    for item in deadline["forecasts"]
+                )
+            )
+        ),
+        # The cards require that the record says who held the priority role,
+        # where the change belongs, what the claim was pinned to, and which
+        # branch the effort was fixed to. Evidence that never reaches the human
+        # readback is evidence only the validator can see.
+        (
+            "- Priority authority: "
+            + (
+                f"active from `{authority['directive']['ref']}`"
+                f"@`{authority['directive']['content_hash'][:12]}`, held by "
+                f"`{loop['roles']['priority_reviewer_id']}`"
+                if authority.get("active")
+                else "not in force (no owner directive; the role does not arise)"
+            )
+        ),
+        (
+            "- Clock readings: "
+            + (
+                ", ".join(
+                    f"`{reading['phase']}`@`{reading['at']}`"
+                    for reading in deadline["clock_readings"]
+                )
+                or "none (no deadline in force)"
+            )
+        ),
+        (
+            "- Minimum shape: "
+            + (
+                "not pre-registered (no deadline in force)"
+                if deadline.get("minimum_shape") is None
+                else (
+                    f"`{deadline['minimum_shape']['hash'][:12]}` from "
+                    f"`{deadline['minimum_shape']['owner_goal_ref']}` — "
+                    + ", ".join(
+                        markdown_escape(item)
+                        for item in deadline["minimum_shape"]["named_items"]
+                    )
+                )
+            )
+        ),
+        (
+            f"- Target: `{target['repo']}` `{target['path']}` "
+            f"({target['layer']}, owner `{target['canonical_owner']}`, "
+            f"{target['duplication_policy']})"
+        ),
+        (
+            "- Target resolved from: "
+            + ", ".join(
+                f"`{ref['ref']}`@`{ref['content_hash'][:12]}`"
+                for ref in target["directive_refs"]
+            )
+        ),
+        (
+            f"- Claim envelope: baseline `{envelope['baseline_ref'][:12]}` + "
+            + ", ".join(
+                f"`{ref['ref']}`@`{ref['content_hash'][:12]}`"
+                for ref in envelope["claim_snapshot_refs"]
+            )
+        ),
+        (
+            f"- Working branch: `{branch['name']}` fixed by "
+            f"`{branch['fixed_by_ref']}`"
+            + (
+                ""
+                if branch.get("remedy") in (None, "none")
+                else f" — remedy `{branch['remedy']}`"
+                + (
+                    f" (`{branch['approval_ref']}`)"
+                    if branch.get("approval_ref")
+                    else ""
+                )
+            )
+        ),
         (
             "- Usage: "
             f"primary={usage['primary_5h_remaining']}, "
@@ -1436,9 +2715,11 @@ def migrate_record(record: Any) -> dict[str, Any]:
     version = record.get("schema_version")
     if version == SCHEMA_VERSION:
         raise ArtifactError(f"record is already schema {SCHEMA_VERSION}")
-    if version != MIGRATABLE_SCHEMA_VERSION:
+    if version not in MIGRATABLE_SCHEMA_VERSIONS:
         raise ArtifactError(
-            f"only schema {MIGRATABLE_SCHEMA_VERSION} records can be migrated"
+            "only schema "
+            + " or ".join(MIGRATABLE_SCHEMA_VERSIONS)
+            + " records can be migrated"
         )
     upgraded = copy.deepcopy(record)
     upgraded["schema_version"] = SCHEMA_VERSION
@@ -1446,8 +2727,57 @@ def migrate_record(record: Any) -> dict[str, Any]:
     loop = upgraded.get("loop")
     if not isinstance(loop, dict):
         raise ArtifactError("helix.loop must be an object")
+    # 1.2 adds records of evidence that a 1.1 record never captured: where the
+    # change belongs, which sources the claim was pinned against, which branch
+    # the effort was fixed to, who held the priority role, and what the clock
+    # actually read. None of that can be reconstructed from the old record, and
+    # inventing it would forge exactly the provenance the fields exist to carry.
+    # The upgrade therefore asks the operator for it rather than guessing.
+    missing = [
+        name
+        for name in ("target", "claim_envelope", "working_branch")
+        if not isinstance(loop.get(name), dict)
+    ]
+    if not isinstance(loop.get("priority_authority"), dict):
+        missing.append("priority_authority")
+    roles = loop.get("roles")
+    if not isinstance(roles, dict) or "priority_reviewer_id" not in roles:
+        missing.append("roles.priority_reviewer_id")
+    deadline = loop.get("deadline")
+    if not isinstance(deadline, dict):
+        missing.append("deadline")
+    elif deadline.get("source") == "none":
+        # No deadline was in force, so there was no clock to read and no window
+        # to register a shape in. Demanding them here would make the record the
+        # schema calls correct impossible to migrate.
+        if deadline.get("clock_readings"):
+            raise ArtifactError(
+                "a record with no deadline in force cannot carry clock readings"
+            )
+        deadline.setdefault("clock_readings", [])
+        deadline.setdefault("minimum_shape", None)
+        deadline.setdefault("source_pin", None)
+        deadline.setdefault("forecasts", [])
+    else:
+        if not deadline.get("clock_readings"):
+            missing.append("deadline.clock_readings")
+        if not deadline.get("source_pin"):
+            missing.append("deadline.source_pin")
+        if not deadline.get("forecasts"):
+            missing.append("deadline.forecasts")
+    if missing:
+        raise ArtifactError(
+            "schema 1.2 records evidence the 1.1 record does not carry; attach it "
+            "before migrating rather than letting the upgrade invent it: "
+            + ", ".join(missing)
+        )
     if "ship_stage" in loop:
-        raise ArtifactError("a schema 1.0 record cannot already carry a ship_stage")
+        if version != "1.1":
+            raise ArtifactError(
+                f"a schema {version} record cannot already carry a ship_stage"
+            )
+        require_valid(upgraded)
+        return upgraded
     loop["ship_stage"] = {
         "stage": "production",
         "basis": "production_promotion",
@@ -1498,7 +2828,7 @@ def migrate_record(record: Any) -> dict[str, Any]:
 
 def sample_record() -> dict[str, Any]:
     return {
-        "schema_version": "1.1",
+        "schema_version": SCHEMA_VERSION,
         "artifact_type": "helix_blocker_triage",
         "loop": {
             "loop_id": "helix-balance-sample",
@@ -1509,11 +2839,83 @@ def sample_record() -> dict[str, Any]:
             "roles": {
                 "implementer_id": "misa-3",
                 "reviewer_ids": ["codex-misa", "cc-misa-hime"],
+                "priority_reviewer_id": "codex-misa",
+            },
+            "priority_authority": {
+                "active": True,
+                "directive": {
+                    "ref": "source:owner-priority-directive",
+                    "content_hash": "d" * 64,
+                    "captured_at": "2026-07-26T13:45:00+09:00",
+                    "edit_count": 0,
+                },
             },
             "deadline": {
                 "at": "2026-07-27T14:00:00+09:00",
                 "source": "explicit_owner",
                 "source_ref": "source:owner-deadline",
+                "source_pin": {
+                    "ref": "source:owner-deadline",
+                    "content_hash": "e" * 64,
+                    "captured_at": "2026-07-26T13:45:00+09:00",
+                    "edit_count": 0,
+                },
+                "clock_readings": [
+                    {"at": "2026-07-26T13:50:00+09:00", "phase": "round_start"},
+                    {"at": "2026-07-26T13:55:00+09:00", "phase": "disposition"},
+                    {"at": "2026-07-26T14:00:00+09:00", "phase": "ship_decision"},
+                ],
+                "minimum_shape": {
+                    "owner_goal_ref": "source:owner-deadline",
+                    "named_items": ["path identity fix", "capacity eviction guard"],
+                    "hash": "a" * 64,
+                    "registered_at": "2026-07-26T13:50:00+09:00",
+                },
+                "forecasts": [
+                    {
+                        "round": 1,
+                        "at": "2026-07-26T13:55:00+09:00",
+                        "passed": ["path identity fix"],
+                        "outstanding": ["capacity eviction guard"],
+                        "fits": True,
+                        "next": "capacity eviction guard",
+                        "settled": None,
+                    }
+                ],
+            },
+            "target": {
+                "repo": "bonginkan/fairy_tale",
+                "path": "skills/fairy-tale/references/cards",
+                "layer": "canonical skill cards",
+                "canonical_owner": "bonginkan/fairy_tale",
+                "directive_refs": [
+                    {
+                        "ref": "source:owner-directive",
+                        "content_hash": "b" * 64,
+                        "captured_at": "2026-07-26T13:45:00+09:00",
+                        "edit_count": 0,
+                    }
+                ],
+                "propagation_path": ["plugins/fairy-tale/skills/fairy-tale"],
+                "duplication_policy": "mirrored_byte_identical",
+                "resolved_at": "2026-07-26T13:45:00+09:00",
+            },
+            "claim_envelope": {
+                "baseline_ref": "0" * 40,
+                "claim_snapshot_refs": [
+                    {
+                        "ref": "source:owner-directive",
+                        "content_hash": "b" * 64,
+                        "captured_at": "2026-07-26T13:45:00+09:00",
+                        "edit_count": 0,
+                    }
+                ],
+            },
+            "working_branch": {
+                "name": "dev-matsumoto",
+                "fixed_by_ref": "source:owner-branch-fix",
+                "approval_ref": None,
+                "remedy": "none",
             },
             "usage": {
                 "primary_5h_remaining": 12,
@@ -1677,7 +3079,14 @@ def dev_sample_record() -> dict[str, Any]:
 
 
 def legacy_sample_record() -> dict[str, Any]:
-    """The canonical sample as schema 1.0 wrote it, before the ship stage."""
+    """The canonical sample as the previous schema wrote it.
+
+    The 1.2 evidence stays attached here because migration refuses to invent
+    it: an operator upgrading a stored record supplies the target, envelope,
+    branch, priority holder, and clock readings, and the upgrade validates what
+    they supplied. Stripping them would test that migration fabricates, which
+    is the behaviour the refusal exists to prevent.
+    """
     record = sample_record()
     record["schema_version"] = MIGRATABLE_SCHEMA_VERSION
     del record["loop"]["ship_stage"]
@@ -2079,6 +3488,824 @@ def run_selftest() -> int:
 
     # Schema 1.0 compatibility: the persisted records written before the ship
     # stage existed stay readable through a tested upgrade path.
+    # The priority role and its directive must agree, in both directions, or an
+    # unpinned authority is recordable and a legitimate absent one is not.
+    active_without_directive = copy.deepcopy(base)
+    active_without_directive["loop"]["priority_authority"]["directive"] = None
+    blocked(active_without_directive, "must name the directive it arises from")
+
+    active_without_holder = copy.deepcopy(base)
+    active_without_holder["loop"]["roles"]["priority_reviewer_id"] = None
+    blocked(active_without_holder, "exactly one reviewer holds it")
+
+    inactive_with_holder = copy.deepcopy(base)
+    inactive_with_holder["loop"]["priority_authority"] = {
+        "active": False,
+        "directive": None,
+    }
+    blocked(inactive_with_holder, "the priority role does not arise")
+
+    unpinned_deadline = copy.deepcopy(base)
+    unpinned_deadline["loop"]["deadline"]["source_pin"] = None
+    blocked(unpinned_deadline, "pin it by content")
+
+    # A record with no deadline in force must be migratable: the schema calls it
+    # correct, so the upgrade path has to accept it rather than demanding a
+    # clock reading that legitimately does not exist.
+    for version in MIGRATABLE_SCHEMA_VERSIONS:
+        no_deadline_legacy = legacy_sample_record()
+        no_deadline_legacy["schema_version"] = version
+        if version == "1.0":
+            no_deadline_legacy["final_readback"].pop("ship_decision", None)
+            for blocker in no_deadline_legacy["blockers"]:
+                blocker.pop("finding_class", None)
+                blocker.pop("floor_basis", None)
+        no_deadline_legacy["loop"]["deadline"] = {
+            "at": None,
+            "source": "none",
+            "source_ref": "",
+            "source_pin": None,
+            "clock_readings": [],
+            "minimum_shape": None,
+            "forecasts": [],
+        }
+        no_deadline_legacy["loop"]["priority_authority"] = {
+            "active": False,
+            "directive": None,
+        }
+        no_deadline_legacy["loop"]["roles"]["priority_reviewer_id"] = None
+        upgraded_no_deadline = migrate_record(no_deadline_legacy)
+        check(
+            upgraded_no_deadline["schema_version"] == SCHEMA_VERSION,
+            f"a schema {version} record with no deadline in force still migrates",
+        )
+
+    # A superseded record is routed to the upgrade path, not handed a shape
+    # error about the version field it correctly carries.
+    for version in MIGRATABLE_SCHEMA_VERSIONS:
+        superseded = legacy_sample_record()
+        superseded["schema_version"] = version
+        routed = validate_record_full(superseded)
+        check(
+            any("fairy blocker migrate" in item.message for item in routed),
+            f"a schema {version} record is routed to the upgrade path",
+        )
+
+    # These validators existed but nothing called them, so the schema layer was
+    # doing all the work and their cross-object rules were inert. One control
+    # per validator, so a future refactor that drops the call site goes red.
+    for label, mutate in (
+        ("target fields", lambda r: r["loop"]["target"].__setitem__("repo", "")),
+        (
+            "target directive pinning",
+            lambda r: r["loop"]["target"]["directive_refs"][0].__setitem__(
+                "content_hash", "nope"
+            ),
+        ),
+        (
+            "envelope pinning",
+            lambda r: r["loop"]["claim_envelope"]["claim_snapshot_refs"][0].__setitem__(
+                "content_hash", "nope"
+            ),
+        ),
+        ("branch naming", lambda r: r["loop"]["working_branch"].__setitem__("name", "")),
+        (
+            "clock reading phase",
+            lambda r: r["loop"]["deadline"]["clock_readings"][0].__setitem__(
+                "phase", "whenever"
+            ),
+        ),
+        (
+            "minimum shape items",
+            lambda r: r["loop"]["deadline"]["minimum_shape"].__setitem__(
+                "named_items", []
+            ),
+        ),
+    ):
+        wired = copy.deepcopy(base)
+        mutate(wired)
+        check(
+            bool(validate_record(wired)),
+            f"the runtime validator for {label} is reached",
+        )
+
+    # The forecast has to be about the pre-registered set, and the deadline has
+    # to be justified and evidenced by the same source.
+    stray_forecast = copy.deepcopy(base)
+    stray_forecast["loop"]["deadline"]["forecasts"][0]["passed"] = ["something else"]
+    blocked(stray_forecast, "cannot name items outside it")
+
+    both_ways = copy.deepcopy(base)
+    both_ways["loop"]["deadline"]["forecasts"][0]["outstanding"] = [
+        "path identity fix"
+    ]
+    blocked(both_ways, "cannot be both passed and outstanding")
+
+    missing_forecast = copy.deepcopy(base)
+    missing_forecast["loop"]["deadline"]["forecasts"] = []
+    blocked(missing_forecast, "carries a forecast for it")
+
+    split_source = copy.deepcopy(base)
+    split_source["loop"]["deadline"]["source_pin"]["ref"] = "source:somewhere-else"
+    blocked(split_source, "must name the same thing")
+
+    late_reading = copy.deepcopy(base)
+    late_reading["loop"]["deadline"]["clock_readings"][0]["at"] = (
+        "2026-07-27T09:00:00+09:00"
+    )
+    blocked(late_reading, "cannot be later than the evaluation")
+
+    registered_mid_window = copy.deepcopy(base)
+    registered_mid_window["loop"]["deadline"]["minimum_shape"]["registered_at"] = (
+        "2026-07-26T13:57:00+09:00"
+    )
+    blocked(registered_mid_window, "after the first round has begun")
+
+    # MISA L's fourth path, pinned on the PR: a leading disposition became a
+    # phantom round 1, so the real first round was numbered 2 and a two-forecast
+    # record validated. Reproduced from their exact construction.
+    phantom_round = copy.deepcopy(base)
+    phantom_round["loop"]["deadline"]["clock_readings"] = [
+        {"at": "2026-07-26T13:45:00+09:00", "phase": "disposition"},
+        {"at": "2026-07-26T13:50:00+09:00", "phase": "round_start"},
+        {"at": "2026-07-26T13:55:00+09:00", "phase": "disposition"},
+    ]
+    phantom_round["loop"]["deadline"]["forecasts"][0]["at"] = (
+        "2026-07-26T13:45:00+09:00"
+    )
+    phantom_second = copy.deepcopy(phantom_round["loop"]["deadline"]["forecasts"][0])
+    phantom_second["round"] = 2
+    phantom_second["at"] = "2026-07-26T13:55:00+09:00"
+    phantom_round["loop"]["deadline"]["forecasts"].append(phantom_second)
+    blocked(phantom_round, "precedes the first round_start")
+
+    # The three forecast-instant paths MISA L reached, each rejected for its own
+    # reason: a forecast on the next round's start, one at a moment no clock was
+    # read, and one at or after the ship decision that closes its round.
+    on_next_round_start = copy.deepcopy(base)
+    on_next_round_start["loop"]["deadline"]["clock_readings"] = [
+        {"at": "2026-07-26T13:50:00+09:00", "phase": "round_start"},
+        {"at": "2026-07-26T13:52:00+09:00", "phase": "disposition"},
+        {"at": "2026-07-26T13:55:00+09:00", "phase": "round_start"},
+        {"at": "2026-07-26T13:58:00+09:00", "phase": "disposition"},
+    ]
+    on_next_round_start["loop"]["deadline"]["forecasts"][0]["at"] = (
+        "2026-07-26T13:55:00+09:00"
+    )
+    second = copy.deepcopy(on_next_round_start["loop"]["deadline"]["forecasts"][0])
+    second["round"] = 2
+    second["at"] = "2026-07-26T13:58:00+09:00"
+    on_next_round_start["loop"]["deadline"]["forecasts"].append(second)
+    blocked(on_next_round_start, "cannot land on or after the next round's start")
+
+    unread_moment = copy.deepcopy(base)
+    unread_moment["loop"]["deadline"]["forecasts"][0]["at"] = (
+        "2026-07-26T13:53:00+09:00"
+    )
+    blocked(unread_moment, "at a moment the clock was read")
+
+    after_ship_decision = copy.deepcopy(base)
+    after_ship_decision["loop"]["deadline"]["forecasts"][0]["at"] = (
+        "2026-07-26T14:00:00+09:00"
+    )
+    blocked(after_ship_decision, "closes the round")
+
+    dropped_item = copy.deepcopy(base)
+    dropped_item["loop"]["deadline"]["forecasts"][0]["outstanding"] = []
+    blocked(dropped_item, "accounts for every pre-registered item")
+
+    duplicate_round = copy.deepcopy(base)
+    duplicate_round["loop"]["deadline"]["forecasts"].append(
+        copy.deepcopy(duplicate_round["loop"]["deadline"]["forecasts"][0])
+    )
+    blocked(duplicate_round, "each round forecasts once")
+
+    # The timestamp family derived from the schema rather than recalled: every
+    # $ref to $defs/timestamp, minus the two that are legitimately in the future
+    # (the deadline itself, and the evaluation everything else is measured
+    # against). Hand-listing this family is what let two members slip.
+    # The timestamp family, walked out of the schema itself rather than listed
+    # here. A hand-written list is what let forecast.settled.at slip twice, and
+    # a list cannot notice a field added later: this enumerates every
+    # $ref to $defs/timestamp reachable in the sample and mutates each one.
+    FUTURE = "2099-01-01T00:00:00+09:00"
+    schema_root = _schema_document()
+    # deadline.at is a future instant by definition, and evaluated_at is the
+    # reference every other instant is compared against.
+    exempt = {("loop", "deadline", "at"), ("loop", "evaluated_at")}
+
+    def timestamp_paths(
+        node: Any, schema: Any, trail: tuple[str, ...]
+    ) -> list[tuple[str, ...]]:
+        schema = _resolve(schema, schema_root)
+        if not isinstance(schema, dict):
+            return []
+        found: list[tuple[str, ...]] = []
+        # Branches contribute properties in addition to the base, so walking
+        # only the matching branch loses everything declared alongside it.
+        for branch in ("oneOf", "anyOf", "allOf"):
+            for option in schema.get(branch, []):
+                resolved = _resolve(option, schema_root)
+                if isinstance(resolved, dict) and _schema_matches(
+                    node, resolved, schema_root
+                ):
+                    found.extend(timestamp_paths(node, resolved, trail))
+        if isinstance(node, str):
+            if schema.get("format") == "date-time":
+                found.append(trail)
+            return found
+        if isinstance(node, dict):
+            for key, sub in schema.get("properties", {}).items():
+                if key in node:
+                    resolved = _resolve(sub, schema_root)
+                    if (
+                        isinstance(node[key], str)
+                        and isinstance(resolved, dict)
+                        and resolved.get("format") == "date-time"
+                    ):
+                        found.append(trail + (key,))
+                    else:
+                        found.extend(timestamp_paths(node[key], sub, trail + (key,)))
+        elif isinstance(node, list):
+            item_schema = schema.get("items")
+            if item_schema is not None:
+                for index, item in enumerate(node):
+                    found.extend(
+                        timestamp_paths(item, item_schema, trail + (str(index),))
+                    )
+        return found
+
+    # Walking the sample only finds fields the sample happens to carry, so a new
+    # schema field nobody added to the sample stays invisible — which is exactly
+    # how a timestamp field would slip in unvalidated. Enumerate from the schema
+    # and require every one to be reachable in the sample or explicitly exempt.
+    def schema_timestamp_paths(
+        schema: Any, trail: tuple[str, ...], seen: frozenset[str]
+    ) -> list[tuple[str, ...]]:
+        if isinstance(schema, dict) and "$ref" in schema:
+            ref = schema["$ref"]
+            if ref == "#/$defs/timestamp":
+                return [trail]
+            if ref in seen:
+                return []
+            return schema_timestamp_paths(
+                _resolve(schema, schema_root), trail, seen | {ref}
+            )
+        if not isinstance(schema, dict):
+            return []
+        out: list[tuple[str, ...]] = []
+        for key, sub in schema.get("properties", {}).items():
+            out.extend(schema_timestamp_paths(sub, trail + (key,), seen))
+        if "items" in schema:
+            out.extend(schema_timestamp_paths(schema["items"], trail + ("*",), seen))
+        for branch in ("oneOf", "anyOf", "allOf"):
+            for option in schema.get(branch, []):
+                out.extend(schema_timestamp_paths(option, trail, seen))
+        for branch in ("then", "else"):
+            if branch in schema:
+                out.extend(schema_timestamp_paths(schema[branch], trail, seen))
+        return out
+
+    schema_declared = {
+        path for path in schema_timestamp_paths(schema_root, (), frozenset())
+    }
+    # A settlement only exists once the deadline has passed, so the pre-deadline
+    # sample cannot carry one. Coverage is demonstrated across the records the
+    # suite actually exercises rather than bent into a single fixture.
+    settled_record = copy.deepcopy(base)
+    settled_record["loop"]["evaluated_at"] = "2026-07-28T12:00:00+09:00"
+    settled_record["loop"]["usage"]["observed_at"] = "2026-07-28T11:30:00+09:00"
+    settled_record["loop"]["deadline"]["forecasts"][0]["settled"] = {
+        "at": "2026-07-27T15:00:00+09:00",
+        "outcome": "as_forecast",
+    }
+    check(
+        not validate_record_full(settled_record),
+        "a settled forecast after the deadline is valid",
+    )
+    covered = {
+        tuple("*" if step.isdigit() else step for step in path)
+        for record in (base, settled_record)
+        for path in timestamp_paths(record, schema_root, ())
+    }
+    uncovered = {
+        path
+        for path in schema_declared
+        if path not in covered and path not in exempt
+    }
+    check(
+        not uncovered,
+        "every schema timestamp is reachable in the sample: "
+        + (", ".join(".".join(path) for path in sorted(uncovered)) or "none missing"),
+    )
+
+    # Each declared timestamp is mapped to a fixture that actually carries it,
+    # and the mapping is compared to the schema by exact equality. Deriving the
+    # mutations from `base` alone left settled.at checked for reachability but
+    # never mutated, so an unvalidated timestamp reachable only in a special
+    # state stayed green.
+    fixtures: list[tuple[str, dict[str, Any]]] = [
+        ("sample", base),
+        ("settled", settled_record),
+    ]
+    path_to_fixture: dict[tuple[str, ...], tuple[str, dict[str, Any]]] = {}
+    for fixture_name, fixture in fixtures:
+        for concrete in timestamp_paths(fixture, schema_root, ()):
+            generic = tuple(
+                "*" if step.isdigit() else step for step in concrete
+            )
+            if generic in exempt:
+                continue
+            path_to_fixture.setdefault(generic, (fixture_name, fixture))
+
+    check(
+        set(path_to_fixture) == schema_declared - exempt,
+        "every declared timestamp maps to a fixture carrying it; unmapped: "
+        + (
+            ", ".join(
+                ".".join(path)
+                for path in sorted((schema_declared - exempt) - set(path_to_fixture))
+            )
+            or "none"
+        ),
+    )
+
+    for generic, (fixture_name, fixture) in sorted(path_to_fixture.items()):
+        concrete = next(
+            candidate
+            for candidate in timestamp_paths(fixture, schema_root, ())
+            if tuple("*" if step.isdigit() else step for step in candidate) == generic
+        )
+        future_member = copy.deepcopy(fixture)
+        target: Any = future_member
+        for step in concrete[:-1]:
+            target = target[int(step)] if step.isdigit() else target[step]
+        last = concrete[-1]
+        if last.isdigit():
+            target[int(last)] = FUTURE
+        else:
+            target[last] = FUTURE
+        check(
+            bool(validate_record_full(future_member)),
+            f"a future {'.'.join(generic)} is rejected (in the {fixture_name} fixture)",
+        )
+
+    # A legitimate second round: phases cycle, and each recorded round carries
+    # its own forecast. This must pass or a multi-round record is unwritable.
+    second_round = copy.deepcopy(base)
+    second_round["loop"]["deadline"]["clock_readings"] = [
+        {"at": "2026-07-26T13:50:00+09:00", "phase": "round_start"},
+        {"at": "2026-07-26T13:52:00+09:00", "phase": "disposition"},
+        {"at": "2026-07-26T13:55:00+09:00", "phase": "round_start"},
+        {"at": "2026-07-26T13:58:00+09:00", "phase": "disposition"},
+        {"at": "2026-07-26T14:00:00+09:00", "phase": "ship_decision"},
+    ]
+    second_round["loop"]["deadline"]["forecasts"][0]["at"] = (
+        "2026-07-26T13:52:00+09:00"
+    )
+    later = copy.deepcopy(second_round["loop"]["deadline"]["forecasts"][0])
+    later["round"] = 2
+    later["at"] = "2026-07-26T13:58:00+09:00"
+    second_round["loop"]["deadline"]["forecasts"].append(later)
+    check(
+        not validate_record_full(second_round),
+        "a second round may restart the phase sequence",
+    )
+
+    # Every mutation MISA L reached the full entrypoint with, each rejected for
+    # its own reason rather than by a shape check that happens to catch it.
+    # A deadline that expired before the first recorded round is an observation
+    # worth keeping, not an error: the work was handed over already late. It
+    # forecasts nothing, so it needs no forecast and no pre-registered shape,
+    # but a shape invented after the fact is still refused.
+    def expired_before_start() -> dict[str, Any]:
+        record = copy.deepcopy(base)
+        record["loop"]["deadline"]["at"] = "2026-07-26T13:00:00+09:00"
+        record["loop"]["deadline"]["forecasts"] = []
+        record["loop"]["deadline"]["minimum_shape"] = None
+        return record
+
+    check(
+        not validate_record_full(expired_before_start()),
+        "a deadline that expired before the first round is recordable",
+    )
+
+    check(
+        "settled as_forecast at" in render_markdown(settled_record),
+        "the readback carries the settlement instant, not only its outcome",
+    )
+
+    check(
+        "expired before the first recorded round"
+        in render_markdown(expired_before_start()),
+        "the readback distinguishes an expired deadline from no deadline",
+    )
+
+    invented_shape = expired_before_start()
+    invented_shape["loop"]["deadline"]["minimum_shape"] = {
+        "owner_goal_ref": "source:owner-deadline",
+        "named_items": ["path identity fix"],
+        "hash": "a" * 64,
+        "registered_at": "2026-07-26T13:50:00+09:00",
+    }
+    blocked(invented_shape, "invented afterwards rather than pre-registered")
+
+    forecast_for_expired = expired_before_start()
+    forecast_for_expired["loop"]["deadline"]["forecasts"] = copy.deepcopy(
+        base["loop"]["deadline"]["forecasts"]
+    )
+    blocked(forecast_for_expired, "nothing it could have forecast")
+
+    shape_without_deadline = copy.deepcopy(base)
+    shape_without_deadline["loop"]["deadline"] = {
+        "at": None,
+        "source": "none",
+        "source_ref": "",
+        "source_pin": None,
+        "clock_readings": [],
+        "minimum_shape": None,
+        "forecasts": [],
+    }
+    shape_without_deadline["loop"]["priority_authority"] = {
+        "active": False,
+        "directive": None,
+    }
+    shape_without_deadline["loop"]["roles"]["priority_reviewer_id"] = None
+    shape_without_deadline["loop"]["deadline"]["minimum_shape"] = {
+        "owner_goal_ref": "source:none",
+        "named_items": ["x"],
+        "hash": "c" * 64,
+        "registered_at": "2026-07-26T13:50:00+09:00",
+    }
+    blocked(shape_without_deadline, "no window to register it in")
+
+    # A round that begins after the deadline is ordinary: work ran late, or a
+    # round was held to settle. Rules that forbid it make such a record
+    # unwritable, which is the third over-strict shape this effort produced.
+    post_deadline_round = copy.deepcopy(base)
+    post_deadline_round["loop"]["evaluated_at"] = "2026-07-28T12:00:00+09:00"
+    post_deadline_round["loop"]["deadline"]["clock_readings"] = [
+        {"at": "2026-07-26T13:50:00+09:00", "phase": "round_start"},
+        {"at": "2026-07-26T13:55:00+09:00", "phase": "disposition"},
+        {"at": "2026-07-28T09:00:00+09:00", "phase": "round_start"},
+        {"at": "2026-07-28T10:00:00+09:00", "phase": "ship_decision"},
+    ]
+    settled_stamp = {"at": "2026-07-28T11:00:00+09:00", "outcome": "later"}
+    post_deadline_round["loop"]["deadline"]["forecasts"][0]["settled"] = settled_stamp
+    post_deadline_round["loop"]["usage"]["observed_at"] = "2026-07-28T11:30:00+09:00"
+    check(
+        not validate_record_full(post_deadline_round),
+        "a round beginning after the deadline is representable",
+    )
+
+    gapped_rounds = copy.deepcopy(base)
+    skipped = copy.deepcopy(gapped_rounds["loop"]["deadline"]["forecasts"][0])
+    skipped["round"] = 3
+    gapped_rounds["loop"]["deadline"]["forecasts"].append(skipped)
+    blocked(gapped_rounds, "exactly one forecast per round inside the deadline window")
+
+    unforecast_round = copy.deepcopy(base)
+    unforecast_round["loop"]["deadline"]["clock_readings"].append(
+        {"at": "2026-07-26T14:00:00+09:00", "phase": "round_start"}
+    )
+    blocked(unforecast_round, "exactly one forecast per round inside the deadline window")
+
+    no_round_start = copy.deepcopy(base)
+    no_round_start["loop"]["deadline"]["clock_readings"] = [
+        {"at": "2026-07-26T13:55:00+09:00", "phase": "disposition"}
+    ]
+    blocked(no_round_start, "must include a round_start")
+
+    # Out of order inside one round: the ship decision precedes the disposition
+    # it should follow, with no second round_start to split them.
+    out_of_order_round = copy.deepcopy(base)
+    out_of_order_round["loop"]["deadline"]["clock_readings"] = [
+        {"at": "2026-07-26T13:50:00+09:00", "phase": "round_start"},
+        {"at": "2026-07-26T13:55:00+09:00", "phase": "ship_decision"},
+        {"at": "2026-07-26T13:58:00+09:00", "phase": "disposition"},
+    ]
+    blocked(out_of_order_round, "runs its phases out of order")
+
+    settled_after_evaluation = copy.deepcopy(base)
+    settled_after_evaluation["loop"]["deadline"]["forecasts"][0]["settled"] = {
+        "at": "2026-07-29T00:00:00+09:00",
+        "outcome": "as_forecast",
+    }
+    blocked(settled_after_evaluation, "after the evaluation that reports it")
+
+    forecast_after_deadline = copy.deepcopy(base)
+    forecast_after_deadline["loop"]["deadline"]["forecasts"][0]["at"] = (
+        "2026-07-28T00:00:00+09:00"
+    )
+    blocked(forecast_after_deadline, "not after the deadline has passed")
+
+    backwards_clock = copy.deepcopy(base)
+    backwards_clock["loop"]["deadline"]["clock_readings"][2]["at"] = (
+        "2026-07-26T13:00:00+09:00"
+    )
+    blocked(backwards_clock, "the clock does not go backwards")
+
+    # Settlement is recorded after the deadline it forecast, and once the
+    # deadline has passed it is recorded at all.
+    settled_early = copy.deepcopy(base)
+    settled_early["loop"]["deadline"]["forecasts"][0]["settled"] = {
+        "at": "2026-07-26T14:00:00+09:00",
+        "outcome": "as_forecast",
+    }
+    blocked(settled_early, "settled after the deadline it forecast")
+
+    past_deadline_unsettled = copy.deepcopy(base)
+    past_deadline_unsettled["loop"]["evaluated_at"] = "2026-07-28T09:00:00+09:00"
+    blocked(past_deadline_unsettled, "settled against the outcome")
+
+    late_capture = copy.deepcopy(base)
+    late_capture["loop"]["target"]["directive_refs"][0]["captured_at"] = (
+        "2026-07-27T09:00:00+09:00"
+    )
+    blocked(late_capture, "a source capture cannot be later than the evaluation")
+
+    late_resolution = copy.deepcopy(base)
+    late_resolution["loop"]["target"]["resolved_at"] = "2026-07-27T09:00:00+09:00"
+    blocked(late_resolution, "a target resolution cannot be later than the evaluation")
+
+    for owner, mutate in (
+        (
+            "priority directive",
+            lambda r: r["loop"]["priority_authority"]["directive"].__setitem__(
+                "captured_at", "2026-07-27T09:00:00+09:00"
+            ),
+        ),
+        (
+            "claim snapshot",
+            lambda r: r["loop"]["claim_envelope"]["claim_snapshot_refs"][0].__setitem__(
+                "captured_at", "2026-07-27T09:00:00+09:00"
+            ),
+        ),
+        (
+            "deadline pin",
+            lambda r: r["loop"]["deadline"]["source_pin"].__setitem__(
+                "captured_at", "2026-07-27T09:00:00+09:00"
+            ),
+        ),
+    ):
+        late_member = copy.deepcopy(base)
+        mutate(late_member)
+        blocked(late_member, "a source capture cannot be later than the evaluation")
+
+    registration_after_deadline = copy.deepcopy(base)
+    registration_after_deadline["loop"]["deadline"]["minimum_shape"][
+        "registered_at"
+    ] = "2026-07-28T09:00:00+09:00"
+    blocked(registration_after_deadline, "after the deadline closes it")
+
+    late_registration = copy.deepcopy(base)
+    late_registration["loop"]["deadline"]["minimum_shape"]["registered_at"] = (
+        "2026-07-27T09:00:00+09:00"
+    )
+    blocked(late_registration, "cannot be registered after the evaluation")
+
+    # Both integer-typed fields, because fixing one of a family and calling it
+    # done is how the schema and runtime layers drift apart a field at a time.
+    for label, mutate, rejected in (
+        (
+            "edit_count integral float",
+            lambda r: r["loop"]["target"]["directive_refs"][0].__setitem__(
+                "edit_count", 1.0
+            ),
+            False,
+        ),
+        (
+            "fix minutes integral float",
+            lambda r: r["blockers"][0].__setitem__("estimated_fix_minutes", 30.0),
+            False,
+        ),
+        (
+            "edit_count fractional",
+            lambda r: r["loop"]["target"]["directive_refs"][0].__setitem__(
+                "edit_count", 1.5
+            ),
+            True,
+        ),
+        (
+            "fix minutes fractional",
+            lambda r: r["blockers"][0].__setitem__("estimated_fix_minutes", 1.5),
+            True,
+        ),
+    ):
+        numeric = copy.deepcopy(base)
+        mutate(numeric)
+        schema_rejects = bool(validate_against_schema(numeric))
+        runtime_rejects = bool(validate_record(numeric))
+        check(
+            schema_rejects == runtime_rejects == rejected,
+            f"schema and runtime agree on {label}",
+        )
+
+    # A cross-object rule the schema cannot state at all: the priority role is
+    # active while no reviewer holds it. If the runtime layer were bypassed this
+    # would pass, which is what makes it a wiring control rather than a shape one.
+    unreachable_by_schema = copy.deepcopy(base)
+    unreachable_by_schema["loop"]["roles"]["priority_reviewer_id"] = None
+    check(
+        not validate_against_schema(unreachable_by_schema),
+        "the schema alone cannot see an unheld active priority role",
+    )
+    check(
+        bool(validate_record(unreachable_by_schema)),
+        "the runtime layer catches what the schema cannot express",
+    )
+
+    # RFC 3339 permits a lowercase zone designator, and the schema pattern
+    # allows it. The parser used to accept only the uppercase form, so the two
+    # layers disagreed on a legal timestamp.
+    lowercase_zone = copy.deepcopy(base)
+    lowercase_zone["loop"]["deadline"]["minimum_shape"]["registered_at"] = (
+        "2026-07-26T04:50:00z"
+    )
+    check(
+        not validate_record_full(lowercase_zone),
+        "a lowercase RFC 3339 zone designator is accepted by both layers",
+    )
+
+    # A 1.0 record must still upgrade: the previous release promised persisted
+    # records upgrade rather than expire, and the 1.2 evidence is demanded from
+    # the operator rather than invented, exactly as for 1.1.
+    v1_0 = legacy_sample_record()
+    v1_0["schema_version"] = "1.0"
+    v1_0["final_readback"].pop("ship_decision", None)
+    for blocker in v1_0["blockers"]:
+        blocker.pop("finding_class", None)
+        blocker.pop("floor_basis", None)
+    migrated_v1_0 = migrate_record(v1_0)
+    check(
+        migrated_v1_0["schema_version"] == SCHEMA_VERSION,
+        "a schema 1.0 record chains through to the current schema",
+    )
+    check(
+        migrated_v1_0["loop"]["ship_stage"]["stage"] == "production",
+        "the 1.0 upgrade keeps the unrelaxed stage it decided under",
+    )
+
+    stripped_v1_0 = copy.deepcopy(v1_0)
+    stripped_v1_0["loop"].pop("target", None)
+    try:
+        migrate_record(stripped_v1_0)
+    except ArtifactError as exc:
+        check(
+            "attach it before migrating" in str(exc),
+            "the 1.0 upgrade also refuses to invent the 1.2 evidence",
+        )
+    else:
+        check(False, "the 1.0 upgrade invented the 1.2 evidence")
+
+    # The human readback has to carry the evidence the cards require, or the
+    # record satisfies the validator and tells the owner nothing.
+    rendered = render_markdown(base)
+    for needle in (
+        "Priority authority:",
+        "Clock readings:",
+        "Minimum shape:",
+        "Target:",
+        "Claim envelope:",
+        "Working branch:",
+        "Deadline source:",
+        "Forecasts:",
+        "h remaining;",
+    ):
+        check(needle in rendered, f"readback carries {needle.rstrip(':')!r}")
+
+    # The unapproved-branch floor: raised without an exit, deferred at any
+    # concurrence, and approval claimed without a ref. Each of these is a way
+    # the value could be stated in the schema and never enforced at runtime.
+    branch_no_exit = copy.deepcopy(base)
+    branch_no_exit["blockers"][0]["protected_floor"] = "unapproved_branch_change"
+    branch_no_exit["blockers"][0]["floor_basis"] = "demonstrated"
+    blocked(branch_no_exit, "must record which exit was taken")
+
+    branch_deferred = copy.deepcopy(dev_base)
+    branch_deferred["blockers"][0]["protected_floor"] = "unapproved_branch_change"
+    branch_deferred["blockers"][0]["floor_basis"] = "precautionary"
+    branch_deferred["blockers"][0]["finding_class"] = "hardening"
+    branch_deferred["blockers"][0]["resolution"]["disposition"] = "defer_issue"
+    blocked(branch_deferred, "not deferrable at any level of concurrence")
+
+    branch_unevidenced_approval = copy.deepcopy(base)
+    branch_unevidenced_approval["blockers"][0]["protected_floor"] = (
+        "unapproved_branch_change"
+    )
+    branch_unevidenced_approval["blockers"][0]["floor_basis"] = "demonstrated"
+    branch_unevidenced_approval["loop"]["working_branch"]["remedy"] = (
+        "approval_produced"
+    )
+    branch_unevidenced_approval["loop"]["working_branch"]["approval_ref"] = ""
+    blocked(branch_unevidenced_approval, "citable ref")
+
+    # The authoritative entrypoint must enforce the canonical schema, not a
+    # hand-copy of it. Each of these is rejected by the schema file; before the
+    # entrypoint was unified they were accepted by the CLI that decides.
+    for label, mutate in (
+        ("target", lambda r: r["loop"].__setitem__("target", {})),
+        ("claim_envelope", lambda r: r["loop"].__setitem__("claim_envelope", {})),
+        ("working_branch", lambda r: r["loop"].__setitem__("working_branch", {})),
+        (
+            "clock_readings",
+            lambda r: r["loop"]["deadline"].__setitem__("clock_readings", [{}]),
+        ),
+        (
+            "minimum_shape",
+            lambda r: r["loop"]["deadline"].__setitem__("minimum_shape", {}),
+        ),
+        (
+            "shape hash",
+            lambda r: r["loop"]["deadline"]["minimum_shape"].__setitem__(
+                "hash", "latest"
+            ),
+        ),
+        (
+            "fixed_by_ref",
+            lambda r: r["loop"]["working_branch"].__setitem__("fixed_by_ref", ""),
+        ),
+        (
+            "snapshot refs",
+            lambda r: r["loop"]["claim_envelope"].__setitem__(
+                "claim_snapshot_refs", []
+            ),
+        ),
+    ):
+        shaped = copy.deepcopy(base)
+        mutate(shaped)
+        check(
+            bool(validate_record_full(shaped)),
+            f"authoritative entrypoint enforces the schema shape of {label}",
+        )
+
+    # Both deadline branches, because the constraint is conditional: an absent
+    # deadline legitimately has no clock to read and no window to register a
+    # shape in, and an in-force one must have both.
+    absent_deadline = copy.deepcopy(base)
+    absent_deadline["loop"]["deadline"] = {
+        "at": None,
+        "source": "none",
+        "source_ref": "",
+        "source_pin": None,
+        "clock_readings": [],
+        "minimum_shape": None,
+        "forecasts": [],
+    }
+    # With no directive in force the priority role does not arise either.
+    absent_deadline["loop"]["priority_authority"] = {"active": False, "directive": None}
+    absent_deadline["loop"]["roles"]["priority_reviewer_id"] = None
+    check(
+        not validate_record_full(absent_deadline),
+        "an absent deadline needs no clock reading and no pre-registered shape",
+    )
+
+    absent_with_clock = copy.deepcopy(absent_deadline)
+    absent_with_clock["loop"]["deadline"]["clock_readings"] = [
+        {"at": "2026-07-26T13:50:00+09:00", "phase": "round_start"}
+    ]
+    blocked(absent_with_clock, "nothing to read a clock against")
+
+    absent_with_shape = copy.deepcopy(absent_deadline)
+    absent_with_shape["loop"]["deadline"]["minimum_shape"] = {
+        "owner_goal_ref": "source:none",
+        "named_items": ["x"],
+        "hash": "c" * 64,
+        "registered_at": "2026-07-26T13:50:00+09:00",
+    }
+    blocked(absent_with_shape, "no window to register it in")
+
+    movable_baseline = copy.deepcopy(base)
+    movable_baseline["loop"]["claim_envelope"]["baseline_ref"] = "main"
+    blocked(movable_baseline, "must be a commit id, not a movable name")
+
+    # A deadline nobody read a clock against, and one whose shape was never
+    # pre-registered: both are the felt deadline the card forbids.
+    unread_clock = copy.deepcopy(base)
+    unread_clock["loop"]["deadline"]["clock_readings"] = []
+    blocked(unread_clock, "at least one real clock reading")
+
+    unregistered_shape = copy.deepcopy(base)
+    unregistered_shape["loop"]["deadline"]["minimum_shape"] = None
+    blocked(unregistered_shape, "pre-registered by name")
+
+    # Migration refuses to invent the 1.2 evidence. Without a record that is
+    # actually missing it, the refusal is unreachable and therefore untested.
+    stripped_legacy = legacy_sample_record()
+    for key in ("target", "claim_envelope", "working_branch"):
+        stripped_legacy["loop"].pop(key, None)
+    stripped_legacy["loop"]["roles"].pop("priority_reviewer_id", None)
+    stripped_legacy["loop"]["deadline"].pop("clock_readings", None)
+    try:
+        migrate_record(stripped_legacy)
+    except ArtifactError as exc:
+        check(
+            "attach it before migrating" in str(exc),
+            "migration refuses to invent the evidence 1.1 never captured",
+        )
+    else:
+        check(False, "migration invented the 1.2 evidence")
+
     legacy = legacy_sample_record()
     blocked(legacy, "is superseded; upgrade the record with `fairy blocker migrate`")
     migrated = migrate_record(legacy)

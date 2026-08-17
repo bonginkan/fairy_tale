@@ -22,6 +22,7 @@ ROOT = Path(
 sys.path.insert(0, str(ROOT))
 
 from scripts.helix_blocker_triage import (  # noqa: E402
+    validate_against_schema,
     legacy_sample_record,
     migrate_record,
     validate_record,
@@ -51,7 +52,17 @@ def main() -> int:
             raise AssertionError(
                 f"{label}: expected schema valid={valid}, errors={detail or 'none'}"
             )
-        controls += 1
+        # The dependency-free evaluator the CLI uses and jsonschema must agree,
+        # or the canonical entrypoint diverges from CI again — a keyword the
+        # evaluator does not implement would make CI the stricter gate, which is
+        # the failure this evaluator was added to remove.
+        evaluator_says = bool(validate_against_schema(instance))
+        if evaluator_says == valid:
+            raise AssertionError(
+                f"{label}: evaluator and jsonschema disagree — "
+                f"jsonschema_valid={not bool(errors)} evaluator_valid={not evaluator_says}"
+            )
+        controls += 2
 
     expect_schema(sample, valid=True, label="sample positive")
 
@@ -330,6 +341,60 @@ def main() -> int:
     if validate_record(migrated):
         raise AssertionError("runtime must accept the migrated 1.0 record")
     controls += 1
+
+    # Draft 2020-12 semantics the evaluator has to share with jsonschema, both
+
+    # directions. Without these the parity check passes while the two engines
+
+    # disagree on values a stored record can actually contain.
+
+    integral_float = copy.deepcopy(sample)
+
+    integral_float["loop"]["target"]["directive_refs"][0]["edit_count"] = 1.0
+
+    expect_schema(integral_float, valid=True, label="integral float is an integer")
+
+
+    integral_float_minutes = copy.deepcopy(sample)
+
+    integral_float_minutes["blockers"][0]["estimated_fix_minutes"] = 1.0
+
+    expect_schema(
+
+        integral_float_minutes, valid=True, label="integral float fix minutes"
+
+    )
+
+
+    numeric_for_boolean = copy.deepcopy(sample)
+
+    for candidate in numeric_for_boolean["blockers"]:
+
+        report = candidate["resolution"].get("human_report")
+
+        if isinstance(report, dict):
+
+            report["reported"] = 1
+
+            break
+
+    expect_schema(
+
+        numeric_for_boolean, valid=False, label="1 does not satisfy a true const"
+
+    )
+
+
+    # S2: a format keyword the evaluator did not implement made CI stricter than
+
+    # the CLI. Locked here so the next timestamp field cannot reopen it.
+
+    bad_timestamp = copy.deepcopy(sample)
+
+    bad_timestamp["loop"]["deadline"]["minimum_shape"]["registered_at"] = "yesterday"
+
+    expect_schema(bad_timestamp, valid=False, label="date-time format is enforced")
+
 
     print(f"Helix blocker schema contract OK: {controls} controls")
     return 0

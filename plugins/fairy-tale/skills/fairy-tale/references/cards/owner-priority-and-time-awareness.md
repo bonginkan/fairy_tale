@@ -1,0 +1,63 @@
+# Owner-Priority Review and Time-Awareness
+
+Use in any review with more than one reviewer, and whenever the owner has
+stated what to prioritise or when work is due. The gate exists because a review
+that ranks findings only by technical severity converges on what reviewers find
+interesting rather than on what the owner asked for, and because a deadline read
+from feeling rather than from a clock produces a plan nobody can check.
+
+- **The second reviewer disposes by owner priority.** In addition to technical
+  verification, one registered reviewer assigns each finding a disposition: next
+  cycle, separate issue, or no-action. Technical severity does not outrank the
+  owner's stated priority.
+- **Priority governs order, never existence.** Every deferred finding becomes a
+  recorded issue before merge, with its URL on the pull request; no-action
+  carries a stated reason. A disposition without a record is not a disposition.
+  Priority ranking must never delete a finding.
+- **The two axes do not overlap.** Floor membership and failed-claim findings
+  are technical determinations; the priority reviewer can neither downgrade them
+  nor promote a non-floor finding into a blocker. `block now` is a readback of
+  the technical determination, not a priority disposition.
+- **Exactly one reviewer holds the priority role, and the record says which.**
+  With three or more reviewers, "the second reviewer" names nobody; the handoff
+  carries a single priority reviewer id, the verified owner directive and
+  deadline sources pinned by hash and capture time, the clock readings taken each
+  round and at each disposition, and the pre-registered minimum shape as an owner
+  goal ref with its named items and a hash. A priority disposition whose
+  directive cannot be named afterwards is indistinguishable from a preference,
+  and one whose holder cannot be named is unattributable.
+- **No directive, no priority authority.** When no owner directive is in force,
+  the priority role does not arise and review proceeds on technical judgement
+  alone. An empty priority must never be used to justify shipping.
+- **Observe the clock; do not feel it.** Read the real time at the start of each
+  round and at each disposition, and record what was read. Remaining time is
+  computed from those readings. If the clock or the deadline cannot be read, the
+  time-awareness authority does not arise.
+- **A deadline needs a source.** A verified owner instruction, an issue
+  milestone, or a scheduled demonstration or handover. Without a recorded
+  deadline there is no time-awareness authority; otherwise a reviewer can invent
+  a deadline and ship against it.
+- **Pre-register the minimum coherent set, by name.** At the start of the
+  deadline window, list the named items that must pass for the delivery to be
+  coherent. A deadline that had already passed before the first round began has
+  no window start to register at: record it as observed, with no forecast and no
+  invented shape, rather than manufacturing either after the fact. Deciding at the end makes whatever passed the definition, so "it came
+  together" becomes unfalsifiable. Time reorders what is attempted; it never
+  redefines completion. Shrinking the set is an owner escalation, not a
+  reviewer's discretion. Counts are not names: "8 of 10" is not evidence when the
+  remaining 2 are the substance.
+- **A deadline never lowers the floor.** Time has no bearing on floor membership
+  or on whether a claim holds. If the work will not fit, what may be resequenced
+  is the internal order of attack and the disposition of out-of-scope review
+  findings — never the owner's directive set, which narrows only by the owner's
+  own supersession or an escalation answered. Re-cutting an increment is not a
+  licence to drop directives, and the floor is never trimmed to make a date.
+- **Emit a forecast each round inside the deadline window, and settle it
+  afterwards.** One line: time remaining, which pre-registered items have passed
+  and which have not, whether the remainder fits at the current rate, and what is
+  taken next. Reconcile each against the outcome once the deadline passes; a
+  forecast never settled improves no future estimate. Rounds that begin after the
+  deadline are recorded but forecast nothing — a prediction of an outcome that
+  has already happened is not one, and work continuing past a deadline belongs to
+  a new window with its own verified source rather than to more forecasts against
+  the old one.

@@ -70,8 +70,10 @@ record — never another party's authority to withhold a deploy.
 
 ## Schema Compatibility
 
-Records persisted under schema 1.0 predate the ship stage. They upgrade through
-a tested path rather than expiring:
+Records persisted under schema 1.0 predate the ship stage, and 1.1 records
+predate the target, claim envelope, working branch, priority holder, and clock
+readings. Both upgrade through a tested path rather than expiring, 1.0 chaining
+through 1.1 on the way:
 
 ```bash
 ./fairy blocker migrate \
@@ -84,8 +86,15 @@ thresholds, so the migrated record records the production stage with an
 unverified normal path and no attestation, classes unlabelled findings as
 `other`, and treats an unlabelled floor finding as `demonstrated`. It cannot
 hand an old record an envelope that record never earned. The result is
-validated before it is written, and validating a 1.0 record directly reports
-the upgrade path instead of a bare version mismatch.
+validated before it is written, and validating a superseded record directly
+reports the upgrade path instead of a bare version mismatch.
+
+The same rule decides what 1.2 adds. A 1.1 record never captured where the
+change belonged, which sources the claim was pinned against, which branch the
+effort was fixed to, who held the priority role, or what the clock read. None of
+it is reconstructible, and synthesising it would forge exactly the provenance
+those fields exist to carry, so the upgrade asks for it and names what is
+missing rather than filling it in.
 
 ## Non-Deferrable Floor
 

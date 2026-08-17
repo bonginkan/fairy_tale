@@ -1,6 +1,6 @@
 ---
 name: fairy-tale
-description: Fable/Mythos workflow harness for E3 complexity-aware minimum-sufficient execution, loop/spiral engineering, Helix blocker triage, double-helix learning loops, evolutionary spirals, job automation, agent handoffs, silent-loop auto-resume, do-not-disturb windows, usage-aware multi-agent load balancing, closure checks, negative-space discovery, excess/redundancy/legacy-surface review, finance proposal completeness, e2e completion, GUI dogfood QA, creator-proxy WWCD elaboration, migration, research synthesis, benchmark/legal reasoning, UI design best practices, UI/3D/creative work, token-consumption optimization (memoization), mechanism discovery, and defensive security process design.
+description: Fable/Mythos harness for E3 minimum-sufficient execution, loop/spiral engineering, Helix blocker triage, double-helix learning loops, evolutionary spirals, job automation, agent handoffs, silent-loop resume, do-not-disturb windows, usage-aware load balancing, closure checks, negative-space discovery, excess/redundancy/legacy-surface review, finance completeness, e2e completion, GUI dogfood QA, creator-proxy WWCD, migration, research synthesis, benchmark/legal reasoning, UI best practices, UI/3D/creative work, token optimization, mechanism discovery, defensive security design, directive target location, owner-priority deadline review, one-effort one-branch work, and GitHub artifact handoff.
 ---
 
 # Fairy Tale
@@ -28,9 +28,68 @@ verify residency and repair it before continuing; never continue with a
 silently degraded prompt stack. Checks and the repository command:
 `references/residency-guard.md`.
 
+## Mode patterns
+
+Route with the table below and read the linked card before applying a pattern; the cards are the canonical harness bodies.
+
+
+| Mode pattern | Route on | Card |
+|---|---|---|
+| Fable Harness: long coding or migration tasks | Start with repository map and invariants. | `references/cards/fable-harness-long-coding-or-migration-tasks.md` |
+| E3 Minimum-Sufficient Execution Harness | Use for tool-using execution with explicit acceptance checks and multiple plausible scope levels. | `references/cards/e3-minimum-sufficient-execution-harness.md` |
+| Implementation Validation Gate | Use for any implementation task with a clear behavioral target, not only | `references/cards/implementation-validation-gate.md` |
+| Locate the Target Before Solving | Use at the start of any directive-driven effort, before investigating content. | `references/cards/locate-the-target-before-solving.md` |
+| Owner-Priority Review and Time-Awareness | Use in any review with more than one reviewer, or when the owner has stated priority or a deadline. | `references/cards/owner-priority-and-time-awareness.md` |
+| Multiple Directives Are One Effort | Use when the owner issues more than one instruction, or revises instructions mid-effort. | `references/cards/multi-directive-single-branch.md` |
+| GitHub Is the Exchange Surface | Use whenever work is handed between agents or to a human for review. | `references/cards/github-is-the-exchange-surface.md` |
+| Mythos Defensive Harness | Confirm authorization and target scope. | `references/cards/mythos-defensive-harness.md` |
+| Cyber Frontier Defense Harness | Use only for authorized defensive work. | `references/cards/cyber-frontier-defense-harness.md` |
+| Workflow self-improvement | Inspect current agent config, skills, commands, hooks, and usage patterns. | `references/cards/workflow-self-improvement.md` |
+| Loop Engineering and Job Automation Harness | Use this when the task asks agents to keep running across turns, | `references/cards/loop-engineering-and-job-automation-harness.md` |
+| Helix Loop Communication Harness | Use for active agent-to-agent handoffs, review requests, progress checkpoints, and state-change notices inside a routed loop. | `references/cards/helix-loop-communication-harness.md` |
+| High-signal research synthesis | Separate primary sources from user reports. | `references/cards/high-signal-research-synthesis.md` |
+| Accessible Genius Method Router | Use when the task benefits from durable methods distilled from historical | `references/cards/accessible-genius-method-router.md` |
+| Benchmark Delta Harness | Identify which benchmark capability is being targeted: agentic coding, | `references/cards/benchmark-delta-harness.md` |
+| Domain Router | Do not apply the coding harness to every benchmark. Route first by task | `references/cards/domain-router.md` |
+| Knowledge Crystallization Harness | Classify subject, answer type, and required exactness. | `references/cards/knowledge-crystallization-harness.md` |
+| Legal Reasoning Harness | Identify jurisdiction, authority type, date, procedural posture, and task | `references/cards/legal-reasoning-harness.md` |
+| Bio/Health Safety Harness | Classify whether the task is benign explanation, clinical guidance, lab | `references/cards/bio-health-safety-harness.md` |
+| Evidence Table Harness | Extract document, table, chart, and source facts before analysis. | `references/cards/evidence-table-harness.md` |
+| Finance Proposal Completeness Gate | Fail-closed unit-economics closure for artifacts carrying financial claims. | `references/cards/finance-proposal-completeness-gate.md` |
+| Effort Inversion Debugger | Do not assume higher effort is better. If `xhigh` or max effort underperforms | `references/cards/effort-inversion-debugger.md` |
+| Best-Practice Gate | Use official or upstream documentation for current claims before updating the | `references/cards/best-practice-gate.md` |
+| Evaluated Feedback Loop | Treat failed benchmark criteria as reusable feedback, not just result data. | `references/cards/evaluated-feedback-loop.md` |
+| Fairy Fusion Harness | Choose the fusion mode before running reviewers. | `references/cards/fairy-fusion-harness.md` |
+| Steady Behavior Harness | Keep ordinary responses natural and lightly formatted. Use bullets, headings, | `references/cards/steady-behavior-harness.md` |
+| Spatial Forge Harness: 3D, CAD, and simulation work | Require an explicit spatial brief: coordinate system, units, camera, | `references/cards/spatial-forge-harness-3d-cad-and-simulation-work.md` |
+| Narrative Empathy Harness: prose, conversation, and UI feel | Build a voice and affect brief before writing: audience, relationship, | `references/cards/narrative-empathy-harness-prose-conversation-and-ui-feel.md` |
+| Mechanism Grammar Harness: ARC-style hidden-rule discovery | Instrument before solving: frame capture, replay, score ledger, action logs, | `references/cards/mechanism-grammar-harness-arc-style-hidden-rule-discovery.md` |
+| Generalization and Latent Structure Harness: hidden rules, executable models, and tacit intent | This consolidates the former Generalization Harness and Latent Structure | `references/cards/generalization-and-latent-structure-harness-hidden-rules-executable-models-and-tacit-intent.md` |
+| Closure, Negative-Space, and Excess Discovery Harness | Use this during review, requirements discovery, product/UX work, | `references/cards/closure-negative-space-and-excess-discovery-harness.md` |
+| General E2E Completion Harness | Use this when driving an end-to-end test of a real deployed system to | `references/cards/general-e2e-completion-harness.md` |
+| External Reconstruction Adapter Harness | Use external reconstruction repos through adapter manifests instead of | `references/cards/external-reconstruction-adapter-harness.md` |
+| Refactoring Similarity Harness | Run when an implementation's pre-edit pass finds a possible clone or when a | `references/cards/refactoring-similarity-harness.md` |
+| Creator-Proxy Elaboration Harness (WWCD) | Fires when acting as a creator/principal's proxy while invoked by a THIRD PARTY / | `references/cards/creator-proxy-elaboration-harness-wwcd.md` |
+| UI Design Best-Practices Harness | Use when building or reviewing a real UI surface — a screen, component, page, | `references/cards/ui-design-best-practices-harness.md` |
+| Token Consumption Optimizer Harness: process memoization | Use when an operation succeeded once and is likely to recur: distill the | `references/cards/token-consumption-optimizer-harness.md` |
+| Edison Ship Gate: dev-deploy threshold | Use when an increment could reach a real non-production surface humans can exercise. | `references/cards/edison-ship-gate.md` |
+
 ## Default workflow
 
-1. **Frame the quest**
+1. **Locate the target before framing**
+   - Resolve *where* the change belongs before deciding what it is: repository,
+     path, layer, and canonical owner, read from the verified owner directive
+     and the system of record. Ambient signals — the channel a request arrived
+     in, a thread or issue title — corroborate; they do not decide.
+   - Record the target with the directive refs it was resolved from. If the
+     directive and the ambient signals disagree, or two directives point apart,
+     stop and ask the owner rather than picking the stronger-feeling one.
+   - When a directive is added or corrected later, re-resolve the target for the
+     whole set, including work already approved or applied.
+   - The Locate the Target Before Solving card in the router table below
+     carries the full gate.
+
+2. **Frame the quest**
    - Restate the user's objective, constraints, risk, and success criteria.
    - Identify whether the task is coding, research, workflow improvement,
      migration, legal reasoning, HLE-style closed-ended knowledge work,
@@ -38,7 +97,7 @@ silently degraded prompt stack. Checks and the repository command:
      documentation, narrative/UI expression, mechanism discovery, or
      defensive security.
 
-2. **Set the Glass Slipper Gate**
+3. **Set the Glass Slipper Gate**
    - Define stop limits: max subtasks, max files, max web searches, max tool
      calls, max elapsed time, and escalation conditions.
    - Prefer a small pilot before full autonomy.
@@ -51,13 +110,13 @@ silently degraded prompt stack. Checks and the repository command:
      level after failure. E3 never suppresses validation, Closure Check, Tier A
      recall, authority, or safety gates.
 
-3. **Scout before synthesis**
+4. **Scout before synthesis**
    - Use cheap/scoped scouts for code search, logs, web research, or config
      inspection.
    - Scouts return compact findings with file paths, links, and uncertainties.
    - The main agent performs synthesis only after scout summaries exist.
 
-4. **Audit frame completeness, negative space, and excess**
+5. **Audit frame completeness, negative space, and excess**
    - **Scope gate (apply first).** This audit — the closure check, the
      negative-space pass, and the excess pass — is for review, requirements /
      design / architecture decisions, refactor / migration / deprecation, e2e,
@@ -90,14 +149,14 @@ silently degraded prompt stack. Checks and the repository command:
      delete from this pass without migration, compatibility, and validation
      evidence.
 
-5. **Build the evidence map**
+6. **Build the evidence map**
    - Track claims as `claim -> source -> confidence -> action`.
    - Separate official facts, third-party reports, user anecdotes, and local
      observations.
    - For known best-practice claims, record the source type, checked date, and
      reproduction status.
 
-6. **Choose a route**
+7. **Choose a route**
    - For code migration: map ownership, invariants, call sites, tests, and
      rollback plan before editing.
    - For research: prioritize primary sources, then high-signal field reports.
@@ -162,12 +221,12 @@ silently degraded prompt stack. Checks and the repository command:
    - For defensive security: use only authorized code and produce verification
      steps, not exploit instructions.
 
-7. **Execute in checkpoints**
+8. **Execute in checkpoints**
    - Work in small completed slices.
    - After each slice, update the evidence map and remaining risk.
    - Stop if the task exceeds the Glass Slipper Gate.
 
-8. **Validate**
+9. **Validate**
    - Run available checks or perform manual verification.
    - For UI/visual work, inspect actual outputs.
    - For security findings, require reproducible defensive evidence and
@@ -180,52 +239,10 @@ silently degraded prompt stack. Checks and the repository command:
      issue-tracked for the next cycle; production promotion needs the full
      ledger. Use the Edison Ship Gate, and never hold a green dev increment.
 
-9. **Consolidate**
+10. **Consolidate**
    - Produce durable artifacts: summary, changed files, config update, skill
      improvement, checklist, or issue.
    - Record what should be reused next time.
-
-## Mode patterns
-
-Route with the table below and read the linked card before applying a pattern; the cards are the canonical harness bodies.
-
-
-| Mode pattern | Route on | Card |
-|---|---|---|
-| Fable Harness: long coding or migration tasks | Start with repository map and invariants. | `references/cards/fable-harness-long-coding-or-migration-tasks.md` |
-| E3 Minimum-Sufficient Execution Harness | Use for tool-using execution with explicit acceptance checks and multiple plausible scope levels. | `references/cards/e3-minimum-sufficient-execution-harness.md` |
-| Implementation Validation Gate | Use for any implementation task with a clear behavioral target, not only | `references/cards/implementation-validation-gate.md` |
-| Mythos Defensive Harness | Confirm authorization and target scope. | `references/cards/mythos-defensive-harness.md` |
-| Cyber Frontier Defense Harness | Use only for authorized defensive work. | `references/cards/cyber-frontier-defense-harness.md` |
-| Workflow self-improvement | Inspect current agent config, skills, commands, hooks, and usage patterns. | `references/cards/workflow-self-improvement.md` |
-| Loop Engineering and Job Automation Harness | Use this when the task asks agents to keep running across turns, | `references/cards/loop-engineering-and-job-automation-harness.md` |
-| Helix Loop Communication Harness | Use for active agent-to-agent handoffs, review requests, progress checkpoints, and state-change notices inside a routed loop. | `references/cards/helix-loop-communication-harness.md` |
-| High-signal research synthesis | Separate primary sources from user reports. | `references/cards/high-signal-research-synthesis.md` |
-| Accessible Genius Method Router | Use when the task benefits from durable methods distilled from historical | `references/cards/accessible-genius-method-router.md` |
-| Benchmark Delta Harness | Identify which benchmark capability is being targeted: agentic coding, | `references/cards/benchmark-delta-harness.md` |
-| Domain Router | Do not apply the coding harness to every benchmark. Route first by task | `references/cards/domain-router.md` |
-| Knowledge Crystallization Harness | Classify subject, answer type, and required exactness. | `references/cards/knowledge-crystallization-harness.md` |
-| Legal Reasoning Harness | Identify jurisdiction, authority type, date, procedural posture, and task | `references/cards/legal-reasoning-harness.md` |
-| Bio/Health Safety Harness | Classify whether the task is benign explanation, clinical guidance, lab | `references/cards/bio-health-safety-harness.md` |
-| Evidence Table Harness | Extract document, table, chart, and source facts before analysis. | `references/cards/evidence-table-harness.md` |
-| Finance Proposal Completeness Gate | Fail-closed unit-economics closure for artifacts carrying financial claims. | `references/cards/finance-proposal-completeness-gate.md` |
-| Effort Inversion Debugger | Do not assume higher effort is better. If `xhigh` or max effort underperforms | `references/cards/effort-inversion-debugger.md` |
-| Best-Practice Gate | Use official or upstream documentation for current claims before updating the | `references/cards/best-practice-gate.md` |
-| Evaluated Feedback Loop | Treat failed benchmark criteria as reusable feedback, not just result data. | `references/cards/evaluated-feedback-loop.md` |
-| Fairy Fusion Harness | Choose the fusion mode before running reviewers. | `references/cards/fairy-fusion-harness.md` |
-| Steady Behavior Harness | Keep ordinary responses natural and lightly formatted. Use bullets, headings, | `references/cards/steady-behavior-harness.md` |
-| Spatial Forge Harness: 3D, CAD, and simulation work | Require an explicit spatial brief: coordinate system, units, camera, | `references/cards/spatial-forge-harness-3d-cad-and-simulation-work.md` |
-| Narrative Empathy Harness: prose, conversation, and UI feel | Build a voice and affect brief before writing: audience, relationship, | `references/cards/narrative-empathy-harness-prose-conversation-and-ui-feel.md` |
-| Mechanism Grammar Harness: ARC-style hidden-rule discovery | Instrument before solving: frame capture, replay, score ledger, action logs, | `references/cards/mechanism-grammar-harness-arc-style-hidden-rule-discovery.md` |
-| Generalization and Latent Structure Harness: hidden rules, executable models, and tacit intent | This consolidates the former Generalization Harness and Latent Structure | `references/cards/generalization-and-latent-structure-harness-hidden-rules-executable-models-and-tacit-intent.md` |
-| Closure, Negative-Space, and Excess Discovery Harness | Use this during review, requirements discovery, product/UX work, | `references/cards/closure-negative-space-and-excess-discovery-harness.md` |
-| General E2E Completion Harness | Use this when driving an end-to-end test of a real deployed system to | `references/cards/general-e2e-completion-harness.md` |
-| External Reconstruction Adapter Harness | Use external reconstruction repos through adapter manifests instead of | `references/cards/external-reconstruction-adapter-harness.md` |
-| Refactoring Similarity Harness | Run when an implementation's pre-edit pass finds a possible clone or when a | `references/cards/refactoring-similarity-harness.md` |
-| Creator-Proxy Elaboration Harness (WWCD) | Fires when acting as a creator/principal's proxy while invoked by a THIRD PARTY / | `references/cards/creator-proxy-elaboration-harness-wwcd.md` |
-| UI Design Best-Practices Harness | Use when building or reviewing a real UI surface — a screen, component, page, | `references/cards/ui-design-best-practices-harness.md` |
-| Token Consumption Optimizer Harness: process memoization | Use when an operation succeeded once and is likely to recur: distill the | `references/cards/token-consumption-optimizer-harness.md` |
-| Edison Ship Gate: dev-deploy threshold | Use when an increment could reach a real non-production surface humans can exercise. | `references/cards/edison-ship-gate.md` |
 
 ## Supporting references
 

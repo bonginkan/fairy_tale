@@ -32,6 +32,16 @@ owner needed: yes / no
 source / run / receipt refs:
 ```
 
+- **The chat channel carries the message; it never carries the artifact.**
+  Reviewable work is pushed to the forge first and referenced by a canonical
+  ref — pull request URL with exact head SHA, or issue and comment id. Do not
+  attach the artifact to the handoff, and do not split it across messages: a
+  reader cannot tell a continuation that has not arrived from content that was
+  never written, and neither party can say afterwards which bytes were signed.
+  Where a deliverable genuinely cannot live in a repository, agree an approved
+  canonical store and reference it the same way, pinned by content hash;
+  reverting to chat attachments is not the fallback. See
+  `references/cards/github-is-the-exchange-surface.md`.
 - **Report:** lead with the current verdict or outcome, then immutable
   artifact/check references. **Notify:** name the state transition and the
   next actor. **Consult:** state the blocker, bounded options, recommendation,
