@@ -76,7 +76,20 @@ Route with the table below and read the linked card before applying a pattern; t
 
 ## Default workflow
 
-1. **Frame the quest**
+1. **Locate the target before framing**
+   - Resolve *where* the change belongs before deciding what it is: repository,
+     path, layer, and canonical owner, read from the verified owner directive
+     and the system of record. Ambient signals — the channel a request arrived
+     in, a thread or issue title — corroborate; they do not decide.
+   - Record the target with the directive refs it was resolved from. If the
+     directive and the ambient signals disagree, or two directives point apart,
+     stop and ask the owner rather than picking the stronger-feeling one.
+   - When a directive is added or corrected later, re-resolve the target for the
+     whole set, including work already approved or applied.
+   - The Locate the Target Before Solving card in the router table below
+     carries the full gate.
+
+2. **Frame the quest**
    - Restate the user's objective, constraints, risk, and success criteria.
    - Identify whether the task is coding, research, workflow improvement,
      migration, legal reasoning, HLE-style closed-ended knowledge work,
@@ -84,7 +97,7 @@ Route with the table below and read the linked card before applying a pattern; t
      documentation, narrative/UI expression, mechanism discovery, or
      defensive security.
 
-2. **Set the Glass Slipper Gate**
+3. **Set the Glass Slipper Gate**
    - Define stop limits: max subtasks, max files, max web searches, max tool
      calls, max elapsed time, and escalation conditions.
    - Prefer a small pilot before full autonomy.
@@ -97,13 +110,13 @@ Route with the table below and read the linked card before applying a pattern; t
      level after failure. E3 never suppresses validation, Closure Check, Tier A
      recall, authority, or safety gates.
 
-3. **Scout before synthesis**
+4. **Scout before synthesis**
    - Use cheap/scoped scouts for code search, logs, web research, or config
      inspection.
    - Scouts return compact findings with file paths, links, and uncertainties.
    - The main agent performs synthesis only after scout summaries exist.
 
-4. **Audit frame completeness, negative space, and excess**
+5. **Audit frame completeness, negative space, and excess**
    - **Scope gate (apply first).** This audit — the closure check, the
      negative-space pass, and the excess pass — is for review, requirements /
      design / architecture decisions, refactor / migration / deprecation, e2e,
@@ -136,14 +149,14 @@ Route with the table below and read the linked card before applying a pattern; t
      delete from this pass without migration, compatibility, and validation
      evidence.
 
-5. **Build the evidence map**
+6. **Build the evidence map**
    - Track claims as `claim -> source -> confidence -> action`.
    - Separate official facts, third-party reports, user anecdotes, and local
      observations.
    - For known best-practice claims, record the source type, checked date, and
      reproduction status.
 
-6. **Choose a route**
+7. **Choose a route**
    - For code migration: map ownership, invariants, call sites, tests, and
      rollback plan before editing.
    - For research: prioritize primary sources, then high-signal field reports.
@@ -208,12 +221,12 @@ Route with the table below and read the linked card before applying a pattern; t
    - For defensive security: use only authorized code and produce verification
      steps, not exploit instructions.
 
-7. **Execute in checkpoints**
+8. **Execute in checkpoints**
    - Work in small completed slices.
    - After each slice, update the evidence map and remaining risk.
    - Stop if the task exceeds the Glass Slipper Gate.
 
-8. **Validate**
+9. **Validate**
    - Run available checks or perform manual verification.
    - For UI/visual work, inspect actual outputs.
    - For security findings, require reproducible defensive evidence and
@@ -226,7 +239,7 @@ Route with the table below and read the linked card before applying a pattern; t
      issue-tracked for the next cycle; production promotion needs the full
      ledger. Use the Edison Ship Gate, and never hold a green dev increment.
 
-9. **Consolidate**
+10. **Consolidate**
    - Produce durable artifacts: summary, changed files, config update, skill
      improvement, checklist, or issue.
    - Record what should be reused next time.

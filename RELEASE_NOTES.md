@@ -23,11 +23,31 @@
   Identity comes from the forge's own refs rather than hand-built hashes and
   version labels, and an artifact long enough to split across messages belongs in
   a file instead.
-- The Edison Ship Gate gains four bounds: the claim's witness is not written by
-  its author, a normal-path break has substantive conditions with evidence as the
-  standard for sustaining rather than establishing it, a split on floor
-  membership is refuted asymmetrically, and "no retained fix-now" means none
-  outstanding rather than none newly raised this round.
+- The Edison Ship Gate gains six bounds: the claim is judged against the union of
+  merge-base contracts and pinned directive/acceptance rather than either half; the
+  provenance test is increment-relative rather than personal; a normal-path break
+  separates substance (a nameable failure sequence with a reachable locator) from
+  the execution evidence that sustains the block; a split on floor membership is
+  refuted asymmetrically; a pre-existing floor finding is placed by reach rather
+  than vintage; and "no retained fix-now" means none outstanding rather than none
+  newly raised this round. Its next-cycle clause is bounded to technical findings
+  about the increment's behaviour, and deferred work stays on the effort's branch.
+- The blocker triage record moves to schema 1.2 so the rules above are machine
+  gates rather than prose. `roles` carries exactly one `priority_reviewer_id`,
+  drawn from the reviewers and never the implementer. `deadline` carries the clock
+  readings actually taken and the pre-registered `minimum_shape` as named items
+  with a hash. `loop` carries a structured `target` (repo, path, layer, canonical
+  owner, directive refs, propagation path, duplication policy), a `claim_envelope`
+  pairing the merge-base baseline with pinned mutable sources, and the
+  `working_branch` with the ref that fixed it. `protected_floor` gains
+  `unapproved_branch_change`, which is unconditional and not deferrable at any
+  level of concurrence.
+- The Default workflow gains a pre-scout step: resolve the target before framing
+  the quest. The residency check now requires markers in all four new cards and in
+  the handoff card, and the routing fixtures carry the target-location cases —
+  explicit path against ambient channel, mid-effort correction, late-joining
+  reviewer — with negative controls for an uncontested target and for a separate
+  owner goal on the same system.
 
 ## 0.2.37 — Edison Ship Gate: the dev-deploy threshold
 

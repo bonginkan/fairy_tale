@@ -13,7 +13,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "1.1"
+      "const": "1.2"
     },
     "artifact_type": {
       "const": "helix_blocker_triage"
@@ -30,7 +30,10 @@
         "roles",
         "deadline",
         "usage",
-        "ship_stage"
+        "ship_stage",
+        "target",
+        "claim_envelope",
+        "working_branch"
       ],
       "properties": {
         "loop_id": {
@@ -61,6 +64,15 @@
         },
         "ship_stage": {
           "$ref": "#/$defs/shipStage"
+        },
+        "target": {
+          "$ref": "#/$defs/targetRecord"
+        },
+        "claim_envelope": {
+          "$ref": "#/$defs/claimEnvelope"
+        },
+        "working_branch": {
+          "$ref": "#/$defs/workingBranch"
         }
       }
     },
@@ -108,7 +120,8 @@
       "additionalProperties": false,
       "required": [
         "implementer_id",
-        "reviewer_ids"
+        "reviewer_ids",
+        "priority_reviewer_id"
       ],
       "properties": {
         "implementer_id": {
@@ -123,6 +136,10 @@
               "minItems": 2
             }
           ]
+        },
+        "priority_reviewer_id": {
+          "$ref": "#/$defs/id",
+          "description": "The single reviewer holding the owner-priority disposition role. Must be one of reviewer_ids and must not be implementer_id. 'the second reviewer' names nobody once there are three."
         }
       }
     },
@@ -132,7 +149,8 @@
       "required": [
         "at",
         "source",
-        "source_ref"
+        "source_ref",
+        "clock_readings"
       ],
       "properties": {
         "at": {
@@ -154,6 +172,66 @@
         },
         "source_ref": {
           "type": "string"
+        },
+        "clock_readings": {
+          "type": "array",
+          "description": "Real clock values actually read, not felt. One per round start and per disposition.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "at",
+              "phase"
+            ],
+            "properties": {
+              "at": {
+                "$ref": "#/$defs/timestamp"
+              },
+              "phase": {
+                "enum": [
+                  "round_start",
+                  "disposition",
+                  "ship_decision"
+                ]
+              }
+            }
+          }
+        },
+        "minimum_shape": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "description": "Minimum coherent set pre-registered at the start of the deadline window. Null only when no deadline is in force.",
+          "additionalProperties": false,
+          "required": [
+            "owner_goal_ref",
+            "named_items",
+            "hash",
+            "registered_at"
+          ],
+          "properties": {
+            "owner_goal_ref": {
+              "type": "string",
+              "minLength": 1
+            },
+            "named_items": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "Named items, never a count: '8 of 10' is not evidence when the remaining 2 are the substance."
+            },
+            "hash": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "registered_at": {
+              "$ref": "#/$defs/timestamp"
+            }
+          }
         }
       },
       "allOf": [
@@ -874,8 +952,10 @@
             "production",
             "authority_permission",
             "security",
-            "required_acceptance"
-          ]
+            "required_acceptance",
+            "unapproved_branch_change"
+          ],
+          "description": "Floor class. 'unapproved_branch_change' is unconditional: it needs no demonstrated reach or failure sequence, and it is not deferrable at any level of concurrence. Its only exits are a cited owner approval or returning to the recorded branch and consolidating."
         },
         "floor_basis": {
           "enum": [
@@ -1147,6 +1227,148 @@
           }
         }
       ]
+    },
+    "pinnedSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ref",
+        "content_hash",
+        "captured_at"
+      ],
+      "description": "A source that can be edited after the fact (owner directive, issue body, comment). Pinned by content, not by ref alone.",
+      "properties": {
+        "ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "content_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "captured_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "edit_count": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "Server-recorded edit count at capture time; null when the surface does not expose one."
+        }
+      }
+    },
+    "targetRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repo",
+        "path",
+        "layer",
+        "canonical_owner",
+        "directive_refs",
+        "duplication_policy"
+      ],
+      "description": "Where the change belongs, resolved from the owner directive and system of record before content work.",
+      "properties": {
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "layer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "canonical_owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "directive_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/pinnedSource"
+          }
+        },
+        "propagation_path": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Mirrored copies the change must reach to stay in parity."
+        },
+        "duplication_policy": {
+          "enum": [
+            "canonical_only",
+            "mirrored_byte_identical",
+            "reference_only"
+          ]
+        },
+        "resolved_at": {
+          "$ref": "#/$defs/timestamp"
+        }
+      }
+    },
+    "claimEnvelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "baseline_ref",
+        "claim_snapshot_refs"
+      ],
+      "description": "Union of merge-base contracts/tests and the pinned directive/acceptance. Judging on either half alone drops protected behaviour.",
+      "properties": {
+        "baseline_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Merge-base commit the contracts and required tests are read from."
+        },
+        "claim_snapshot_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/pinnedSource"
+          }
+        }
+      }
+    },
+    "workingBranch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "fixed_by_ref"
+      ],
+      "description": "Fixed once at effort start. Fixing is not creating; changing it later needs owner approval as a citable ref.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fixed_by_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "approval_ref": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Owner approval for a change of branch, cited as a ref. Null when the branch never moved."
+        },
+        "remedy": {
+          "enum": [
+            "none",
+            "approval_produced",
+            "returned_and_consolidated"
+          ]
+        }
+      }
     }
   }
 }

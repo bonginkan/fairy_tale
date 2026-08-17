@@ -45,11 +45,11 @@ except ImportError:  # pragma: no cover - import from repository root
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SCHEMA_VERSION = "1.1"
+SCHEMA_VERSION = "1.2"
 # The persisted contract records already written against the previous version.
 # They stay readable through `migrate`, which upgrades them without inventing
 # evidence the original record never carried.
-MIGRATABLE_SCHEMA_VERSION = "1.0"
+MIGRATABLE_SCHEMA_VERSION = "1.1"
 DEFAULT_SAMPLE = ROOT / "examples" / "helix-blocker-triage.json"
 MAX_DEFERRABLE_RISK_SCORE = 60
 # Edison Ship Gate: a dev-stage increment with a verified normal path buys a
@@ -76,13 +76,16 @@ LOOP_KEYS = {
     "deadline",
     "usage",
     "ship_stage",
+    "target",
+    "claim_envelope",
+    "working_branch",
 }
 SHIP_STAGE_KEYS = {"stage", "basis", "basis_ref", "happy_path", "evidence_attestation"}
 HAPPY_PATH_KEYS = {"verified", "check_ref", "summary"}
 SHIP_ATTESTATION_KEYS = {"reviewer_id", "evidence_refs"}
 SHIP_DECISION_KEYS = {"decision", "rationale"}
-ROLE_KEYS = {"implementer_id", "reviewer_ids"}
-DEADLINE_KEYS = {"at", "source", "source_ref"}
+ROLE_KEYS = {"implementer_id", "reviewer_ids", "priority_reviewer_id"}
+DEADLINE_KEYS = {"at", "source", "source_ref", "clock_readings", "minimum_shape"}
 USAGE_KEYS = {
     "primary_5h_remaining",
     "secondary_weekly_remaining",
@@ -173,6 +176,10 @@ SHIP_DECISIONS = {"go", "hold"}
 # The only floor a dev-stage ship may defer, and only when no reachable
 # failure sequence has been demonstrated against the deployed surface.
 DEV_DEFERRABLE_FLOORS = {"security"}
+# Unconditional floor values: no demonstrated reach is required to raise them and
+# no level of concurrence defers them. Their only exits are a cited owner
+# approval or returning to the recorded branch and consolidating.
+NON_DEFERRABLE_FLOORS = {"unapproved_branch_change"}
 DEADLINE_SOURCES = {"none", "explicit_owner", "explicit_policy"}
 USAGE_STATUSES = {"fresh", "stale", "unknown"}
 USAGE_SOURCES = {
@@ -283,6 +290,27 @@ def validate_roles(value: Any, findings: list[Finding]) -> tuple[str | None, lis
     elif not all(valid_id(item) for item in reviewers):
         add(findings, "helix.loop.roles.reviewer_ids", "reviewer id is malformed")
         reviewers = []
+    priority_reviewer = roles.get("priority_reviewer_id")
+    if not valid_id(priority_reviewer):
+        add(
+            findings,
+            "helix.loop.roles.priority_reviewer_id",
+            "priority_reviewer_id is malformed; 'the second reviewer' names nobody "
+            "once there are three",
+        )
+    else:
+        if reviewers and priority_reviewer not in reviewers:
+            add(
+                findings,
+                "helix.loop.roles.priority_reviewer_id",
+                "priority_reviewer_id must be one of reviewer_ids",
+            )
+        if implementer is not None and priority_reviewer == implementer:
+            add(
+                findings,
+                "helix.loop.roles.priority_reviewer_id",
+                "implementer cannot hold the owner-priority disposition role",
+            )
     if implementer is not None and implementer in reviewers:
         add(
             findings,
@@ -300,7 +328,7 @@ def validate_deadline(
     deadline = object_shape(
         value,
         path="helix.loop.deadline",
-        required=DEADLINE_KEYS,
+        required={"at", "source", "source_ref", "clock_readings"},
         allowed=DEADLINE_KEYS,
         findings=findings,
     )
@@ -1044,6 +1072,18 @@ def validate_record(record: Any) -> list[Finding]:
                 and finding_class == "hardening"
                 and floor_basis == "precautionary"
             )
+            # An unapproved branch change is unconditional: it cannot be
+            # relabelled precautionary to reach the dev-stage defer envelope,
+            # because it is not a claim about the increment's behaviour at all.
+            if protected_floor in NON_DEFERRABLE_FLOORS:
+                floor_deferrable = False
+                add(
+                    findings,
+                    f"{path}.resolution.disposition",
+                    "an unapproved branch change is not deferrable at any level of "
+                    "concurrence; its only exits are a cited owner approval or "
+                    "returning to the recorded branch and consolidating",
+                )
             if protected_floor != "none" and not floor_deferrable:
                 add(
                     findings,

@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.1",
+  "schema_version": "1.2",
   "artifact_type": "helix_blocker_triage",
   "loop": {
     "loop_id": "helix-balance-sample",
@@ -12,12 +12,37 @@
       "reviewer_ids": [
         "codex-misa",
         "cc-misa-hime"
-      ]
+      ],
+      "priority_reviewer_id": "codex-misa"
     },
     "deadline": {
       "at": "2026-07-27T14:00:00+09:00",
       "source": "explicit_owner",
-      "source_ref": "source:owner-deadline"
+      "source_ref": "source:owner-deadline",
+      "clock_readings": [
+        {
+          "at": "2026-08-17T06:00:00Z",
+          "phase": "round_start"
+        },
+        {
+          "at": "2026-08-17T06:40:00Z",
+          "phase": "disposition"
+        },
+        {
+          "at": "2026-08-17T07:05:00Z",
+          "phase": "ship_decision"
+        }
+      ],
+      "minimum_shape": {
+        "owner_goal_ref": "https://github.com/bonginkan/fairy_tale/issues/108",
+        "named_items": [
+          "locate-the-target card",
+          "owner-priority card",
+          "multi-directive card"
+        ],
+        "hash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "registered_at": "2026-08-17T06:00:00Z"
+      }
     },
     "usage": {
       "primary_5h_remaining": 12,
@@ -43,6 +68,44 @@
           "source:dev-target-authorization"
         ]
       }
+    },
+    "target": {
+      "repo": "bonginkan/fairy_tale",
+      "path": "skills/fairy-tale/references/cards",
+      "layer": "canonical skill cards",
+      "canonical_owner": "bonginkan/fairy_tale",
+      "directive_refs": [
+        {
+          "ref": "discord:1538803731246612531",
+          "content_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+          "captured_at": "2026-08-17T06:00:00Z",
+          "edit_count": 0
+        }
+      ],
+      "propagation_path": [
+        "plugins/fairy-tale/skills/fairy-tale",
+        ".agents/skills/fairy-tale",
+        ".claude/skills/fairy-tale"
+      ],
+      "duplication_policy": "mirrored_byte_identical",
+      "resolved_at": "2026-08-17T06:00:00Z"
+    },
+    "claim_envelope": {
+      "baseline_ref": "3a1cb439402e27bedb42b7690130a8abd49189a7",
+      "claim_snapshot_refs": [
+        {
+          "ref": "https://github.com/bonginkan/fairy_tale/issues/108",
+          "content_hash": "2222222222222222222222222222222222222222222222222222222222222222",
+          "captured_at": "2026-08-17T06:00:00Z",
+          "edit_count": 0
+        }
+      ]
+    },
+    "working_branch": {
+      "name": "dev-matsumoto",
+      "fixed_by_ref": "discord:1538809535156846642",
+      "approval_ref": null,
+      "remedy": "none"
     }
   },
   "blockers": [

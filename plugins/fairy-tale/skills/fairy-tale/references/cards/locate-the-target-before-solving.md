@@ -10,15 +10,27 @@ entrenches the error rather than exposing it.
   already known, and that workflow then quietly decides what the task was about.
   Read the subject first: the system, skill, or component the directive names.
   When subject and verb point at different places, the subject governs.
-- **Prefer the signals the implementer cannot rewrite.** The channel the
-  directive arrived in, the thread or issue title, and the canonical home of the
-  named concept are set by someone else and cost nothing to read. Read them
-  before building any provenance apparatus: elaborate witness machinery is worth
-  less than the free, unforgeable signals already in the room.
-- **Record the target and the basis that fixed it** alongside the directive
-  refs, the same way the working branch is recorded. A target held only in the
-  implementer's head cannot be checked by anyone, including the implementer
-  later.
+- **Authority and corroboration are different, and ambient signals are the
+  second kind.** The verified owner directive and the canonical ownership of
+  record decide the target. The channel a request arrived in, a thread or issue
+  title, and surrounding vocabulary are corroboration: they are cheap, they are
+  usually right, and they cost nothing to read before building any provenance
+  apparatus — but they are renamed, reused, and set by third parties, so they
+  are not unforgeable and they do not settle a question against a directive.
+  Read them early; do not promote them.
+- **When a directive names a target explicitly, that naming governs.** The
+  subject-over-verb reading is a heuristic for when nothing is named, not a rule
+  that outranks an explicit path, repository, or component — wherever in the
+  sentence it appears. Where directive and ambient signal disagree, or two
+  directives point apart, do not pick the stronger-feeling one: stop and ask the
+  owner. Failing closed costs a message; proceeding on a contested target costs
+  the effort.
+- **Record the target as a structure, not a sentence.** Repository, path, layer,
+  canonical owner, the directive refs it was resolved from, the propagation path
+  to any mirrored copies, and the duplication policy that governs them — plus,
+  for any mutable source relied on, its content hash and capture time. A target
+  held only in the implementer's head cannot be checked by anyone, including the
+  implementer later; a target recorded as prose cannot be checked mechanically.
 - **An artifact stating where things belong is checked against itself.** If the
   work declares a canonical location, a duplication rule, or an ownership
   boundary, apply that declaration to the artifact carrying it before submitting.

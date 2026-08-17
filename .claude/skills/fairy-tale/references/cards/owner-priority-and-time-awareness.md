@@ -18,10 +18,14 @@ from feeling rather than from a clock produces a plan nobody can check.
   are technical determinations; the priority reviewer can neither downgrade them
   nor promote a non-floor finding into a blocker. `block now` is a readback of
   the technical determination, not a priority disposition.
-- **Record who held the role and what it was exercised against.** Each handoff
-  carries the priority reviewer's identity and the verified owner directive ref
-  the priorities were read from. A priority disposition whose directive cannot be
-  named afterwards is indistinguishable from a preference.
+- **Exactly one reviewer holds the priority role, and the record says which.**
+  With three or more reviewers, "the second reviewer" names nobody; the handoff
+  carries a single priority reviewer id, the verified owner directive and
+  deadline sources pinned by hash and capture time, the clock readings taken each
+  round and at each disposition, and the pre-registered minimum shape as an owner
+  goal ref with its named items and a hash. A priority disposition whose
+  directive cannot be named afterwards is indistinguishable from a preference,
+  and one whose holder cannot be named is unattributable.
 - **No directive, no priority authority.** When no owner directive is in force,
   the priority role does not arise and review proceeds on technical judgement
   alone. An empty priority must never be used to justify shipping.
@@ -41,8 +45,11 @@ from feeling rather than from a clock produces a plan nobody can check.
   reviewer's discretion. Counts are not names: "8 of 10" is not evidence when the
   remaining 2 are the substance.
 - **A deadline never lowers the floor.** Time has no bearing on floor membership
-  or on whether a claim holds. If the work will not fit, re-cut the increment to
-  something that fits, or escalate — never trim the floor to make the date.
+  or on whether a claim holds. If the work will not fit, what may be resequenced
+  is the internal order of attack and the disposition of out-of-scope review
+  findings — never the owner's directive set, which narrows only by the owner's
+  own supersession or an escalation answered. Re-cutting an increment is not a
+  licence to drop directives, and the floor is never trimmed to make a date.
 - **Emit a forecast each round, and settle it afterwards.** One line: time
   remaining, which pre-registered items have passed and which have not, whether
   the remainder fits at the current rate, and what is taken next. Reconcile the

@@ -7,19 +7,23 @@ failure modes, so solving them one at a time produces fragments nobody closes
 and a branch that moves until the thread is lost.
 
 - **Directives issued together are solved together.** Treat the owner's
-  instructions as one effort and deliver them solved in one artifact. Picking one
+  instructions as one effort and deliver them solved as one reviewable delivery:
+  one pull request at one exact head, not a sequence of partial submissions.
+  Picking one
   off and deferring the rest is not scoping; it is leaving the effort unfinished
   while reporting progress. Volume is not a reason to split: "too large for one
   pass", "Phase 2", "a separate PR per reviewable unit", and "the rest next
   session" are refusals to finish.
 - **The directive set is read from its sources, and it changes three ways.**
-  Record the message or issue references the effort answers; membership is read
-  off those refs rather than recalled. A later directive may *add* to the set,
-  *replace* an earlier one by narrowing or withdrawing it, or *correct where an
-  earlier one is carried out* while its content stands. Record which ref
-  supersedes which. A set that only ever grows keeps solving what the owner has
-  already withdrawn; a set that never records relocation discards work that was
-  right but misplaced.
+  Record the message or issue references the effort answers; membership is
+  read off those refs rather than recalled. A later directive may *add* to the
+  set, *replace* an earlier one by narrowing or withdrawing it, or *correct
+  where an earlier one is carried out* while its content stands. A later
+  instruction joins the set when it adds to, replaces, or redirects the same
+  owner goal — not merely because it touches the same system, which would make
+  the set unbounded. Record which ref supersedes which. A set that only ever
+  grows keeps solving what the owner has already withdrawn; a set that never
+  records relocation discards work that was right but misplaced.
 - **The working branch is fixed, and fixing it means not moving it.** An effort
   runs on one branch at owner-goal scope, not per increment, because an
   increment-scoped rule still lets the branch move between increments — the
@@ -41,8 +45,9 @@ and a branch that moves until the thread is lost.
 - **Deferred work stays on the effort's branch.** Sending a finding to the next
   cycle decides *when* it is done, not *where*: the next increment runs on the
   same fixed branch. A deferral is never a reason to move or fork the branch.
-- **Reviewers review the whole delivery at once.** A registered reviewer reads
-  the exact artifact in full against every directive in the set and returns all
+- **Every required reviewer reviews the whole delivery at once.** Not one
+  designated reader: each required reviewer independently reads the full diff,
+  every directive in the set, and the checks at that exact head, and returns all
   findings in one pass. Serial partial review manufactures the fragmentation this
   card forbids, and it prevents convergence: if findings arrive in installments,
   no round ever produces zero new fix-now findings.
@@ -62,4 +67,7 @@ and a branch that moves until the thread is lost.
   there is not a failure to finish. Separate ownership is also not splitting:
   when parts of the work live in repositories or configurations only their own
   owners may edit, they are structurally separate efforts, sequenced so no window
-  exists in which the rule is recorded nowhere. "Later" is not a record.
+  exists in which the rule is recorded nowhere. Splitting that way does not end
+  the umbrella goal: it stays open until every named child closes or the owner
+  narrows it, so closing the umbrella on the first child's merge reports a
+  completion that has not happened. "Later" is not a record.

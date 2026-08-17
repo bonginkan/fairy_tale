@@ -2,10 +2,10 @@
   "purpose": "Parity checklist for the SKILL.md router/per-card restructure: every section listed here must remain reachable (in SKILL.md or via an extracted card referenced from the router). Compare with --inventory-compare to fail closed on silent drops.",
   "skill_md": "skills/fairy-tale/SKILL.md",
   "measured": {
-    "bytes": 19017,
-    "lines": 256,
-    "chars": 18961,
-    "est_tokens": 4754,
+    "bytes": 20565,
+    "lines": 273,
+    "chars": 20505,
+    "est_tokens": 5141,
     "estimation_basis": "est tokens = UTF-8 bytes / 4.0 (reporting only); head window enforced at 3.5 bytes/token (densest plausible tokenization); line budget uses exact lines",
     "head_window_bytes": 17500,
     "head_token_budget": 5000
@@ -29,26 +29,26 @@
     },
     {
       "level": 2,
-      "title": "Default workflow",
+      "title": "Mode patterns",
       "line": 31,
       "byte_offset": 1805,
-      "byte_end": 11413,
-      "est_tokens": 2402
+      "byte_end": 8549,
+      "est_tokens": 1686
     },
     {
       "level": 2,
-      "title": "Mode patterns",
-      "line": 188,
-      "byte_offset": 11413,
-      "byte_end": 17432,
-      "est_tokens": 1505
+      "title": "Default workflow",
+      "line": 77,
+      "byte_offset": 8549,
+      "byte_end": 18980,
+      "est_tokens": 2608
     },
     {
       "level": 2,
       "title": "Supporting references",
-      "line": 230,
-      "byte_offset": 17432,
-      "byte_end": 19017,
+      "line": 247,
+      "byte_offset": 18980,
+      "byte_end": 20565,
       "est_tokens": 396
     }
   ],
@@ -110,8 +110,8 @@
     {
       "path": "references/cards/edison-ship-gate.md",
       "title": "Edison Ship Gate: dev-deploy threshold",
-      "bytes": 3790,
-      "est_tokens": 948
+      "bytes": 8198,
+      "est_tokens": 2050
     },
     {
       "path": "references/cards/effort-inversion-debugger.md",
@@ -168,10 +168,16 @@
       "est_tokens": 838
     },
     {
+      "path": "references/cards/github-is-the-exchange-surface.md",
+      "title": "GitHub Is the Exchange Surface",
+      "bytes": 2151,
+      "est_tokens": 538
+    },
+    {
       "path": "references/cards/helix-loop-communication-harness.md",
       "title": "Helix Loop Communication Harness",
-      "bytes": 7074,
-      "est_tokens": 1768
+      "bytes": 7806,
+      "est_tokens": 1952
     },
     {
       "path": "references/cards/high-signal-research-synthesis.md",
@@ -198,6 +204,12 @@
       "est_tokens": 149
     },
     {
+      "path": "references/cards/locate-the-target-before-solving.md",
+      "title": "Locate the Target Before Solving",
+      "bytes": 4747,
+      "est_tokens": 1187
+    },
+    {
       "path": "references/cards/loop-engineering-and-job-automation-harness.md",
       "title": "Loop Engineering and Job Automation Harness",
       "bytes": 3484,
@@ -210,6 +222,12 @@
       "est_tokens": 159
     },
     {
+      "path": "references/cards/multi-directive-single-branch.md",
+      "title": "Multiple Directives Are One Effort",
+      "bytes": 5236,
+      "est_tokens": 1309
+    },
+    {
       "path": "references/cards/mythos-defensive-harness.md",
       "title": "Mythos Defensive Harness",
       "bytes": 349,
@@ -220,6 +238,12 @@
       "title": "Narrative Empathy Harness: prose, conversation, and UI feel",
       "bytes": 772,
       "est_tokens": 193
+    },
+    {
+      "path": "references/cards/owner-priority-and-time-awareness.md",
+      "title": "Owner-Priority Review and Time-Awareness",
+      "bytes": 3970,
+      "est_tokens": 992
     },
     {
       "path": "references/cards/refactoring-similarity-harness.md",
@@ -541,9 +565,9 @@
     },
     {
       "path": "skills/fairy-tale/references/cards/edison-ship-gate.md",
-      "bytes": 3790,
-      "lines": 55,
-      "est_tokens": 948
+      "bytes": 8198,
+      "lines": 114,
+      "est_tokens": 2050
     },
     {
       "path": "skills/fairy-tale/references/cards/effort-inversion-debugger.md",
@@ -600,10 +624,16 @@
       "est_tokens": 838
     },
     {
+      "path": "skills/fairy-tale/references/cards/github-is-the-exchange-surface.md",
+      "bytes": 2151,
+      "lines": 32,
+      "est_tokens": 538
+    },
+    {
       "path": "skills/fairy-tale/references/cards/helix-loop-communication-harness.md",
-      "bytes": 7074,
-      "lines": 113,
-      "est_tokens": 1768
+      "bytes": 7806,
+      "lines": 123,
+      "est_tokens": 1952
     },
     {
       "path": "skills/fairy-tale/references/cards/high-signal-research-synthesis.md",
@@ -630,6 +660,12 @@
       "est_tokens": 149
     },
     {
+      "path": "skills/fairy-tale/references/cards/locate-the-target-before-solving.md",
+      "bytes": 4747,
+      "lines": 68,
+      "est_tokens": 1187
+    },
+    {
       "path": "skills/fairy-tale/references/cards/loop-engineering-and-job-automation-harness.md",
       "bytes": 3484,
       "lines": 53,
@@ -642,6 +678,12 @@
       "est_tokens": 159
     },
     {
+      "path": "skills/fairy-tale/references/cards/multi-directive-single-branch.md",
+      "bytes": 5236,
+      "lines": 73,
+      "est_tokens": 1309
+    },
+    {
       "path": "skills/fairy-tale/references/cards/mythos-defensive-harness.md",
       "bytes": 349,
       "lines": 9,
@@ -652,6 +694,12 @@
       "bytes": 772,
       "lines": 14,
       "est_tokens": 193
+    },
+    {
+      "path": "skills/fairy-tale/references/cards/owner-priority-and-time-awareness.md",
+      "bytes": 3970,
+      "lines": 57,
+      "est_tokens": 992
     },
     {
       "path": "skills/fairy-tale/references/cards/refactoring-similarity-harness.md",
@@ -895,9 +943,9 @@
     },
     {
       "path": "skills/fairy-tale/references/process/helix-blocker-triage-record.md",
-      "bytes": 3063,
-      "lines": 67,
-      "est_tokens": 766
+      "bytes": 3559,
+      "lines": 74,
+      "est_tokens": 890
     },
     {
       "path": "skills/fairy-tale/references/process/implementation-contract-closure-record.md",
