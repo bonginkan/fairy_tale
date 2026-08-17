@@ -1319,6 +1319,21 @@ def validate_record(record: Any) -> list[Finding]:
     # show which one was taken. Without this the floor value can be raised and
     # the record closed with remedy "none" and no approval anywhere — the floor
     # stated in the schema but never read at runtime.
+    # The envelope's immutable half is only immutable if its ref cannot move.
+    # exact_head is enforced both in the schema and here; baseline_ref carries
+    # the same promise and gets the same treatment.
+    envelope = loop.get("claim_envelope") if isinstance(loop, dict) else None
+    if isinstance(envelope, dict):
+        baseline = envelope.get("baseline_ref")
+        if not isinstance(baseline, str) or not SHA_RE.fullmatch(baseline):
+            add(
+                findings,
+                "helix.loop.claim_envelope.baseline_ref",
+                "baseline_ref must be a commit id, not a movable name: a branch "
+                "ref makes the fixed half of the envelope as mutable as the "
+                "half it is supposed to anchor",
+            )
+
     branch_floor_raised = any(
         isinstance(blocker, dict)
         and blocker.get("protected_floor") == "unapproved_branch_change"
@@ -2274,6 +2289,10 @@ def run_selftest() -> int:
     )
     branch_unevidenced_approval["loop"]["working_branch"]["approval_ref"] = ""
     blocked(branch_unevidenced_approval, "citable ref")
+
+    movable_baseline = copy.deepcopy(base)
+    movable_baseline["loop"]["claim_envelope"]["baseline_ref"] = "main"
+    blocked(movable_baseline, "must be a commit id, not a movable name")
 
     # A deadline nobody read a clock against, and one whose shape was never
     # pre-registered: both are the felt deadline the card forbids.

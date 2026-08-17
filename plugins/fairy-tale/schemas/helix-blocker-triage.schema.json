@@ -1352,7 +1352,8 @@
         "baseline_ref": {
           "type": "string",
           "minLength": 1,
-          "description": "Merge-base commit the contracts and required tests are read from."
+          "description": "Merge-base commit the contracts and required tests are read from. A commit id, not a branch name: the half of the envelope that is 'fixed by commit' is only fixed if what it points at cannot move.",
+          "pattern": "^[0-9a-f]{40}$"
         },
         "claim_snapshot_refs": {
           "type": "array",
