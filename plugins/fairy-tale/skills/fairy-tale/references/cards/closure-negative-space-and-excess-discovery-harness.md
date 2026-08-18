@@ -43,6 +43,12 @@
     concrete user, moment, evidence, and near-term consequence pass the gate.
   - Tier C, speculative neighbors: precision-first. Keep mature-product or
     best-practice analogies private unless asked.
+  - In removal mode the tiers keep their names and change what they are about:
+    Tier A is what a removal takes with it, and Tier B/C additive surfacing —
+    journey gaps to fill, neighbouring features to add — is off, because it
+    answers a question the effort is not asking. What Tier B/C still carry is
+    the subtraction form: a user left mid-journey by the cut, a neighbour that
+    breaks when this goes.
 - Noise guards apply to Tier B/C exploration only: bounded one-pass output,
   ranked 1-3 findings/questions or silence, no "also you could" lists, and no
   automatic implementation scope expansion.

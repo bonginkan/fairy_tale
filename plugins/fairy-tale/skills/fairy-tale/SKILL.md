@@ -143,6 +143,9 @@ Route with the table below and read the linked card before applying a pattern; t
      negative-space pass before convergence: identify entailed companions,
      gated journey gaps, and speculative neighbors. Use
      `references/process.md` for the Closure Check and Negative-Space cards.
+     In an effort whose goal is removal, the card inverts this: the excess pass
+     leads, additive surfacing is off, and the closure check asks what a removal
+     breaks. Mixed or unclear mode keeps surfacing.
    - For review, refactor, skill/policy updates, and legacy cleanup, run the
      paired excess pass: identify redundant, stale, or legacy surfaces, but
      classify them into remove-now, deprecate-with-migration,

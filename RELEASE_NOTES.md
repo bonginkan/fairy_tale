@@ -30,6 +30,15 @@
   out inside the review checklist, not only in the section it protects.
 - Both failure directions carry a reviewer action: refuse an unnecessary
   mechanism, and ask for the smallest correction when a failure keeps recurring.
+- **Closure, Negative-Space and Excess** gains a removal mode (#123). When the
+  goal is to cut an over-grown surface back, the additive half argues the wrong
+  way every time: each candidate acquires a list of things it entails, and the
+  subtraction becomes an expansion. In that mode the excess pass leads, the
+  closure check asks what a removal breaks and which required property would
+  lose its implementation, Tier A names what the removal takes with it, and
+  Tier B/C additive surfacing is off while their subtraction form stays. An
+  effort that removes and adds together, or whose mode was never established,
+  is not in removal mode — the recall guard wins when the reading is ambiguous.
 
 ## 0.2.39 — Release packaging
 
