@@ -195,9 +195,12 @@ Route with the table below and read the linked card before applying a pattern; t
      If a finding needs risk-aware priority, issue-only deferral, or an
      implementer objection, use the machine-validated Helix blocker triage
      record; never negotiate away its non-deferrable safety floor.
-   - For multi-agent role assignment inside a loop: use the
+   - For forming a multi-agent trio, or assigning roles inside a loop: use the
      `Usage-Aware Multi-Agent Load Balancer` card and its Usage Reading
-     Reference. Assign fixed specialist capabilities first, check active
+     Reference. Settle composition before capacity — a three-party helix
+     carries exactly one codex lane and two lanes of other runtime families,
+     preserved when members are swapped. Assign fixed specialist capabilities
+     first, check active
      per-agent Do Not Disturb windows, verify coarse capacity from the local
      source when available, then choose the implementation owner from agents
      with usable coarse capacity, current runtime install, and no active DND

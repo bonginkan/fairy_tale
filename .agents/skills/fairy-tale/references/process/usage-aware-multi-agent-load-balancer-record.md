@@ -4,6 +4,10 @@ Use this at loop increment boundaries before assigning implementation,
 review, or specialist-tool roles. The goal is continuity and review integrity,
 not provider-account introspection.
 
+This record is prose. Nothing in the repository parses or validates a filled
+copy, so every field below is a discipline for the agent filling it, not a gate
+that will stop a wrong entry.
+
 ```text
 loop / thread:
 increment:
@@ -12,6 +16,7 @@ candidate agents:
 fixed specialist capabilities:
 capacity inputs:
   - agent:
+    runtime_family:
     primary_5h_remaining:
     secondary_weekly_remaining:
     blocking_status:
@@ -27,6 +32,9 @@ eligible implementation agents:
 excluded agents and reason:
 implementation owner:
 reviewers:
+composition (runtime families):
+composition check: satisfied | blocked | owner-directed | not_applicable
+composition directive ref:
 specialist tool owner:
 assignment rule applied:
 tie-breaker:
@@ -36,8 +44,62 @@ ledger / receipt:
 owner-visible status:
 ```
 
+Composition constraint:
+
+- A three-party helix carries exactly one Codex-lane agent and two agents from
+  other runtime families: `1 codex, 2 others`. Two Codex lanes in one trio is
+  not a valid composition, and neither is zero.
+- The constraint scopes to increments that form a three-party helix. An
+  increment that assigns roles without forming one records
+  `composition check: not_applicable`; the rest of the assignment policy still
+  applies. `not_applicable` states that no trio was formed, never that a
+  formed trio was left unchecked.
+- `composition directive ref` is filled exactly when the check reads
+  `owner-directed`, and carries the verified owner directive locator. Leave it
+  empty for the other three values.
+- The constraint binds the runtime family, not the identity. Membership is not
+  a fixed roster; whoever holds a slot at a given moment, the family split is
+  what must hold.
+- Substitution preserves the split. A replacement for the Codex member must
+  itself be a Codex lane, and a replacement for a non-Codex member must not be.
+  Re-check the composition at every substitution, not only when the loop forms.
+- The two non-Codex slots need not share a family with each other. Claude Code
+  lanes are the common case today; any additional coding-agent runtime family
+  counts as `other` on the same terms, so the rule does not need rewriting as
+  new runtimes are adopted.
+- Runtimes fail, drift, and mis-read differently, so a mixed trio keeps at
+  least one independent runtime in every review. A single-family trio shares
+  its blind spots with the work it is reviewing.
+- That reasoning carries the lower bound only: it is why the count is never
+  zero. It does not derive the upper bound, and `2 codex + 1 other` would
+  satisfy it while violating the split. The exact split is set by owner
+  directive, so do not widen this to `any mixed trio` on the strength of the
+  line above.
+- `runtime_family` names the runtime the agent runs on, not its account, host,
+  or persona. Record one value per agent: `codex`, `claude-code`, or another
+  runtime family written as its lowercase hyphenated runtime name.
+- The constraint is not self-relaxable. Never promote a second agent of another
+  family into the Codex slot, and never seat two Codex lanes. When no Codex
+  lane is eligible the trio does not form, and the handling is ordered:
+  1. Inside an active loop, keep moving on the work that does not need the
+     trio — implementation, evidence, drafts, records — and mark
+     `composition check: blocked` with the reason and the missing family. A
+     blocked composition is recorded and worked around, not waited on.
+  2. Outside a loop, waiting for an eligible Codex lane is a valid resolution.
+     Record the same fields while waiting.
+  3. If the blocked composition holds up a gate that cannot proceed without the
+     trio, escalate to the session owner. Only the session owner can direct a
+     different composition; the record then reads `owner-directed` and carries
+     the directive ref.
+  Escalation is the third step. It does not replace the first two.
+- A blocked composition never lowers the review requirement. Work that needs
+  two independent sign-offs does not proceed on one because the trio could not
+  form.
+
 Assignment policy:
 
+- Apply the composition constraint before capacity. Capacity selects roles
+  within a valid composition; it never produces one that violates the split.
 - Assign fixed specialist capabilities first. Computer Use, GUI/app settings,
   credential setup, secret handling, permission changes, deploys, meeting
   joins, and external mutations are controlled by capability plus approval
@@ -144,7 +206,12 @@ Non-normative example:
 ```text
 session owner: CC MISA
 specialist tool owner: CC MISA for Computer Use / GUI settings
-implementation candidates: Codex MISA, MISA 3, CC MISA when not fixed-specialist
+composition: 1 codex lane + 2 lanes of other families
+composition check: satisfied
+implementation candidates: the codex-lane member and the two other-family
+  members, minus any agent holding a fixed specialist role this increment
 assignment: implementation owner = highest usable capacity; others review
 review guard: implementation owner never signs off its own increment
+substitution: swapping the codex-lane member brings in another codex lane;
+  swapping a non-codex member brings in a non-codex lane
 ```
