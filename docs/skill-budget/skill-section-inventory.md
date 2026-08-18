@@ -1,7 +1,7 @@
 # SKILL.md section inventory (parity checklist)
 
 - Source: `skills/fairy-tale/SKILL.md`
-- Measured: 21302 bytes / 281 lines / ~5326 est tokens
+- Measured: 21428 bytes / 282 lines / ~5357 est tokens
 - Estimation basis: est tokens = UTF-8 bytes / 4.0 (reporting only); head window enforced at 3.5 bytes/token (densest plausible tokenization); line budget uses exact lines
 - Head window: first 5000 est tokens (= 17500 bytes)
 
@@ -12,9 +12,9 @@ in SKILL.md itself or as an extracted card reachable from the router.
 |---|-------|---------|------|-------------|------------|----------------|
 | 1 | h2 | Non-negotiables | 11 | 891 | 145 | yes |
 | 2 | h2 | Residency Guard | 23 | 1470 | 86 | yes |
-| 3 | h2 | Mode patterns | 31 | 1812 | 1745 | yes |
-| 4 | h2 | Default workflow | 78 | 8791 | 2732 | yes |
-| 5 | h2 | Supporting references | 255 | 19717 | 396 | no |
+| 3 | h2 | Mode patterns | 31 | 1812 | 1757 | yes |
+| 4 | h2 | Default workflow | 78 | 8840 | 2751 | yes |
+| 5 | h2 | Supporting references | 256 | 19843 | 396 | no |
 
 ## References inventory
 
@@ -39,7 +39,7 @@ in SKILL.md itself or as an extracted card reachable from the router.
 | skills/fairy-tale/references/cards/fable-harness-long-coding-or-migration-tasks.md | 264 | 8 | 66 |
 | skills/fairy-tale/references/cards/fairy-fusion-harness.md | 2141 | 34 | 535 |
 | skills/fairy-tale/references/cards/finance-proposal-completeness-gate.md | 10773 | 157 | 2693 |
-| skills/fairy-tale/references/cards/fuzzy-first-mechanism-only-at-the-exceptions.md | 3253 | 56 | 813 |
+| skills/fairy-tale/references/cards/fuzzy-first-mechanism-only-at-the-exceptions.md | 4763 | 81 | 1191 |
 | skills/fairy-tale/references/cards/general-e2e-completion-harness.md | 2030 | 30 | 508 |
 | skills/fairy-tale/references/cards/generalization-and-latent-structure-harness-hidden-rules-executable-models-and-tacit-intent.md | 3350 | 50 | 838 |
 | skills/fairy-tale/references/cards/github-is-the-exchange-surface.md | 2151 | 32 | 538 |

@@ -32,6 +32,31 @@ someone thought of.
   taxes every ordinary run — extra steps, refusals, ceremony — is usually a
   net loss even when it works.
 
+Carrying state in the conversation:
+
+The same preference applies to the shape of the work, not only to rules. When a
+model can hold what it needs by continuing a conversation, continuing it is the
+default; cutting the work into single-shot calls throws that away and makes
+someone re-supply the context in a prompt.
+
+- Stack turns rather than restarting. A step that follows from what was just
+  said belongs in the same thread, where the model still has the reasoning, the
+  corrections, and the reason the last attempt failed.
+- A one-shot call re-derives from whatever the prompt happens to carry, so the
+  failures are the ones the prompt author did not anticipate: lost decisions,
+  re-asked questions, answers contradicting an earlier turn. Fragmenting a
+  conversation is not neutral — it manufactures those.
+- Serialising state into a schema, a file, or a handoff to pass between calls
+  is mechanism, and it is the same trade as any other: it buys isolation and
+  costs everything the conversation held implicitly.
+- Statelessness is right when isolation is the point — an independent review
+  that must not inherit the implementer's framing, a check that has to run
+  clean, work that genuinely parallelises, or a context so large or polluted
+  that carrying it costs more than restating it. Name which one applies.
+- When something goes wrong across a boundary, ask first whether the boundary
+  had to be there. Much of what looks like a memory failure is a conversation
+  someone cut in half.
+
 Reviewing an added mechanism:
 
 - Ask whether it should exist before measuring whether it is internally sound.
