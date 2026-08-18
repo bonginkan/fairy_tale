@@ -226,6 +226,9 @@ def run_selftest() -> int:
     # The refusal is about the commit the ref resolves to, not the word used to
     # name it. Without this, a comparison weakened to raw strings would still
     # reject "HEAD" and "@" while the exact SHA slipped through as a tautology.
+    # A control that quietly does not run is worse than one that fails: the suite
+    # still reports green with fewer checks. Every branch below records an entry,
+    # so an environment that cannot produce the input is a RED, not a silence.
     _, head_sha = git("rev-parse", "--verify", "HEAD^{commit}")
     head_sha = head_sha.strip()
     if head_sha:
@@ -239,13 +242,17 @@ def run_selftest() -> int:
 
         ephemeral = f"refs/tmp/version-bump-selftest-{os.getpid()}"
         created, _ = git("update-ref", ephemeral, head_sha)
-        if created == 0:
+        if created != 0:
+            controls.append(("do_check: could not create the ephemeral ref", 1, 0))
+        else:
             try:
                 controls.append(
                     ("do_check: freshly created ref at HEAD refused as base", quiet(ephemeral), 1)
                 )
             finally:
                 git("update-ref", "-d", ephemeral)
+    else:
+        controls.append(("do_check: could not resolve HEAD for the identity controls", 1, 0))
     controls.append(("do_check: unresolvable base refused", quiet("definitely-not-a-ref"), 1))
     # The positive for do_check is deliberately NOT here: its verdict depends on
     # what the branch has changed, so a control asserting green would pass or
@@ -255,6 +262,16 @@ def run_selftest() -> int:
         (name, (1 if isinstance(result, list) and result else 0) if isinstance(result, list) else result, expected)
         for name, result, expected in controls
     ]
+    # The count is itself a control: without it, a control that stops being
+    # appended -- because a git command failed, or because someone removed it --
+    # leaves a smaller suite that still reports green.
+    EXPECTED_CONTROLS = 19
+    if len(normalised) != EXPECTED_CONTROLS:
+        print(
+            f"[SELFTEST RED] expected {EXPECTED_CONTROLS} controls, ran {len(normalised)}: "
+            f"a control was added or silently skipped"
+        )
+        return 1
     failures = [name for name, actual, expected in normalised if actual != expected]
     if failures:
         for name in failures:
