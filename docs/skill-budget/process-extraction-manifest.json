@@ -274,7 +274,7 @@
           "reason": "bind the three-party helix to exactly one codex lane and two lanes of other runtime families, preserved across member substitution, applied before capacity, and not self-relaxable"
         },
         {
-          "current_body_sha256": "e3d3e7eab287790572161f9e747316d4fb9cf8d5c3622eced6603cee30f8d9ab",
+          "current_body_sha256": "38203500399219a7a16269546f5d0a3532575cc9d180b77ff8358ebb71b43153",
           "supersedes_body_sha256": "69ac044b262e217019c649d8c7ae0d168fa67090fd3bfcf47e0e46bd585a0a61",
           "issue": "https://github.com/bonginkan/fairy_tale/issues/118",
           "issue_anchor": "handoff + self-reboot",

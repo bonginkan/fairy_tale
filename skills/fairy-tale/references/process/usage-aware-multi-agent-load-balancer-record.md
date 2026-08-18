@@ -176,10 +176,13 @@ Assignment policy:
 - Substitution is keyed to a recorded blocker — usable capacity gone, or one of
   one of the confirmed stops below — never to how the run feels. Long
   context, accumulated mistakes, and wanting a clean start are not blockers;
-  they are handled by handoff plus self-reboot inside the same lane. What
-  decides whether the role moves is whether a restart repairs the state: a
-  stale install or a tool missing in this session is, so the lane recovers in
-  place; capacity exhaustion and a DND window are not, so the role moves.
+  they are handled by handoff plus self-reboot inside the same lane. Whether a
+  restart can repair the state decides what to try first, not how it ends: a
+  stale install or a tool missing in this session is repaired by restarting, so
+  the lane recovers in place and the role moves only if that recovery fails
+  within its budget; capacity exhaustion and a DND window are not repaired by
+  restarting, so they go straight to the load balancer, which reassigns or
+  pauses.
 - The two blocker values are disjoint, so one event has one record:
   `usage_exhaustion` is capacity gone, and `confirmed_unavailable` is a
   confirmed stop that is *not* capacity — a stale install, a tool missing in
