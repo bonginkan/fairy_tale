@@ -12,20 +12,25 @@ Extraction provenance contract (review gate, PR #60 thread 2026-07-02):
 - `--verify` re-reads every written card and byte-compares its body slice
   against the original SKILL.md byte range recorded in the manifest. A card
   intentionally evolved after extraction must instead carry a reviewed
-  `evolution` chain: an ordered, append-only list where each entry pins the body
-  SHA-256 it produced, the body SHA-256 it superseded, and a live
+  `evolution` chain: an ordered, append-only list where each entry pins the
+  body SHA-256 it produced, the body SHA-256 it superseded, and a live
   same-repository GitHub issue URL, stable node ID, body/title anchor, and
   reason. Entry 0 supersedes the extracted original and the last entry
-  authorises the body on disk, so every authorisation a card ever received stays
-  nameable -- dropping, reordering, or duplicating an entry breaks a link and
-  exits non-zero, and an entry may not credit an issue older than its
-  predecessor's. Where the chain stops: it proves the ORDER and ATTRIBUTION of
-  the bodies it lists, not that a body it lists ever existed. An entry pinning a
-  fabricated intermediate hash, linked correctly on both sides, verifies -- the
-  manifest holds no independent record that the body was ever on disk. Read a
-  chain as the authorisations claimed for a card, not as proof of its history. The original snapshot/body hash is still verified and never
-  rewritten. Repository-relative paths are containment-checked, including
-  symlinks. Any unpinned or unverifiable drift exits non-zero.
+  authorises the body on disk. Dropping, reordering, or duplicating an entry
+  breaks a link; an entry may not credit an issue older than its
+  predecessor's; and one issue authorises one entry, so a later authorisation
+  cannot overwrite an earlier one in place. The original snapshot/body hash is
+  still verified and never rewritten. Repository-relative paths are
+  containment-checked, including symlinks. Any unpinned or unverifiable drift
+  exits non-zero.
+- Where the chain stops. It proves the ORDER of the bodies it lists, and that
+  their authorising issues are consistent with that order. It does NOT prove
+  that a named issue is the one that authorised a body -- another issue of the
+  right vintage passes -- nor that a body it lists ever existed: an entry
+  pinning a fabricated intermediate hash, linked correctly on both sides,
+  verifies, because the manifest holds no independent record of what was ever
+  on disk. Read a chain as the authorisations claimed for a card, not as proof
+  of its history.
 - The extraction is reproducible: same input SKILL.md -> byte-identical cards,
   router table, and new SKILL.md (no timestamps, no ordering ambiguity;
   sections are processed in file order).
@@ -373,6 +378,17 @@ def do_verify(
         # ends on the live body.
         if len(set(chain_shas)) != len(chain_shas):
             failures.append(f"duplicate evolution body sha in chain: {card['card_path']}")
+        # One issue authorises one entry. Reusing an identity lets a later
+        # authorisation overwrite an earlier one in place -- the chain keeps its
+        # length and its links, and the replaced authorisation is simply gone,
+        # which is the loss this chain exists to prevent.
+        chain_identities = [
+            entry.get("issue_node_id")
+            for entry in evolution
+            if isinstance(entry, dict) and isinstance(entry.get("issue_node_id"), str)
+        ]
+        if len(set(chain_identities)) != len(chain_identities):
+            failures.append(f"repeated evolution authorisation in chain: {card['card_path']}")
         # Each entry names the body it replaced, so the chain is linked rather
         # than merely ordered: entry 0 replaces the extracted original, and
         # every later entry replaces its predecessor. Dropping, reordering, or
@@ -539,6 +555,15 @@ def run_selftest() -> int:
         for key in ("issue", "issue_node_id"):
             swapped[0][key], swapped[1][key] = swapped[1][key], swapped[0][key]
         controls.append(("swapped evolution attribution", verify(swapped_manifest), 1))
+
+        # RED: the later authorisation overwrites the earlier one in place. The
+        # chain keeps its length, its links, and its ordering -- only the
+        # replaced authorisation is gone.
+        overwritten_manifest = copy.deepcopy(chain_manifest)
+        overwritten = overwritten_manifest["cards"][0]["evolution"]
+        overwritten[0]["issue"] = overwritten[1]["issue"]
+        overwritten[0]["issue_node_id"] = overwritten[1]["issue_node_id"]
+        controls.append(("overwritten evolution authorisation", verify(overwritten_manifest), 1))
 
         undated_manifest = copy.deepcopy(chain_manifest)
         fixture_issues[later_issue_url] = {
