@@ -17,13 +17,13 @@ has been *observed* to fail, reproduced. Put there for any other reason, it
 replaces something that handles everything with something that handles what its
 author thought of.
 
-- Leave the working path alone. "The model's answer is not verifiable" is not
-  a failure; a wrong answer is. (Required properties are the exception throughout:
-  they are judged against the property, not against how the answer reads — and
-  where the property is itself about the output, such as a redaction rule or a
-  schema a caller depends on, it is checked on the output every time.) Wrapping a working
-  behaviour in rules to make it legible usually costs more cases than it
-  saves.
+- Leave the working path alone. "The model's answer is not verifiable" is
+  not a failure; a wrong answer is. (Required properties are the exception
+  throughout: they are judged against the property, not against how the
+  answer reads — and where the property is itself about the output, such as
+  a redaction rule or a schema a caller depends on, it is checked on the
+  output every time.) Wrapping a working behaviour in rules to make it
+  legible usually costs more cases than it saves.
 - Correct the failure mode the evidence supports, at its narrowest. Not the
   one literal input — a fix that only recognises the exact sentence that broke
   will miss the next phrasing of the same fault — and not the category it
