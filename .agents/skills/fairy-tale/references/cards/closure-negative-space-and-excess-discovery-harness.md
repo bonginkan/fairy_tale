@@ -12,6 +12,9 @@
   set" this harness audits; the harness audits numbered sets that are *given to
   you as possibly-incomplete input*. The harness re-engages for a generative
   request only on an explicit "review / critique / audit / 抜け漏れ / 批判的に".
+- First run a non-suppressible closure check: stated or observed `N` is not
+  automatically verified exhaustive `N`. Do not skip the audit because a count
+  was stated, numbered, implied, or apparently known.
 - **In a removal or simplification effort, the negative-space half works
   against the goal.** When the task is to cut features back — too much has
   accumulated, the surface is to get smaller — surfacing entailed companions
@@ -23,9 +26,14 @@
   implementation. Tier A in this mode names what a removal takes with it, not
   what an addition owes. Companion surfacing returns when the effort turns back
   to adding.
-- First run a non-suppressible closure check: stated or observed `N` is not
-  automatically verified exhaustive `N`. Do not skip the audit because a count
-  was stated, numbered, implied, or apparently known.
+- Mixed or unclear, keep surfacing. An effort that removes and adds in the same
+  increment — replacing a mechanism with a smaller one, or dropping one gate
+  while adding a card — is not in removal mode, and neither is an effort whose
+  mode has not been established. This bullet is the only route by which Tier A
+  companions can go unspoken, so an ambiguous reading of it produces exactly the
+  false negative the tier exists to prevent: when in doubt the recall guard wins
+  and companions are surfaced.
+
 - Then classify negative space into three tiers:
   - Tier A, entailed companions: recall-first, default-loud, never silently
     dropped. Missing continuation for materially incomplete artifacts, required

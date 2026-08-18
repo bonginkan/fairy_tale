@@ -26,7 +26,7 @@ in SKILL.md itself or as an extracted card reachable from the router.
 | skills/fairy-tale/references/cards/benchmark-delta-harness.md | 1599 | 26 | 400 |
 | skills/fairy-tale/references/cards/best-practice-gate.md | 402 | 9 | 100 |
 | skills/fairy-tale/references/cards/bio-health-safety-harness.md | 428 | 10 | 107 |
-| skills/fairy-tale/references/cards/closure-negative-space-and-excess-discovery-harness.md | 3802 | 57 | 950 |
+| skills/fairy-tale/references/cards/closure-negative-space-and-excess-discovery-harness.md | 4315 | 65 | 1079 |
 | skills/fairy-tale/references/cards/creator-proxy-elaboration-harness-wwcd.md | 2626 | 38 | 656 |
 | skills/fairy-tale/references/cards/cyber-frontier-defense-harness.md | 1222 | 21 | 306 |
 | skills/fairy-tale/references/cards/domain-router.md | 944 | 17 | 236 |
@@ -39,7 +39,7 @@ in SKILL.md itself or as an extracted card reachable from the router.
 | skills/fairy-tale/references/cards/fable-harness-long-coding-or-migration-tasks.md | 264 | 8 | 66 |
 | skills/fairy-tale/references/cards/fairy-fusion-harness.md | 2141 | 34 | 535 |
 | skills/fairy-tale/references/cards/finance-proposal-completeness-gate.md | 10773 | 157 | 2693 |
-| skills/fairy-tale/references/cards/fuzzy-first-mechanism-only-at-the-exceptions.md | 8065 | 132 | 2016 |
+| skills/fairy-tale/references/cards/fuzzy-first-mechanism-only-at-the-exceptions.md | 7881 | 132 | 1970 |
 | skills/fairy-tale/references/cards/general-e2e-completion-harness.md | 2030 | 30 | 508 |
 | skills/fairy-tale/references/cards/generalization-and-latent-structure-harness-hidden-rules-executable-models-and-tacit-intent.md | 3350 | 50 | 838 |
 | skills/fairy-tale/references/cards/github-is-the-exchange-surface.md | 2151 | 32 | 538 |

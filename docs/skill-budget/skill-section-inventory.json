@@ -80,8 +80,8 @@
     {
       "path": "references/cards/closure-negative-space-and-excess-discovery-harness.md",
       "title": "Closure, Negative-Space, and Excess Discovery Harness",
-      "bytes": 3802,
-      "est_tokens": 950
+      "bytes": 4315,
+      "est_tokens": 1079
     },
     {
       "path": "references/cards/creator-proxy-elaboration-harness-wwcd.md",
@@ -158,8 +158,8 @@
     {
       "path": "references/cards/fuzzy-first-mechanism-only-at-the-exceptions.md",
       "title": "Fuzzy-First: build on the model's judgement, correct at the failures",
-      "bytes": 8065,
-      "est_tokens": 2016
+      "bytes": 7881,
+      "est_tokens": 1970
     },
     {
       "path": "references/cards/general-e2e-completion-harness.md",
@@ -541,9 +541,9 @@
     },
     {
       "path": "skills/fairy-tale/references/cards/closure-negative-space-and-excess-discovery-harness.md",
-      "bytes": 3802,
-      "lines": 57,
-      "est_tokens": 950
+      "bytes": 4315,
+      "lines": 65,
+      "est_tokens": 1079
     },
     {
       "path": "skills/fairy-tale/references/cards/creator-proxy-elaboration-harness-wwcd.md",
@@ -619,9 +619,9 @@
     },
     {
       "path": "skills/fairy-tale/references/cards/fuzzy-first-mechanism-only-at-the-exceptions.md",
-      "bytes": 8065,
+      "bytes": 7881,
       "lines": 132,
-      "est_tokens": 2016
+      "est_tokens": 1970
     },
     {
       "path": "skills/fairy-tale/references/cards/general-e2e-completion-harness.md",

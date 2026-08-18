@@ -17,39 +17,39 @@ has been *observed* to fail, reproduced. Put there for any other reason, it
 replaces something that handles everything with something that handles what its
 author thought of.
 
-- Leave the working path alone. "The model's answer is not verifiable" is not a
-  failure; a wrong answer is. (Required properties are the exception throughout:
-  they are not judged by outputs at all.) Wrapping a working behaviour in rules to make it
-  legible usually costs more cases than it saves.
-- Correct the failure mode the evidence supports, at its narrowest. Not the one
-  literal input — a fix that only recognises the exact sentence that broke will
-  miss the next phrasing of the same fault — and not the category it belongs to
-  either. Where the evidence shows a property is violated, fix the property; the
-  test is that the fix lands on what was shown to fail and nothing further.
+- Leave the working path alone. "The model's answer is not verifiable" is not
+  a failure; a wrong answer is. (Required properties are the exception
+  throughout: they are not judged by outputs at all.) Wrapping a working
+  behaviour in rules to make it legible usually costs more cases than it
+  saves.
+- Correct the failure mode the evidence supports, at its narrowest. Not the
+  one literal input — a fix that only recognises the exact sentence that broke
+  will miss the next phrasing of the same fault — and not the category it
+  belongs to either. Where the evidence shows a property is violated, fix the
+  property; the test is that the fix lands on what was shown to fail and
+  nothing further.
 - Prompt before code. Try instructions, examples, and the registered content
-  first; add a branch, a classifier, or a validator only when that has been tried
-  and the failure recurs — required properties excepted, as above. Neither form
-  gives a guarantee on input nobody foresaw: guidance is read by something that
-  generalises, and code applies a rule that does not describe the case. What
-  differs is the failure they produce — a judgement that may be off, against a
-  branch that refuses, passes silently, or does something arbitrary — and code
-  makes that choice at write time, for cases its author never saw. Code does whatever its author wrote for the inputs
-  they foresaw, and on the rest it refuses, passes silently, or does something
-  arbitrary; the rule as written does not tell you which. Measured here: a gate
-  that refused changes it should have allowed (#120), and gates that passed what
-  they were written to stop (#117, #120).
+  first; add a branch, a classifier, or a validator only when that has been
+  tried and the failure recurs — required properties excepted, as above.
+  Neither form gives a guarantee on input nobody foresaw: guidance is read by
+  something that generalises, and code applies a rule that does not describe
+  the case. What differs is the failure they produce — a judgement that may be
+  off, against a branch that refuses, passes silently, or does something
+  arbitrary — and code makes that choice at write time, for cases its author
+  never saw. Measured here: a gate that refused changes it should have allowed
+  (#120), and gates that passed what they were written to stop (#117, #120).
 - Do not put an enumeration in front of the model. Keyword lists, intent tables,
   hand-written synonym sets, regexes over user speech: each covers what its
   author imagined while the model was already handling the rest. If a list feels
   necessary, ask what property it stands for and whether the model can simply be
   told it.
 - Do not let a hard classifier overrule the model's reading. A confidence
-  threshold, a category gate, or a "cannot determine" branch in front of a model
-  that would have answered turns a good answer into a refusal — and refusals are
-  what users report.
+  threshold, a category gate, or a "cannot determine" branch in front of a
+  model that would have answered turns a good answer into a refusal — and
+  refusals are what users report.
 - Weigh the cost on the common path. A check that catches a rare failure and
-  taxes every ordinary request — an extra hop, a clarifying question, a refusal —
-  is usually a net loss even when it works.
+  taxes every ordinary request — an extra hop, a clarifying question, a
+  refusal — is usually a net loss even when it works.
 
 ## Keep the conversation
 
@@ -91,25 +91,25 @@ that nothing has gone wrong yet.
 ## Reviewing
 
 - Ask whether the mechanism should exist before measuring whether it is
-  internally sound. A mechanism can be correct in every detail and still be the
-  wrong thing: findings against its internals are void once the premise is
+  internally sound. A mechanism can be correct in every detail and still be
+  the wrong thing: findings against its internals are void once the premise is
   refused, so the premise comes first.
 - Ask what it costs the requests that were already fine, and what observed
-  failure prompted it. "No failure has been seen" is a reason not to build it —
-  except for the required properties above, which are implemented without waiting
-  for one and are never removed on that argument.
-- Do not ask for determinism where fuzziness is working. Requiring an exact rule,
-  a closed vocabulary, or a machine check for behaviour the model already gets
-  right converts a working path into a brittle one.
-- Say so when a failure has repeated and nothing was done. The question in that
-  direction is what the smallest correction at the failure point would be —
-  usually a sentence of instruction or a registered example, not a system to
+  failure prompted it. "No failure has been seen" is a reason not to build it
+  — except for the required properties above, which are implemented without
+  waiting for one and are never removed on that argument.
+- Do not ask for determinism where fuzziness is working. Requiring an exact
+  rule, a closed vocabulary, or a machine check for behaviour the model
+  already gets right converts a working path into a brittle one.
+- Say so when a failure has repeated and nothing was done. The question in
+  that direction is what the smallest correction at the failure point would be
+  — usually a sentence of instruction or a registered example, not a system to
   prevent the class. Leaving a known recurring failure to be rediscovered each
-  time is a finding, and a review that refuses an unnecessary gate must still ask
-  for a necessary correction.
+  time is a finding, and a review that refuses an unnecessary gate must still
+  ask for a necessary correction.
 - Review itself is where separation is the point: read the artifact without
-  inheriting the implementer's thread, and treat sharing that thread as the thing
-  that needs a reason.
+  inheriting the implementer's thread, and treat sharing that thread as the
+  thing that needs a reason.
 
 ## The two directions
 
