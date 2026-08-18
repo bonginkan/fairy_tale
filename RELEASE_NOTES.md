@@ -1,5 +1,53 @@
 # Release Notes
 
+## 0.2.40 — Fuzzy-First: build on the model's judgement, correct at the failures
+
+- **Fuzzy-First** turns the default around for product features that call an LLM.
+  The model's judgement implements the behaviour; code that stands between the
+  user and that judgement exists for properties that must hold whatever the model
+  does, and for points where the model has been observed to fail. The card is
+  explicit that the feature's plumbing — transport, storage, retries, rendering —
+  is ordinary software and outside this test.
+- The correction target is the smallest failure mode the evidence supports:
+  neither the literal input that broke, which the next phrasing evades, nor the
+  category it belongs to, which takes the neighbours' generality away. Prompt and registered content come
+  before a branch — not because guidance is safe on input nobody foresaw, since
+  neither form gives a guarantee there, but because the failures differ and code
+  fixes its choice at write time for cases its author never saw.
+- Enumerations and hard classifiers are refused in front of the model: keyword
+  lists, intent tables, synonym sets and confidence gates each cover what their
+  author imagined while the model handled the rest, and a "cannot determine"
+  branch converts an answer into a refusal.
+- **Keep the conversation.** One stateless call per turn manufactures the
+  failures a prompt author did not anticipate. Persisting turns or holding a
+  provider conversation handle is transport and keeps what was said; compressing
+  the dialogue into a summary or a slot-filled record is a separate trade.
+  Statelessness is right where carrying context would defeat the step or cross a
+  boundary it must not — another tenant, channel, or customer.
+- Authorization, privacy and retention, money, identity and anything with a
+  contractual definition stay in code regardless, implemented without waiting for
+  a failure and never removed on the argument that none has been seen — carved
+  out inside the review checklist, not only in the section it protects.
+- Both failure directions carry a reviewer action: refuse an unnecessary
+  mechanism, and ask for the smallest correction when a failure keeps recurring.
+- **Closure, Negative-Space and Excess** gains a removal mode (#123). When the
+  goal is to cut an over-grown surface back, the additive half argues the wrong
+  way every time: each candidate acquires a list of things it entails, and the
+  subtraction becomes an expansion. In that mode the excess pass leads, the
+  closure check asks what a removal breaks and which required property would
+  lose its implementation, Tier A names what the removal takes with it, and
+  Tier B/C additive surfacing is off while their subtraction form stays. An
+  effort that removes and adds together, or whose mode was never established,
+  is not in removal mode — the recall guard wins when the reading is ambiguous.
+
+## 0.2.39 — Release packaging
+
+- Version bump only. The plugin is served from a version-keyed cache, so hosts
+  holding `0.2.38` kept serving it and `claude plugin update` answered "already at
+  the latest version" while the skills had moved three revisions ahead. A CI gate
+  proposed alongside it was dropped: releasing is a decision, not a property of a
+  diff.
+
 ## 0.2.38 — Helix: target location, owner priority, one effort per branch
 
 - A wrong target is not corrected by working carefully inside it. **Locate the

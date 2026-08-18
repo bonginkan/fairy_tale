@@ -15,6 +15,25 @@
 - First run a non-suppressible closure check: stated or observed `N` is not
   automatically verified exhaustive `N`. Do not skip the audit because a count
   was stated, numbered, implied, or apparently known.
+- **In a removal or simplification effort, the negative-space half works
+  against the goal.** When the task is to cut features back — too much has
+  accumulated, the surface is to get smaller — surfacing entailed companions
+  argues for adding, and a harness that answers "what is missing" every time
+  turns a subtraction into an expansion. Run the excess pass as the main pass,
+  and let the closure check ask the subtraction question instead: what does
+  removing this break, who still depends on it, and which required property
+  (authorization, privacy, retention, contractual behaviour) would lose its
+  implementation. Tier A in this mode names what a removal takes with it, not
+  what an addition owes. Companion surfacing returns when the effort turns back
+  to adding.
+- Mixed or unclear, keep surfacing. An effort that removes and adds in the same
+  increment — replacing a mechanism with a smaller one, or dropping one gate
+  while adding a card — is not in removal mode, and neither is an effort whose
+  mode has not been established. This bullet is the only route by which Tier A
+  companions can go unspoken, so an ambiguous reading of it produces exactly the
+  false negative the tier exists to prevent: when in doubt the recall guard wins
+  and companions are surfaced.
+
 - Then classify negative space into three tiers:
   - Tier A, entailed companions: recall-first, default-loud, never silently
     dropped. Missing continuation for materially incomplete artifacts, required
@@ -24,6 +43,12 @@
     concrete user, moment, evidence, and near-term consequence pass the gate.
   - Tier C, speculative neighbors: precision-first. Keep mature-product or
     best-practice analogies private unless asked.
+  - In removal mode the tiers keep their names and change what they are about:
+    Tier A is what a removal takes with it, and Tier B/C additive surfacing —
+    journey gaps to fill, neighbouring features to add — is off, because it
+    answers a question the effort is not asking. What Tier B/C still carry is
+    the subtraction form: a user left mid-journey by the cut, a neighbour that
+    breaks when this goes.
 - Noise guards apply to Tier B/C exploration only: bounded one-pass output,
   ranked 1-3 findings/questions or silence, no "also you could" lists, and no
   automatic implementation scope expansion.

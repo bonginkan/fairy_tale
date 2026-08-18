@@ -72,6 +72,7 @@ Route with the table below and read the linked card before applying a pattern; t
 | Creator-Proxy Elaboration Harness (WWCD) | Fires when acting as a creator/principal's proxy while invoked by a THIRD PARTY / | `references/cards/creator-proxy-elaboration-harness-wwcd.md` |
 | UI Design Best-Practices Harness | Use when building or reviewing a real UI surface — a screen, component, page, | `references/cards/ui-design-best-practices-harness.md` |
 | Token Consumption Optimizer Harness: process memoization | Use when an operation succeeded once and is likely to recur: distill the | `references/cards/token-consumption-optimizer-harness.md` |
+| Fuzzy-First: build on the model, correct at the failures | Use when building or reviewing a product feature that calls an LLM: before adding a rule, classifier, or enumeration around it, and before splitting its conversation into stateless calls. | `references/cards/fuzzy-first-mechanism-only-at-the-exceptions.md` |
 | Edison Ship Gate: dev-deploy threshold | Use when an increment could reach a real non-production surface humans can exercise. | `references/cards/edison-ship-gate.md` |
 
 ## Default workflow
@@ -142,6 +143,9 @@ Route with the table below and read the linked card before applying a pattern; t
      negative-space pass before convergence: identify entailed companions,
      gated journey gaps, and speculative neighbors. Use
      `references/process.md` for the Closure Check and Negative-Space cards.
+     In an effort whose goal is removal, the card inverts this: the excess pass
+     leads, additive surfacing is off, and the closure check asks what a removal
+     breaks. Mixed or unclear mode keeps surfacing.
    - For review, refactor, skill/policy updates, and legacy cleanup, run the
      paired excess pass: identify redundant, stale, or legacy surfaces, but
      classify them into remove-now, deprecate-with-migration,
@@ -174,6 +178,13 @@ Route with the table below and read the linked card before applying a pattern; t
      carries financial claims (revenue, margin, ROI, unit economics): run the
      Finance Proposal Completeness Gate after the Evidence Table — arithmetic
      that reconciles is not completeness.
+   - For a product feature that calls an LLM: use the Fuzzy-First card before
+     putting a rule, classifier or enumeration in front of the model, and before
+     issuing one stateless call per turn. The model's judgement is the
+     implementation; code corrects observed failures, in the narrowest form that
+     lands on them, after prompt and content have been tried. Authorization,
+     privacy, money and identity stay in code regardless. The same test applies
+     to rules added to this harness.
    - For workflow improvement: inspect existing commands, skills, agents,
      memories, hooks, and sessions before adding new structure.
    - For loop engineering or job automation: use the Loop Engineering and Job
