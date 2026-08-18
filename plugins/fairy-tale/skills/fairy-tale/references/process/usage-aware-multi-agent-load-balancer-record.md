@@ -40,6 +40,8 @@ assignment rule applied:
 tie-breaker:
 approval gates:
 reassignment trigger:
+substitution reason: usage_exhaustion | confirmed_unavailable | none
+handoff record ref:
 ledger / receipt:
 owner-visible status:
 ```
@@ -149,6 +151,21 @@ Assignment policy:
   escalate with terminal evidence instead of restarting again. State loss,
   duplicated side effects, and restart loops are recovery failures, not
   recovery.
+- Degrading quality inside a long session is not a reassignment trigger. An
+  agent that judges its own context degraded hands off *to itself*: write the
+  handoff record — current increment, exact head and refs, what is done, what
+  is next, open blockers — reboot its own session, and resume from that record.
+  The lane keeps the work; only the context is replaced. Self-assessed
+  degradation is not observable from outside and is available at every moment,
+  so accepting it as a transfer reason makes any transfer justifiable after the
+  fact.
+- Substitution is keyed to usage exhaustion, not to how the run feels. When a
+  lane's usable capacity is gone, record it and rerun the load balancer. Long
+  context, accumulated mistakes, and wanting a clean start are handled by
+  handoff plus self-reboot inside the same lane, and `substitution reason` says
+  which of the two happened.
+- A reboot without a handoff record is state loss wearing a recovery's name.
+  Write the record first, then reboot; resume from the record, not from memory.
 - Treat a cross-lane role transfer as an explicit reassignment decision, never
   as an automatic fallback for silence. Transfer only after bounded in-lane
   recovery has been attempted and failed, the failure is recorded with terminal
