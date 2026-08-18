@@ -12,6 +12,17 @@
   set" this harness audits; the harness audits numbered sets that are *given to
   you as possibly-incomplete input*. The harness re-engages for a generative
   request only on an explicit "review / critique / audit / 抜け漏れ / 批判的に".
+- **In a removal or simplification effort, the negative-space half works
+  against the goal.** When the task is to cut features back — too much has
+  accumulated, the surface is to get smaller — surfacing entailed companions
+  argues for adding, and a harness that answers "what is missing" every time
+  turns a subtraction into an expansion. Run the excess pass as the main pass,
+  and let the closure check ask the subtraction question instead: what does
+  removing this break, who still depends on it, and which required property
+  (authorization, privacy, retention, contractual behaviour) would lose its
+  implementation. Tier A in this mode names what a removal takes with it, not
+  what an addition owes. Companion surfacing returns when the effort turns back
+  to adding.
 - First run a non-suppressible closure check: stated or observed `N` is not
   automatically verified exhaustive `N`. Do not skip the audit because a count
   was stated, numbered, implied, or apparently known.

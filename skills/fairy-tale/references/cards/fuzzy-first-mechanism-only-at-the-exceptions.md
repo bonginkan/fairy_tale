@@ -18,7 +18,8 @@ replaces something that handles everything with something that handles what its
 author thought of.
 
 - Leave the working path alone. "The model's answer is not verifiable" is not a
-  failure; a wrong answer is. Wrapping a working behaviour in rules to make it
+  failure; a wrong answer is. (Required properties are the exception throughout:
+  they are not judged by outputs at all.) Wrapping a working behaviour in rules to make it
   legible usually costs more cases than it saves.
 - Correct the failure mode the evidence supports, at its narrowest. Not the one
   literal input — a fix that only recognises the exact sentence that broke will
@@ -27,8 +28,12 @@ author thought of.
   test is that the fix lands on what was shown to fail and nothing further.
 - Prompt before code. Try instructions, examples, and the registered content
   first; add a branch, a classifier, or a validator only when that has been tried
-  and the failure recurs. Prompt text degrades on unforeseen input — the model
-  still answers, less well. Code does whatever its author wrote for the inputs
+  and the failure recurs — required properties excepted, as above. Neither form
+  gives a guarantee on input nobody foresaw: guidance is read by something that
+  generalises, and code applies a rule that does not describe the case. What
+  differs is the failure they produce — a judgement that may be off, against a
+  branch that refuses, passes silently, or does something arbitrary — and code
+  makes that choice at write time, for cases its author never saw. Code does whatever its author wrote for the inputs
   they foresaw, and on the rest it refuses, passes silently, or does something
   arbitrary; the rule as written does not tell you which. Measured here: a gate
   that refused changes it should have allowed (#120), and gates that passed what
@@ -113,9 +118,10 @@ that nothing has gone wrong yet.
 | Over-mechanised | rules, gates, enumerations and stateless hops around competent behaviour | breaks cases that worked; the tax is permanent |
 | Under-corrected | a known, repeated failure left to the model each time | the same wrong output, repeatedly |
 
-Neither is safe by default. The question is whether a *specific observed failure*
-justifies the specific mechanism proposed, and whether the smallest form of it
-lands only on that failure.
+Neither is safe by default. For a required property the question does not arise —
+it is implemented either way. Everywhere else, the question is whether a
+*specific observed failure* justifies the specific mechanism proposed, and
+whether the smallest form of it lands only on that failure.
 
 ## The same test on this harness
 

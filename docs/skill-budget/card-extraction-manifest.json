@@ -249,7 +249,17 @@
       "old_body_start": 34438,
       "old_body_end": 37400,
       "body_sha256": "d54f6d78763931f7bf3a4cbc661814bec959e88ef28dced82819de610518407f",
-      "route_hint": "Use this during review, requirements discovery, product/UX work,"
+      "route_hint": "Use this during review, requirements discovery, product/UX work,",
+      "evolution": [
+        {
+          "current_body_sha256": "243c82e10a8b4e35c94451007aca92996a62fc4b64a3f50c736a6628c0c5ec5d",
+          "supersedes_body_sha256": "d54f6d78763931f7bf3a4cbc661814bec959e88ef28dced82819de610518407f",
+          "issue": "https://github.com/bonginkan/fairy_tale/issues/123",
+          "issue_anchor": "excess pass is the main pass",
+          "issue_node_id": "I_kwDOS59HQ88AAAABNLx1pw",
+          "reason": "a simplification effort inverts the negative-space half: the excess pass leads, the closure check asks what a removal breaks, and companion surfacing returns when the effort turns back to adding"
+        }
+      ]
     },
     {
       "title": "General E2E Completion Harness",
