@@ -220,6 +220,13 @@ def run_selftest() -> int:
 
     controls.append(("do_check: HEAD refused as base", quiet("HEAD"), 1))
     controls.append(("do_check: @ refused as base", quiet("@"), 1))
+    # The refusal is about the commit the ref resolves to, not the word used to
+    # name it. Without this, a comparison weakened to raw strings would still
+    # reject "HEAD" and "@" while the exact SHA slipped through as a tautology.
+    _, head_sha = git("rev-parse", "--verify", "HEAD^{commit}")
+    head_sha = head_sha.strip()
+    if head_sha:
+        controls.append(("do_check: exact HEAD sha refused as base", quiet(head_sha), 1))
     controls.append(("do_check: unresolvable base refused", quiet("definitely-not-a-ref"), 1))
     # The positive for do_check is deliberately NOT here: its verdict depends on
     # what the branch has changed, so a control asserting green would pass or
