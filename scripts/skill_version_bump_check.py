@@ -250,7 +250,18 @@ def run_selftest() -> int:
                     ("do_check: freshly created ref at HEAD refused as base", quiet(ephemeral), 1)
                 )
             finally:
-                git("update-ref", "-d", ephemeral)
+                # Teardown is checked, not assumed: a delete that fails leaves
+                # the ref behind while every other control still passes, so the
+                # suite would report green having polluted the repository.
+                removed, _ = git("update-ref", "-d", ephemeral)
+                lingering, _ = git("rev-parse", "--verify", f"{ephemeral}^{{commit}}")
+                controls.append(
+                    (
+                        "do_check: ephemeral ref removed after use",
+                        0 if (removed == 0 and lingering != 0) else 1,
+                        0,
+                    )
+                )
     else:
         controls.append(("do_check: could not resolve HEAD for the identity controls", 1, 0))
     controls.append(("do_check: unresolvable base refused", quiet("definitely-not-a-ref"), 1))
@@ -265,17 +276,19 @@ def run_selftest() -> int:
     # The count is itself a control: without it, a control that stops being
     # appended -- because a git command failed, or because someone removed it --
     # leaves a smaller suite that still reports green.
-    EXPECTED_CONTROLS = 19
-    if len(normalised) != EXPECTED_CONTROLS:
-        print(
-            f"[SELFTEST RED] expected {EXPECTED_CONTROLS} controls, ran {len(normalised)}: "
-            f"a control was added or silently skipped"
-        )
-        return 1
+    EXPECTED_CONTROLS = 20
     failures = [name for name, actual, expected in normalised if actual != expected]
-    if failures:
+    # Reported together, and the individual results first: when a control cannot
+    # run, its own entry names the cause while the count only says one is
+    # missing. Returning on the count alone hid the reason.
+    if failures or len(normalised) != EXPECTED_CONTROLS:
         for name in failures:
             print(f"[SELFTEST RED] unexpected version-bump result: {name}")
+        if len(normalised) != EXPECTED_CONTROLS:
+            print(
+                f"[SELFTEST RED] expected {EXPECTED_CONTROLS} controls, ran {len(normalised)}: "
+                f"a control was added or silently skipped"
+            )
         return 1
     print(f"[SELFTEST GREEN] {len(normalised)} version-bump controls")
     return 0
