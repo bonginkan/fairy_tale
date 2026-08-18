@@ -151,32 +151,44 @@ Assignment policy:
   escalate with terminal evidence instead of restarting again. State loss,
   duplicated side effects, and restart loops are recovery failures, not
   recovery.
-- The handoff record is owed by every restart the lane CHOOSES, whatever moved
-  it to restart: a self-reboot for a worn context and a restart to pick up a
-  patched install discard the same context. A restart that was IMPOSED — a
-  crash, a killed session, an external stop — cannot have one, because the
-  agent was not there to write it; rebuild from the external state instead and
-  record what was lost. Attaching the requirement to the motive rather than to
-  the act would let the motive, which no one else can observe, decide whether
-  the record is owed.
+- The handoff record is owed by every restart the lane is *able* to write one
+  for, whatever moved it to restart: a self-reboot for a worn context, a
+  restart to pick up a patched install, and a restart another agent asks for
+  all discard the same context, and in all three the lane is alive and has the
+  time to write. The exemption is narrow — a restart the agent was not present
+  for, such as a crash, a killed session, or an external stop, cannot carry a
+  record; rebuild from the external state instead and record what was lost.
+  Keying the requirement to the motive, or to who decided, lets something
+  unobservable settle whether the record is owed; keying it to whether the lane
+  could write one keeps the question answerable from outside.
 - Degrading quality inside a long session is not a reassignment trigger. An
   agent that judges its own context degraded hands off *to itself*: write the
   handoff record — current increment, exact head and refs, what is done, what
-  is next, open blockers — reboot its own session, and resume from that record.
+  is next, open blockers, the last safe checkpoint, the next safe action, and
+  what must not be redone — reboot its own session, and resume from that
+  record. The rebooted context has only the record, so anything the resume
+  needs that the record omits is lost.
   The lane keeps the work; only the context is replaced. Self-assessed
   degradation is not observable from outside and is available at every moment,
   so accepting it as a transfer reason makes any transfer justifiable after the
   fact.
-- Substitution is keyed to usage exhaustion, not to how the run feels. When a
-  lane's usable capacity is gone, record it and rerun the load balancer. Long
-  context, accumulated mistakes, and wanting a clean start are handled by
-  handoff plus self-reboot inside the same lane, and `substitution reason` says
-  which of the two happened.
+- Substitution is keyed to a recorded blocker — usable capacity gone, or one of
+  the confirmed-unavailable states below — never to how the run feels. Long
+  context, accumulated mistakes, and wanting a clean start are not blockers;
+  they are handled by handoff plus self-reboot inside the same lane. Capacity
+  exhaustion is the only ground that no restart can clear, which is why it is
+  the one that always moves the role.
+- The two outcomes are recorded differently, because the enum names the cause
+  and not the act. A self-reboot leaves the role where it is: `substitution
+  reason` stays `none` and `handoff record ref` carries the continuity. Fill
+  `substitution reason` only when the role actually moves.
 - `usage_exhaustion` is a reading, not a word. It carries the same evidence any
-  capacity claim carries — a coarse remaining figure with its source class and
-  `source_ref`, self-report treated as provisional — because a reason that is
-  merely asserted is unobservable from outside and available at any moment,
-  which is exactly why degradation was refused above. `none` states that no
+  capacity claim carries — a coarse remaining figure with its source class,
+  observation time, and `source_ref` — because a reason that is merely asserted
+  is unobservable from outside and available at any moment, which is exactly
+  why degradation was refused above. A provisional, unknown, or self-reported
+  figure does not establish it: it can justify pausing or asking, never moving
+  the role. `none` states that no
   substitution happened, never that one happened for a reason outside this
   list.
 - A reboot without a handoff record is state loss wearing a recovery's name.
@@ -185,7 +197,7 @@ Assignment policy:
   reboot cannot take it: the run ledger or receipt, or the issue / PR / project
   thread the work already exchanges through. A handoff written only into the
   session being discarded satisfies the words and loses the state.
-- Write it at a safe boundary and reboot there. A self-reboot is chosen, not
+- Write it at a safe boundary and reboot there. A self-reboot is *chosen*, not
   imposed, so unlike an external stop it can land mid-mutation — and the same
   rule as in-lane recovery applies: resume from the last safe checkpoint, never
   mid-mutation.
