@@ -12,11 +12,15 @@ Extraction provenance contract (review gate, PR #60 thread 2026-07-02):
 - `--verify` re-reads every written card and byte-compares its body slice
   against the original SKILL.md byte range recorded in the manifest. A card
   intentionally evolved after extraction must instead carry a reviewed
-  `evolution` object with its current body SHA-256 plus a live same-repository
-  GitHub issue URL, stable node ID, body/title anchor, and reason. The original
-  snapshot/body hash is still verified and never rewritten. Repository-relative
-  paths are containment-checked, including symlinks. Any unpinned or unverifiable
-  drift exits non-zero.
+  `evolution` chain: an ordered, append-only list where each entry pins the body
+  SHA-256 it produced, the body SHA-256 it superseded, and a live
+  same-repository GitHub issue URL, stable node ID, body/title anchor, and
+  reason. Entry 0 supersedes the extracted original and the last entry
+  authorises the body on disk, so every authorisation a card ever received stays
+  nameable -- dropping, reordering, or duplicating an entry breaks a link and
+  exits non-zero. The original snapshot/body hash is still verified and never
+  rewritten. Repository-relative paths are containment-checked, including
+  symlinks. Any unpinned or unverifiable drift exits non-zero.
 - The extraction is reproducible: same input SKILL.md -> byte-identical cards,
   router table, and new SKILL.md (no timestamps, no ordering ambiguity;
   sections are processed in file order).
@@ -273,60 +277,108 @@ def do_verify(
                 failures.append(f"UNPINNED post-extraction drift: {card['card_path']}")
             continue
         evolved_count += 1
-        if not isinstance(evolution, dict):
-            failures.append(f"malformed evolution entry: {card['card_path']}")
+        # An evolution chain is ORDERED and append-only: entry 0 is the first
+        # reviewed evolution, the last entry authorises the body on disk now.
+        # A single object would make each re-pin erase its predecessor, so a
+        # card that evolved twice could name only its newest authorisation.
+        if not isinstance(evolution, list) or not evolution:
+            failures.append(f"malformed evolution chain: {card['card_path']}")
             continue
-        expected_evolution_keys = {
-            "current_body_sha256",
-            "issue",
-            "issue_anchor",
-            "issue_node_id",
-            "reason",
-        }
-        if set(evolution) != expected_evolution_keys:
-            failures.append(f"invalid evolution keys: {card['card_path']}")
+        chain_shas: list[str] = []
+        chain_links: list[str] = []
+        chain_ok = True
+        for position, entry in enumerate(evolution):
+            where = f"{card['card_path']}[{position}]"
+            if not isinstance(entry, dict):
+                failures.append(f"malformed evolution entry: {where}")
+                chain_ok = False
+                continue
+            expected_evolution_keys = {
+                "current_body_sha256",
+                "supersedes_body_sha256",
+                "issue",
+                "issue_anchor",
+                "issue_node_id",
+                "reason",
+            }
+            if set(entry) != expected_evolution_keys:
+                failures.append(f"invalid evolution keys: {where}")
+                chain_ok = False
+                continue
+            current_sha = entry.get("current_body_sha256")
+            if not isinstance(current_sha, str) or not re.fullmatch(r"[0-9a-f]{64}", current_sha):
+                failures.append(f"invalid evolution sha: {where}")
+                chain_ok = False
+                continue
+            supersedes = entry.get("supersedes_body_sha256")
+            if not isinstance(supersedes, str) or not re.fullmatch(r"[0-9a-f]{64}", supersedes):
+                failures.append(f"invalid evolution supersedes sha: {where}")
+                chain_ok = False
+                continue
+            chain_shas.append(current_sha)
+            chain_links.append(supersedes)
+            issue = entry.get("issue")
+            issue_match = GITHUB_ISSUE_RE.fullmatch(issue) if isinstance(issue, str) else None
+            if issue_match is None:
+                failures.append(f"invalid evolution issue: {where}")
+            elif f"{issue_match.group('owner')}/{issue_match.group('repo')}" != EXPECTED_REPOSITORY:
+                failures.append(f"wrong-repository evolution issue: {where}")
+            issue_anchor = entry.get("issue_anchor")
+            if not isinstance(issue_anchor, str) or not issue_anchor.strip():
+                failures.append(f"missing evolution issue anchor: {where}")
+            issue_node_id = entry.get("issue_node_id")
+            if not isinstance(issue_node_id, str) or not issue_node_id.startswith("I_"):
+                failures.append(f"invalid evolution issue node id: {where}")
+            if not isinstance(entry.get("reason"), str) or not entry["reason"].strip():
+                failures.append(f"missing evolution reason: {where}")
+            if issue_match is not None and isinstance(issue_anchor, str) and issue_anchor.strip():
+                if issue not in issue_cache:
+                    try:
+                        issue_cache[issue] = issue_loader(issue)
+                    except ValueError as exc:
+                        issue_cache[issue] = exc
+                issue_record = issue_cache[issue]
+                if isinstance(issue_record, ValueError):
+                    failures.append(f"unverified evolution issue: {where} ({issue_record})")
+                else:
+                    if issue_record.get("html_url") != issue:
+                        failures.append(f"evolution issue URL mismatch: {where}")
+                    if "pull_request" in issue_record:
+                        failures.append(f"evolution reference is a pull request: {where}")
+                    if issue_record.get("node_id") != issue_node_id:
+                        failures.append(f"evolution issue identity mismatch: {where}")
+                    issue_text = f"{issue_record.get('title') or ''}\n{issue_record.get('body') or ''}"
+                    if issue_anchor not in issue_text:
+                        failures.append(f"evolution issue anchor missing: {where}")
+        if not chain_ok:
             continue
-        current_sha = evolution.get("current_body_sha256")
-        if not isinstance(current_sha, str) or not re.fullmatch(r"[0-9a-f]{64}", current_sha):
-            failures.append(f"invalid evolution sha: {card['card_path']}")
-            continue
-        issue = evolution.get("issue")
-        issue_match = GITHUB_ISSUE_RE.fullmatch(issue) if isinstance(issue, str) else None
-        if issue_match is None:
-            failures.append(f"invalid evolution issue: {card['card_path']}")
-        elif f"{issue_match.group('owner')}/{issue_match.group('repo')}" != EXPECTED_REPOSITORY:
-            failures.append(f"wrong-repository evolution issue: {card['card_path']}")
-        issue_anchor = evolution.get("issue_anchor")
-        if not isinstance(issue_anchor, str) or not issue_anchor.strip():
-            failures.append(f"missing evolution issue anchor: {card['card_path']}")
-        issue_node_id = evolution.get("issue_node_id")
-        if not isinstance(issue_node_id, str) or not issue_node_id.startswith("I_"):
-            failures.append(f"invalid evolution issue node id: {card['card_path']}")
-        if not isinstance(evolution.get("reason"), str) or not evolution["reason"].strip():
-            failures.append(f"missing evolution reason: {card['card_path']}")
-        if issue_match is not None and isinstance(issue_anchor, str) and issue_anchor.strip():
-            if issue not in issue_cache:
-                try:
-                    issue_cache[issue] = issue_loader(issue)
-                except ValueError as exc:
-                    issue_cache[issue] = exc
-            issue_record = issue_cache[issue]
-            if isinstance(issue_record, ValueError):
+        # A body hash may authorise exactly one position. Without this, a
+        # duplicated or reordered history reads as a longer chain that still
+        # ends on the live body.
+        if len(set(chain_shas)) != len(chain_shas):
+            failures.append(f"duplicate evolution body sha in chain: {card['card_path']}")
+        # Each entry names the body it replaced, so the chain is linked rather
+        # than merely ordered: entry 0 replaces the extracted original, and
+        # every later entry replaces its predecessor. Dropping, reordering, or
+        # inserting an entry breaks a link, which is what makes a *silently
+        # shortened* history detectable at all.
+        expected_link = card["body_sha256"]
+        for position, (link, produced) in enumerate(zip(chain_links, chain_shas)):
+            if link != expected_link:
                 failures.append(
-                    f"unverified evolution issue: {card['card_path']} ({issue_record})"
+                    f"evolution chain link broken at {card['card_path']}[{position}]: "
+                    f"supersedes {link[:12]}, expected {expected_link[:12]}"
                 )
+                break
+            expected_link = produced
+        body_sha = hashlib.sha256(body).hexdigest()
+        if chain_shas and chain_shas[-1] != body_sha:
+            # Either the body moved without a new entry, or an entry that is not
+            # the current authorisation was ordered last.
+            if body_sha in chain_shas:
+                failures.append(f"evolution chain out of order: {card['card_path']}")
             else:
-                if issue_record.get("html_url") != issue:
-                    failures.append(f"evolution issue URL mismatch: {card['card_path']}")
-                if "pull_request" in issue_record:
-                    failures.append(f"evolution reference is a pull request: {card['card_path']}")
-                if issue_record.get("node_id") != issue_node_id:
-                    failures.append(f"evolution issue identity mismatch: {card['card_path']}")
-                issue_text = f"{issue_record.get('title') or ''}\n{issue_record.get('body') or ''}"
-                if issue_anchor not in issue_text:
-                    failures.append(f"evolution issue anchor missing: {card['card_path']}")
-        if hashlib.sha256(body).hexdigest() != current_sha:
-            failures.append(f"evolved body sha mismatch: {card['card_path']}")
+                failures.append(f"evolved body sha mismatch: {card['card_path']}")
         if body == old_body:
             failures.append(f"redundant evolution entry: {card['card_path']}")
     if failures:
@@ -395,26 +447,79 @@ def run_selftest() -> int:
         controls = []
         controls.append(("original body", verify(copy.deepcopy(base_manifest)), 0))
 
+        original_sha = hashlib.sha256(original_body).hexdigest()
+
+        def pin(current: bytes, supersedes: str, reason: str) -> dict[str, str]:
+            return {
+                "current_body_sha256": hashlib.sha256(current).hexdigest(),
+                "supersedes_body_sha256": supersedes,
+                "issue": valid_issue_url,
+                "issue_anchor": "Example",
+                "issue_node_id": "I_example",
+                "reason": reason,
+            }
+
         evolved_body = b"Evolved body.\n"
         card_path.write_bytes(b"# Example\n" + evolved_body)
         evolved_manifest = copy.deepcopy(base_manifest)
-        evolved_manifest["cards"][0]["evolution"] = {
-            "current_body_sha256": hashlib.sha256(evolved_body).hexdigest(),
-            "issue": valid_issue_url,
-            "issue_anchor": "Example",
-            "issue_node_id": "I_example",
-            "reason": "reviewed contract evolution",
-        }
+        evolved_manifest["cards"][0]["evolution"] = [
+            pin(evolved_body, original_sha, "reviewed contract evolution")
+        ]
         controls.append(("pinned evolution", verify(evolved_manifest), 0))
 
         controls.append(("unpinned drift", verify(copy.deepcopy(base_manifest)), 1))
 
+        # A card that evolves twice keeps BOTH authorisations, linked by the
+        # body each entry replaced.
+        second_body = b"Second evolved body.\n"
+        card_path.write_bytes(b"# Example\n" + second_body)
+        first_pin = pin(evolved_body, original_sha, "first reviewed evolution")
+        second_pin = pin(second_body, first_pin["current_body_sha256"], "second reviewed evolution")
+        chain_manifest = copy.deepcopy(base_manifest)
+        chain_manifest["cards"][0]["evolution"] = [first_pin, second_pin]
+        controls.append(("linked evolution chain", verify(chain_manifest), 0))
+
+        # RED: the predecessor is silently dropped. The surviving entry still
+        # matches the live body, so only the broken link catches this.
+        dropped_manifest = copy.deepcopy(base_manifest)
+        dropped_manifest["cards"][0]["evolution"] = [copy.deepcopy(second_pin)]
+        controls.append(("dropped history entry", verify(dropped_manifest), 1))
+
+        reordered_manifest = copy.deepcopy(base_manifest)
+        reordered_manifest["cards"][0]["evolution"] = [
+            copy.deepcopy(second_pin),
+            copy.deepcopy(first_pin),
+        ]
+        controls.append(("reordered evolution chain", verify(reordered_manifest), 1))
+
+        duplicated_manifest = copy.deepcopy(base_manifest)
+        duplicated_manifest["cards"][0]["evolution"] = [
+            copy.deepcopy(first_pin),
+            copy.deepcopy(first_pin),
+            copy.deepcopy(second_pin),
+        ]
+        controls.append(("duplicated evolution entry", verify(duplicated_manifest), 1))
+
+        unrooted_manifest = copy.deepcopy(chain_manifest)
+        unrooted_manifest["cards"][0]["evolution"][0]["supersedes_body_sha256"] = "0" * 64
+        controls.append(("evolution chain not rooted in the original", verify(unrooted_manifest), 1))
+
+        legacy_shape = copy.deepcopy(base_manifest)
+        legacy_shape["cards"][0]["evolution"] = copy.deepcopy(second_pin)
+        controls.append(("legacy single-object evolution", verify(legacy_shape), 1))
+
+        empty_chain = copy.deepcopy(base_manifest)
+        empty_chain["cards"][0]["evolution"] = []
+        controls.append(("empty evolution chain", verify(empty_chain), 1))
+
+        card_path.write_bytes(b"# Example\n" + evolved_body)
+
         stale_manifest = copy.deepcopy(evolved_manifest)
-        stale_manifest["cards"][0]["evolution"]["current_body_sha256"] = "0" * 64
+        stale_manifest["cards"][0]["evolution"][-1]["current_body_sha256"] = "0" * 64
         controls.append(("stale evolution hash", verify(stale_manifest), 1))
 
         unbound_manifest = copy.deepcopy(evolved_manifest)
-        unbound_manifest["cards"][0]["evolution"]["issue"] = "issue 1"
+        unbound_manifest["cards"][0]["evolution"][-1]["issue"] = "issue 1"
         controls.append(("unbound evolution metadata", verify(unbound_manifest), 1))
 
         absolute_snapshot = copy.deepcopy(base_manifest)
@@ -439,17 +544,17 @@ def run_selftest() -> int:
         controls.append(("card traversal", verify(traversal_card), 1))
 
         nonexistent_issue = copy.deepcopy(evolved_manifest)
-        nonexistent_issue["cards"][0]["evolution"]["issue"] = (
+        nonexistent_issue["cards"][0]["evolution"][-1]["issue"] = (
             "https://github.com/bonginkan/fairy_tale/issues/999999999"
         )
         controls.append(("nonexistent evolution issue", verify(nonexistent_issue), 1))
 
         unrelated_issue = copy.deepcopy(evolved_manifest)
-        unrelated_issue["cards"][0]["evolution"]["issue_anchor"] = "Unrelated card"
+        unrelated_issue["cards"][0]["evolution"][-1]["issue_anchor"] = "Unrelated card"
         controls.append(("unrelated evolution issue", verify(unrelated_issue), 1))
 
         wrong_issue_identity = copy.deepcopy(evolved_manifest)
-        wrong_issue_identity["cards"][0]["evolution"]["issue_node_id"] = "I_wrong"
+        wrong_issue_identity["cards"][0]["evolution"][-1]["issue_node_id"] = "I_wrong"
         controls.append(("wrong evolution issue identity", verify(wrong_issue_identity), 1))
 
     failures = [name for name, actual, expected in controls if actual != expected]

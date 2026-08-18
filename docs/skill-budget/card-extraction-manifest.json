@@ -1,5 +1,5 @@
 {
-  "purpose": "Extraction provenance manifest: unchanged card bodies equal the original SKILL.md byte range; reviewed post-extraction evolutions pin their current body hash to a live same-repository GitHub issue node and body/title anchor while preserving the contained committed original snapshot and hash.",
+  "purpose": "Extraction provenance manifest: each original card body must equal the recorded SKILL.md byte range unless a reviewed, issue-bound evolution chain pins it. The chain is ordered and append-only: entry 0 supersedes the extracted original, each later entry supersedes its predecessor, and the last entry pins the current body. Verify with --verify against the committed pre-extraction snapshot.",
   "original_skill_md_snapshot": "docs/skill-budget/skill-md-pre-extraction-snapshot.md",
   "skill_md_sha256": "562723a75e37f106aba573752bbfd0c4fc0f3712c7fa490ac0d8fca394b4f2a7",
   "new_skill_md_sha256": "60e4e4b4e16387c7e20fae1da202d3b71eb301ce671b7cd046d1046d73d514de",
@@ -22,13 +22,16 @@
       "old_body_end": 11695,
       "body_sha256": "0174cbdfb48ae2d114dfab05724c44a2603587f1965c167e73a622c65c068c3e",
       "route_hint": "Use for any implementation task with a clear behavioral target, not only",
-      "evolution": {
-        "current_body_sha256": "2b37f5f48ea04e2d6ee1c967edf0c2e6a95f53df732cf9558bc1acb97cc9dee2",
-        "issue": "https://github.com/bonginkan/fairy_tale/issues/78",
-        "issue_anchor": "Implementation Validation Gate",
-        "issue_node_id": "I_kwDOS59HQ88AAAABJCpNLQ",
-        "reason": "Make pre/post clone-family closure an active implementation completion gate."
-      }
+      "evolution": [
+        {
+          "current_body_sha256": "2b37f5f48ea04e2d6ee1c967edf0c2e6a95f53df732cf9558bc1acb97cc9dee2",
+          "supersedes_body_sha256": "0174cbdfb48ae2d114dfab05724c44a2603587f1965c167e73a622c65c068c3e",
+          "issue": "https://github.com/bonginkan/fairy_tale/issues/78",
+          "issue_anchor": "Implementation Validation Gate",
+          "issue_node_id": "I_kwDOS59HQ88AAAABJCpNLQ",
+          "reason": "Make pre/post clone-family closure an active implementation completion gate."
+        }
+      ]
     },
     {
       "title": "Mythos Defensive Harness",
@@ -47,13 +50,16 @@
       "old_body_end": 13059,
       "body_sha256": "2749e030a4732fba05eabe22fe6ddec64823baea6ea15e533c3c09fbdc6d8528",
       "route_hint": "Use only for authorized defensive work.",
-      "evolution": {
-        "current_body_sha256": "0536e132ab0e3699c8f53ba45804d738bebb7cf887c6dec5aa0cd7f255ceaffa",
-        "issue": "https://github.com/bonginkan/fairy_tale/issues/78",
-        "issue_anchor": "minimum coherent design",
-        "issue_node_id": "I_kwDOS59HQ88AAAABJCpNLQ",
-        "reason": "Keep defensive patch scope narrow while routing any discovered semantic clone family through codebase-wide consolidation."
-      }
+      "evolution": [
+        {
+          "current_body_sha256": "0536e132ab0e3699c8f53ba45804d738bebb7cf887c6dec5aa0cd7f255ceaffa",
+          "supersedes_body_sha256": "2749e030a4732fba05eabe22fe6ddec64823baea6ea15e533c3c09fbdc6d8528",
+          "issue": "https://github.com/bonginkan/fairy_tale/issues/78",
+          "issue_anchor": "minimum coherent design",
+          "issue_node_id": "I_kwDOS59HQ88AAAABJCpNLQ",
+          "reason": "Keep defensive patch scope narrow while routing any discovered semantic clone family through codebase-wide consolidation."
+        }
+      ]
     },
     {
       "title": "Workflow self-improvement",
@@ -180,13 +186,16 @@
       "old_body_end": 27919,
       "body_sha256": "458b934d13bfcdee974e4a668b9eba269b7d665c91b2f3f6a0e03b758d13c4c6",
       "route_hint": "Choose the fusion mode before running reviewers.",
-      "evolution": {
-        "current_body_sha256": "bd0da9a1af62eb417f741e843a8311a0c73b404c8d6ab9d165736d0b7233b75b",
-        "issue": "https://github.com/bonginkan/fairy_tale/issues/12",
-        "issue_anchor": "fairy fusion --auto-check",
-        "issue_node_id": "I_kwDOS59HQ88AAAABF9IX_w",
-        "reason": "Define bounded, decision-only automatic trigger conditions, evidence fields, and the one-level recursion cap."
-      }
+      "evolution": [
+        {
+          "current_body_sha256": "bd0da9a1af62eb417f741e843a8311a0c73b404c8d6ab9d165736d0b7233b75b",
+          "supersedes_body_sha256": "458b934d13bfcdee974e4a668b9eba269b7d665c91b2f3f6a0e03b758d13c4c6",
+          "issue": "https://github.com/bonginkan/fairy_tale/issues/12",
+          "issue_anchor": "fairy fusion --auto-check",
+          "issue_node_id": "I_kwDOS59HQ88AAAABF9IX_w",
+          "reason": "Define bounded, decision-only automatic trigger conditions, evidence fields, and the one-level recursion cap."
+        }
+      ]
     },
     {
       "title": "Steady Behavior Harness",
@@ -268,13 +277,16 @@
       "old_body_end": 40523,
       "body_sha256": "ce36b85a471c22dd044d5643d76448ebe5b7605a2717dd6eca5f7aa609a04ca8",
       "route_hint": "Run structural similarity tools before broad refactors when the target is a",
-      "evolution": {
-        "current_body_sha256": "3945f3c873ac1d9e818eb2813c6800a20fd1e6edb02bf9c7d76ad4b7cccf0ecb",
-        "issue": "https://github.com/bonginkan/fairy_tale/issues/78",
-        "issue_anchor": "Refactoring Similarity Harness",
-        "issue_node_id": "I_kwDOS59HQ88AAAABJCpNLQ",
-        "reason": "Generalize similarity analysis to language-neutral ordinary patches and codebase-wide family closure."
-      }
+      "evolution": [
+        {
+          "current_body_sha256": "3945f3c873ac1d9e818eb2813c6800a20fd1e6edb02bf9c7d76ad4b7cccf0ecb",
+          "supersedes_body_sha256": "ce36b85a471c22dd044d5643d76448ebe5b7605a2717dd6eca5f7aa609a04ca8",
+          "issue": "https://github.com/bonginkan/fairy_tale/issues/78",
+          "issue_anchor": "Refactoring Similarity Harness",
+          "issue_node_id": "I_kwDOS59HQ88AAAABJCpNLQ",
+          "reason": "Generalize similarity analysis to language-neutral ordinary patches and codebase-wide family closure."
+        }
+      ]
     },
     {
       "title": "Creator-Proxy Elaboration Harness (WWCD)",

@@ -1,5 +1,5 @@
 {
-  "purpose": "Extraction provenance manifest for process records: unchanged bodies remain byte-preserved; reviewed evolutions pin a current hash to a live same-repository GitHub issue node and body/title anchor while retaining the contained committed original snapshot and hash.",
+  "purpose": "Byte-preserving extraction manifest for process.md records; each record body must equal the recorded byte range unless a reviewed, issue-bound evolution chain pins it. The chain is ordered and append-only: entry 0 supersedes the extracted original, each later entry supersedes its predecessor, and the last entry pins the current body. Verify with extract_process_records.py --verify against the committed pre-extraction snapshot.",
   "original_skill_md_snapshot": "docs/skill-budget/process-md-pre-extraction-snapshot.md",
   "skill_md_sha256": "3606c508012001a80d7291043174f414c9df22447e93c1c33b5f7dc00179f5db",
   "new_skill_md_sha256": "cc9f2c03a71bb0371820b0afa4aad15a6ca894dc872d5043687b53d70fd1ff4f",
@@ -256,13 +256,24 @@
       "old_body_end": 44537,
       "body_sha256": "f69587a53c7b120211147c43fa650c4ec158aaa24e3baa1fbc03af24f47f46be",
       "route_hint": "Use this at loop increment boundaries before assigning implementation,",
-      "evolution": {
-        "current_body_sha256": "69ac044b262e217019c649d8c7ae0d168fa67090fd3bfcf47e0e46bd585a0a61",
-        "issue": "https://github.com/bonginkan/fairy_tale/issues/113",
-        "issue_anchor": "1 codex, 2 others",
-        "issue_node_id": "I_kwDOS59HQ88AAAABNJgBYA",
-        "reason": "bind the three-party helix to exactly one codex lane and two lanes of other runtime families, preserved across member substitution, applied before capacity, and not self-relaxable"
-      }
+      "evolution": [
+        {
+          "current_body_sha256": "cb40de2787570ccd6cce33ed04cf3c0e86c2feea13d74b03c75a4caff313337d",
+          "supersedes_body_sha256": "f69587a53c7b120211147c43fa650c4ec158aaa24e3baa1fbc03af24f47f46be",
+          "issue": "https://github.com/bonginkan/fairy_tale/issues/103",
+          "issue_anchor": "bounded in-lane recovery",
+          "issue_node_id": "I_kwDOS59HQ88AAAABK-0qCw",
+          "reason": "separate unresponsive from unavailable and make bounded in-lane recovery the default before any cross-lane role transfer"
+        },
+        {
+          "current_body_sha256": "69ac044b262e217019c649d8c7ae0d168fa67090fd3bfcf47e0e46bd585a0a61",
+          "supersedes_body_sha256": "cb40de2787570ccd6cce33ed04cf3c0e86c2feea13d74b03c75a4caff313337d",
+          "issue": "https://github.com/bonginkan/fairy_tale/issues/113",
+          "issue_anchor": "1 codex, 2 others",
+          "issue_node_id": "I_kwDOS59HQ88AAAABNJgBYA",
+          "reason": "bind the three-party helix to exactly one codex lane and two lanes of other runtime families, preserved across member substitution, applied before capacity, and not self-relaxable"
+        }
+      ]
     },
     {
       "title": "External-channel ingestion record",
@@ -317,13 +328,16 @@
       "old_body_end": 49898,
       "body_sha256": "0d34e94633356553436457e6e4b82d1b96b3bae36b05af8a54d4dabd3716c272",
       "route_hint": "Use this before launching multi-reviewer or multi-model deliberation.",
-      "evolution": {
-        "current_body_sha256": "1ab81f7de656817197741b0efa516534c4b460b94d40f15e51c39af92c051491",
-        "issue": "https://github.com/bonginkan/fairy_tale/issues/12",
-        "issue_anchor": "発火理由、reviewer cap、recursion depth、artifact path",
-        "issue_node_id": "I_kwDOS59HQ88AAAABF9IX_w",
-        "reason": "Record machine-readable trigger disposition, bounds, artifact identity, and decision-only execution state."
-      }
+      "evolution": [
+        {
+          "current_body_sha256": "1ab81f7de656817197741b0efa516534c4b460b94d40f15e51c39af92c051491",
+          "supersedes_body_sha256": "0d34e94633356553436457e6e4b82d1b96b3bae36b05af8a54d4dabd3716c272",
+          "issue": "https://github.com/bonginkan/fairy_tale/issues/12",
+          "issue_anchor": "発火理由、reviewer cap、recursion depth、artifact path",
+          "issue_node_id": "I_kwDOS59HQ88AAAABF9IX_w",
+          "reason": "Record machine-readable trigger disposition, bounds, artifact identity, and decision-only execution state."
+        }
+      ]
     },
     {
       "title": "Domain router card",
@@ -450,13 +464,16 @@
       "old_body_end": 55427,
       "body_sha256": "eb67e9d636b0b65352f3c1708f18d28169649b6962a126a053f718dc25661586",
       "route_hint": "Use this before broad TypeScript refactors.",
-      "evolution": {
-        "current_body_sha256": "173636894c5af89cf58a55827053ff589b250c90f40b0a5f3a445cdcee4dd11f",
-        "issue": "https://github.com/bonginkan/fairy_tale/issues/78",
-        "issue_anchor": "process record",
-        "issue_node_id": "I_kwDOS59HQ88AAAABJCpNLQ",
-        "reason": "Record complete clone-family membership, classification, migration, subtraction, and post-edit closure."
-      }
+      "evolution": [
+        {
+          "current_body_sha256": "173636894c5af89cf58a55827053ff589b250c90f40b0a5f3a445cdcee4dd11f",
+          "supersedes_body_sha256": "eb67e9d636b0b65352f3c1708f18d28169649b6962a126a053f718dc25661586",
+          "issue": "https://github.com/bonginkan/fairy_tale/issues/78",
+          "issue_anchor": "process record",
+          "issue_node_id": "I_kwDOS59HQ88AAAABJCpNLQ",
+          "reason": "Record complete clone-family membership, classification, migration, subtraction, and post-edit closure."
+        }
+      ]
     },
     {
       "title": "Accessible genius method record",
