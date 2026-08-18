@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail a change that edits the shipped skills without bumping the plugin version.
+"""Fail a change that edits the shipped payload without bumping the plugin version.
 
 The distributed plugin is served from a version-keyed cache, so a host that
 already holds `0.2.38` keeps serving `0.2.38` no matter what the source says:
@@ -13,7 +13,7 @@ enforced it, so forgetting produced no signal anywhere. This is that signal.
 Checks, against an immutable base revision (a PR base SHA or merge base, never
 HEAD, which in a checkout IS the tree under test):
 
-- any change under a shipped skills path requires a different plugin version;
+- any change under a shipped path requires a different plugin version;
 - the plugin manifest and the marketplace entry must agree on that version;
 - a version that moves backwards is refused.
 
@@ -35,8 +35,14 @@ ROOT = Path(__file__).resolve().parents[1]
 PLUGIN_MANIFEST = "plugins/fairy-tale/.claude-plugin/plugin.json"
 MARKETPLACE_MANIFEST = ".claude-plugin/marketplace.json"
 PLUGIN_NAME = "fairy-tale"
-# Every tree whose bytes reach an installed plugin copy.
-SHIPPED_PREFIXES = ("skills/", "plugins/fairy-tale/skills/")
+# Every tree whose bytes reach an installed copy, measured against what a host
+# actually holds rather than chosen by name: the plugin payload is the whole
+# `plugins/fairy-tale/` tree (197 files, of which 110 are skills -- the other 87
+# are scripts, schemas, docs, adapters, examples, hooks, fixtures and resources,
+# and a hook ships executable behaviour), and `skills/` is the canonical tree the
+# tarball installer copies. Naming only the skills paths left 44% of the payload
+# outside the gate.
+SHIPPED_PREFIXES = ("skills/", "plugins/fairy-tale/")
 SEMVER_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
 
 
@@ -79,6 +85,15 @@ def evaluate(
             f"plugin manifest says {head_version!r} but the marketplace entry says "
             f"{head_marketplace_version!r}; an installed copy keys on one of them"
         )
+    # A version that moves backwards is wrong whatever else the change touched:
+    # a host holding the higher version will not come back down, so the lower
+    # one is unreachable. Checked before the shipped-file question, because
+    # checking it after made a manifest-only downgrade pass.
+    base_parsed = parse_version(base_version)
+    if head_parsed is not None and base_parsed is not None and head_parsed < base_parsed:
+        failures.append(
+            f"plugin version moved backwards: {base_version} -> {head_version}"
+        )
     shipped = sorted(
         path for path in changed_paths if path.startswith(SHIPPED_PREFIXES)
     )
@@ -89,15 +104,9 @@ def evaluate(
         return failures
     if head_version == base_version:
         failures.append(
-            f"{len(shipped)} shipped skill file(s) changed while the plugin version "
+            f"{len(shipped)} shipped file(s) changed while the plugin version "
             f"stayed {base_version!r} -- a version-keyed cache will keep serving the "
             f"old copy; first: {shipped[0]}"
-        )
-        return failures
-    base_parsed = parse_version(base_version)
-    if head_parsed is not None and base_parsed is not None and head_parsed < base_parsed:
-        failures.append(
-            f"plugin version moved backwards: {base_version} -> {head_version}"
         )
     return failures
 
@@ -171,12 +180,12 @@ def do_check(base_rev: str) -> int:
     shipped = [p for p in changed if p.startswith(SHIPPED_PREFIXES)]
     if shipped:
         print(
-            f"[VERSION-BUMP GREEN] {len(shipped)} shipped skill file(s) changed since "
+            f"[VERSION-BUMP GREEN] {len(shipped)} shipped file(s) changed since "
             f"{base_rev}; plugin version {base_version} -> {head_manifest.get('version')}"
         )
     else:
         print(
-            f"[VERSION-BUMP GREEN] no shipped skill file changed since {base_rev}; "
+            f"[VERSION-BUMP GREEN] no shipped file changed since {base_rev}; "
             f"version {head_manifest.get('version')} held"
         )
     return 0
@@ -190,11 +199,32 @@ def run_selftest() -> int:
         ("nothing shipped changed, version held", evaluate(["docs/notes.md", "scripts/x.py"], "0.2.38", "0.2.38", "0.2.38"), 0),
         ("manifests disagree", evaluate([], "0.2.38", "0.2.39", "0.2.38"), 1),
         ("version moved backwards", evaluate(["skills/fairy-tale/SKILL.md"], "0.2.38", "0.2.37", "0.2.37"), 1),
+        ("version moved backwards with nothing shipped changed", evaluate(["docs/notes.md"], "0.2.39", "0.2.38", "0.2.38"), 1),
+        ("version moved backwards with no change at all", evaluate([], "0.2.39", "0.2.38", "0.2.38"), 1),
+        ("shipped payload outside skills, version held", evaluate(["plugins/fairy-tale/hooks/hooks.json"], "0.2.38", "0.2.38", "0.2.38"), 1),
+        ("shipped payload outside skills, version bumped", evaluate(["plugins/fairy-tale/scripts/x.py"], "0.2.38", "0.2.39", "0.2.39"), 0),
         ("version not semver", evaluate([], "0.2.38", "latest", "latest"), 1),
         ("base version unreadable", evaluate(["skills/fairy-tale/SKILL.md"], None, "0.2.39", "0.2.39"), 1),
         ("marketplace entry read", 0 if marketplace_version({"plugins": [{"name": "fairy-tale", "version": "0.2.39"}]}) == "0.2.39" else 1, 0),
         ("marketplace entry missing", 0 if marketplace_version({"plugins": [{"name": "other", "version": "1.0.0"}]}) is None else 1, 0),
     ]
+    # The rule above is pure; the entry point is not. Without these, the base
+    # resolution and the HEAD refusal could be deleted and every control would
+    # stay green -- the shape #117 closed by requiring a control of its own.
+    import contextlib
+    import io
+
+    def quiet(rev: str) -> int:
+        with contextlib.redirect_stdout(io.StringIO()):
+            return do_check(rev)
+
+    controls.append(("do_check: HEAD refused as base", quiet("HEAD"), 1))
+    controls.append(("do_check: @ refused as base", quiet("@"), 1))
+    controls.append(("do_check: unresolvable base refused", quiet("definitely-not-a-ref"), 1))
+    # The positive for do_check is deliberately NOT here: its verdict depends on
+    # what the branch has changed, so a control asserting green would pass or
+    # fail on repository state rather than on this code. CI runs the real check
+    # against the merge base in the same step, which is that positive.
     normalised = [
         (name, (1 if isinstance(result, list) and result else 0) if isinstance(result, list) else result, expected)
         for name, result, expected in controls
