@@ -257,11 +257,11 @@
       "body_sha256": "f69587a53c7b120211147c43fa650c4ec158aaa24e3baa1fbc03af24f47f46be",
       "route_hint": "Use this at loop increment boundaries before assigning implementation,",
       "evolution": {
-        "current_body_sha256": "cb40de2787570ccd6cce33ed04cf3c0e86c2feea13d74b03c75a4caff313337d",
-        "issue": "https://github.com/bonginkan/fairy_tale/issues/103",
-        "issue_anchor": "bounded in-lane recovery",
-        "issue_node_id": "I_kwDOS59HQ88AAAABK-0qCw",
-        "reason": "separate unresponsive from unavailable and make bounded in-lane recovery the default before any cross-lane role transfer"
+        "current_body_sha256": "c284273de9548be3c6ca970cf481f1beb99dfb17c9049e2932d2eed537762647",
+        "issue": "https://github.com/bonginkan/fairy_tale/issues/113",
+        "issue_anchor": "1 codex, 2 others",
+        "issue_node_id": "I_kwDOS59HQ88AAAABNJgBYA",
+        "reason": "bind the three-party helix to exactly one codex lane and two lanes of other runtime families, preserved across member substitution, applied before capacity, and not self-relaxable"
       }
     },
     {

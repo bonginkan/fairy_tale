@@ -12,6 +12,7 @@ candidate agents:
 fixed specialist capabilities:
 capacity inputs:
   - agent:
+    runtime_family:
     primary_5h_remaining:
     secondary_weekly_remaining:
     blocking_status:
@@ -27,6 +28,8 @@ eligible implementation agents:
 excluded agents and reason:
 implementation owner:
 reviewers:
+composition (runtime families):
+composition check: satisfied | blocked | owner-directed
 specialist tool owner:
 assignment rule applied:
 tie-breaker:
@@ -36,8 +39,34 @@ ledger / receipt:
 owner-visible status:
 ```
 
+Composition constraint:
+
+- A three-party helix carries exactly one Codex-lane agent and two agents from
+  other runtime families: `1 codex, 2 others`. Two Codex lanes in one trio is
+  not a valid composition, and neither is zero.
+- The constraint binds the runtime family, not the identity. Membership is not
+  a fixed roster; whoever holds a slot at a given moment, the family split is
+  what must hold.
+- Substitution preserves the split. A replacement for the Codex member must
+  itself be a Codex lane, and a replacement for a non-Codex member must not be.
+  Re-check the composition at every substitution, not only when the loop forms.
+- The two non-Codex slots need not share a family with each other. Claude Code
+  lanes are the common case today; any additional coding-agent runtime family
+  counts as `other` on the same terms, so the rule does not need rewriting as
+  new runtimes are adopted.
+- Runtimes fail, drift, and mis-read differently, so a mixed trio keeps at
+  least one independent runtime in every review. A single-family trio shares
+  its blind spots with the work it is reviewing.
+- The constraint is not self-relaxable. If no Codex lane is eligible, the trio
+  does not form by promoting a second agent of another family into the slot:
+  run the smaller composition and record the gap, or wait for an eligible
+  Codex lane. Only the session owner can direct a different composition, and
+  the record marks it `owner-directed` with the directive ref.
+
 Assignment policy:
 
+- Apply the composition constraint before capacity. Capacity selects roles
+  within a valid composition; it never produces one that violates the split.
 - Assign fixed specialist capabilities first. Computer Use, GUI/app settings,
   credential setup, secret handling, permission changes, deploys, meeting
   joins, and external mutations are controlled by capability plus approval
@@ -144,7 +173,12 @@ Non-normative example:
 ```text
 session owner: CC MISA
 specialist tool owner: CC MISA for Computer Use / GUI settings
-implementation candidates: Codex MISA, MISA 3, CC MISA when not fixed-specialist
+composition: 1 codex lane + 2 lanes of other families
+composition check: satisfied
+implementation candidates: the codex-lane member and the two other-family
+  members, minus any agent holding a fixed specialist role this increment
 assignment: implementation owner = highest usable capacity; others review
 review guard: implementation owner never signs off its own increment
+substitution: swapping the codex-lane member brings in another codex lane;
+  swapping a non-codex member brings in a non-codex lane
 ```
