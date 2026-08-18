@@ -18,7 +18,12 @@ Extraction provenance contract (review gate, PR #60 thread 2026-07-02):
   reason. Entry 0 supersedes the extracted original and the last entry
   authorises the body on disk, so every authorisation a card ever received stays
   nameable -- dropping, reordering, or duplicating an entry breaks a link and
-  exits non-zero. The original snapshot/body hash is still verified and never
+  exits non-zero, and an entry may not credit an issue older than its
+  predecessor's. Where the chain stops: it proves the ORDER and ATTRIBUTION of
+  the bodies it lists, not that a body it lists ever existed. An entry pinning a
+  fabricated intermediate hash, linked correctly on both sides, verifies -- the
+  manifest holds no independent record that the body was ever on disk. Read a
+  chain as the authorisations claimed for a card, not as proof of its history. The original snapshot/body hash is still verified and never
   rewritten. Repository-relative paths are containment-checked, including
   symlinks. Any unpinned or unverifiable drift exits non-zero.
 - The extraction is reproducible: same input SKILL.md -> byte-identical cards,
@@ -202,6 +207,9 @@ def resolve_contained_path(base: Path, raw_ref: object, label: str) -> tuple[Pat
     return resolved, None
 
 
+ISO_INSTANT_RE = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
+
+
 def fetch_github_issue(issue_url: str) -> dict[str, Any]:
     """Read an issue from GitHub so provenance is not a URL-shape assertion."""
     match = GITHUB_ISSUE_RE.fullmatch(issue_url)
@@ -286,9 +294,11 @@ def do_verify(
             continue
         chain_shas: list[str] = []
         chain_links: list[str] = []
+        chain_created: list[str | None] = []
         chain_ok = True
         for position, entry in enumerate(evolution):
             where = f"{card['card_path']}[{position}]"
+            entry_created: str | None = None
             if not isinstance(entry, dict):
                 failures.append(f"malformed evolution entry: {where}")
                 chain_ok = False
@@ -350,6 +360,12 @@ def do_verify(
                     issue_text = f"{issue_record.get('title') or ''}\n{issue_record.get('body') or ''}"
                     if issue_anchor not in issue_text:
                         failures.append(f"evolution issue anchor missing: {where}")
+                    created_at = issue_record.get("created_at")
+                    if not isinstance(created_at, str) or not ISO_INSTANT_RE.fullmatch(created_at):
+                        failures.append(f"evolution issue has no usable created_at: {where}")
+                    else:
+                        entry_created = created_at
+            chain_created.append(entry_created)
         if not chain_ok:
             continue
         # A body hash may authorise exactly one position. Without this, a
@@ -371,6 +387,22 @@ def do_verify(
                 )
                 break
             expected_link = produced
+        # The link fixes the order of BODIES. It does not say which issue
+        # authorised which body: swapping the issue metadata of two entries
+        # leaves every hash intact. Authorisation cannot run backwards in time,
+        # so the issues along a chain must not get older as the chain advances.
+        # created_at comes from the issue records already fetched above, so this
+        # costs no additional request.
+        for position in range(1, len(chain_created)):
+            earlier, later = chain_created[position - 1], chain_created[position]
+            if earlier is None or later is None:
+                continue
+            if later < earlier:
+                failures.append(
+                    f"evolution attribution out of order at {card['card_path']}[{position}]: "
+                    f"authorising issue is older than its predecessor's"
+                )
+                break
         body_sha = hashlib.sha256(body).hexdigest()
         if chain_shas and chain_shas[-1] != body_sha:
             # Either the body moved without a new entry, or an entry that is not
@@ -430,12 +462,22 @@ def run_selftest() -> int:
             "node_id": "I_example",
             "title": "Example contract evolution",
             "body": "The Example card is intentionally evolved.",
+            "created_at": "2026-01-02T03:04:05Z",
         }
+        later_issue_url = "https://github.com/bonginkan/fairy_tale/issues/2"
+        later_issue = {
+            "html_url": later_issue_url,
+            "node_id": "I_example_later",
+            "title": "Example second contract evolution",
+            "body": "The Example card is intentionally evolved again.",
+            "created_at": "2026-02-03T04:05:06Z",
+        }
+        fixture_issues = {valid_issue_url: valid_issue, later_issue_url: later_issue}
 
         def fake_issue_loader(issue_url: str) -> dict[str, Any]:
-            if issue_url != valid_issue_url:
+            if issue_url not in fixture_issues:
                 raise ValueError("fixture issue does not exist")
-            return valid_issue
+            return fixture_issues[issue_url]
 
         def verify(manifest: dict) -> int:
             manifest_path.write_text(
@@ -449,13 +491,19 @@ def run_selftest() -> int:
 
         original_sha = hashlib.sha256(original_body).hexdigest()
 
-        def pin(current: bytes, supersedes: str, reason: str) -> dict[str, str]:
+        def pin(
+            current: bytes,
+            supersedes: str,
+            reason: str,
+            issue: dict[str, str] | None = None,
+        ) -> dict[str, str]:
+            source = issue or valid_issue
             return {
                 "current_body_sha256": hashlib.sha256(current).hexdigest(),
                 "supersedes_body_sha256": supersedes,
-                "issue": valid_issue_url,
+                "issue": source["html_url"],
                 "issue_anchor": "Example",
-                "issue_node_id": "I_example",
+                "issue_node_id": source["node_id"],
                 "reason": reason,
             }
 
@@ -474,10 +522,30 @@ def run_selftest() -> int:
         second_body = b"Second evolved body.\n"
         card_path.write_bytes(b"# Example\n" + second_body)
         first_pin = pin(evolved_body, original_sha, "first reviewed evolution")
-        second_pin = pin(second_body, first_pin["current_body_sha256"], "second reviewed evolution")
+        second_pin = pin(
+            second_body,
+            first_pin["current_body_sha256"],
+            "second reviewed evolution",
+            issue=later_issue,
+        )
         chain_manifest = copy.deepcopy(base_manifest)
         chain_manifest["cards"][0]["evolution"] = [first_pin, second_pin]
         controls.append(("linked evolution chain", verify(chain_manifest), 0))
+
+        # RED: hashes and links untouched, only the authorisations swapped, so
+        # the older issue would be credited with the newer body.
+        swapped_manifest = copy.deepcopy(chain_manifest)
+        swapped = swapped_manifest["cards"][0]["evolution"]
+        for key in ("issue", "issue_node_id"):
+            swapped[0][key], swapped[1][key] = swapped[1][key], swapped[0][key]
+        controls.append(("swapped evolution attribution", verify(swapped_manifest), 1))
+
+        undated_manifest = copy.deepcopy(chain_manifest)
+        fixture_issues[later_issue_url] = {
+            k: v for k, v in later_issue.items() if k != "created_at"
+        }
+        controls.append(("evolution issue without created_at", verify(undated_manifest), 1))
+        fixture_issues[later_issue_url] = later_issue
 
         # RED: the predecessor is silently dropped. The surviving entry still
         # matches the live body, so only the broken link catches this.
