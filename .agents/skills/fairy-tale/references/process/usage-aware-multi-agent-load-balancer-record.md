@@ -33,7 +33,8 @@ excluded agents and reason:
 implementation owner:
 reviewers:
 composition (runtime families):
-composition check: satisfied | blocked | owner-directed
+composition check: satisfied | blocked | owner-directed | not_applicable
+composition directive ref:
 specialist tool owner:
 assignment rule applied:
 tie-breaker:
@@ -48,6 +49,14 @@ Composition constraint:
 - A three-party helix carries exactly one Codex-lane agent and two agents from
   other runtime families: `1 codex, 2 others`. Two Codex lanes in one trio is
   not a valid composition, and neither is zero.
+- The constraint scopes to increments that form a three-party helix. An
+  increment that assigns roles without forming one records
+  `composition check: not_applicable`; the rest of the assignment policy still
+  applies. `not_applicable` states that no trio was formed, never that a
+  formed trio was left unchecked.
+- `composition directive ref` is filled exactly when the check reads
+  `owner-directed`, and carries the verified owner directive locator. Leave it
+  empty for the other three values.
 - The constraint binds the runtime family, not the identity. Membership is not
   a fixed roster; whoever holds a slot at a given moment, the family split is
   what must hold.
@@ -61,6 +70,11 @@ Composition constraint:
 - Runtimes fail, drift, and mis-read differently, so a mixed trio keeps at
   least one independent runtime in every review. A single-family trio shares
   its blind spots with the work it is reviewing.
+- That reasoning carries the lower bound only: it is why the count is never
+  zero. It does not derive the upper bound, and `2 codex + 1 other` would
+  satisfy it while violating the split. The exact split is set by owner
+  directive, so do not widen this to `any mixed trio` on the strength of the
+  line above.
 - `runtime_family` names the runtime the agent runs on, not its account, host,
   or persona. Record one value per agent: `codex`, `claude-code`, or another
   runtime family written as its lowercase hyphenated runtime name.
