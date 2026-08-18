@@ -35,13 +35,16 @@ ROOT = Path(__file__).resolve().parents[1]
 PLUGIN_MANIFEST = "plugins/fairy-tale/.claude-plugin/plugin.json"
 MARKETPLACE_MANIFEST = ".claude-plugin/marketplace.json"
 PLUGIN_NAME = "fairy-tale"
-# Every tree whose bytes reach an installed copy, measured against what a host
-# actually holds rather than chosen by name: the plugin payload is the whole
-# `plugins/fairy-tale/` tree (197 files, of which 110 are skills -- the other 87
-# are scripts, schemas, docs, adapters, examples, hooks, fixtures and resources,
-# and a hook ships executable behaviour), and `skills/` is the canonical tree the
-# tarball installer copies. Naming only the skills paths left 44% of the payload
-# outside the gate.
+# Every tree whose bytes reach an installed copy, enumerated rather than chosen
+# by name: the plugin payload is the whole `plugins/fairy-tale/` tree (197 files,
+# of which 110 are skills -- the other 87 are scripts, schemas, docs, adapters,
+# examples, hooks, fixtures and resources, and a hook ships executable
+# behaviour), and `skills/` is the canonical tree the tarball installer copies.
+# Naming only the skills paths left 44% of the payload outside the gate.
+# Cross-checked against installed caches on two hosts: no shipped file was
+# missing from them, and their surplus files are `scripts/__pycache__/*.pyc`
+# written by running the scripts after installation -- so an installed copy is
+# the payload plus local bytecode, not a different set.
 SHIPPED_PREFIXES = ("skills/", "plugins/fairy-tale/")
 SEMVER_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
 
