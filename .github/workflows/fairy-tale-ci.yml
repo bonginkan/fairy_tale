@@ -83,6 +83,32 @@ jobs:
             --trusted-base "$BASE"
       - name: Contract closure gates a different project from the built package
         run: python3 .github/scripts/contract_closure_package_e2e.py
+      - name: Evolution chains are append-only against the merge base
+        run: |
+          # The chain cannot police its own length: dropping an entry and
+          # relinking the survivor verifies in-file. The merge base is the only
+          # record of what the chain held before, so the comparison is bound to
+          # it -- never to HEAD, which in a checkout IS the file under test.
+          git fetch --no-tags --unshallow origin main 2>/dev/null || \
+            git fetch --no-tags --deepen=200 origin main || \
+            git fetch --no-tags origin main
+          git update-ref refs/remotes/origin/main FETCH_HEAD
+          if ! BASE=$(git merge-base origin/main HEAD); then
+            echo "cannot resolve a merge base — an append-only claim cannot be proven, failing closed"
+            exit 1
+          fi
+          HEAD_SHA=$(git rev-parse HEAD)
+          if [ "$BASE" = "$HEAD_SHA" ]; then
+            if git merge-base --is-ancestor "$HEAD_SHA" origin/main; then
+              echo "HEAD ($HEAD_SHA) is the integration branch: there is no earlier manifest to compare against, so this PR-shaped control does not apply here"
+              exit 0
+            fi
+            echo "the merge base equals HEAD but HEAD is not contained in origin/main — failing closed"
+            exit 1
+          fi
+          echo "base manifest revision: $BASE"
+          python3 scripts/extract_mode_pattern_cards.py --append-only-base "$BASE"
+          python3 scripts/extract_process_records.py --append-only-base "$BASE"
       - name: Release package ships every consumer
         run: python3 scripts/package_skills.py
       - name: Task artifact gate (self-controls)

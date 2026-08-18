@@ -12,25 +12,30 @@ Extraction provenance contract (review gate, PR #60 thread 2026-07-02):
 - `--verify` re-reads every written card and byte-compares its body slice
   against the original SKILL.md byte range recorded in the manifest. A card
   intentionally evolved after extraction must instead carry a reviewed
-  `evolution` chain: an ordered, append-only list where each entry pins the
-  body SHA-256 it produced, the body SHA-256 it superseded, and a live
-  same-repository GitHub issue URL, stable node ID, body/title anchor, and
-  reason. Entry 0 supersedes the extracted original and the last entry
-  authorises the body on disk. Dropping, reordering, or duplicating an entry
-  breaks a link; an entry may not credit an issue older than its
-  predecessor's; and one issue authorises one entry, so a later authorisation
-  cannot overwrite an earlier one in place. The original snapshot/body hash is
-  still verified and never rewritten. Repository-relative paths are
-  containment-checked, including symlinks. Any unpinned or unverifiable drift
-  exits non-zero.
-- Where the chain stops. It proves the ORDER of the bodies it lists, and that
-  their authorising issues are consistent with that order. It does NOT prove
-  that a named issue is the one that authorised a body -- another issue of the
-  right vintage passes -- nor that a body it lists ever existed: an entry
-  pinning a fabricated intermediate hash, linked correctly on both sides,
-  verifies, because the manifest holds no independent record of what was ever
-  on disk. Read a chain as the authorisations claimed for a card, not as proof
-  of its history.
+  `evolution` chain: an ordered list where each entry pins the body SHA-256 it
+  produced, the body SHA-256 it superseded, and a live same-repository GitHub
+  issue URL, stable node ID, body/title anchor, and reason. Entry 0 supersedes
+  the extracted original and the last entry authorises the body on disk. An
+  entry may not credit an issue older than its predecessor's, and one issue
+  authorises one entry, so a later authorisation cannot overwrite an earlier
+  one in place. The original snapshot/body hash is still verified and never
+  rewritten. Repository-relative paths are containment-checked, including
+  symlinks. Any unpinned or unverifiable drift exits non-zero.
+- What one manifest can and cannot show. Read alone, a chain shows that its
+  bodies are internally linked and that its authorising issues are consistent
+  with that order. It does NOT show that a named issue is the one that
+  authorised a body -- another issue of the right vintage passes -- nor that a
+  body it lists ever existed, nor that the chain was never shortened: an entry
+  dropped WITH its successor relinked to the predecessor leaves a chain that
+  verifies. Only an unrelinked drop breaks a link.
+- `--append-only-base REV` supplies what one manifest cannot: the same file at
+  an immutable earlier revision. Every authorisation recorded at REV must still
+  be recorded, in the same relative order; entries may be inserted (this is how
+  #103 was recovered) but never removed or reordered. REV must be a PR base SHA
+  or merge-base -- never HEAD, which in a fresh checkout IS the file under test,
+  making the comparison trivially true. CI binds this to the merge base, so the
+  append-only property holds from the merge that introduced it forward; the
+  history declared in that merge is a claim, not a proof.
 - The extraction is reproducible: same input SKILL.md -> byte-identical cards,
   router table, and new SKILL.md (no timestamps, no ordering ambiguity;
   sections are processed in file order).
@@ -433,10 +438,119 @@ def do_verify(
         for failure in failures:
             print(f"[VERIFY RED] {failure}")
         return 1
+    entry_count = sum(
+        len(card["evolution"])
+        for card in manifest["cards"]
+        if isinstance(card.get("evolution"), list)
+    )
     print(
         f"[VERIFY GREEN] {len(manifest['cards'])} cards: "
-        f"{original_count} original bodies + {evolved_count} pinned evolutions"
+        f"{original_count} original bodies + {evolved_count} evolved cards "
+        f"carrying {entry_count} pinned authorisations"
     )
+    return 0
+
+
+def chain_identity(entry: Any) -> tuple[str, str] | None:
+    """The part of a pin that must survive every later edit."""
+    if not isinstance(entry, dict):
+        return None
+    node_id = entry.get("issue_node_id")
+    sha = entry.get("current_body_sha256")
+    if not isinstance(node_id, str) or not isinstance(sha, str):
+        return None
+    return (node_id, sha)
+
+
+def normalised_chain(card: Any) -> list[tuple[str, str] | None]:
+    """Read a chain from either shape, so a base predating the list still compares."""
+    if not isinstance(card, dict):
+        return []
+    evolution = card.get("evolution")
+    if evolution is None:
+        return []
+    entries = evolution if isinstance(evolution, list) else [evolution]
+    return [chain_identity(entry) for entry in entries]
+
+
+def verify_append_only(head_manifest: dict, base_manifest: dict) -> list[str]:
+    """Every authorisation the base recorded must still be recorded, in order.
+
+    A chain cannot prove on its own that it was never shortened: an editor who
+    drops an entry can relink the survivor to the original and leave a chain
+    that verifies. The missing piece is an independent record of what the chain
+    held before, which is what the base revision is. Entries may be inserted --
+    this repository recovered #103 that way -- but never removed or reordered.
+    """
+    failures: list[str] = []
+    head_by_path = {
+        card.get("card_path"): card
+        for card in head_manifest.get("cards", [])
+        if isinstance(card, dict)
+    }
+    for base_card in base_manifest.get("cards", []):
+        if not isinstance(base_card, dict):
+            continue
+        base_chain = [item for item in normalised_chain(base_card) if item is not None]
+        if not base_chain:
+            continue
+        path = base_card.get("card_path")
+        head_card = head_by_path.get(path)
+        if head_card is None:
+            failures.append(f"card with a recorded chain is gone from the manifest: {path}")
+            continue
+        head_chain = [item for item in normalised_chain(head_card) if item is not None]
+        position = 0
+        for wanted in base_chain:
+            while position < len(head_chain) and head_chain[position] != wanted:
+                position += 1
+            if position == len(head_chain):
+                node_id, sha = wanted
+                failures.append(
+                    f"authorisation dropped or reordered since the base revision: "
+                    f"{path} ({node_id} -> {sha[:12]})"
+                )
+                break
+            position += 1
+    return failures
+
+
+def do_verify_append_only(manifest_path: Path, base_rev: str, relative: str) -> int:
+    """Compare the working manifest against the same file at an immutable revision."""
+    import subprocess
+
+    try:
+        base_bytes = subprocess.run(
+            ["git", "-C", str(ROOT), "show", f"{base_rev}:{relative}"],
+            capture_output=True,
+            check=True,
+        ).stdout
+    except FileNotFoundError:
+        print("[APPEND-ONLY RED] git is not available, so the base manifest cannot be read")
+        return 1
+    except subprocess.CalledProcessError as error:
+        detail = error.stderr.decode("utf-8", "replace").strip().splitlines()
+        print(
+            f"[APPEND-ONLY RED] cannot read {relative} at {base_rev}: "
+            f"{detail[-1] if detail else 'unknown error'}"
+        )
+        return 1
+    try:
+        base_manifest = json.loads(base_bytes.decode("utf-8"))
+        head_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        print(f"[APPEND-ONLY RED] manifest is not readable JSON: {exc}")
+        return 1
+    failures = verify_append_only(head_manifest, base_manifest)
+    if failures:
+        for failure in failures:
+            print(f"[APPEND-ONLY RED] {failure}")
+        return 1
+    recorded = sum(
+        len([item for item in normalised_chain(card) if item is not None])
+        for card in base_manifest.get("cards", [])
+    )
+    print(f"[APPEND-ONLY GREEN] {recorded} authorisation(s) at {base_rev} still recorded")
     return 0
 
 
@@ -650,6 +764,55 @@ def run_selftest() -> int:
         wrong_issue_identity["cards"][0]["evolution"][-1]["issue_node_id"] = "I_wrong"
         controls.append(("wrong evolution issue identity", verify(wrong_issue_identity), 1))
 
+        # The chain cannot police its own length: these controls run against a
+        # base revision, which is the only record of what the chain held before.
+        def append_only(base_cards: list, head_cards: list) -> int:
+            found = verify_append_only({"cards": head_cards}, {"cards": base_cards})
+            return 1 if found else 0
+
+        base_card = {
+            "card_path": "references/cards/example.md",
+            "evolution": [copy.deepcopy(first_pin), copy.deepcopy(second_pin)],
+        }
+        head_same = copy.deepcopy(base_card)
+        controls.append(("append-only: unchanged chain", append_only([base_card], [head_same]), 0))
+
+        head_extended = copy.deepcopy(base_card)
+        head_extended["evolution"].append(
+            pin(b"Third body.\n", second_pin["current_body_sha256"], "third", issue=later_issue)
+        )
+        controls.append(("append-only: extended chain", append_only([base_card], [head_extended]), 0))
+
+        # H: the entry is dropped AND the survivor is relinked, so the shortened
+        # chain verifies on its own. Only the base revision still remembers it.
+        head_relinked = {
+            "card_path": "references/cards/example.md",
+            "evolution": [
+                {**copy.deepcopy(second_pin), "supersedes_body_sha256": original_sha}
+            ],
+        }
+        controls.append(("append-only: relinked drop", append_only([base_card], [head_relinked]), 1))
+
+        head_reordered = copy.deepcopy(base_card)
+        head_reordered["evolution"].reverse()
+        controls.append(("append-only: reordered chain", append_only([base_card], [head_reordered]), 1))
+
+        # An entry recovered from history may be inserted BEFORE a recorded one:
+        # that is how #103 came back, and it drops nothing.
+        head_recovered = {
+            "card_path": "references/cards/example.md",
+            "evolution": [copy.deepcopy(first_pin), copy.deepcopy(second_pin)],
+        }
+        legacy_base = {
+            "card_path": "references/cards/example.md",
+            "evolution": copy.deepcopy(second_pin),
+        }
+        controls.append(
+            ("append-only: legacy singleton base accepts recovery", append_only([legacy_base], [head_recovered]), 0)
+        )
+
+        controls.append(("append-only: card removed", append_only([base_card], []), 1))
+
     failures = [name for name, actual, expected in controls if actual != expected]
     if failures:
         for name in failures:
@@ -667,10 +830,25 @@ def main() -> int:
     parser.add_argument("--write", action="store_true", help="write cards, new SKILL.md, manifest")
     parser.add_argument("--verify", action="store_true", help="verify written cards vs manifest")
     parser.add_argument("--selftest", action="store_true", help="run verifier red-lock controls")
+    parser.add_argument(
+        "--append-only-base",
+        metavar="REV",
+        help=(
+            "compare the manifest against the same file at REV (an immutable "
+            "revision such as the PR base SHA or a merge-base, never HEAD) and "
+            "fail if a recorded authorisation was dropped or reordered"
+        ),
+    )
     args = parser.parse_args()
 
     if args.selftest:
         return run_selftest()
+    if args.append_only_base:
+        return do_verify_append_only(
+            args.manifest,
+            args.append_only_base,
+            str(args.manifest.resolve().relative_to(ROOT)),
+        )
     if args.verify:
         return do_verify(args.skill_md, args.manifest)
 
