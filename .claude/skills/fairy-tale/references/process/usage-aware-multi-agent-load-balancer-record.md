@@ -164,18 +164,39 @@ Assignment policy:
   context, accumulated mistakes, and wanting a clean start are handled by
   handoff plus self-reboot inside the same lane, and `substitution reason` says
   which of the two happened.
+- `usage_exhaustion` is a reading, not a word. It carries the same evidence any
+  capacity claim carries — a coarse remaining figure with its source class and
+  `source_ref`, self-report treated as provisional — because a reason that is
+  merely asserted is unobservable from outside and available at any moment,
+  which is exactly why degradation was refused above. `none` states that no
+  substitution happened, never that one happened for a reason outside this
+  list.
 - A reboot without a handoff record is state loss wearing a recovery's name.
   Write the record first, then reboot; resume from the record, not from memory.
+- The record has to outlive the context it describes, so write it where the
+  reboot cannot take it: the run ledger or receipt, or the issue / PR / project
+  thread the work already exchanges through. A handoff written only into the
+  session being discarded satisfies the words and loses the state.
+- Write it at a safe boundary and reboot there. A self-reboot is chosen, not
+  imposed, so unlike an external stop it can land mid-mutation — and the same
+  rule as in-lane recovery applies: resume from the last safe checkpoint, never
+  mid-mutation.
 - Treat a cross-lane role transfer as an explicit reassignment decision, never
   as an automatic fallback for silence. Transfer only after bounded in-lane
   recovery has been attempted and failed, the failure is recorded with terminal
   evidence, and the loop profile or session owner authorises it. Record the
   recovery attempts, their outcomes, and the authorising reference.
 - If the implementation owner becomes quota-blocked, stale, tool-blocked, or
-  DND-blocked mid-run, stop at the next safe boundary, record the blocker,
-  rerun the load balancer, and reassign or pause before further mutation.
+  DND-blocked mid-run, stop at the next safe boundary and record the blocker.
   These are confirmed-unavailable states, distinct from the unresponsive case
-  above; they do not require an in-lane recovery attempt first.
+  above, but they do not all mean the same thing:
+  - Quota exhaustion belongs to the lane's account and a restart does not
+    refill it, and a DND window is deliberate non-interference that a restart
+    would violate. Rerun the load balancer and reassign or pause.
+  - A stale install or a tool that is unavailable *in this session* is often
+    repaired by the restart itself — a patched file on disk does not reach a
+    process that is already running. Take the bounded in-lane recovery above
+    first, and reassign only if it fails within its retry budget.
 - Record the decision, inputs, exclusions, reviewer set, and reassign trigger
   in the run ledger or receipt so later loops can audit why the role split
   changed.
