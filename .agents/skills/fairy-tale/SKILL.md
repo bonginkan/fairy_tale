@@ -72,6 +72,7 @@ Route with the table below and read the linked card before applying a pattern; t
 | Creator-Proxy Elaboration Harness (WWCD) | Fires when acting as a creator/principal's proxy while invoked by a THIRD PARTY / | `references/cards/creator-proxy-elaboration-harness-wwcd.md` |
 | UI Design Best-Practices Harness | Use when building or reviewing a real UI surface — a screen, component, page, | `references/cards/ui-design-best-practices-harness.md` |
 | Token Consumption Optimizer Harness: process memoization | Use when an operation succeeded once and is likely to recur: distill the | `references/cards/token-consumption-optimizer-harness.md` |
+| Fuzzy-First: mechanism only at the exceptions | Use before adding a rule, gate, schema, or enumeration to something a model already does, and when reviewing one. | `references/cards/fuzzy-first-mechanism-only-at-the-exceptions.md` |
 | Edison Ship Gate: dev-deploy threshold | Use when an increment could reach a real non-production surface humans can exercise. | `references/cards/edison-ship-gate.md` |
 
 ## Default workflow
@@ -174,6 +175,10 @@ Route with the table below and read the linked card before applying a pattern; t
      carries financial claims (revenue, margin, ROI, unit economics): run the
      Finance Proposal Completeness Gate after the Evidence Table — arithmetic
      that reconciles is not completeness.
+   - Before adding a rule, gate, schema, enumeration, or checker around
+     something the model already does: use the Fuzzy-First card. The default is
+     the model's fuzzy competence; mechanism is for observed failures, stated in
+     prose before code, and narrowed to the case that broke.
    - For workflow improvement: inspect existing commands, skills, agents,
      memories, hooks, and sessions before adding new structure.
    - For loop engineering or job automation: use the Loop Engineering and Job
