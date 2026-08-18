@@ -4,13 +4,18 @@ Use when building or changing a product feature that calls an LLM, and when
 reviewing one. The same test applies to this harness's own rules; that is the
 last section.
 
-The model's fuzzy competence is the implementation. It generalises to phrasings
-and situations no rule anticipated, and that is what it is for. Code around it is
-for two things: properties that must hold whatever the model does — see *What
-stays in code regardless*, which needs no failure to justify it — and places
-where the model has been *observed* to fail, reproduced. Code added anywhere
-else replaces something that handles everything with something that handles what
-its author thought of.
+The model's fuzzy competence is the implementation of the *behaviour*. It
+generalises to phrasings and situations no rule anticipated, and that is what it
+is for. This card is about code that constrains, pre-empts, or second-guesses
+that behaviour — not about the feature's plumbing, which is ordinary software and
+written as such: transport, storage, retries, rendering, telemetry, tests.
+
+Code that stands between the user and the model's judgement is for two things:
+properties that must hold whatever the model does — see *What stays in code
+regardless*, which needs no failure to justify it — and points where the model
+has been *observed* to fail, reproduced. Put there for any other reason, it
+replaces something that handles everything with something that handles what its
+author thought of.
 
 - Leave the working path alone. "The model's answer is not verifiable" is not a
   failure; a wrong answer is. Wrapping a working behaviour in rules to make it
@@ -22,11 +27,12 @@ its author thought of.
   test is that the fix lands on what was shown to fail and nothing further.
 - Prompt before code. Try instructions, examples, and the registered content
   first; add a branch, a classifier, or a validator only when that has been tried
-  and the failure recurs. Prompt text degrades on unforeseen input; code does not
-  degrade at all — it refuses the input, or waves it through silently, and which
-  one you get is not visible from the rule. Both were measured in this repository:
-  a version gate that refused changes it should have allowed (#120), and gates
-  that passed what they were written to stop (#117, #120).
+  and the failure recurs. Prompt text degrades on unforeseen input — the model
+  still answers, less well. Code does whatever its author wrote for the inputs
+  they foresaw, and on the rest it refuses, passes silently, or does something
+  arbitrary; the rule as written does not tell you which. Measured here: a gate
+  that refused changes it should have allowed (#120), and gates that passed what
+  they were written to stop (#117, #120).
 - Do not put an enumeration in front of the model. Keyword lists, intent tables,
   hand-written synonym sets, regexes over user speech: each covers what its
   author imagined while the model was already handling the rest. If a list feels
@@ -51,9 +57,13 @@ conversation is not neutral — it manufactures those.
 - Carry the dialogue. A turn that follows from what was just said should reach
   the model with what was just said, including the correction the user made and
   the reason the previous attempt missed.
-- Serialising state into a schema, a record, or a handoff between calls is itself
-  mechanism, with the usual trade: it buys separation and costs what the
-  conversation carried implicitly. Take that trade deliberately.
+- Storing the turns and replaying them, or holding a provider-side conversation
+  handle, is how the dialogue reaches the model across a stateless API. That is
+  transport, and it keeps what was said.
+- Compressing the dialogue into a summary, a slot-filled record, or a narrow
+  schema is a different act: it buys separation and costs what the conversation
+  carried implicitly, including the parts nobody thought to model. Take that
+  trade deliberately, and keep the turns themselves where you can.
 - Keep a step stateless when carrying the context would defeat what the step is
   for, or would move context across a boundary it must not cross — another
   tenant, another channel, another customer's data. That is a property to check,

@@ -158,8 +158,8 @@
     {
       "path": "references/cards/fuzzy-first-mechanism-only-at-the-exceptions.md",
       "title": "Fuzzy-First: build on the model's judgement, correct at the failures",
-      "bytes": 6868,
-      "est_tokens": 1717
+      "bytes": 7510,
+      "est_tokens": 1878
     },
     {
       "path": "references/cards/general-e2e-completion-harness.md",
@@ -619,9 +619,9 @@
     },
     {
       "path": "skills/fairy-tale/references/cards/fuzzy-first-mechanism-only-at-the-exceptions.md",
-      "bytes": 6868,
-      "lines": 116,
-      "est_tokens": 1717
+      "bytes": 7510,
+      "lines": 126,
+      "est_tokens": 1878
     },
     {
       "path": "skills/fairy-tale/references/cards/general-e2e-completion-harness.md",
