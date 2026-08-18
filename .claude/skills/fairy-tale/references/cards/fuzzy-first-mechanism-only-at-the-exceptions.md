@@ -1,81 +1,114 @@
-# Fuzzy-First: the model carries the work, mechanism handles the exceptions
+# Fuzzy-First: build on the model's judgement, correct at the failures
 
-Use when deciding whether to add a rule, gate, schema, enumeration, or checker
-to something a model already does — and while reviewing anything that adds one.
+Use when building or changing a product feature that calls an LLM, and when
+reviewing one. The same test applies to this harness's own rules; that is the
+last section.
 
-The default is the model's fuzzy competence. It generalises to inputs no rule
-anticipated, and most of what it does needs no scaffolding. Mechanism is for the
-places where that competence has been *observed* to fail. Adding it anywhere
-else replaces a path that works on everything with one that works on the cases
-someone thought of.
+The model's fuzzy competence is the implementation. It generalises to phrasings
+and situations no rule anticipated, and that is what it is for. Code around it is
+for two things: properties that must hold whatever the model does — see *What
+stays in code regardless*, which needs no failure to justify it — and places
+where the model has been *observed* to fail, reproduced. Code added anywhere
+else replaces something that handles everything with something that handles what
+its author thought of.
 
-- Start from what already works. If the fuzzy path handles a case, leave it
-  fuzzy. "It is not verifiable" is not a failure; a failure is a case that came
-  out wrong.
-- Mechanise a demonstrated exception, not a category. Point at the case that
-  broke, reproduce it, and fix at that point. A rule wide enough to cover the
-  failure *and* its neighbours takes the neighbours' generality away.
-- Prefer prose to code. Say it in the prompt or the card first; reach for a
-  script, a schema, or a gate only when prose has been tried and the failure
-  recurs. Prose degrades gracefully on unforeseen input; code fails closed on
-  it, and the failure lands on cases nobody complained about.
-- Enumerations are the usual mistake. A list of spellings, known-bad strings,
-  extensions, or field names covers what its author imagined and silently
-  misses the rest — while the fuzzy reader handled all of them. Where a list
-  seems necessary, ask what the property is and whether the model can just be
+- Leave the working path alone. "The model's answer is not verifiable" is not a
+  failure; a wrong answer is. Wrapping a working behaviour in rules to make it
+  legible usually costs more cases than it saves.
+- Correct the failure mode the evidence supports, at its narrowest. Not the one
+  literal input — a fix that only recognises the exact sentence that broke will
+  miss the next phrasing of the same fault — and not the category it belongs to
+  either. Where the evidence shows a property is violated, fix the property; the
+  test is that the fix lands on what was shown to fail and nothing further.
+- Prompt before code. Try instructions, examples, and the registered content
+  first; add a branch, a classifier, or a validator only when that has been tried
+  and the failure recurs. Prompt text degrades on unforeseen input; code does not
+  degrade at all — it refuses the input, or waves it through silently, and which
+  one you get is not visible from the rule. Both were measured here in one day: a
+  gate that refused what it should have allowed, and gates that passed what they
+  were written to stop.
+- Do not put an enumeration in front of the model. Keyword lists, intent tables,
+  hand-written synonym sets, regexes over user speech: each covers what its
+  author imagined while the model was already handling the rest. If a list feels
+  necessary, ask what property it stands for and whether the model can simply be
   told it.
-- A gate encodes a decision as a property of the artifact. Before adding one,
-  check that it *is* a property: "this diff must bump the version" fails
-  because releasing is a judgement, not something the diff knows. Rules that
-  restate judgements fire on the wrong cases forever.
-- Cost falls on the common path. A mechanism that catches a rare failure and
-  taxes every ordinary run — extra steps, refusals, ceremony — is usually a
-  net loss even when it works.
+- Do not let a hard classifier overrule the model's reading. A confidence
+  threshold, a category gate, or a "cannot determine" branch in front of a model
+  that would have answered turns a good answer into a refusal — and refusals are
+  what users report.
+- Weigh the cost on the common path. A check that catches a rare failure and
+  taxes every ordinary request — an extra hop, a clarifying question, a refusal —
+  is usually a net loss even when it works.
 
-Carrying state in the conversation:
+## Keep the conversation
 
-The same preference applies to the shape of the work, not only to rules. When a
-model can hold what it needs by continuing a conversation, continuing it is the
-default; cutting the work into single-shot calls throws that away and makes
-someone re-supply the context in a prompt.
+A model holds what was said. A feature that issues one stateless call per turn
+throws that away and makes the next prompt re-supply it, so the failures are the
+ones the prompt author did not anticipate: a decision from two turns ago lost, a
+question re-asked, an answer contradicting an earlier one. Fragmenting a
+conversation is not neutral — it manufactures those.
 
-- Stack turns rather than restarting. A step that follows from what was just
-  said belongs in the same thread, where the model still has the reasoning, the
-  corrections, and the reason the last attempt failed.
-- A one-shot call re-derives from whatever the prompt happens to carry, so the
-  failures are the ones the prompt author did not anticipate: lost decisions,
-  re-asked questions, answers contradicting an earlier turn. Fragmenting a
-  conversation is not neutral — it manufactures those.
-- Serialising state into a schema, a file, or a handoff to pass between calls
-  is mechanism, and it is the same trade as any other: it buys isolation and
-  costs everything the conversation held implicitly.
-- Statelessness is right when isolation is the point — an independent review
-  that must not inherit the implementer's framing, a check that has to run
-  clean, work that genuinely parallelises, or a context so large or polluted
-  that carrying it costs more than restating it. Name which one applies.
-- When something goes wrong across a boundary, ask first whether the boundary
-  had to be there. Much of what looks like a memory failure is a conversation
-  someone cut in half.
+- Carry the dialogue. A turn that follows from what was just said should reach
+  the model with what was just said, including the correction the user made and
+  the reason the previous attempt missed.
+- Serialising state into a schema, a record, or a handoff between calls is itself
+  mechanism, with the usual trade: it buys separation and costs what the
+  conversation carried implicitly. Take that trade deliberately.
+- Keep a step stateless when carrying the context would defeat what the step is
+  for, or would move context across a boundary it must not cross — another
+  tenant, another channel, another customer's data. That is a property to check,
+  not a list to match against.
+- When something breaks across a boundary, ask first whether the boundary had to
+  be there. Much of what looks like a memory failure is a conversation someone
+  cut in half.
 
-Reviewing an added mechanism:
+## What stays in code regardless
 
-- Ask whether it should exist before measuring whether it is internally sound.
-  A mechanism can be correct in every detail and still be the wrong thing:
-  findings against its internals are void once the premise is refused, so the
-  premise comes first.
-- Ask what it costs the cases that were already fine, and what evidence of
-  failure prompted it. "No observed failure" is a reason not to build it.
-- Do not ask for determinism where fuzziness is working. Requiring an exact
-  rule, a closed vocabulary, or a machine check for a behaviour the model
-  already gets right converts a working path into a brittle one.
+Authorization and access boundaries, privacy and retention rules, money,
+identity, and anything with a contractual or legal definition. These are not
+cases where the model is weak — they are decisions that must hold independently
+of any inference, and instructing a model is not an implementation of them.
+Fuzzy-first governs behaviour, never the guarantees underneath it: these are
+required properties, so they are implemented before any failure is observed, and
+an existing safety, authority, or privacy floor is never relaxed on the grounds
+that nothing has gone wrong yet.
 
-The two failure directions, kept in view:
+## Reviewing
+
+- Ask whether the mechanism should exist before measuring whether it is
+  internally sound. A mechanism can be correct in every detail and still be the
+  wrong thing: findings against its internals are void once the premise is
+  refused, so the premise comes first.
+- Ask what it costs the requests that were already fine, and what observed
+  failure prompted it. "No failure has been seen" is a reason not to build it.
+- Do not ask for determinism where fuzziness is working. Requiring an exact rule,
+  a closed vocabulary, or a machine check for behaviour the model already gets
+  right converts a working path into a brittle one.
+- Say so when a failure has repeated and nothing was done. The question in that
+  direction is what the smallest correction at the failure point would be —
+  usually a sentence of instruction or a registered example, not a system to
+  prevent the class. Leaving a known recurring failure to be rediscovered each
+  time is a finding, and a review that refuses an unnecessary gate must still ask
+  for a necessary correction.
+- Review itself is where separation is the point: read the artifact without
+  inheriting the implementer's thread, and treat sharing that thread as the thing
+  that needs a reason.
+
+## The two directions
 
 | Direction | Looks like | Cost |
 | --- | --- | --- |
-| Over-mechanised | rules, gates and enumerations around competent behaviour | breaks cases that worked; the tax is permanent |
+| Over-mechanised | rules, gates, enumerations and stateless hops around competent behaviour | breaks cases that worked; the tax is permanent |
 | Under-corrected | a known, repeated failure left to the model each time | the same wrong output, repeatedly |
 
-Neither is safe by default. The question is always whether a *specific observed
-failure* justifies the specific mechanism proposed — and if it does, whether
-the smallest form of it lands only on that failure.
+Neither is safe by default. The question is whether a *specific observed failure*
+justifies the specific mechanism proposed, and whether the smallest form of it
+lands only on that failure.
+
+## The same test on this harness
+
+Rules, gates, schemas and checkers added to the agents' own process face the same
+question, plus one of their own: a gate has to encode a property of the artifact,
+not a judgement. "This diff must bump the version" fails because releasing is a
+decision, not something a diff knows — rules that restate judgements fire on the
+wrong cases forever.
