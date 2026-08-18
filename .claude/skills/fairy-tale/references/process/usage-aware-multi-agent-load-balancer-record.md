@@ -178,6 +178,14 @@ Assignment policy:
   they are handled by handoff plus self-reboot inside the same lane. Capacity
   exhaustion is the only ground that no restart can clear, which is why it is
   the one that always moves the role.
+- The two blocker values are disjoint, so one event has one record:
+  `usage_exhaustion` is capacity gone, and `confirmed_unavailable` is a
+  confirmed stop that is *not* capacity — a stale install, a tool missing in
+  this session, a DND window. Overlapping values would let the same stop be
+  filed either way, and a field kept for auditing why a role moved cannot be
+  audited if it accepts two answers. (How the role is handled splits on a
+  different axis — whether a restart repairs the state — so the two divisions
+  do not collide.)
 - The two outcomes are recorded differently, because the enum names the cause
   and not the act. A self-reboot leaves the role where it is: `substitution
   reason` stays `none` and `handoff record ref` carries the continuity. Fill
