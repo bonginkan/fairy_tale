@@ -18,6 +18,10 @@ Usage:
   python3 scripts/extract_process_records.py                # dry-run plan
   python3 scripts/extract_process_records.py --write        # write records + index
   python3 scripts/extract_process_records.py --verify       # byte-verify vs manifest
+  python3 scripts/extract_process_records.py --append-only-base REV
+                                                           # no authorisation recorded at
+                                                           # REV (a PR base SHA or merge
+                                                           # base, never HEAD) may be gone
 """
 
 from __future__ import annotations
@@ -35,6 +39,7 @@ if str(SCRIPTS_DIR) not in sys.path:
 from extract_mode_pattern_cards import (  # noqa: E402
     ROOT,
     do_verify,
+    do_verify_append_only,
     find_sections,
     first_route_hint,
     slugify,
@@ -98,8 +103,23 @@ def main() -> int:
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
     parser.add_argument("--write", action="store_true")
     parser.add_argument("--verify", action="store_true")
+    parser.add_argument(
+        "--append-only-base",
+        metavar="REV",
+        help=(
+            "compare the manifest against the same file at REV (an immutable "
+            "revision such as the PR base SHA or a merge-base, never HEAD) and "
+            "fail if a recorded authorisation was dropped or reordered"
+        ),
+    )
     args = parser.parse_args()
 
+    if args.append_only_base:
+        return do_verify_append_only(
+            args.manifest,
+            args.append_only_base,
+            str(args.manifest.resolve().relative_to(ROOT)),
+        )
     if args.verify:
         # Same verify core as the mode-pattern cards: repo-relative snapshot,
         # absolute manifest paths RED, byte-compare each record body.
