@@ -151,6 +151,14 @@ Assignment policy:
   escalate with terminal evidence instead of restarting again. State loss,
   duplicated side effects, and restart loops are recovery failures, not
   recovery.
+- The handoff record is owed by every restart the lane CHOOSES, whatever moved
+  it to restart: a self-reboot for a worn context and a restart to pick up a
+  patched install discard the same context. A restart that was IMPOSED — a
+  crash, a killed session, an external stop — cannot have one, because the
+  agent was not there to write it; rebuild from the external state instead and
+  record what was lost. Attaching the requirement to the motive rather than to
+  the act would let the motive, which no one else can observe, decide whether
+  the record is owed.
 - Degrading quality inside a long session is not a reassignment trigger. An
   agent that judges its own context degraded hands off *to itself*: write the
   handoff record — current increment, exact head and refs, what is done, what
