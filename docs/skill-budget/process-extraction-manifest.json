@@ -1,5 +1,5 @@
 {
-  "purpose": "Byte-preserving extraction manifest for process.md records; each record body must equal the recorded byte range unless a reviewed, issue-bound evolution chain pins it. The chain is ordered and append-only: entry 0 supersedes the extracted original, each later entry supersedes its predecessor, and the last entry pins the current body. Verify with extract_process_records.py --verify against the committed pre-extraction snapshot.",
+  "purpose": "Byte-preserving extraction manifest for process.md records; each record body must equal the recorded byte range unless a reviewed, issue-bound evolution chain pins it. The chain is ordered -- entry 0 supersedes the extracted original, each later entry supersedes its predecessor, and the last entry pins the current body -- but a chain read alone cannot show it was never shortened. Verify with extract_process_records.py --verify against the committed pre-extraction snapshot, and with --append-only-base REV (a PR base SHA or merge base, never HEAD) to hold the recorded authorisations against an earlier revision.",
   "original_skill_md_snapshot": "docs/skill-budget/process-md-pre-extraction-snapshot.md",
   "skill_md_sha256": "3606c508012001a80d7291043174f414c9df22447e93c1c33b5f7dc00179f5db",
   "new_skill_md_sha256": "cc9f2c03a71bb0371820b0afa4aad15a6ca894dc872d5043687b53d70fd1ff4f",

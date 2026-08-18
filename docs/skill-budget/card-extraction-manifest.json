@@ -1,5 +1,5 @@
 {
-  "purpose": "Extraction provenance manifest: each original card body must equal the recorded SKILL.md byte range unless a reviewed, issue-bound evolution chain pins it. The chain is ordered and append-only: entry 0 supersedes the extracted original, each later entry supersedes its predecessor, and the last entry pins the current body. Verify with --verify against the committed pre-extraction snapshot.",
+  "purpose": "Extraction provenance manifest: each original card body must equal the recorded SKILL.md byte range unless a reviewed, issue-bound evolution chain pins it. The chain is ordered -- entry 0 supersedes the extracted original, each later entry supersedes its predecessor, and the last entry pins the current body -- but a chain read alone cannot show it was never shortened. Verify with --verify against the committed pre-extraction snapshot, and with --append-only-base REV (a PR base SHA or merge base, never HEAD) to hold the recorded authorisations against an earlier revision.",
   "original_skill_md_snapshot": "docs/skill-budget/skill-md-pre-extraction-snapshot.md",
   "skill_md_sha256": "562723a75e37f106aba573752bbfd0c4fc0f3712c7fa490ac0d8fca394b4f2a7",
   "new_skill_md_sha256": "60e4e4b4e16387c7e20fae1da202d3b71eb301ce671b7cd046d1046d73d514de",

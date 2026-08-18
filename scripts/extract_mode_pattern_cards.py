@@ -295,10 +295,12 @@ def do_verify(
                 failures.append(f"UNPINNED post-extraction drift: {card['card_path']}")
             continue
         evolved_count += 1
-        # An evolution chain is ORDERED and append-only: entry 0 is the first
-        # reviewed evolution, the last entry authorises the body on disk now.
-        # A single object would make each re-pin erase its predecessor, so a
-        # card that evolved twice could name only its newest authorisation.
+        # An evolution chain is ORDERED: entry 0 is the first reviewed
+        # evolution, the last entry authorises the body on disk now. A single
+        # object would make each re-pin erase its predecessor, so a card that
+        # evolved twice could name only its newest authorisation. Append-only
+        # is NOT a property of the chain read alone -- see the contract above
+        # and `--append-only-base`, which compares against an earlier record.
         if not isinstance(evolution, list) or not evolution:
             failures.append(f"malformed evolution chain: {card['card_path']}")
             continue
@@ -396,9 +398,11 @@ def do_verify(
             failures.append(f"repeated evolution authorisation in chain: {card['card_path']}")
         # Each entry names the body it replaced, so the chain is linked rather
         # than merely ordered: entry 0 replaces the extracted original, and
-        # every later entry replaces its predecessor. Dropping, reordering, or
-        # inserting an entry breaks a link, which is what makes a *silently
-        # shortened* history detectable at all.
+        # every later entry replaces its predecessor. This catches an entry
+        # removed, reordered, or inserted WITHOUT repairing its neighbours'
+        # links. It does not catch a removal whose successor is relinked to the
+        # predecessor -- for that the comparison has to leave the file, which
+        # is `--append-only-base`.
         expected_link = card["body_sha256"]
         for position, (link, produced) in enumerate(zip(chain_links, chain_shas)):
             if link != expected_link:
@@ -518,6 +522,43 @@ def verify_append_only(head_manifest: dict, base_manifest: dict) -> list[str]:
 def do_verify_append_only(manifest_path: Path, base_rev: str, relative: str) -> int:
     """Compare the working manifest against the same file at an immutable revision."""
     import subprocess
+
+    def git(*args: str) -> tuple[int, str]:
+        try:
+            done = subprocess.run(
+                ["git", "-C", str(ROOT), *args], capture_output=True, text=True
+            )
+        except FileNotFoundError:
+            return 1, ""
+        return done.returncode, done.stdout.strip()
+
+    # The base has to be a record made EARLIER. A caller who passes HEAD -- or
+    # anything resolving to it -- compares a checkout against itself, which is
+    # trivially true and reports provenance it never checked. CI passes the
+    # merge base; the CLI refuses the self-comparison rather than trusting that.
+    code, resolved = git("rev-parse", "--verify", f"{base_rev}^{{commit}}")
+    if code != 0 or not resolved:
+        print(f"[APPEND-ONLY RED] cannot resolve {base_rev} to a commit")
+        return 1
+    head_code, head_sha = git("rev-parse", "--verify", "HEAD^{commit}")
+    if head_code != 0 or not head_sha:
+        print("[APPEND-ONLY RED] cannot resolve HEAD, so the base cannot be proven earlier")
+        return 1
+    if resolved == head_sha:
+        print(
+            f"[APPEND-ONLY RED] {base_rev} resolves to HEAD ({head_sha[:12]}): a checkout "
+            f"compared against itself proves nothing -- pass a PR base SHA or merge base"
+        )
+        return 1
+    # A base off this branch's history is still a real earlier record -- a
+    # reviewer comparing against origin/main after a merge lands is the normal
+    # case -- so this is stated, not refused. Only the self-comparison is.
+    ancestor_code, _ = git("merge-base", "--is-ancestor", resolved, head_sha)
+    if ancestor_code != 0:
+        print(
+            f"[APPEND-ONLY NOTE] {base_rev} ({resolved[:12]}) is not an ancestor of HEAD; "
+            f"comparing against a revision this branch does not descend from"
+        )
 
     try:
         base_bytes = subprocess.run(
@@ -812,6 +853,14 @@ def run_selftest() -> int:
         )
 
         controls.append(("append-only: card removed", append_only([base_card], []), 1))
+
+        # The base must be an EARLIER record. Run against this repository so the
+        # refusal is proven through the real git path the CLI takes, not a stub.
+        with contextlib.redirect_stdout(io.StringIO()):
+            head_as_base = do_verify_append_only(
+                DEFAULT_MANIFEST, "HEAD", str(DEFAULT_MANIFEST.relative_to(ROOT))
+            )
+        controls.append(("append-only: HEAD refused as base", head_as_base, 1))
 
     failures = [name for name, actual, expected in controls if actual != expected]
     if failures:

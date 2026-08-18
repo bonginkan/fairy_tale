@@ -18,6 +18,10 @@ Usage:
   python3 scripts/extract_process_records.py                # dry-run plan
   python3 scripts/extract_process_records.py --write        # write records + index
   python3 scripts/extract_process_records.py --verify       # byte-verify vs manifest
+  python3 scripts/extract_process_records.py --append-only-base REV
+                                                           # no authorisation recorded at
+                                                           # REV (a PR base SHA or merge
+                                                           # base, never HEAD) may be gone
 """
 
 from __future__ import annotations
