@@ -109,6 +109,32 @@ jobs:
           echo "base manifest revision: $BASE"
           python3 scripts/extract_mode_pattern_cards.py --append-only-base "$BASE"
           python3 scripts/extract_process_records.py --append-only-base "$BASE"
+      - name: Shipped skill changes carry a plugin version bump
+        run: |
+          # A version-keyed cache serves what it already holds: an installed
+          # 0.2.38 stays 0.2.38 no matter what the source says, and `claude
+          # plugin update` reports "already at the latest version" without
+          # re-fetching. Three merged PRs edited the skills under one version
+          # before anything noticed.
+          git fetch --no-tags --unshallow origin main 2>/dev/null || \
+            git fetch --no-tags --deepen=200 origin main || \
+            git fetch --no-tags origin main
+          git update-ref refs/remotes/origin/main FETCH_HEAD
+          if ! BASE=$(git merge-base origin/main HEAD); then
+            echo "cannot resolve a merge base — a version bump cannot be judged, failing closed"
+            exit 1
+          fi
+          HEAD_SHA=$(git rev-parse HEAD)
+          if [ "$BASE" = "$HEAD_SHA" ]; then
+            if git merge-base --is-ancestor "$HEAD_SHA" origin/main; then
+              echo "HEAD ($HEAD_SHA) is the integration branch: there is no earlier tree to compare against, so this PR-shaped control does not apply here"
+              exit 0
+            fi
+            echo "the merge base equals HEAD but HEAD is not contained in origin/main — failing closed"
+            exit 1
+          fi
+          python3 scripts/skill_version_bump_check.py --selftest
+          python3 scripts/skill_version_bump_check.py --base "$BASE"
       - name: Release package ships every consumer
         run: python3 scripts/package_skills.py
       - name: Task artifact gate (self-controls)
