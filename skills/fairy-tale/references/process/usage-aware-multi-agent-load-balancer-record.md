@@ -40,6 +40,8 @@ assignment rule applied:
 tie-breaker:
 approval gates:
 reassignment trigger:
+substitution reason: usage_exhaustion | confirmed_unavailable | none
+handoff record ref:
 ledger / receipt:
 owner-visible status:
 ```
@@ -149,16 +151,86 @@ Assignment policy:
   escalate with terminal evidence instead of restarting again. State loss,
   duplicated side effects, and restart loops are recovery failures, not
   recovery.
+- Every handoff record carries the same payload, whichever restart it serves:
+  the current increment, exact head and refs, what is done, what is next, open
+  blockers, the last safe checkpoint, the next safe action, and what must not
+  be redone. The restarted context has only this record, so anything the resume
+  needs that the record omits is lost.
+- The handoff record is owed by every restart the lane is *able* to write one
+  for, whatever moved it to restart: a self-reboot for a worn context, a
+  restart to pick up a patched install, and a restart another agent asks for
+  all discard the same context, and in all three the lane is alive and has the
+  time to write. The exemption is narrow — a restart the agent was not present
+  for, such as a crash, a killed session, or an external stop, cannot carry a
+  record; rebuild from the external state instead and record what was lost.
+  Keying the requirement to the motive, or to who decided, lets something
+  unobservable settle whether the record is owed; keying it to whether the lane
+  could write one keeps the question answerable from outside.
+- Degrading quality inside a long session is not a reassignment trigger. An
+  agent that judges its own context degraded hands off *to itself*: write the
+  handoff record, reboot its own session, and resume from that record.
+  The lane keeps the work; only the context is replaced. Self-assessed
+  degradation is not observable from outside and is available at every moment,
+  so accepting it as a transfer reason makes any transfer justifiable after the
+  fact.
+- Substitution is keyed to a recorded blocker — usable capacity gone, or one of the confirmed stops
+  below — never to how the run feels. Long
+  context, accumulated mistakes, and wanting a clean start are not blockers;
+  they are handled by handoff plus self-reboot inside the same lane. Whether a
+  restart can repair the state decides what to try first, not how it ends: a
+  stale install or a tool missing in this session is repaired by restarting, so
+  the lane recovers in place and the role moves only if that recovery fails
+  within its budget; capacity exhaustion and a DND window are not repaired by
+  restarting, so they go straight to the load balancer, which reassigns or
+  pauses.
+- The two blocker values are disjoint, so one event has one record:
+  `usage_exhaustion` is capacity gone, and `confirmed_unavailable` is a
+  confirmed stop that is *not* capacity — a stale install, a tool missing in
+  this session, a DND window. Overlapping values would let the same stop be
+  filed either way, and a field kept for auditing why a role moved cannot be
+  audited if it accepts two answers. (How the role is handled splits on a
+  different axis — whether a restart repairs the state — so the two divisions
+  do not collide.)
+- The two outcomes are recorded differently, because the enum names the cause
+  and not the act. A self-reboot leaves the role where it is: `substitution
+  reason` stays `none` and `handoff record ref` carries the continuity. Fill
+  `substitution reason` only when the role actually moves.
+- `usage_exhaustion` is a reading, not a word. It carries the same evidence any
+  capacity claim carries — a coarse remaining figure with its source class,
+  observation time, and `source_ref` — because a reason that is merely asserted
+  is unobservable from outside and available at any moment, which is exactly
+  why degradation was refused above. A provisional, unknown, or self-reported
+  figure does not establish it: it can justify pausing or asking, never moving
+  the role. `none` states that no
+  substitution happened, never that one happened for a reason outside this
+  list.
+- A reboot without a handoff record is state loss wearing a recovery's name.
+  Write the record first, then reboot; resume from the record, not from memory.
+- The record has to outlive the context it describes, so write it where the
+  reboot cannot take it: the run ledger or receipt, or the issue / PR / project
+  thread the work already exchanges through. A handoff written only into the
+  session being discarded satisfies the words and loses the state.
+- Write it at a safe boundary and reboot there. A self-reboot is *chosen*, not
+  imposed, so unlike an external stop it can land mid-mutation — and the same
+  rule as in-lane recovery applies: resume from the last safe checkpoint, never
+  mid-mutation.
 - Treat a cross-lane role transfer as an explicit reassignment decision, never
   as an automatic fallback for silence. Transfer only after bounded in-lane
   recovery has been attempted and failed, the failure is recorded with terminal
   evidence, and the loop profile or session owner authorises it. Record the
   recovery attempts, their outcomes, and the authorising reference.
-- If the implementation owner becomes quota-blocked, stale, tool-blocked, or
-  DND-blocked mid-run, stop at the next safe boundary, record the blocker,
-  rerun the load balancer, and reassign or pause before further mutation.
-  These are confirmed-unavailable states, distinct from the unresponsive case
-  above; they do not require an in-lane recovery attempt first.
+- If the implementation owner becomes blocked mid-run — capacity gone, a stale
+  install, a tool missing in this session, or a DND window — stop at the next
+  safe boundary and record the blocker. All are confirmed, distinct from the
+  unresponsive case above; only the last three are `confirmed_unavailable`, and
+  they do not all mean the same thing:
+  - Capacity exhaustion belongs to the lane's account and a restart does not
+    refill it, and a DND window is deliberate non-interference that a restart
+    would violate. Rerun the load balancer and reassign or pause.
+  - A stale install or a tool that is unavailable *in this session* is often
+    repaired by the restart itself — a patched file on disk does not reach a
+    process that is already running. Take the bounded in-lane recovery above
+    first, and reassign only if it fails within its retry budget.
 - Record the decision, inputs, exclusions, reviewer set, and reassign trigger
   in the run ledger or receipt so later loops can audit why the role split
   changed.
