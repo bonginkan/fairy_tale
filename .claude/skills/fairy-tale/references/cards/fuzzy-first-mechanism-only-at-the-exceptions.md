@@ -24,9 +24,9 @@ its author thought of.
   first; add a branch, a classifier, or a validator only when that has been tried
   and the failure recurs. Prompt text degrades on unforeseen input; code does not
   degrade at all — it refuses the input, or waves it through silently, and which
-  one you get is not visible from the rule. Both were measured here in one day: a
-  gate that refused what it should have allowed, and gates that passed what they
-  were written to stop.
+  one you get is not visible from the rule. Both were measured in this repository:
+  a version gate that refused changes it should have allowed (#120), and gates
+  that passed what they were written to stop (#117, #120).
 - Do not put an enumeration in front of the model. Keyword lists, intent tables,
   hand-written synonym sets, regexes over user speech: each covers what its
   author imagined while the model was already handling the rest. If a list feels
@@ -80,7 +80,9 @@ that nothing has gone wrong yet.
   wrong thing: findings against its internals are void once the premise is
   refused, so the premise comes first.
 - Ask what it costs the requests that were already fine, and what observed
-  failure prompted it. "No failure has been seen" is a reason not to build it.
+  failure prompted it. "No failure has been seen" is a reason not to build it —
+  except for the required properties above, which are implemented without waiting
+  for one and are never removed on that argument.
 - Do not ask for determinism where fuzziness is working. Requiring an exact rule,
   a closed vocabulary, or a machine check for behaviour the model already gets
   right converts a working path into a brittle one.

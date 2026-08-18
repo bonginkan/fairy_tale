@@ -39,7 +39,7 @@ in SKILL.md itself or as an extracted card reachable from the router.
 | skills/fairy-tale/references/cards/fable-harness-long-coding-or-migration-tasks.md | 264 | 8 | 66 |
 | skills/fairy-tale/references/cards/fairy-fusion-harness.md | 2141 | 34 | 535 |
 | skills/fairy-tale/references/cards/finance-proposal-completeness-gate.md | 10773 | 157 | 2693 |
-| skills/fairy-tale/references/cards/fuzzy-first-mechanism-only-at-the-exceptions.md | 6699 | 114 | 1675 |
+| skills/fairy-tale/references/cards/fuzzy-first-mechanism-only-at-the-exceptions.md | 6868 | 116 | 1717 |
 | skills/fairy-tale/references/cards/general-e2e-completion-harness.md | 2030 | 30 | 508 |
 | skills/fairy-tale/references/cards/generalization-and-latent-structure-harness-hidden-rules-executable-models-and-tacit-intent.md | 3350 | 50 | 838 |
 | skills/fairy-tale/references/cards/github-is-the-exchange-surface.md | 2151 | 32 | 538 |
