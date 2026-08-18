@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "fairy-tale",
   "displayName": "Fairy Tale",
-  "version": "0.2.38",
+  "version": "0.2.39",
   "description": "Fable/Mythos-informed workflow augmentation for complexity-aware minimum-sufficient execution (E3), risk-aware Helix blocker convergence, coding, loop engineering, spiral engineering, double-helix learning loops, evolutionary spiral operators, loop job automation, cross-channel loop command, silent-loop auto-resume, do-not-disturb operating windows, usage-aware multi-agent load balancing, usage reading reference, closure/frame-completeness checks, negative-space and latent-need discovery, excess/redundancy/legacy-surface review, implicit-contract discovery, latent-structure discovery, benchmark runners, research, legal feedback loops, feedback pruning, Fairy Fusion review, domain reasoning, creative/UI/spatial work, and defensive security. Adds directive target location before editing, owner-priority and deadline-aware review, one-effort one-branch multi-directive work, and GitHub-based artifact handoff.",
   "author": {
     "name": "bonginkan"
