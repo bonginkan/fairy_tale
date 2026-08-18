@@ -227,6 +227,22 @@ def run_selftest() -> int:
     head_sha = head_sha.strip()
     if head_sha:
         controls.append(("do_check: exact HEAD sha refused as base", quiet(head_sha), 1))
+        # Naming spellings one by one never converges: an implementation that
+        # listed HEAD, @ and the SHA would pass every control above while any
+        # further name for the same commit slipped through. This ref is created
+        # here, so no implementation can have enumerated it -- only resolving it
+        # can refuse it.
+        import os
+
+        ephemeral = f"refs/tmp/version-bump-selftest-{os.getpid()}"
+        created, _ = git("update-ref", ephemeral, head_sha)
+        if created == 0:
+            try:
+                controls.append(
+                    ("do_check: freshly created ref at HEAD refused as base", quiet(ephemeral), 1)
+                )
+            finally:
+                git("update-ref", "-d", ephemeral)
     controls.append(("do_check: unresolvable base refused", quiet("definitely-not-a-ref"), 1))
     # The positive for do_check is deliberately NOT here: its verdict depends on
     # what the branch has changed, so a control asserting green would pass or
