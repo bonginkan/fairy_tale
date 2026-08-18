@@ -4,6 +4,10 @@ Use this at loop increment boundaries before assigning implementation,
 review, or specialist-tool roles. The goal is continuity and review integrity,
 not provider-account introspection.
 
+This record is prose. Nothing in the repository parses or validates a filled
+copy, so every field below is a discipline for the agent filling it, not a gate
+that will stop a wrong entry.
+
 ```text
 loop / thread:
 increment:
@@ -57,11 +61,26 @@ Composition constraint:
 - Runtimes fail, drift, and mis-read differently, so a mixed trio keeps at
   least one independent runtime in every review. A single-family trio shares
   its blind spots with the work it is reviewing.
-- The constraint is not self-relaxable. If no Codex lane is eligible, the trio
-  does not form by promoting a second agent of another family into the slot:
-  run the smaller composition and record the gap, or wait for an eligible
-  Codex lane. Only the session owner can direct a different composition, and
-  the record marks it `owner-directed` with the directive ref.
+- `runtime_family` names the runtime the agent runs on, not its account, host,
+  or persona. Record one value per agent: `codex`, `claude-code`, or another
+  runtime family written as its lowercase hyphenated runtime name.
+- The constraint is not self-relaxable. Never promote a second agent of another
+  family into the Codex slot, and never seat two Codex lanes. When no Codex
+  lane is eligible the trio does not form, and the handling is ordered:
+  1. Inside an active loop, keep moving on the work that does not need the
+     trio — implementation, evidence, drafts, records — and mark
+     `composition check: blocked` with the reason and the missing family. A
+     blocked composition is recorded and worked around, not waited on.
+  2. Outside a loop, waiting for an eligible Codex lane is a valid resolution.
+     Record the same fields while waiting.
+  3. If the blocked composition holds up a gate that cannot proceed without the
+     trio, escalate to the session owner. Only the session owner can direct a
+     different composition; the record then reads `owner-directed` and carries
+     the directive ref.
+  Escalation is the third step. It does not replace the first two.
+- A blocked composition never lowers the review requirement. Work that needs
+  two independent sign-offs does not proceed on one because the trio could not
+  form.
 
 Assignment policy:
 
