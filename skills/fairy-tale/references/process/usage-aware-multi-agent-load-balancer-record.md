@@ -151,6 +151,11 @@ Assignment policy:
   escalate with terminal evidence instead of restarting again. State loss,
   duplicated side effects, and restart loops are recovery failures, not
   recovery.
+- Every handoff record carries the same payload, whichever restart it serves:
+  the current increment, exact head and refs, what is done, what is next, open
+  blockers, the last safe checkpoint, the next safe action, and what must not
+  be redone. The restarted context has only this record, so anything the resume
+  needs that the record omits is lost.
 - The handoff record is owed by every restart the lane is *able* to write one
   for, whatever moved it to restart: a self-reboot for a worn context, a
   restart to pick up a patched install, and a restart another agent asks for
@@ -163,21 +168,18 @@ Assignment policy:
   could write one keeps the question answerable from outside.
 - Degrading quality inside a long session is not a reassignment trigger. An
   agent that judges its own context degraded hands off *to itself*: write the
-  handoff record — current increment, exact head and refs, what is done, what
-  is next, open blockers, the last safe checkpoint, the next safe action, and
-  what must not be redone — reboot its own session, and resume from that
-  record. The rebooted context has only the record, so anything the resume
-  needs that the record omits is lost.
+  handoff record, reboot its own session, and resume from that record.
   The lane keeps the work; only the context is replaced. Self-assessed
   degradation is not observable from outside and is available at every moment,
   so accepting it as a transfer reason makes any transfer justifiable after the
   fact.
 - Substitution is keyed to a recorded blocker — usable capacity gone, or one of
-  the confirmed-unavailable states below — never to how the run feels. Long
+  one of the confirmed stops below — never to how the run feels. Long
   context, accumulated mistakes, and wanting a clean start are not blockers;
   they are handled by handoff plus self-reboot inside the same lane. Capacity
-  exhaustion is the only ground that no restart can clear, which is why it is
-  the one that always moves the role.
+  exhaustion is the one ground that neither restarting nor waiting inside the
+  lane resolves, which is why it always moves the role: a stale install or a
+  missing tool is repaired by the restart, and a DND window ends on its own.
 - The two blocker values are disjoint, so one event has one record:
   `usage_exhaustion` is capacity gone, and `confirmed_unavailable` is a
   confirmed stop that is *not* capacity — a stale install, a tool missing in
@@ -214,11 +216,12 @@ Assignment policy:
   recovery has been attempted and failed, the failure is recorded with terminal
   evidence, and the loop profile or session owner authorises it. Record the
   recovery attempts, their outcomes, and the authorising reference.
-- If the implementation owner becomes quota-blocked, stale, tool-blocked, or
-  DND-blocked mid-run, stop at the next safe boundary and record the blocker.
-  These are confirmed-unavailable states, distinct from the unresponsive case
-  above, but they do not all mean the same thing:
-  - Quota exhaustion belongs to the lane's account and a restart does not
+- If the implementation owner becomes blocked mid-run — capacity gone, a stale
+  install, a tool missing in this session, or a DND window — stop at the next
+  safe boundary and record the blocker. All are confirmed, distinct from the
+  unresponsive case above; only the last three are `confirmed_unavailable`, and
+  they do not all mean the same thing:
+  - Capacity exhaustion belongs to the lane's account and a restart does not
     refill it, and a DND window is deliberate non-interference that a restart
     would violate. Rerun the load balancer and reassign or pause.
   - A stale install or a tool that is unavailable *in this session* is often
