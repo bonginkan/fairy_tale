@@ -173,8 +173,8 @@ Assignment policy:
   degradation is not observable from outside and is available at every moment,
   so accepting it as a transfer reason makes any transfer justifiable after the
   fact.
-- Substitution is keyed to a recorded blocker — usable capacity gone, or one of
-  one of the confirmed stops below — never to how the run feels. Long
+- Substitution is keyed to a recorded blocker — usable capacity gone, or one of the confirmed stops
+  below — never to how the run feels. Long
   context, accumulated mistakes, and wanting a clean start are not blockers;
   they are handled by handoff plus self-reboot inside the same lane. Whether a
   restart can repair the state decides what to try first, not how it ends: a
