@@ -10,10 +10,10 @@
   is ordinary software and outside this test.
 - The correction target is the smallest failure mode the evidence supports:
   neither the literal input that broke, which the next phrasing evades, nor the
-  category it belongs to, which takes the neighbours' generality away. Prompt and
-  registered content come before a branch, because prompt text degrades on
-  unforeseen input while code does what its author foresaw and then refuses,
-  passes silently, or does something arbitrary.
+  category it belongs to, which takes the neighbours' generality away. Prompt and registered content come
+  before a branch — not because guidance is safe on input nobody foresaw, since
+  neither form gives a guarantee there, but because the failures differ and code
+  fixes its choice at write time for cases its author never saw.
 - Enumerations and hard classifiers are refused in front of the model: keyword
   lists, intent tables, synonym sets and confidence gates each cover what their
   author imagined while the model handled the rest, and a "cannot determine"
