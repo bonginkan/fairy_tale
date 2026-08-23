@@ -20,7 +20,7 @@
           "issue": "https://github.com/bonginkan/fairy_tale/issues/124",
           "issue_anchor": "port/migration restraint",
           "issue_node_id": "I_kwDOS59HQ88AAAABNs9p5w",
-          "reason": "a direct port carries the requested behaviour plus the target-compatibility adaptations it needs, surfaces unrequested features and redesigns as separate findings instead of implementing them, and routes from a short port as well as a long migration"
+          "reason": "a direct port carries the requested behaviour plus the target-compatibility adaptations it needs, including a required property the target imposes that the source never had; unrequested features and redesigns are surfaced as separate findings instead of implemented; the plan step is sized to the task and the route reaches a short port as well as a long migration"
         }
       ]
     },
@@ -211,7 +211,7 @@
           "issue": "https://github.com/bonginkan/fairy_tale/issues/124",
           "issue_anchor": "without inventing another supervisor mechanism",
           "issue_node_id": "I_kwDOS59HQ88AAAABNs9p5w",
-          "reason": "a trigger decision is a decision to review, not to stop: the caller runs the bounded review the card already defines and the main agent continues, while the automatic check itself still only decides"
+          "reason": "a trigger is a decision to review rather than a stop for the reasons the existing bounded path already handles -- repeated failure signature, missing validation ledger, empty or meaningless artifact -- while an explicit request is its own grounds and a review conflict stays with the caller's policy; the automatic check itself still only decides"
         }
       ]
     },
