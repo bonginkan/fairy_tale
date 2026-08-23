@@ -21,6 +21,14 @@
           "issue_anchor": "port/migration restraint",
           "issue_node_id": "I_kwDOS59HQ88AAAABNs9p5w",
           "reason": "a direct port carries the requested behaviour plus the target-compatibility adaptations it needs, including a required property the target imposes that the source never had; unrequested features and redesigns are surfaced as separate findings instead of implemented; the plan step is sized to the task and the route reaches a short port as well as a long migration"
+        },
+        {
+          "current_body_sha256": "2ae6bd4585897f8431664b37fae03d6bccc44d9e8783605f9d518f2f8ac0f0d6",
+          "supersedes_body_sha256": "dfa3e06eaed09f41762221ad13f2a0dc2c3175a4d87d506cf20a166e2beeb4e8",
+          "issue": "https://github.com/bonginkan/fairy_tale/issues/126",
+          "issue_anchor": "a port has a content rule but no procedure",
+          "issue_node_id": "I_kwDOS59HQ88AAAABN6tYYw",
+          "reason": "a port or migration begins with a copy command naming the source's exact line range, placed at the destination before anything is edited, and only the target's wiring is edited afterwards; re-typing or hand-editing the whole body drops lines the copy would have carried and nothing fails to show it"
         }
       ]
     },

@@ -86,6 +86,17 @@ source / run / receipt refs:
   the change is described as test-only, documentation-only, or cosmetic. State
   which prior sign-offs are carried as unchanged-artifact evidence and which
   are re-requested.
+- Run the implementation's test code and read CI/CD results only once the
+  increment's required sign-offs are recorded against the current exact head
+  with no blocker open. While a blocker or a missing sign-off leaves the turn
+  open, do not run the local tests and do not treat a push-triggered CI result
+  as evidence: only the final output has to pass, and a check on a head that is
+  still moving spends the turn without deciding anything. Review the diff, its
+  semantics, and the distribution surface statically instead. Once the turn
+  closes, run the validation once on that head. A failure reopens the same
+  increment as a blocker, and the fix moves the head, so the sign-offs are
+  re-collected by the rule above and the validation runs once on the new head
+  rather than repeatedly on the old one.
 - If a received message is only an address, recover nearby thread and ledger
   context before acting. If the intended artifact or action remains ambiguous,
   ask one short question instead of guessing.
