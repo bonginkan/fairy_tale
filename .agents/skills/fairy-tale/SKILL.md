@@ -35,7 +35,7 @@ Route with the table below and read the linked card before applying a pattern; t
 
 | Mode pattern | Route on | Card |
 |---|---|---|
-| Fable Harness: long coding or migration tasks | Start with repository map and invariants. | `references/cards/fable-harness-long-coding-or-migration-tasks.md` |
+| Fable Harness: long coding or migration tasks | Use for a long coding or migration task, or a direct port however small. | `references/cards/fable-harness-long-coding-or-migration-tasks.md` |
 | E3 Minimum-Sufficient Execution Harness | Use for tool-using execution with explicit acceptance checks and multiple plausible scope levels. | `references/cards/e3-minimum-sufficient-execution-harness.md` |
 | Implementation Validation Gate | Use for any implementation task with a clear behavioral target, not only | `references/cards/implementation-validation-gate.md` |
 | Locate the Target Before Solving | Use at the start of any directive-driven effort, before investigating content. | `references/cards/locate-the-target-before-solving.md` |

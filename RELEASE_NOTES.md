@@ -1,5 +1,37 @@
 # Release Notes
 
+## 0.2.41 — A trigger decision is not a stop, and a port is not an invitation
+
+- **The generic trigger now reaches the behaviour it was always meant to
+  reach.** `./fairy fusion --auto-check` returned `trigger` and the canonical
+  surfaces stopped there, leaving the rest — bounded review, one synthesis,
+  compact hint, main agent continues — described only for the benchmark path.
+  The Fairy Fusion card and the auto-trigger doc now state what a caller does
+  with one. The scope is the reasons an existing integration already handles
+  this way: a repeated failure signature, a missing validation ledger, and an
+  empty or meaningless artifact. An explicit request needs no redirection rule
+  because the request is its own grounds, and `review_conflict` stays with the
+  caller's own policy because there is no established handling for it to reach.
+  The precedent is read as written: `scripts/swebench_pro_run.py` runs this
+  control flow under its own flags — the retry loop only with `--fusion-auto`
+  and `--fusion-retry-on-stuck`, and reviewers only with `--fusion-execute`.
+  No new mechanism: the automatic check still only decides, `automatic_execution`
+  stays `false`, and the recursion cap stays 1 (#124).
+- **A port carries what was asked for and the adaptations it needs, nothing
+  else.** The Fable Harness card now says that unrequested features, redesigns
+  and improvements noticed on the way are surfaced as separate findings rather
+  than implemented, and that success is behavioural and contract equivalence at
+  the target rather than extra capability. The target-compatibility adaptations
+  a port needs are part of the port, not extras — dropping one to look minimal
+  is a failed port — and they include a required property the target imposes
+  that the source never had, such as authorization, privacy, retention, money,
+  identity, or contractual behaviour. Its route hint now reaches a short direct
+  port as well as a long migration, so the rule is not gated behind the word
+  "long", and the plan-and-checkpoints step is sized to the task so a short
+  port does not acquire long-migration ceremony by routing there.
+- The Closure harness is unchanged: `no automatic implementation scope
+  expansion` already covers the surfacing side, so the rule lives in one place.
+
 ## 0.2.40 — Fuzzy-First: build on the model's judgement, correct at the failures
 
 - **Fuzzy-First** turns the default around for product features that call an LLM.

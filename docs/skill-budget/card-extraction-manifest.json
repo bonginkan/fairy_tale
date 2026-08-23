@@ -12,7 +12,17 @@
       "old_body_start": 8940,
       "old_body_end": 9156,
       "body_sha256": "e1196ca927ea1b41e0a1d3111aea8e2f4a9c2cda3affafc796d345df43633e8d",
-      "route_hint": "Start with repository map and invariants."
+      "route_hint": "Use for a long coding or migration task, or a direct port however small.",
+      "evolution": [
+        {
+          "current_body_sha256": "dfa3e06eaed09f41762221ad13f2a0dc2c3175a4d87d506cf20a166e2beeb4e8",
+          "supersedes_body_sha256": "e1196ca927ea1b41e0a1d3111aea8e2f4a9c2cda3affafc796d345df43633e8d",
+          "issue": "https://github.com/bonginkan/fairy_tale/issues/124",
+          "issue_anchor": "port/migration restraint",
+          "issue_node_id": "I_kwDOS59HQ88AAAABNs9p5w",
+          "reason": "a direct port carries the requested behaviour plus the target-compatibility adaptations it needs, including a required property the target imposes that the source never had; unrequested features and redesigns are surfaced as separate findings instead of implemented; the plan step is sized to the task and the route reaches a short port as well as a long migration"
+        }
+      ]
     },
     {
       "title": "Implementation Validation Gate",
@@ -194,6 +204,14 @@
           "issue_anchor": "fairy fusion --auto-check",
           "issue_node_id": "I_kwDOS59HQ88AAAABF9IX_w",
           "reason": "Define bounded, decision-only automatic trigger conditions, evidence fields, and the one-level recursion cap."
+        },
+        {
+          "current_body_sha256": "ea84189c765bff347d1a890f2b141b376a441fa92337836699552a8271f7c4e7",
+          "supersedes_body_sha256": "bd0da9a1af62eb417f741e843a8311a0c73b404c8d6ab9d165736d0b7233b75b",
+          "issue": "https://github.com/bonginkan/fairy_tale/issues/124",
+          "issue_anchor": "without inventing another supervisor mechanism",
+          "issue_node_id": "I_kwDOS59HQ88AAAABNs9p5w",
+          "reason": "a trigger is a decision to review rather than a stop for the reasons the existing bounded path already handles -- repeated failure signature, missing validation ledger, empty or meaningless artifact -- while an explicit request is its own grounds and a review conflict stays with the caller's policy; the automatic check itself still only decides"
         }
       ]
     },
