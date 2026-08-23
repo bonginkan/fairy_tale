@@ -15,7 +15,7 @@
       "route_hint": "Use for a long coding or migration task, or a direct port however small.",
       "evolution": [
         {
-          "current_body_sha256": "3bcbaa3fc55da6593a5abf1c7d0849c9355ef1c8b44474662b1ab28886bd7865",
+          "current_body_sha256": "dfa3e06eaed09f41762221ad13f2a0dc2c3175a4d87d506cf20a166e2beeb4e8",
           "supersedes_body_sha256": "e1196ca927ea1b41e0a1d3111aea8e2f4a9c2cda3affafc796d345df43633e8d",
           "issue": "https://github.com/bonginkan/fairy_tale/issues/124",
           "issue_anchor": "port/migration restraint",
@@ -206,7 +206,7 @@
           "reason": "Define bounded, decision-only automatic trigger conditions, evidence fields, and the one-level recursion cap."
         },
         {
-          "current_body_sha256": "57463ba078f652d9e46d6cd2a8d1bb41bc5efe6e10b9802bd4f489c1a1a5a189",
+          "current_body_sha256": "ea84189c765bff347d1a890f2b141b376a441fa92337836699552a8271f7c4e7",
           "supersedes_body_sha256": "bd0da9a1af62eb417f741e843a8311a0c73b404c8d6ab9d165736d0b7233b75b",
           "issue": "https://github.com/bonginkan/fairy_tale/issues/124",
           "issue_anchor": "without inventing another supervisor mechanism",

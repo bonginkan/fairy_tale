@@ -23,13 +23,19 @@
   The generic automatic check is decision-only: it must not launch reviewers,
   call a provider, or retry work. Apply the caller's approval/provider policy
   before any separate reviewer execution.
-- A `trigger` decision is not a stop. Under that policy the caller runs the
-  bounded review this card already defines — isolated reviewers, one synthesis
-  pass, append-only artifacts — returns only the compact hint to the main
-  agent, and the main agent keeps control and continues under its existing
-  clear and stop conditions. Benchmark integrations already run exactly this
-  sequence; a caller outside them follows the same one, and the automatic
-  check still only decides.
+- For a repeated failure signature, a missing validation ledger, or an empty or
+  meaningless artifact, a `trigger` is not a stop. Under that same policy the
+  caller runs the bounded review this card already defines — isolated
+  reviewers, one synthesis pass, append-only artifacts — returns only the
+  compact hint to the main agent, and the main agent keeps control and
+  continues under its existing clear and stop conditions. Those are the
+  reasons an existing integration already handles this way when its retry and
+  execution policy enables it; a caller outside that integration follows the
+  same sequence under its own. The automatic check still only decides.
+- An explicit request needs no redirection rule: the request is its own
+  grounds, and the caller invokes review directly. A conflict between
+  independent reviews is the one reason with no established handling to reach,
+  so it stays with the caller's own policy instead of being routed by default.
 - Record the trigger reasons, reviewer cap, recursion depth and cap, intended
   review artifact path, and input identity. Default automatic recursion to one
   level; a trigger condition at depth 1 or greater is blocked rather than

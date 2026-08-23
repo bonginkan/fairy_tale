@@ -140,14 +140,14 @@
     {
       "path": "references/cards/fable-harness-long-coding-or-migration-tasks.md",
       "title": "Fable Harness: long coding or migration tasks",
-      "bytes": 786,
-      "est_tokens": 196
+      "bytes": 1138,
+      "est_tokens": 284
     },
     {
       "path": "references/cards/fairy-fusion-harness.md",
       "title": "Fairy Fusion Harness",
-      "bytes": 2628,
-      "est_tokens": 657
+      "bytes": 3116,
+      "est_tokens": 779
     },
     {
       "path": "references/cards/finance-proposal-completeness-gate.md",
@@ -601,15 +601,15 @@
     },
     {
       "path": "skills/fairy-tale/references/cards/fable-harness-long-coding-or-migration-tasks.md",
-      "bytes": 786,
-      "lines": 16,
-      "est_tokens": 196
+      "bytes": 1138,
+      "lines": 21,
+      "est_tokens": 284
     },
     {
       "path": "skills/fairy-tale/references/cards/fairy-fusion-harness.md",
-      "bytes": 2628,
-      "lines": 41,
-      "est_tokens": 657
+      "bytes": 3116,
+      "lines": 47,
+      "est_tokens": 779
     },
     {
       "path": "skills/fairy-tale/references/cards/finance-proposal-completeness-gate.md",

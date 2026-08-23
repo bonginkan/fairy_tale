@@ -70,16 +70,28 @@ review execution, or dry-run arguments.
 
 ## After a trigger decision
 
-A `trigger` is a decision to review, not a decision to stop. Under its own
-approval and provider policy the caller then runs the bounded review the
-harness already defines — isolated reviewers, one synthesis pass, append-only
-review artifacts — reads back only the compact hint, and continues the work it
-was doing under its existing clear and stop conditions.
+A `trigger` decision carries its reasons, and this section applies to three of
+them: `repeated_failure_signature`, `validation_ledger_missing`, and an empty
+or meaningless artifact. For those, a `trigger` is a decision to review, not a
+decision to stop. Under its own approval and provider policy the caller then
+runs the bounded review the harness already defines — isolated reviewers, one
+synthesis pass, append-only review artifacts — reads back only the compact
+hint, and continues the work it was doing under its existing clear and stop
+conditions.
 
-Nothing in that sequence is new. `scripts/swebench_pro_run.py` already runs it
-on the benchmark path: automatic trigger reasons lead to a bounded review, the
-hint file is read back, and the retry loop continues until the local clear
-condition or the retry cap. A caller outside that path follows the same
-sequence with its own review invocation. The automatic check is unchanged and
-still only decides — `automatic_execution` stays `false` and the recursion cap
-stays 1 — so reaching the review is the caller's step, never the check's.
+`explicit_request` needs no redirection rule — the request is its own grounds,
+and the caller invokes `scripts/fairy_fusion_review.py` directly.
+`review_conflict` is the one reason this section does not carry: there is no
+established handling for it to point at, so it stays with the caller's own
+policy rather than being routed by default.
+
+Nothing in the sequence is new. `scripts/swebench_pro_run.py` implements this
+control flow for the benchmark path **when its existing flags enable it**: the
+retry loop is entered only under `--fusion-auto` with `--fusion-retry-on-stuck`,
+and the review it runs executes reviewers only under `--fusion-execute` —
+without it the review runs `--dry-run`. Read it as an existing integration
+applying its own retry and execution policy, not as an unconditional
+precedent. A caller outside that path follows the same sequence under its own
+policy. The automatic check is unchanged and still only decides —
+`automatic_execution` stays `false` and the recursion cap stays 1 — so
+reaching the review is always the caller's step, never the check's.

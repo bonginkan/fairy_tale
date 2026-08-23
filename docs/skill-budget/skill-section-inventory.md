@@ -36,8 +36,8 @@ in SKILL.md itself or as an extracted card reachable from the router.
 | skills/fairy-tale/references/cards/evaluated-feedback-loop.md | 1696 | 27 | 424 |
 | skills/fairy-tale/references/cards/evidence-table-harness.md | 293 | 7 | 73 |
 | skills/fairy-tale/references/cards/external-reconstruction-adapter-harness.md | 572 | 12 | 143 |
-| skills/fairy-tale/references/cards/fable-harness-long-coding-or-migration-tasks.md | 786 | 16 | 196 |
-| skills/fairy-tale/references/cards/fairy-fusion-harness.md | 2628 | 41 | 657 |
+| skills/fairy-tale/references/cards/fable-harness-long-coding-or-migration-tasks.md | 1138 | 21 | 284 |
+| skills/fairy-tale/references/cards/fairy-fusion-harness.md | 3116 | 47 | 779 |
 | skills/fairy-tale/references/cards/finance-proposal-completeness-gate.md | 10773 | 157 | 2693 |
 | skills/fairy-tale/references/cards/fuzzy-first-mechanism-only-at-the-exceptions.md | 8070 | 134 | 2018 |
 | skills/fairy-tale/references/cards/general-e2e-completion-harness.md | 2030 | 30 | 508 |
