@@ -43,7 +43,7 @@ in SKILL.md itself or as an extracted card reachable from the router.
 | skills/fairy-tale/references/cards/general-e2e-completion-harness.md | 2030 | 30 | 508 |
 | skills/fairy-tale/references/cards/generalization-and-latent-structure-harness-hidden-rules-executable-models-and-tacit-intent.md | 3350 | 50 | 838 |
 | skills/fairy-tale/references/cards/github-is-the-exchange-surface.md | 2151 | 32 | 538 |
-| skills/fairy-tale/references/cards/helix-loop-communication-harness.md | 8980 | 139 | 2245 |
+| skills/fairy-tale/references/cards/helix-loop-communication-harness.md | 9054 | 140 | 2264 |
 | skills/fairy-tale/references/cards/high-signal-research-synthesis.md | 238 | 7 | 60 |
 | skills/fairy-tale/references/cards/implementation-validation-gate.md | 4774 | 71 | 1194 |
 | skills/fairy-tale/references/cards/knowledge-crystallization-harness.md | 415 | 10 | 104 |

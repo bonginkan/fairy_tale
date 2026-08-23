@@ -97,9 +97,10 @@ source / run / receipt refs:
   distribution surface statically until then, and run the validation once, on
   the head that is about to ship. This covers the increment's own tests and
   CI, including an acceptance check a harness would otherwise run
-  mid-increment to size its next step: that scope decision is carried by the
-  static review until the run happens. A failure reopens the same increment as
-  a blocker, and the fix moves the head, so the sign-offs are re-collected by
+  mid-increment to size its next step. The harness sizes that step from the
+  static evidence it has, without the signal, and the run that would confirm
+  it happens once, before the merge. A failure reopens the same increment as a
+  blocker, and the fix moves the head, so the sign-offs are re-collected by
   the rule above and the validation runs once on the new head rather than
   repeatedly on the old one.
 - If a received message is only an address, recover nearby thread and ledger
