@@ -67,3 +67,19 @@ review execution results.
 The direct `scripts/fairy_fusion_review.py` interface remains available for
 existing integrations. `--auto-check` cannot be combined with task, role,
 review execution, or dry-run arguments.
+
+## After a trigger decision
+
+A `trigger` is a decision to review, not a decision to stop. Under its own
+approval and provider policy the caller then runs the bounded review the
+harness already defines — isolated reviewers, one synthesis pass, append-only
+review artifacts — reads back only the compact hint, and continues the work it
+was doing under its existing clear and stop conditions.
+
+Nothing in that sequence is new. `scripts/swebench_pro_run.py` already runs it
+on the benchmark path: automatic trigger reasons lead to a bounded review, the
+hint file is read back, and the retry loop continues until the local clear
+condition or the retry cap. A caller outside that path follows the same
+sequence with its own review invocation. The automatic check is unchanged and
+still only decides — `automatic_execution` stays `false` and the recursion cap
+stays 1 — so reaching the review is the caller's step, never the check's.

@@ -12,7 +12,17 @@
       "old_body_start": 8940,
       "old_body_end": 9156,
       "body_sha256": "e1196ca927ea1b41e0a1d3111aea8e2f4a9c2cda3affafc796d345df43633e8d",
-      "route_hint": "Start with repository map and invariants."
+      "route_hint": "Use for a long coding or migration task, or a direct port however small.",
+      "evolution": [
+        {
+          "current_body_sha256": "3bcbaa3fc55da6593a5abf1c7d0849c9355ef1c8b44474662b1ab28886bd7865",
+          "supersedes_body_sha256": "e1196ca927ea1b41e0a1d3111aea8e2f4a9c2cda3affafc796d345df43633e8d",
+          "issue": "https://github.com/bonginkan/fairy_tale/issues/124",
+          "issue_anchor": "port/migration restraint",
+          "issue_node_id": "I_kwDOS59HQ88AAAABNs9p5w",
+          "reason": "a direct port carries the requested behaviour plus the target-compatibility adaptations it needs, surfaces unrequested features and redesigns as separate findings instead of implementing them, and routes from a short port as well as a long migration"
+        }
+      ]
     },
     {
       "title": "Implementation Validation Gate",
@@ -194,6 +204,14 @@
           "issue_anchor": "fairy fusion --auto-check",
           "issue_node_id": "I_kwDOS59HQ88AAAABF9IX_w",
           "reason": "Define bounded, decision-only automatic trigger conditions, evidence fields, and the one-level recursion cap."
+        },
+        {
+          "current_body_sha256": "57463ba078f652d9e46d6cd2a8d1bb41bc5efe6e10b9802bd4f489c1a1a5a189",
+          "supersedes_body_sha256": "bd0da9a1af62eb417f741e843a8311a0c73b404c8d6ab9d165736d0b7233b75b",
+          "issue": "https://github.com/bonginkan/fairy_tale/issues/124",
+          "issue_anchor": "without inventing another supervisor mechanism",
+          "issue_node_id": "I_kwDOS59HQ88AAAABNs9p5w",
+          "reason": "a trigger decision is a decision to review, not to stop: the caller runs the bounded review the card already defines and the main agent continues, while the automatic check itself still only decides"
         }
       ]
     },
