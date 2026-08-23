@@ -36,14 +36,14 @@ in SKILL.md itself or as an extracted card reachable from the router.
 | skills/fairy-tale/references/cards/evaluated-feedback-loop.md | 1696 | 27 | 424 |
 | skills/fairy-tale/references/cards/evidence-table-harness.md | 293 | 7 | 73 |
 | skills/fairy-tale/references/cards/external-reconstruction-adapter-harness.md | 572 | 12 | 143 |
-| skills/fairy-tale/references/cards/fable-harness-long-coding-or-migration-tasks.md | 1750 | 29 | 438 |
+| skills/fairy-tale/references/cards/fable-harness-long-coding-or-migration-tasks.md | 1955 | 31 | 489 |
 | skills/fairy-tale/references/cards/fairy-fusion-harness.md | 3116 | 47 | 779 |
 | skills/fairy-tale/references/cards/finance-proposal-completeness-gate.md | 10773 | 157 | 2693 |
 | skills/fairy-tale/references/cards/fuzzy-first-mechanism-only-at-the-exceptions.md | 8070 | 134 | 2018 |
 | skills/fairy-tale/references/cards/general-e2e-completion-harness.md | 2030 | 30 | 508 |
 | skills/fairy-tale/references/cards/generalization-and-latent-structure-harness-hidden-rules-executable-models-and-tacit-intent.md | 3350 | 50 | 838 |
 | skills/fairy-tale/references/cards/github-is-the-exchange-surface.md | 2151 | 32 | 538 |
-| skills/fairy-tale/references/cards/helix-loop-communication-harness.md | 8618 | 134 | 2154 |
+| skills/fairy-tale/references/cards/helix-loop-communication-harness.md | 8980 | 139 | 2245 |
 | skills/fairy-tale/references/cards/high-signal-research-synthesis.md | 238 | 7 | 60 |
 | skills/fairy-tale/references/cards/implementation-validation-gate.md | 4774 | 71 | 1194 |
 | skills/fairy-tale/references/cards/knowledge-crystallization-harness.md | 415 | 10 | 104 |

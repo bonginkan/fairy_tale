@@ -8,25 +8,32 @@
   inside the loop as well: validate continuously, run the focused check after
   editing. Against a head that an open blocker is about to move, that run
   decides nothing and spends the turn, and a push-triggered CI result arrives
-  unrequested and reads like evidence. The card now holds the test run and the
-  CI read until the increment's required sign-offs stand against the current
-  exact head with no blocker open; the review stays static until then, and once
-  the turn closes the validation runs once on that head. A failure reopens the
-  same increment, and the existing staleness rule re-collects the sign-offs on
-  the new head instead of re-running the gate. No new state name was added: the
-  rule is written in the sign-off and blocker vocabulary the card already owns.
-  The Fable card's `Validate continuously.` carries a one-line scope reference
-  to it rather than a second copy of the rule, and the general validation gate
-  is unchanged — this is a rule about a loop, not about every workflow (#126).
+  unrequested and reads like evidence. The test run and the CI read now happen
+  immediately before the merge — or, for an effort that has no merge,
+  immediately before the final deliverable is handed over — on the head that
+  carries the increment's required sign-offs with no blocker open, and nowhere
+  else in the loop. The review stays static until then, and the validation runs
+  once on the head that is about to ship. A failure reopens the increment, and
+  the existing staleness rule re-collects the sign-offs on the new head instead
+  of re-running the gate. No new state name was added: the rule is written in
+  the sign-off and blocker vocabulary the card already owns, and it names its
+  own reach — the increment's tests and CI, including an acceptance check a
+  harness would otherwise run mid-increment to size its next step. The Fable
+  card's `Validate continuously.` carries a bare reference to the Helix card
+  rather than a copy of the condition, so the two cannot drift apart, and the
+  general validation gate is unchanged — this is a rule about a loop, not about
+  every workflow (#126).
 - **A port starts as a copy, not as a re-typing.** The Fable card said what a
   port must carry and what success means, and never said how the bytes move.
   The failure that leaves open is silent: a body re-typed or hand-edited
   instead of copied loses lines, and nothing fails to show it — what remains is
-  a smaller port that still looks deliberate. The first operation is now a copy
-  command naming the source's exact line range, placed at the destination
-  before anything is edited; only the wiring the target requires is edited
-  afterwards. The content rules are untouched and still govern what that copy
-  must be adapted to carry (#126).
+  a smaller port that still looks deliberate. When the work moves an existing
+  body from a source into a target, the first operation is now a copy command
+  naming the source's exact line range, placed at the destination before
+  anything is edited; only the wiring the target requires is edited afterwards.
+  A port has no exception; a migration step with no source body to move has
+  nothing to copy and is not covered. The content rules are untouched and still
+  govern what that copy must be adapted to carry (#126).
 
 ## 0.2.41 — A trigger decision is not a stop, and a port is not an invitation
 

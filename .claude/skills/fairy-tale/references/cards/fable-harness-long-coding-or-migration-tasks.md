@@ -7,15 +7,17 @@
   routing here.
 - Edit only scoped files.
 - Validate continuously. Inside an agent-to-agent review loop the test and CI
-  runs wait for the increment's sign-offs; see
-  `references/cards/helix-loop-communication-harness.md`.
+  runs follow `references/cards/helix-loop-communication-harness.md`.
 - Prefer lower effort or smaller scopes before expensive broad autonomy.
-- Begin a port or migration with a copy command that names the source's exact
-  line range, and place that copy at the destination before editing anything.
-  Then edit only what the target requires to wire it in — imports, paths,
-  names, types, and the required properties below. Re-typing or hand-editing
-  the whole body instead is not a stricter version of the same work: it drops
-  lines the copy would have carried, and nothing fails to show it.
+- When the work moves an existing body from a source into a target — a port,
+  or the part of a migration that carries code across — begin with a copy
+  command that names the source's exact line range, and place that copy at the
+  destination before editing anything. Then edit only what the target requires
+  to wire it in — imports, paths, names, types, and the required properties
+  below. Re-typing or hand-editing the whole body instead is not a stricter
+  version of the same work: it drops lines the copy would have carried, and
+  nothing fails to show it. A port has no exception; a migration step with no
+  source body to move has nothing to copy and this does not apply to it.
 - Port the requested behaviour plus only the target-compatibility adaptations
   that port needs. Those adaptations are required, not extras: dropping one to
   look minimal is a failed port, not a restrained one. They include any

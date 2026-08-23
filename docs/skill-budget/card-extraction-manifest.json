@@ -23,12 +23,12 @@
           "reason": "a direct port carries the requested behaviour plus the target-compatibility adaptations it needs, including a required property the target imposes that the source never had; unrequested features and redesigns are surfaced as separate findings instead of implemented; the plan step is sized to the task and the route reaches a short port as well as a long migration"
         },
         {
-          "current_body_sha256": "2ae6bd4585897f8431664b37fae03d6bccc44d9e8783605f9d518f2f8ac0f0d6",
+          "current_body_sha256": "efd4969aa46ea3ad2f6c11536a659e85a2c6f9147d101b9ee8d27554b599aa4f",
           "supersedes_body_sha256": "dfa3e06eaed09f41762221ad13f2a0dc2c3175a4d87d506cf20a166e2beeb4e8",
           "issue": "https://github.com/bonginkan/fairy_tale/issues/126",
-          "issue_anchor": "a port has a content rule but no procedure",
+          "issue_anchor": "when a review loop's tests run, and how a port's bytes move",
           "issue_node_id": "I_kwDOS59HQ88AAAABN6tYYw",
-          "reason": "a port or migration begins with a copy command naming the source's exact line range, placed at the destination before anything is edited, and only the target's wiring is edited afterwards; re-typing or hand-editing the whole body drops lines the copy would have carried and nothing fails to show it"
+          "reason": "two changes entered this body under #126. The loop's test run and CI read happen immediately before the merge, or before the final deliverable where the effort has no merge, on the head carrying the increment's sign-offs with no blocker open and nowhere else in the loop; the bullet here carries a bare reference to the Helix card instead of a copy of that condition, so the two cannot drift. And when the work moves an existing body from a source into a target, the first operation is a copy command naming the source's exact line range, edited afterwards only for the target's wiring; a port has no exception, a migration step with no source body to move is not covered"
         }
       ]
     },

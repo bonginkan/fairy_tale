@@ -140,8 +140,8 @@
     {
       "path": "references/cards/fable-harness-long-coding-or-migration-tasks.md",
       "title": "Fable Harness: long coding or migration tasks",
-      "bytes": 1750,
-      "est_tokens": 438
+      "bytes": 1955,
+      "est_tokens": 489
     },
     {
       "path": "references/cards/fairy-fusion-harness.md",
@@ -182,8 +182,8 @@
     {
       "path": "references/cards/helix-loop-communication-harness.md",
       "title": "Helix Loop Communication Harness",
-      "bytes": 8618,
-      "est_tokens": 2154
+      "bytes": 8980,
+      "est_tokens": 2245
     },
     {
       "path": "references/cards/high-signal-research-synthesis.md",
@@ -601,9 +601,9 @@
     },
     {
       "path": "skills/fairy-tale/references/cards/fable-harness-long-coding-or-migration-tasks.md",
-      "bytes": 1750,
-      "lines": 29,
-      "est_tokens": 438
+      "bytes": 1955,
+      "lines": 31,
+      "est_tokens": 489
     },
     {
       "path": "skills/fairy-tale/references/cards/fairy-fusion-harness.md",
@@ -643,9 +643,9 @@
     },
     {
       "path": "skills/fairy-tale/references/cards/helix-loop-communication-harness.md",
-      "bytes": 8618,
-      "lines": 134,
-      "est_tokens": 2154
+      "bytes": 8980,
+      "lines": 139,
+      "est_tokens": 2245
     },
     {
       "path": "skills/fairy-tale/references/cards/high-signal-research-synthesis.md",

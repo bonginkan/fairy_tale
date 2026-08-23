@@ -86,17 +86,22 @@ source / run / receipt refs:
   the change is described as test-only, documentation-only, or cosmetic. State
   which prior sign-offs are carried as unchanged-artifact evidence and which
   are re-requested.
-- Run the implementation's test code and read CI/CD results only once the
-  increment's required sign-offs are recorded against the current exact head
-  with no blocker open. While a blocker or a missing sign-off leaves the turn
-  open, do not run the local tests and do not treat a push-triggered CI result
-  as evidence: only the final output has to pass, and a check on a head that is
-  still moving spends the turn without deciding anything. Review the diff, its
-  semantics, and the distribution surface statically instead. Once the turn
-  closes, run the validation once on that head. A failure reopens the same
-  increment as a blocker, and the fix moves the head, so the sign-offs are
-  re-collected by the rule above and the validation runs once on the new head
-  rather than repeatedly on the old one.
+- Run the implementation's test code and read CI/CD results immediately before
+  the merge, on the head that carries the increment's required sign-offs with
+  no blocker open, and nowhere else in the loop. Where the effort has no
+  merge, that point is reached immediately before the final deliverable is
+  handed over. Only the final output has to pass, so a run against a head that
+  a blocker or a further review round is still going to move decides nothing
+  and spends the turn, and a push-triggered CI result on such a head arrives
+  unrequested and reads like evidence. Review the diff, its semantics, and the
+  distribution surface statically until then, and run the validation once, on
+  the head that is about to ship. This covers the increment's own tests and
+  CI, including an acceptance check a harness would otherwise run
+  mid-increment to size its next step: that scope decision is carried by the
+  static review until the run happens. A failure reopens the same increment as
+  a blocker, and the fix moves the head, so the sign-offs are re-collected by
+  the rule above and the validation runs once on the new head rather than
+  repeatedly on the old one.
 - If a received message is only an address, recover nearby thread and ledger
   context before acting. If the intended artifact or action remains ambiguous,
   ask one short question instead of guessing.
