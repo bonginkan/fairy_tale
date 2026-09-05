@@ -97,7 +97,7 @@ in SKILL.md itself or as an extracted card reachable from the router.
 | skills/fairy-tale/references/process/generalization-audit-record.md | 560 | 21 | 140 |
 | skills/fairy-tale/references/process/glass-slipper-gate.md | 244 | 18 | 61 |
 | skills/fairy-tale/references/process/helix-blocker-triage-record.md | 3559 | 74 | 890 |
-| skills/fairy-tale/references/process/helix-run-split-record.md | 1792 | 39 | 448 |
+| skills/fairy-tale/references/process/helix-run-split-record.md | 1961 | 41 | 490 |
 | skills/fairy-tale/references/process/implementation-contract-closure-record.md | 4915 | 88 | 1229 |
 | skills/fairy-tale/references/process/implicit-contract-discovery-family-router.md | 1652 | 39 | 413 |
 | skills/fairy-tale/references/process/job-automation-delegation-record.md | 1260 | 37 | 315 |

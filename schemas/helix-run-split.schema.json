@@ -42,7 +42,8 @@
             "properties": {
               "round": { "type": "integer", "minimum": 1 },
               "at": { "$ref": "#/$defs/instant" },
-              "finding_count": { "type": "integer", "minimum": 0 }
+              "finding_count": { "type": "integer", "minimum": 0 },
+              "kind": { "enum": ["review", "shipping_validation"] }
             }
           }
         },
