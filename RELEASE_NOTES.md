@@ -1,5 +1,20 @@
 # Release Notes
 
+## 0.2.44 — A third round that deferred nothing can be recorded
+
+- **The split validator no longer demands a deferral that did not happen.**
+  Recording the run that shipped 0.2.43 on its own split record exposed the
+  gap: the card says a round past the cap needs a named cause, and the
+  validator additionally required `round_cap_disposition` — issue URLs or a
+  tie-break ref — even when the third round was a shipping-validation failure
+  fixed in one head with nothing deferred. The honest record could not be
+  written without composing a reference, which the harness forbids. Past the
+  cap the validator now requires the named cause alone; deferral refs are
+  validated for shape when present and recorded when something was deferred.
+  A round may also carry `kind` (`review` | `shipping_validation`) so a
+  reopened increment is distinguishable from a review spiral in the ledger.
+  Thirty self-controls, 25 schema-contract controls (#130).
+
 ## 0.2.43 — Elapsed time is usage: the Helix speedrun harness
 
 - **A loop now has a value about time.** The Helix rules already removed the

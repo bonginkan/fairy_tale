@@ -38,6 +38,7 @@ CATEGORIES = ("any_percent_dev", "full_percent_prod", "deliverable")
 SIZES = ("small", "medium", "large")
 PROFILES = {"two_party": (1, 1), "three_party": (2, None)}
 SANCTIONED_WARPS = tuple(f"W{i}" for i in range(1, 11))
+ROUND_KINDS = ("review", "shipping_validation")
 BANNED_GLITCHES = (
     "unread_evidence", "stale_signoff", "self_signoff", "skip_ship_validation", "floor_bypass",
     "silence_closure", "scope_shrink",
@@ -169,9 +170,15 @@ def validate_record(record: Any) -> tuple[list[Finding], dict[str, Any]]:
         rounds_seen = []
     for index, entry in enumerate(rounds_seen):
         path = f"$.clock.findings_returned[{index}]"
-        if not isinstance(entry, dict) or set(entry) != {"round", "at", "finding_count"}:
-            f(Finding("shape", path, "each round carries round, at, finding_count"))
+        if (
+            not isinstance(entry, dict)
+            or not {"round", "at", "finding_count"} <= set(entry)
+            or not set(entry) <= {"round", "at", "finding_count", "kind"}
+        ):
+            f(Finding("shape", path, "each round carries round, at, finding_count, optional kind"))
             continue
+        if "kind" in entry and entry["kind"] not in ROUND_KINDS:
+            f(Finding("enum", f"{path}.kind", f"must be one of {ROUND_KINDS}"))
         if not is_int(entry["round"]) or entry["round"] != index + 1:
             f(Finding("round_order", path, f"round must be the integer {index + 1}"))
         if not is_int(entry["finding_count"]) or entry["finding_count"] < 0:
@@ -208,8 +215,10 @@ def validate_record(record: Any) -> tuple[list[Finding], dict[str, Any]]:
         f(Finding("shape", "$.round_cap", "must be a positive integer"))
         cap = 2
     # W4: a deferral recorded AT the cap is the warp working (the run ends in
-    # two rounds with the non-floor findings filed). Only a run that went PAST
-    # the cap owes a named cause on top of the disposition refs.
+    # two rounds with the non-floor findings filed). A run that went PAST the
+    # cap owes a named cause; deferral refs are recorded when something was
+    # deferred, and a third round that deferred nothing (a shipping-validation
+    # failure reopening the same increment) carries the cause alone.
     has_disposition = "round_cap_disposition" in record
     has_cause = "third_round_cause" in record
     disposition = record.get("round_cap_disposition")
@@ -225,8 +234,6 @@ def validate_record(record: Any) -> tuple[list[Finding], dict[str, Any]]:
     if has_cause and (not isinstance(cause, str) or not cause.strip()):
         f(Finding("round_cap", "$.third_round_cause", "a named cause is non-empty text"))
     if rounds > cap:
-        if not has_disposition:
-            f(Finding("round_cap", "$.round_cap_disposition", "rounds past the cap need issue URLs or a tie-break ref"))
         if not has_cause:
             f(Finding("round_cap", "$.third_round_cause", "rounds past the cap need a named cause"))
     elif has_cause:
@@ -385,6 +392,14 @@ def selftest() -> int:
         r["third_round_cause"] = "floor finding on the auth path could not be deferred"
     expect_pass("third round with disposition", _mutate(base, three_party_round_three), "on_pace")
 
+    def third_round_nothing_deferred(r: dict[str, Any]) -> None:
+        r["clock"]["findings_returned"][1]["finding_count"] = 1
+        r["clock"]["findings_returned"][1]["kind"] = "shipping_validation"
+        r["clock"]["findings_returned"].append({"round": 3, "at": "2026-01-01T09:52:00Z", "finding_count": 0})
+        r["rounds"] = 3
+        r["third_round_cause"] = "shipping validation failed on the fix head; fixed in one head, nothing deferred"
+    expect_pass("third round with a cause and nothing deferred", _mutate(base, third_round_nothing_deferred), "on_pace")
+
     def w5_with_transfer(r: dict[str, Any]) -> None:
         r["warps_used"].append("W5")
         r["role_transfers"] = [
@@ -431,10 +446,15 @@ def selftest() -> int:
         r["time_sinks"] = [{"phase": "review", "cause": "other", "minutes": 500}]
     expect_code("attribution exceeds elapsed", _mutate(base, over_attributed), "attribution")
 
-    def third_round_no_disposition(r: dict[str, Any]) -> None:
+    def third_round_no_cause(r: dict[str, Any]) -> None:
         r["clock"]["findings_returned"].append({"round": 3, "at": "2026-01-01T09:52:00Z", "finding_count": 0})
         r["rounds"] = 3
-    expect_code("third round without disposition", _mutate(base, third_round_no_disposition), "round_cap")
+        r["round_cap_disposition"] = ["https://github.com/example-org/example-repo/issues/9"]
+    expect_code("third round without a cause", _mutate(base, third_round_no_cause), "round_cap")
+
+    def unknown_round_kind(r: dict[str, Any]) -> None:
+        r["clock"]["findings_returned"][0]["kind"] = "vibes"
+    expect_code("unknown round kind", _mutate(base, unknown_round_kind), "enum")
 
     def round_count_drift(r: dict[str, Any]) -> None:
         r["rounds"] = 1
@@ -494,7 +514,7 @@ def selftest() -> int:
 
     for failure in failures:
         print(f"SELFTEST FAIL {failure}")
-    total = 28
+    total = 30
     print(f"helix split self-controls: {total - len(failures)}/{total} passed")
     return 1 if failures else 0
 

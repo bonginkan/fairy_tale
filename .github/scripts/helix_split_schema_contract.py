@@ -94,6 +94,20 @@ def main() -> int:
     expect_schema(deferral_at_cap, valid=True, label="schema admits a deferral at the cap")
     expect_validator(deferral_at_cap, valid=True, label="validator admits a deferral at the cap (W4)")
 
+    third_round_cause_only = copy.deepcopy(sample)
+    third_round_cause_only["clock"]["findings_returned"].append(
+        {"round": 3, "at": "2026-01-01T09:52:00Z", "finding_count": 0, "kind": "shipping_validation"}
+    )
+    third_round_cause_only["rounds"] = 3
+    third_round_cause_only["third_round_cause"] = "shipping validation reopened the increment; nothing deferred"
+    expect_schema(third_round_cause_only, valid=True, label="schema admits a third round with a cause only")
+    expect_validator(third_round_cause_only, valid=True, label="validator admits a third round with a cause only")
+
+    bad_kind = copy.deepcopy(sample)
+    bad_kind["clock"]["findings_returned"][0]["kind"] = "vibes"
+    expect_schema(bad_kind, valid=False, label="schema rejects an unlisted round kind")
+    expect_validator(bad_kind, valid=False, label="validator rejects an unlisted round kind")
+
     # The schema is a structural floor. Two inputs it cannot judge are left to
     # the validator, which is why the validator, not the schema, is
     # authoritative: a banned glitch is a plain string to the schema, and a

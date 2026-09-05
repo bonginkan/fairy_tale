@@ -18,7 +18,7 @@ run:
 clock (ISO instants, read not estimated; `not read` when not read):
   directive_received / target_located / contract_closed:
   impl_pushed / review_requested:
-  findings_returned: [round, at, finding_count]
+  findings_returned: [round, at, finding_count, kind (review | shipping_validation)]
   signoffs_complete / validation_read / finished:
 pace:
   target_minutes / target_source (owner | default | sum_of_best):
@@ -33,7 +33,9 @@ The validator owns the semantics. Splits must not run backwards; `finished`
 cannot precede `signoffs_complete`, and `signoffs_complete` cannot precede the
 last `findings_returned`. Only the ten sanctioned warp ids validate; any
 banned-glitch name in `warps_used` voids the run. `rounds` above the cap needs
-a disposition ref. An over-pace run needs at least one attributed time sink,
+a named cause; deferral refs are recorded when something was deferred, and a
+round may say whether it was a review or a shipping-validation reopening. An
+over-pace run needs at least one attributed time sink,
 and a run whose target has no source does not validate. The record carries
 no authority: it grants no merge, deploy, or access, and it never shortens a
 safety-floor check.
