@@ -74,6 +74,7 @@ Route with the table below and read the linked card before applying a pattern; t
 | Token Consumption Optimizer Harness: process memoization | Use when an operation succeeded once and is likely to recur: distill the | `references/cards/token-consumption-optimizer-harness.md` |
 | Fuzzy-First: build on the model, correct at the failures | Use when building or reviewing a product feature that calls an LLM: before adding a rule, classifier, or enumeration around it, and before splitting its conversation into stateless calls. | `references/cards/fuzzy-first-mechanism-only-at-the-exceptions.md` |
 | Edison Ship Gate: dev-deploy threshold | Use when an increment could reach a real non-production surface humans can exercise. | `references/cards/edison-ship-gate.md` |
+| Helix Speedrun (RTA) Harness: elapsed time is usage | Use for every Helix increment and every agent-to-agent loop the owner has asked to finish, from the directive to the merge or the handover. | `references/cards/helix-speedrun-rta-harness.md` |
 
 ## Default workflow
 
@@ -206,6 +207,11 @@ Route with the table below and read the linked card before applying a pattern; t
      If a finding needs risk-aware priority, issue-only deferral, or an
      implementer objection, use the machine-validated Helix blocker triage
      record; never negotiate away its non-deferrable safety floor.
+   - For every Helix increment the owner has asked to finish: use the Helix
+     Speedrun (RTA) Harness. Elapsed time is usage; start the clock at the
+     directive, take only the owner-sanctioned warps, and record the splits
+     and time sinks in the Helix run split record. The category fixes the
+     finish line; the route is free; a banned glitch voids the run.
    - For forming a multi-agent trio, or assigning roles inside a loop: use the
      `Usage-Aware Multi-Agent Load Balancer` card and its Usage Reading
      Reference. Settle composition before capacity — a three-party helix

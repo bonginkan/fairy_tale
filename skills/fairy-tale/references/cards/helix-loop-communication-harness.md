@@ -132,6 +132,10 @@ source / run / receipt refs:
   last verified artifacts/checks, next owner, and evidence refs. Deliberately
   parked, DND-paused, approval-blocked, and closed states may remain silent as
   defined by the loop profile.
+- Elapsed time in the loop is usage. Read the clock at each split, use only
+  the owner-sanctioned warps, and record the run in the Helix run split record
+  (`references/cards/helix-speedrun-rta-harness.md`). That card owns the value
+  and the warp list; nothing in it shortens a check this card requires.
 
 Internal sources checked 2026-07-16 (private repository; access required and
 not independently public-verifiable): `bonginkan/north-star-os#45` and `#46`

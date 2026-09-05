@@ -58,3 +58,4 @@ Each record template lives in its own card under `references/process/`; read onl
 | External reconstruction adapter record | Use this when connecting an outside reconstruction project such as OpenMythos. | `references/process/external-reconstruction-adapter-record.md` |
 | Refactoring similarity record | Use this when an ordinary patch or broad refactor exposes a possible clone | `references/process/refactoring-similarity-record.md` |
 | Accessible genius method record | Use this when applying a method from `references/genius-methods.md`. Record the | `references/process/accessible-genius-method-record.md` |
+| Helix run split record | Use this for every Helix increment or finished loop, from the moment the | `references/process/helix-run-split-record.md` |

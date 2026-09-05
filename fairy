@@ -124,6 +124,20 @@ VALIDATION_STEPS = (
         "helix_blocker_triage.py",
         "sample",
     ),
+    python_step(
+        "split-selftest",
+        "Helix run split self-controls",
+        "helix_split_check.py",
+        "--selftest",
+    ),
+    python_step(
+        "split-sample",
+        "Helix run split sample",
+        "helix_split_check.py",
+        "validate",
+        "--record",
+        str(ROOT / "examples" / "helix-run-split.json"),
+    ),
     python_step("budget-selftest", "Skill budget self-controls", "skill_token_budget_check.py", "--selftest"),
     python_step(
         "budget",
@@ -352,10 +366,10 @@ def selftest() -> int:
         DOCTOR_STEPS[0].command[-2:] == ("--start", str(CALLER_CWD)),
         "doctor validates the caller repository profile",
     )
-    check(len(VALIDATION_STEPS) == 30, "validation registry remains complete")
+    check(len(VALIDATION_STEPS) == 32, "validation registry remains complete")
     check(
-        sum(not step.credential_keys for step in VALIDATION_STEPS) == 28,
-        "twenty-eight ordinary validation steps receive no credentials",
+        sum(not step.credential_keys for step in VALIDATION_STEPS) == 30,
+        "thirty ordinary validation steps receive no credentials",
     )
 
     repository_paths = {
