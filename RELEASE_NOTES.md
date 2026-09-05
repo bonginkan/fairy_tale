@@ -40,9 +40,17 @@
   validate, a banned-glitch name voids the run and must say so, rounds past
   the cap need a disposition ref and a named cause, a `default` target must be
   the card's default and production has none, and an over-pace run with
-  nothing attributed does not validate. Twenty-one hostile self-controls run
-  under `./fairy validate` (`split-selftest`, `split-sample`), and a Draft
-  2020-12 schema contract runs in CI beside the E3 and blocker contracts.
+  nothing attributed does not validate. A deferral recorded at the cap is the
+  warp working and validates; only a run that went past the cap owes a named
+  cause. The validator keeps the schema's type contract — a boolean is not an
+  integer, a `0` is not an absent list, a well-formed instant naming a day
+  that does not exist is not an instant — and returns findings, never
+  exceptions, for them. Twenty-eight hostile self-controls run under
+  `./fairy validate` (`split-selftest`, `split-sample`), and a Draft 2020-12
+  schema contract runs in CI beside the E3 and blocker contracts. The release
+  package carries the validator, schema, and example, and the package build
+  now executes the card's command from the extracted tarball, so a process
+  card cannot ship without a consumer that runs where the reader is.
 - **Two contradictions the design surfaced are closed in the same increment.**
   The engineering execution route in `loop-engineering-automation.md` still
   said "focused validation runs before review request", against the Helix

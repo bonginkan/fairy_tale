@@ -71,9 +71,18 @@ class Finding:
 
 
 def parse_instant(value: Any) -> datetime | None:
+    """Return the instant, or None when the value is not a real, readable one."""
     if not isinstance(value, str) or not INSTANT_RE.match(value):
         return None
-    return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(timezone.utc)
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(timezone.utc)
+    except ValueError:  # a well-formed string naming a day that does not exist
+        return None
+
+
+def is_int(value: Any) -> bool:
+    """A JSON integer. Python's bool is an int subclass and the schema rejects it."""
+    return isinstance(value, int) and not isinstance(value, bool)
 
 
 def load_record(path: Path) -> Any:
@@ -110,14 +119,15 @@ def validate_record(record: Any) -> tuple[list[Finding], dict[str, Any]]:
     if not isinstance(run["effort_ref"], str) or not run["effort_ref"].startswith("https://"):
         f(Finding("shape", "$.run.effort_ref", "effort_ref must be a canonical https URL"))
     category = run["category"]
-    if category not in CATEGORIES:
+    size_class = run["size_class"]
+    if not isinstance(category, str) or category not in CATEGORIES:
         f(Finding("enum", "$.run.category", f"must be one of {CATEGORIES}"))
-    if run["size_class"] not in SIZES:
+    if not isinstance(size_class, str) or size_class not in SIZES:
         f(Finding("enum", "$.run.size_class", f"must be one of {SIZES}"))
     profile = run["loop_profile"]
     reviewers = run["reviewers"]
     implementer = run["implementer"]
-    if profile not in PROFILES:
+    if not isinstance(profile, str) or profile not in PROFILES:
         f(Finding("enum", "$.run.loop_profile", f"must be one of {tuple(PROFILES)}"))
     if not isinstance(reviewers, list) or not reviewers or not all(
         isinstance(r, str) and r.strip() for r in reviewers
@@ -130,7 +140,7 @@ def validate_record(record: Any) -> tuple[list[Finding], dict[str, Any]]:
         f(Finding("self_signoff", "$.run.reviewers", "implementer cannot be a reviewer; the run is void"))
     if len(set(reviewers)) != len(reviewers):
         f(Finding("shape", "$.run.reviewers", "reviewers must be distinct"))
-    if profile in PROFILES:
+    if isinstance(profile, str) and profile in PROFILES:
         low, high = PROFILES[profile]
         if len(reviewers) < low or (high is not None and len(reviewers) > high):
             f(Finding("profile_reviewers", "$.run.reviewers", f"{profile} expects {low}{'+' if high is None else ''} reviewer(s)"))
@@ -162,9 +172,9 @@ def validate_record(record: Any) -> tuple[list[Finding], dict[str, Any]]:
         if not isinstance(entry, dict) or set(entry) != {"round", "at", "finding_count"}:
             f(Finding("shape", path, "each round carries round, at, finding_count"))
             continue
-        if entry["round"] != index + 1:
-            f(Finding("round_order", path, f"round must be {index + 1}"))
-        if not isinstance(entry["finding_count"], int) or entry["finding_count"] < 0:
+        if not is_int(entry["round"]) or entry["round"] != index + 1:
+            f(Finding("round_order", path, f"round must be the integer {index + 1}"))
+        if not is_int(entry["finding_count"]) or entry["finding_count"] < 0:
             f(Finding("shape", f"{path}.finding_count", "must be a non-negative integer"))
         instant = parse_instant(entry["at"])
         if instant is None:
@@ -189,25 +199,38 @@ def validate_record(record: Any) -> tuple[list[Finding], dict[str, Any]]:
     # rounds and cap
     rounds = record["rounds"]
     cap = record["round_cap"]
-    if not isinstance(rounds, int) or rounds < 0:
+    if not is_int(rounds) or rounds < 0:
         f(Finding("shape", "$.rounds", "must be a non-negative integer"))
         rounds = len(rounds_seen)
     elif rounds != len(rounds_seen):
         f(Finding("round_count", "$.rounds", f"rounds={rounds} but findings_returned records {len(rounds_seen)}"))
-    if not isinstance(cap, int) or cap < 1:
+    if not is_int(cap) or cap < 1:
         f(Finding("shape", "$.round_cap", "must be a positive integer"))
         cap = 2
+    # W4: a deferral recorded AT the cap is the warp working (the run ends in
+    # two rounds with the non-floor findings filed). Only a run that went PAST
+    # the cap owes a named cause on top of the disposition refs.
+    has_disposition = "round_cap_disposition" in record
+    has_cause = "third_round_cause" in record
     disposition = record.get("round_cap_disposition")
     cause = record.get("third_round_cause")
-    if rounds > cap:
-        if not isinstance(disposition, list) or not disposition or not all(
+    if has_disposition and (
+        not isinstance(disposition, list)
+        or not disposition
+        or not all(
             isinstance(d, str) and (d.startswith("https://") or d.startswith("tie-break:")) for d in disposition
-        ):
+        )
+    ):
+        f(Finding("round_cap", "$.round_cap_disposition", "disposition is a non-empty list of issue URLs or tie-break refs"))
+    if has_cause and (not isinstance(cause, str) or not cause.strip()):
+        f(Finding("round_cap", "$.third_round_cause", "a named cause is non-empty text"))
+    if rounds > cap:
+        if not has_disposition:
             f(Finding("round_cap", "$.round_cap_disposition", "rounds past the cap need issue URLs or a tie-break ref"))
-        if not isinstance(cause, str) or not cause.strip():
+        if not has_cause:
             f(Finding("round_cap", "$.third_round_cause", "rounds past the cap need a named cause"))
-    elif disposition not in (None, []) or cause not in (None, ""):
-        f(Finding("round_cap", "$.round_cap_disposition", "disposition or cause given although the cap was not exceeded"))
+    elif has_cause:
+        f(Finding("round_cap", "$.third_round_cause", "a named cause belongs to a run that went past the cap"))
 
     # warps
     warps = record["warps_used"]
@@ -229,6 +252,9 @@ def validate_record(record: Any) -> tuple[list[Finding], dict[str, Any]]:
         elif warp not in SANCTIONED_WARPS:
             f(Finding("unknown_warp", "$.warps_used", f"{warp} is not a sanctioned warp; the owner adds warps, records do not"))
     transfers = record.get("role_transfers")
+    if "role_transfers" in record and not isinstance(transfers, list):
+        f(Finding("shape", "$.role_transfers", "must be a list of transfers"))
+        transfers = []
     if "W5" in warps and not transfers:
         f(Finding("w5_transfer", "$.role_transfers", "W5 names the transfer it made"))
     if transfers and "W5" not in warps:
@@ -249,17 +275,21 @@ def validate_record(record: Any) -> tuple[list[Finding], dict[str, Any]]:
         return findings, verdict
     target = pace["target_minutes"]
     source = pace["target_source"]
-    if not isinstance(target, int) or target < 1:
+    if not is_int(target) or target < 1:
         f(Finding("shape", "$.pace.target_minutes", "must be a positive integer"))
         target = None
     if source not in TARGET_SOURCES:
         f(Finding("enum", "$.pace.target_source", f"must be one of {TARGET_SOURCES}"))
     elif source == "default":
-        expected = DEFAULT_TARGETS.get(category, {}).get(run.get("size_class"))
+        expected = (
+            DEFAULT_TARGETS.get(category, {}).get(size_class)
+            if isinstance(category, str) and isinstance(size_class, str)
+            else None
+        )
         if expected is None:
             f(Finding("target_source", "$.pace.target_source", f"{category} has no default target; the owner sets it"))
         elif target is not None and target != expected:
-            f(Finding("target_source", "$.pace.target_minutes", f"default for {category}/{run.get('size_class')} is {expected}"))
+            f(Finding("target_source", "$.pace.target_minutes", f"default for {category}/{size_class} is {expected}"))
     elif not isinstance(pace.get("target_source_ref"), str) or not pace["target_source_ref"].strip():
         f(Finding("target_source", "$.pace.target_source_ref", f"{source} target needs its source ref"))
 
@@ -280,7 +310,7 @@ def validate_record(record: Any) -> tuple[list[Finding], dict[str, Any]]:
             f(Finding("enum", f"{path}.phase", f"must be one of {PHASES}"))
         if sink["cause"] not in CAUSES:
             f(Finding("enum", f"{path}.cause", f"must be one of {CAUSES}"))
-        if not isinstance(sink["minutes"], int) or sink["minutes"] < 1:
+        if not is_int(sink["minutes"]) or sink["minutes"] < 1:
             f(Finding("shape", f"{path}.minutes", "must be a positive integer"))
         else:
             attributed += sink["minutes"]
@@ -363,6 +393,11 @@ def selftest() -> int:
         r["run"]["reviewers"] = ["agent-review-b"]
     expect_pass("W5 with named transfer", _mutate(base, w5_with_transfer), "on_pace")
 
+    def deferral_at_cap(r: dict[str, Any]) -> None:
+        r["clock"]["findings_returned"][1]["finding_count"] = 1
+        r["round_cap_disposition"] = ["https://github.com/example-org/example-repo/issues/7"]
+    expect_pass("W4 deferral recorded at the cap", _mutate(base, deferral_at_cap), "on_pace")
+
     def voided(r: dict[str, Any]) -> None:
         r["warps_used"].append("skip_ship_validation")
         r["void"] = "validation on the shipping head was skipped"
@@ -429,13 +464,37 @@ def selftest() -> int:
         r["warps_used"].append("W5")
     expect_code("W5 without transfer", _mutate(base, w5_without_transfer), "w5_transfer")
 
+    def cause_without_excess(r: dict[str, Any]) -> None:
+        r["third_round_cause"] = "none"
+    expect_code("cause without a third round", _mutate(base, cause_without_excess), "round_cap")
+
+    def transfers_not_a_list(r: dict[str, Any]) -> None:
+        r["role_transfers"] = 0
+    expect_code("role_transfers is not a list", _mutate(base, transfers_not_a_list), "shape")
+
+    def boolean_minutes(r: dict[str, Any]) -> None:
+        r["time_sinks"][0]["minutes"] = True
+    expect_code("boolean minutes", _mutate(base, boolean_minutes), "shape")
+
+    def impossible_date(r: dict[str, Any]) -> None:
+        r["clock"]["finished"] = "2026-02-30T09:00:00Z"
+    expect_code("well-formed impossible date", _mutate(base, impossible_date), "instant")
+
+    def profile_not_a_string(r: dict[str, Any]) -> None:
+        r["run"]["loop_profile"] = []
+    expect_code("loop_profile is not a string", _mutate(base, profile_not_a_string), "enum")
+
+    def category_not_a_string(r: dict[str, Any]) -> None:
+        r["run"]["category"] = []
+    expect_code("category is not a string", _mutate(base, category_not_a_string), "enum")
+
     def unknown_key(r: dict[str, Any]) -> None:
         r["deadline"] = "2026-01-01T10:00:00Z"
     expect_code("unknown key", _mutate(base, unknown_key), "unknown_key")
 
     for failure in failures:
         print(f"SELFTEST FAIL {failure}")
-    total = 21
+    total = 28
     print(f"helix split self-controls: {total - len(failures)}/{total} passed")
     return 1 if failures else 0
 

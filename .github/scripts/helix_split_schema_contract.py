@@ -72,13 +72,41 @@ def main() -> int:
     expect_schema(bad_cause, valid=False, label="schema rejects an unlisted cause")
     expect_validator(bad_cause, valid=False, label="validator rejects an unlisted cause")
 
-    # The schema is a structural floor: a banned glitch is a plain string to
-    # the schema and only the validator voids the run. This asymmetry is the
-    # reason the validator, not the schema, is authoritative.
+    # Type contract: the schema types these fields and the validator must not
+    # let Python's looser notions (bool is an int, 0 is falsey) admit them.
+    transfers_zero = copy.deepcopy(sample)
+    transfers_zero["role_transfers"] = 0
+    expect_schema(transfers_zero, valid=False, label="schema rejects role_transfers=0")
+    expect_validator(transfers_zero, valid=False, label="validator rejects role_transfers=0")
+
+    boolean_minutes = copy.deepcopy(sample)
+    boolean_minutes["time_sinks"][0]["minutes"] = True
+    expect_schema(boolean_minutes, valid=False, label="schema rejects boolean minutes")
+    expect_validator(boolean_minutes, valid=False, label="validator rejects boolean minutes")
+
+    profile_list = copy.deepcopy(sample)
+    profile_list["run"]["loop_profile"] = []
+    expect_schema(profile_list, valid=False, label="schema rejects a list loop_profile")
+    expect_validator(profile_list, valid=False, label="validator rejects a list loop_profile")
+
+    deferral_at_cap = copy.deepcopy(sample)
+    deferral_at_cap["round_cap_disposition"] = ["https://github.com/example-org/example-repo/issues/7"]
+    expect_schema(deferral_at_cap, valid=True, label="schema admits a deferral at the cap")
+    expect_validator(deferral_at_cap, valid=True, label="validator admits a deferral at the cap (W4)")
+
+    # The schema is a structural floor. Two inputs it cannot judge are left to
+    # the validator, which is why the validator, not the schema, is
+    # authoritative: a banned glitch is a plain string to the schema, and a
+    # well-formed instant naming a day that does not exist passes the pattern.
     banned = copy.deepcopy(sample)
     banned["warps_used"].append("stale_signoff")
     expect_schema(banned, valid=True, label="schema floor admits a banned glitch string")
     expect_validator(banned, valid=False, label="validator rejects a banned glitch without void")
+
+    impossible_date = copy.deepcopy(sample)
+    impossible_date["clock"]["finished"] = "2026-02-30T09:00:00Z"
+    expect_schema(impossible_date, valid=True, label="schema pattern admits an impossible calendar date")
+    expect_validator(impossible_date, valid=False, label="validator rejects an impossible calendar date")
 
     print(f"helix split schema contract: {controls} controls passed")
     return 0

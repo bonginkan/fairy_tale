@@ -6,7 +6,10 @@ from __future__ import annotations
 import argparse
 import gzip
 import json
+import subprocess
+import sys
 import tarfile
+import tempfile
 from pathlib import Path
 
 import fairy_tale_residency_check
@@ -39,6 +42,7 @@ PACKAGE_REFERENCE_FILES = [
     ROOT / "docs" / "skill-budget" / "routing-eval-20260702.json",
     ROOT / "examples" / "workflow-scoreboard.json",
     ROOT / "examples" / "helix-blocker-triage.json",
+    ROOT / "examples" / "helix-run-split.json",
     ROOT / "examples" / "implementation-contract-closure.json",
     ROOT / "examples" / "implementation-contract-closure.inventory.txt",
     ROOT / "examples" / "workflow-scoreboard" / "benchmark-baseline.json",
@@ -56,6 +60,7 @@ PACKAGE_REFERENCE_FILES = [
     ROOT / "schemas" / "fairy-fusion-trigger-decision.schema.json",
     ROOT / "schemas" / "e3-execution-ledger.schema.json",
     ROOT / "schemas" / "helix-blocker-triage.schema.json",
+    ROOT / "schemas" / "helix-run-split.schema.json",
     ROOT / "schemas" / "implementation-contract-closure.schema.json",
     ROOT / "schemas" / "repo-profile-snapshot.schema.json",
     ROOT / "schemas" / "task-card.schema.json",
@@ -65,6 +70,7 @@ PACKAGE_REFERENCE_FILES = [
     ROOT / "scripts" / "e3_execution.py",
     ROOT / "scripts" / "fairy_fusion_review.py",
     ROOT / "scripts" / "helix_blocker_triage.py",
+    ROOT / "scripts" / "helix_split_check.py",
     ROOT / "scripts" / "implementation_contract_closure.py",
     ROOT / "scripts" / "workflow_scoreboard.py",
 ]
@@ -112,7 +118,45 @@ REQUIRED_CONSUMER_ASSETS = (
     ".fairy/contract-closure-lineage.json",
     "scripts/helix_blocker_triage.py",
     "schemas/helix-blocker-triage.schema.json",
+    "scripts/helix_split_check.py",
+    "schemas/helix-run-split.schema.json",
+    "examples/helix-run-split.json",
 )
+
+#: Commands the process cards tell a package consumer to run, executed from
+#: the extracted tarball. Listing an asset proves it shipped; running the
+#: command proves the card's instruction works where the reader is.
+PACKAGED_CONSUMER_COMMANDS = (
+    (
+        "helix run split record",
+        ("scripts/helix_split_check.py", "validate", "--record", "examples/helix-run-split.json"),
+        "VERDICT ",
+    ),
+)
+
+
+def smoke_packaged_consumers(output: Path, root_name: Path) -> None:
+    with tempfile.TemporaryDirectory() as scratch:
+        with tarfile.open(output, "r:gz") as tar:
+            try:
+                tar.extractall(scratch, filter="data")
+            except TypeError:  # Python < 3.12 has no extraction filter
+                tar.extractall(scratch)
+        package_root = Path(scratch) / root_name
+        for label, argv, expected_stdout in PACKAGED_CONSUMER_COMMANDS:
+            completed = subprocess.run(
+                (sys.executable, *argv),
+                cwd=package_root,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if completed.returncode != 0 or expected_stdout not in completed.stdout:
+                raise SystemExit(
+                    f"packaged consumer does not run from the tarball ({label}): "
+                    f"rc={completed.returncode} stdout={completed.stdout.strip()[-200:]!r} "
+                    f"stderr={completed.stderr.strip()[-200:]!r}"
+                )
 
 
 def validate_package(output: Path, root_name: Path) -> None:
@@ -160,6 +204,7 @@ def build(output: Path) -> Path:
                         if path.is_file():
                             add_file(tar, path, root_name / path.relative_to(ROOT))
     validate_package(output, root_name)
+    smoke_packaged_consumers(output, root_name)
     return output
 
 
