@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/bonginkan/fairy_tale/schemas/helix-run-split.schema.json",
+  "title": "Helix run split record",
+  "description": "Structural floor for a Helix run split record. scripts/helix_split_check.py is authoritative for pace, ordering, warp, and attribution semantics.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "run", "clock", "pace", "warps_used", "rounds", "round_cap", "time_sinks", "void"],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["run_id", "repo", "effort_ref", "category", "size_class", "loop_profile", "implementer", "reviewers"],
+      "properties": {
+        "run_id": { "type": "string", "minLength": 1 },
+        "repo": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" },
+        "effort_ref": { "type": "string", "pattern": "^https://" },
+        "category": { "enum": ["any_percent_dev", "full_percent_prod", "deliverable"] },
+        "size_class": { "enum": ["small", "medium", "large"] },
+        "loop_profile": { "enum": ["two_party", "three_party"] },
+        "implementer": { "type": "string", "minLength": 1 },
+        "reviewers": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "clock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["directive_received", "target_located", "contract_closed", "impl_pushed", "review_requested", "findings_returned", "signoffs_complete", "validation_read", "finished"],
+      "properties": {
+        "directive_received": { "$ref": "#/$defs/instant" },
+        "target_located": { "$ref": "#/$defs/instant_or_not_read" },
+        "contract_closed": { "$ref": "#/$defs/instant_or_not_read_or_na" },
+        "impl_pushed": { "$ref": "#/$defs/instant_or_not_read" },
+        "review_requested": { "$ref": "#/$defs/instant_or_not_read" },
+        "findings_returned": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["round", "at", "finding_count"],
+            "properties": {
+              "round": { "type": "integer", "minimum": 1 },
+              "at": { "$ref": "#/$defs/instant" },
+              "finding_count": { "type": "integer", "minimum": 0 }
+            }
+          }
+        },
+        "signoffs_complete": { "$ref": "#/$defs/instant_or_not_read" },
+        "validation_read": { "$ref": "#/$defs/instant_or_not_read" },
+        "finished": { "$ref": "#/$defs/instant" }
+      }
+    },
+    "pace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_minutes", "target_source"],
+      "properties": {
+        "target_minutes": { "type": "integer", "minimum": 1 },
+        "target_source": { "enum": ["owner", "default", "sum_of_best"] },
+        "target_source_ref": { "type": "string" }
+      }
+    },
+    "warps_used": { "type": "array", "items": { "type": "string" } },
+    "rounds": { "type": "integer", "minimum": 0 },
+    "round_cap": { "type": "integer", "minimum": 1 },
+    "round_cap_disposition": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "third_round_cause": { "type": "string" },
+    "role_transfers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["from", "to", "at", "reason"],
+        "properties": {
+          "from": { "type": "string" },
+          "to": { "type": "string" },
+          "at": { "$ref": "#/$defs/instant" },
+          "reason": { "type": "string" }
+        }
+      }
+    },
+    "time_sinks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["phase", "cause", "minutes"],
+        "properties": {
+          "phase": { "enum": ["locate", "contract", "implement", "review_wait", "review", "fix", "signoff_wait", "validation", "merge", "owner_wait"] },
+          "cause": { "enum": ["reviewer_wait", "owner_wait", "re_verification", "re_derivation", "round_spiral", "ceremony", "tool_latency", "scope_growth", "other"] },
+          "minutes": { "type": "integer", "minimum": 1 },
+          "note": { "type": "string" }
+        }
+      }
+    },
+    "void": {
+      "oneOf": [
+        { "const": false },
+        { "type": "string", "minLength": 1 }
+      ]
+    }
+  },
+  "$defs": {
+    "instant": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$" },
+    "instant_or_not_read": { "anyOf": [ { "$ref": "#/$defs/instant" }, { "const": "not read" } ] },
+    "instant_or_not_read_or_na": { "anyOf": [ { "$ref": "#/$defs/instant" }, { "const": "not read" }, { "const": "not applicable" } ] }
+  }
+}

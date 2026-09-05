@@ -393,7 +393,10 @@ For repo work, use a one-implementer/two-reviewer route:
 1. Intake creates or updates an issue/task with source refs and dedupe evidence.
 2. Implementer creates a scoped branch and plan.
 3. Implementer edits only the target surface.
-4. Focused validation runs before review request.
+4. Review is requested on the pushed head as soon as the edit is complete; the
+   implementation's tests and CI are read once, immediately before the merge,
+   on the head that carries the required sign-offs (Helix Loop Communication
+   Harness). The review is static until then.
 5. Reviewers apply Closure Check, Negative-Space Discovery, and normal code
    review.
 6. Findings are fixed in new increments.

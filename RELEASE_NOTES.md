@@ -1,5 +1,55 @@
 # Release Notes
 
+## 0.2.43 — Elapsed time is usage: the Helix speedrun harness
+
+- **A loop now has a value about time.** The Helix rules already removed the
+  known spirals — contract pre-closure, sign-offs bound to an exact head, the
+  validation that runs once on the shipping head — and a small increment still
+  took hours from directive to dev merge, because nothing in the harness said
+  that this is wrong. It is: elapsed time in a loop is subscription usage, and
+  usage spent waiting for a reviewer who could have been reassigned,
+  re-verifying an unchanged head, re-deriving a known process, or posting
+  ceremony is usage taken from work nobody else can do. The new
+  `Helix Speedrun (RTA) Harness` card states that value in speedrun terms:
+  the category (`any%` = the owner's stated acceptance, a dev merge with the
+  required sign-offs; `100%` only when the owner names production) fixes the
+  finish line, and the route is free within a fixed safety floor. A route
+  that can finish in ten minutes and takes three hours is wrong even though
+  it finished (#128).
+- **The owner pre-approves the warps.** Ten sanctioned shortcuts are listed in
+  the card, each naming the check it skips and what still catches the
+  failure: static-first review, one-round-complete findings with delta
+  re-review, batch fixes, a round cap that defaults non-floor findings to
+  issue deferral, bounded wait then reassignment, recipe replay, consensus
+  merge, measure-where-it-is-fast, a post budget, and parallel read-only prep.
+  Because they are written down, no agent asks for permission it already
+  holds. The round cap says how a two-party loop defers: the blocker triage
+  validator's second-reviewer concurrence cannot arise with one reviewer, so
+  the reviewer files the issue and the owner-facing readback carries it,
+  instead of the loop summoning a third party the owner did not assign. Seven
+  banned glitches void a run whatever its time — unread evidence, a sign-off
+  carried across a changed head, a self sign-off, skipping the one validation
+  on the shipping head, any safety-floor item, silencing the Closure Check or
+  a Tier A companion, and shrinking scope to hit a target.
+- **The clock is read, not felt, and an over-pace run attributes its time.**
+  A `Helix run split record` carries the splits from `directive_received` to
+  `finished`, the warps used, the round count against the cap, and — when the
+  run is over its pace target — where the excess went, by phase and cause.
+  `scripts/helix_split_check.py` is authoritative: splits cannot run
+  backwards, `finished` cannot precede the sign-offs, only the ten warp ids
+  validate, a banned-glitch name voids the run and must say so, rounds past
+  the cap need a disposition ref and a named cause, a `default` target must be
+  the card's default and production has none, and an over-pace run with
+  nothing attributed does not validate. Twenty-one hostile self-controls run
+  under `./fairy validate` (`split-selftest`, `split-sample`), and a Draft
+  2020-12 schema contract runs in CI beside the E3 and blocker contracts.
+- **Two contradictions the design surfaced are closed in the same increment.**
+  The engineering execution route in `loop-engineering-automation.md` still
+  said "focused validation runs before review request", against the Helix
+  card's validate-once rule; it now refers to that rule. The Helix Loop
+  Communication card carries a one-line reference to the speedrun card and
+  gives up none of its checks.
+
 ## 0.2.42 — The tests wait for the verdict, and a port starts as a copy
 
 - **A review loop now says when its tests run.** The Helix card already bound

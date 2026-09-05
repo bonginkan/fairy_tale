@@ -1,7 +1,7 @@
 # SKILL.md section inventory (parity checklist)
 
 - Source: `skills/fairy-tale/SKILL.md`
-- Measured: 21842 bytes / 287 lines / ~5460 est tokens
+- Measured: 22460 bytes / 293 lines / ~5615 est tokens
 - Estimation basis: est tokens = UTF-8 bytes / 4.0 (reporting only); head window enforced at 3.5 bytes/token (densest plausible tokenization); line budget uses exact lines
 - Head window: first 5000 est tokens (= 17500 bytes)
 
@@ -12,9 +12,9 @@ in SKILL.md itself or as an extracted card reachable from the router.
 |---|-------|---------|------|-------------|------------|----------------|
 | 1 | h2 | Non-negotiables | 11 | 891 | 145 | yes |
 | 2 | h2 | Residency Guard | 23 | 1470 | 86 | yes |
-| 3 | h2 | Mode patterns | 31 | 1812 | 1774 | yes |
-| 4 | h2 | Default workflow | 78 | 8907 | 2838 | yes |
-| 5 | h2 | Supporting references | 261 | 20257 | 396 | no |
+| 3 | h2 | Mode patterns | 31 | 1812 | 1836 | yes |
+| 4 | h2 | Default workflow | 79 | 9156 | 2930 | yes |
+| 5 | h2 | Supporting references | 267 | 20875 | 396 | no |
 
 ## References inventory
 
@@ -43,7 +43,8 @@ in SKILL.md itself or as an extracted card reachable from the router.
 | skills/fairy-tale/references/cards/general-e2e-completion-harness.md | 2030 | 30 | 508 |
 | skills/fairy-tale/references/cards/generalization-and-latent-structure-harness-hidden-rules-executable-models-and-tacit-intent.md | 3350 | 50 | 838 |
 | skills/fairy-tale/references/cards/github-is-the-exchange-surface.md | 2151 | 32 | 538 |
-| skills/fairy-tale/references/cards/helix-loop-communication-harness.md | 9054 | 140 | 2264 |
+| skills/fairy-tale/references/cards/helix-loop-communication-harness.md | 9360 | 144 | 2340 |
+| skills/fairy-tale/references/cards/helix-speedrun-rta-harness.md | 7000 | 105 | 1750 |
 | skills/fairy-tale/references/cards/high-signal-research-synthesis.md | 238 | 7 | 60 |
 | skills/fairy-tale/references/cards/implementation-validation-gate.md | 4774 | 71 | 1194 |
 | skills/fairy-tale/references/cards/knowledge-crystallization-harness.md | 415 | 10 | 104 |
@@ -67,7 +68,7 @@ in SKILL.md itself or as an extracted card reachable from the router.
 | skills/fairy-tale/references/genius-methods.md | 30406 | 984 | 7602 |
 | skills/fairy-tale/references/gui-dogfood-qa.md | 9283 | 160 | 2321 |
 | skills/fairy-tale/references/legal-feedback.md | 3474 | 85 | 868 |
-| skills/fairy-tale/references/loop-engineering-automation.md | 27470 | 624 | 6868 |
+| skills/fairy-tale/references/loop-engineering-automation.md | 27700 | 627 | 6925 |
 | skills/fairy-tale/references/openmythos-external-adapter.md | 2952 | 108 | 738 |
 | skills/fairy-tale/references/process/3d-validation-checklist.md | 376 | 15 | 94 |
 | skills/fairy-tale/references/process/accessible-genius-method-record.md | 351 | 16 | 88 |
@@ -96,6 +97,7 @@ in SKILL.md itself or as an extracted card reachable from the router.
 | skills/fairy-tale/references/process/generalization-audit-record.md | 560 | 21 | 140 |
 | skills/fairy-tale/references/process/glass-slipper-gate.md | 244 | 18 | 61 |
 | skills/fairy-tale/references/process/helix-blocker-triage-record.md | 3559 | 74 | 890 |
+| skills/fairy-tale/references/process/helix-run-split-record.md | 1792 | 39 | 448 |
 | skills/fairy-tale/references/process/implementation-contract-closure-record.md | 4915 | 88 | 1229 |
 | skills/fairy-tale/references/process/implicit-contract-discovery-family-router.md | 1652 | 39 | 413 |
 | skills/fairy-tale/references/process/job-automation-delegation-record.md | 1260 | 37 | 315 |
@@ -122,7 +124,7 @@ in SKILL.md itself or as an extracted card reachable from the router.
 | skills/fairy-tale/references/process/ui-affect-checklist.md | 287 | 17 | 72 |
 | skills/fairy-tale/references/process/usage-aware-multi-agent-load-balancer-record.md | 16741 | 289 | 4185 |
 | skills/fairy-tale/references/process/voice-profile-card.md | 237 | 16 | 59 |
-| skills/fairy-tale/references/process.md | 8161 | 60 | 2040 |
+| skills/fairy-tale/references/process.md | 8312 | 61 | 2078 |
 | skills/fairy-tale/references/residency-guard.md | 695 | 18 | 174 |
 | skills/fairy-tale/references/similarity-refactoring-adapter.md | 2885 | 81 | 721 |
 | skills/fairy-tale/references/sources.md | 27183 | 545 | 6796 |

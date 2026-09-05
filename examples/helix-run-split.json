@@ -1,0 +1,59 @@
+{
+  "schema_version": "1.0",
+  "run": {
+    "run_id": "example-any-percent-small",
+    "repo": "example-org/example-repo",
+    "effort_ref": "https://github.com/example-org/example-repo/pull/1",
+    "category": "any_percent_dev",
+    "size_class": "small",
+    "loop_profile": "two_party",
+    "implementer": "agent-impl",
+    "reviewers": [
+      "agent-review"
+    ]
+  },
+  "clock": {
+    "directive_received": "2026-01-01T09:00:00Z",
+    "target_located": "2026-01-01T09:04:00Z",
+    "contract_closed": "not applicable",
+    "impl_pushed": "2026-01-01T09:31:00Z",
+    "review_requested": "2026-01-01T09:31:30Z",
+    "findings_returned": [
+      {
+        "round": 1,
+        "at": "2026-01-01T09:45:00Z",
+        "finding_count": 2
+      },
+      {
+        "round": 2,
+        "at": "2026-01-01T09:52:00Z",
+        "finding_count": 0
+      }
+    ],
+    "signoffs_complete": "2026-01-01T09:52:00Z",
+    "validation_read": "2026-01-01T09:55:00Z",
+    "finished": "2026-01-01T09:58:00Z"
+  },
+  "pace": {
+    "target_minutes": 60,
+    "target_source": "default"
+  },
+  "warps_used": [
+    "W1",
+    "W2",
+    "W3",
+    "W7",
+    "W8",
+    "W9"
+  ],
+  "rounds": 2,
+  "round_cap": 2,
+  "time_sinks": [
+    {
+      "phase": "review_wait",
+      "cause": "reviewer_wait",
+      "minutes": 12
+    }
+  ],
+  "void": false
+}
