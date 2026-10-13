@@ -1,0 +1,12 @@
+{
+  "name": "fairy-tale",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./lp",
+    "html_handling": "force-trailing-slash",
+    "not_found_handling": "none"
+  },
+  "routes": [
+    { "pattern": "fairytale.run", "custom_domain": true }
+  ]
+}
