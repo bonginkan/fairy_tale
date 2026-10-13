@@ -18,6 +18,5 @@ __pycache__/
 .env
 .env.*
 !.env.example
-.vercel
 package.json
 package-lock.json
